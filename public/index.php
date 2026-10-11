@@ -188,6 +188,11 @@ $rutasPermitidas = [
         'update' => ['directivo'],
         'toggleStatus' => ['directivo'],
         'getUbicacion' => ['directivo'],
+        // Reposos del personal (empleados y docentes). Registrarlos es una decisión de
+        // la dirección, así que van como el resto del módulo: solo `directivo`.
+        'registrarReposo' => ['directivo'],
+        'updateReposo' => ['directivo'],
+        'getReposos' => ['directivo'],
         'guardarTitulo' => ['directivo'],
         'guardarInstitucion' => ['directivo']
     ],

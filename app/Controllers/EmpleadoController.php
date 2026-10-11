@@ -16,6 +16,7 @@ use App\Traits\DireccionValidacionTrait;
 use App\Traits\FotoSubidaTrait;
 use App\Traits\InstitucionTrait;
 use App\Traits\PersonaValidacionTrait;
+use App\Traits\ReposoEmpleadoTrait;
 use App\Traits\UbicacionTrait;
 use App\Traits\TextoTrait;
 use App\Traits\ValidacionFechaTrait;
@@ -37,6 +38,11 @@ class EmpleadoController extends CrudController
     use TextoTrait;
     use InstitucionTrait;
     use UbicacionTrait;
+    /* Reposos (registro, edición e historial). Va aparte y no como código suelto aquí porque
+     son tres acciones con su propia transacción, su bitácora y su validación de solapamiento:
+     mezcladas entre store() y update() taparían el flujo de alta de empleados, que es lo que
+     no hay que tocar. Ver ReposoEmpleadoTrait. */
+    use ReposoEmpleadoTrait;
 
     /** Opciones de FotoSubidaTrait para las fotos de empleados.*/
     private const FOTO_EMPLEADO = [
@@ -212,6 +218,34 @@ class EmpleadoController extends CrudController
                 ? null
                 : 'Solo se registran instituciones donde se obtuvo un título.'
         );
+    }
+
+    /**
+ * Registra un reposo del empleado (o del docente, que es un empleado).
+ * Ruta: empleado/registrarReposo (POST, JSON).
+ * Solo directo. Ver ReposoEmpleadoTrait para el flujo completo.
+*/
+    public function registrarReposo(): void
+    {
+        $this->registrarReposoDeEmpleado();
+    }
+
+    /**
+ * Edita un reposo, o lo cierra escribiendo solo la fecha de fin.
+ * Ruta: empleado/updateReposo (POST, JSON).
+*/
+    public function updateReposo(): void
+    {
+        $this->updateReposoDeEmpleado();
+    }
+
+    /**
+ * Historial de reposos de un empleado, para el modal de detalle y el de edición.
+ * Ruta: empleado/getReposos?id_empleado= (GET, JSON).
+*/
+    public function getReposos(): void
+    {
+        $this->getRepososDeEmpleado();
     }
 
     /**

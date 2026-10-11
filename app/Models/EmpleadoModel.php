@@ -24,6 +24,34 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
     protected string $table = 'empleado';
     protected string $primaryKey = 'id_empleado';
 
+    /**
+     * Columnas del reposo para el listado y el detalle.
+     *
+     * Va como constante y no pegado en cada SELECT porque "en reposo" tiene que significar
+     * LO MISMO en las dos consultas, y el día que una se quede atrás el listado muestra que
+     * el empleado descansa y el detalle dice que no, o al revés.
+     *
+     * Se arma fuera de la cadena del SELECT a propósito: un comentario de PHP dentro de un
+     * string doble rompe el archivo, y el comentario es lo que explica por qué se calcula.
+     *
+     * La segunda columna es el motivo del reposo vigente. Solo la usa el detalle: el
+    /**
+     * Columna para el badge del listado y para getById().
+     */
+    private const COLUMNA_EN_REPOSO =
+        ReposoEmpleadoModel::EXPRESION_EN_REPOSO . ' AS en_reposo';
+
+    /**
+     * Motivo del reposo vigente: SOLO se consulta en getById() (detalle).
+     * El listado (getAll) no lo consulta ni lo expone por privacidad (dato de salud).
+     */
+    private const COLUMNA_MOTIVO_REPOSO =
+        '(SELECT r.motivo FROM reposo_empleado r'
+        . '  WHERE r.id_empleado = e.id_empleado'
+        . '    AND r.fecha_inicio <= CURDATE()'
+        . '    AND (r.fecha_fin IS NULL OR r.fecha_fin >= CURDATE())'
+        . '  ORDER BY r.fecha_inicio DESC LIMIT 1) AS motivo_reposo';
+
     private const CAMPOS_EMPLEADO = ['id_cargo', 'fecha_ingreso', 'id_turno'];
 
     public function getAll(array $filters = [], int $page = 1, int $perPage = 10): array
@@ -41,7 +69,8 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
                        p.estado,
                        c.nombre AS cargo,
                        t.nombre AS turno,
-                        COALESCE(nac.nombre, '') AS nacionalidad
+                        COALESCE(nac.nombre, '') AS nacionalidad,
+                        " . self::COLUMNA_EN_REPOSO . "
                 FROM empleado e
                 INNER JOIN persona p ON p.id_persona = e.id_persona
                  LEFT JOIN nacionalidad nac ON nac.id_nacionalidad = p.id_nacionalidad
@@ -111,6 +140,9 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
             /* Vacía y no "Sin nacionalidad": el listado es para leer de un vistazo y
                un texto de relleno por fila distrae de las que sí lo tienen. */
             'nacionalidad'     => (string) ($row['nacionalidad'] ?? ''),
+            /* El badge del listado. La EXISTS devuelve 1/0 y se pasa a bool para que la
+               vista no tenga que compararlo con 1. El motivo no se expone en el listado. */
+            'en_reposo'        => (int) ($row['en_reposo'] ?? 0) === 1,
             'estado'           => strtoupper((string) ($row['estado'] ?? 'INACTIVO')),
             'avatar_tipo'      => $avatar['tipo'],
             'avatar_foto'      => $avatar['foto'],
@@ -291,7 +323,9 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
                        d.punto_referencia,
                        car.nombre AS cargo,
                        t.nombre AS turno,
-                        COALESCE(nac.nombre, '') AS nacionalidad
+                        COALESCE(nac.nombre, '') AS nacionalidad,
+                        " . self::COLUMNA_EN_REPOSO . ",
+                        " . self::COLUMNA_MOTIVO_REPOSO . "
                 FROM empleado e
                 INNER JOIN persona p ON p.id_persona = e.id_persona
                  LEFT JOIN nacionalidad nac ON nac.id_nacionalidad = p.id_nacionalidad
@@ -349,6 +383,9 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
         $stmtFormacion = $this->pdo->prepare('SELECT id_formacion_academica, id_titulo, id_grado_academico, id_institucion, fecha_obtencion FROM formacion_academica WHERE id_empleado = :id ORDER BY fecha_obtencion DESC');
         $stmtFormacion->execute(['id' => $id]);
         $row['formacion'] = $stmtFormacion->fetchAll(PDO::FETCH_ASSOC);
+
+        $row['en_reposo']     = (int) ($row['en_reposo'] ?? 0) === 1;
+        $row['motivo_reposo'] = (string) ($row['motivo_reposo'] ?? '');
 
         return $row;
     }
