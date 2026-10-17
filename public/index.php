@@ -1,7 +1,7 @@
 <?php
 // public/index.php
 // Front Controller: unico punto de entrada del sistema.
-// Gestiona sesiones, rutas, permisos y ejecuta el controlador correspondiente.
+// Gestiona sesiones, rutas, metodos HTTP, permisos, CSRF y ejecuta el controlador correspondiente.
 
 // 1. CONFIGURACION Y SEGURIDAD DE LA SESION
 // Segundos de inactividad permitidos antes de cerrar la sesion (1 hora).
@@ -37,8 +37,16 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // DENY: ningun otro sitio puede mostrar el sistema en un iframe (clickjacking).
 // nosniff: el navegador respeta el tipo de archivo declarado y no lo adivina.
+// Referrer-Policy: las URLs internas no se filtran a otros sitios.
 header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: same-origin');
+
+// HSTS: una vez visto por HTTPS, el navegador se niega a volver a HTTP.
+// Solo se envia si la conexion actual es HTTPS.
+if ($https) {
+    header('Strict-Transport-Security: max-age=31536000');
+}
 
 // Si paso el limite sin actividad, se vacian los datos de la sesion y se cambia el ID.
 // session_regenerate_id(true) tambien borra el archivo de la sesion vieja del servidor.
@@ -53,13 +61,28 @@ if (isset($_SESSION['usuario_id'])) {
     $_SESSION['ultima_actividad'] = time();
 }
 
+// Token CSRF de la sesion. Se crea aqui (despues del posible vaciado por
+// inactividad) para que siempre exista al pintar un formulario.
+if (empty($_SESSION['csrf'])) {
+    $_SESSION['csrf'] = bin2hex(random_bytes(32));
+}
 
-// 1.1 AYUDAS PARA PETICIONES AJAX
+
+// 1.1 AYUDAS PARA PETICIONES AJAX Y CSRF
 // SIGDEUI.enviar() (sigde-ui.js) manda X-Requested-With: XMLHttpRequest. Con esa cabecera
 // se sabe que pide el JS y no el navegador, asi que se responde JSON y no un redirect o HTML.
 function esPeticionAjax(): bool
 {
     return strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest';
+}
+
+// Token CSRF para las vistas (escapar siempre con htmlspecialchars al imprimirlo).
+// En formularios: un input hidden con name="csrf" y como value el resultado de csrfToken().
+// Para el JS: un meta name="csrf-token" en el head con el mismo valor, que sigde-ui.js
+// lee y envia en la cabecera X-CSRF-Token.
+function csrfToken(): string
+{
+    return (string) ($_SESSION['csrf'] ?? '');
 }
 
 // Responde un error en JSON con la forma del resto del sistema (ok, data, mensaje).
@@ -210,11 +233,11 @@ $rutasPermitidas = [
         'index' => ['coordinador', 'directivo'],
         'store' => ['coordinador', 'directivo'],
         'update' => ['coordinador', 'directivo'],
-        /* A cuántos alumnos movería la edición de una estructura (GET).
- El frontend lo pregunta antes de enviar para poder pedir confirmación
- con el número real, en vez de un texto genérico. Solo lectura.*/
+        // A cuántos alumnos movería la edición de una estructura (GET).
+        // El frontend lo pregunta antes de enviar para poder pedir confirmación
+        // con el número real, en vez de un texto genérico. Solo lectura.
         'impacto' => ['coordinador', 'directivo']
-      ],
+    ],
     'teacherAssignment' => [
         'index' => ['coordinador', 'directivo'],
         'asignar' => ['coordinador', 'directivo'],
@@ -223,21 +246,25 @@ $rutasPermitidas = [
         'getDocentesPorEstructura' => ['coordinador', 'directivo']
     ],
     'withdrawal' => [
-        'index'            => ['directivo', 'secretaria'],
-        /* Detalle de una solicitud (GET withdrawal/ver/{id}). Lo consume el botón
- "ver" del listado: devuelve SOLO el cuerpo del modal cuando viene por AJAX.*/
-        'ver'              => ['directivo', 'secretaria'],
+        'index' => ['directivo', 'secretaria'],
+        // Detalle de una solicitud (GET withdrawal/ver/{id}). Lo consume el botón
+        // "ver" del listado: devuelve SOLO el cuerpo del modal cuando viene por AJAX.
+        'ver' => ['directivo', 'secretaria'],
         'buscarEstudiante' => ['secretaria'],
-        'store'            => ['secretaria'],
-        'updateEstado'     => ['directivo']
+        'store' => ['secretaria'],
+        'updateEstado' => ['directivo']
     ],
     'estudiantes' => [
         'index' => ['coordinador', 'secretaria', 'docente'],
+        /* El docente ve la MISMA ficha que los demás, con la misma foto y las mismas
+           pestañas: lo que cambia es el contenido, y esa parte la resuelve la vista
+           según el rol. Lo que sí le queda fuera es el PDF: es un documento oficial
+           con firma del directivo, y no lo genera quien consulta. */
         'show' => ['coordinador', 'secretaria', 'docente'],
-        'exportar' => ['coordinador', 'secretaria', 'docente'],
-        /* Solo secretaria: marcar un recaudo como entregado es un asiento sobre un requisito
- de matrícula, no una consulta. La ruta sola no basta, el turno se comprueba en el
- controlador (secretariaTieneAccesoAEstudiante).*/
+        'exportar' => ['coordinador', 'secretaria'],
+        // Solo secretaria: marcar un recaudo como entregado es un asiento sobre un requisito
+        // de matrícula, no una consulta. La ruta sola no basta, el turno se comprueba en el
+        // controlador (secretariaTieneAccesoAEstudiante).
         'guardarRecaudos' => ['secretaria']
     ],
     'inscripciones' => [
@@ -254,23 +281,101 @@ $rutasPermitidas = [
         'graduar' => ['secretaria'],
         'graduarMasivo' => ['secretaria']
     ],
-      'ratificacion' => [
-          'index'            => ['secretaria'],
-          'ver'              => ['secretaria'],
-          'datosEstudiante'  => ['secretaria'],
-          'getUbicacion'     => ['secretaria'],
-          'buscarPersona'    => ['secretaria'],
-      /* Secciones del grado en el año destino (JSON). La recarga el selector de
- sección del modal cuando la secretaria cambia el grado.*/
-          'secciones'        => ['secretaria'],
-          'ratificar'        => ['secretaria'],
-          'updateEstudiante' => ['secretaria']
-      ],
+    'ratificacion' => [
+        'index' => ['secretaria'],
+        'ver' => ['secretaria'],
+        'datosEstudiante' => ['secretaria'],
+        'getUbicacion' => ['secretaria'],
+        'buscarPersona' => ['secretaria'],
+        // Secciones del grado en el año destino (JSON). La recarga el selector de
+        // sección del modal cuando la secretaria cambia el grado.
+        'secciones' => ['secretaria'],
+        'ratificar' => ['secretaria'],
+        'updateEstudiante' => ['secretaria']
+    ],
+    'configuracionInstitucional' => [
+        'index'              => ['admin'],
+        'guardar'            => ['admin'],
+        'subirImagen'        => ['admin'],
+        'quitarImagen'       => ['admin'],
+        'verPrivado'         => ['admin'],
+        'restablecerOficial' => ['admin'],
+    ],
+    'constancias' => [
+        'index'       => ['admin', 'directivo', 'secretaria'],
+        'estudio'     => ['admin', 'directivo', 'secretaria'],
+        'inscripcion' => ['admin', 'directivo', 'secretaria'],
+        'verPrueba'   => ['admin', 'directivo', 'secretaria'],
+        'emitir'      => ['admin', 'directivo', 'secretaria'],
+    ],
+    'resultadoAcademico' => [
+        'index'            => ['admin', 'directivo', 'coordinador', 'docente'],
+        'seccion'          => ['admin', 'directivo', 'coordinador', 'docente'],
+        /* Quién escribe literales está cerrado por rol y es solo de dos:
+           el DOCENTE propone y el DIRECTIVO confirma. El coordinador es de
+           consulta y el admin no escribe, así que ninguno de los dos tiene
+           estas rutas. Verificar que un rol no escriba no puede depender de
+           que no le pintemos el botón: la ruta es la primera barrera. */
+        'guardarPropuesta' => ['docente'],
+        'confirmar'        => ['directivo'],
+    ],
+    'listadosSeccion' => [
+        'index'        => ['admin', 'directivo', 'coordinador'],
+        'descargarPdf' => ['admin', 'directivo', 'coordinador'],
+        'exportarCsv'  => ['admin', 'directivo', 'coordinador'],
+    ],
+    // Listados del docente (GET) y enlace de WhatsApp de su sección (POST). La sección sale de la sesión.
+    'docente' => [
+        'nomina'                => ['docente'],
+        'guardarEnlaceWhatsapp' => ['docente'],
+    ],
+];
+
+// 7.1 ACCIONES QUE SOLO ACEPTAN POST
+// Toda accion que crea, modifica, cierra o elimina datos va aqui. Con esto no se
+// puede disparar escribiendo la URL ni desde un <img>/<a> en otro sitio (405).
+// Si una accion nueva escribe en la BD y no se agrega aqui, queda abierta por GET.
+$accionesSoloPost = [
+    'auth' => ['authenticate', 'updatePassword', 'requestRecovery'],
+    'cuentaUsuario' => ['store', 'update', 'toggleStatus'],
+    'recuperacionAcceso' => ['updateEstado', 'resetPassword'],
+    'catalogo' => ['store', 'update', 'toggleStatus'],
+    'empleado' => ['store', 'update', 'toggleStatus', 'guardarTitulo', 'guardarInstitucion', 'registrarReposo', 'updateReposo'],
+    'academicYear' => ['store', 'update', 'iniciar', 'cerrar', 'reabrir'],
+    'academicStructure' => ['store', 'update'],
+    'teacherAssignment' => ['asignar', 'actualizar', 'retirar'],
+    'withdrawal' => ['store', 'updateEstado'],
+    'estudiantes' => ['guardarRecaudos'],
+    'inscripciones' => ['store', 'guardarInstitucion'],
+    'egresos' => ['graduar', 'graduarMasivo'],
+    'ratificacion' => ['ratificar', 'updateEstudiante'],
+    /* emitir genera un PDF a partir de datos del alumno. No escribe nada en la
+       base, pero dispararlo desde un enlace significa que cualquiera puede poner
+       la URL en un href y obtener el documento. La pantalla de estudios ya lo
+       enviaba por POST; la de inscripción se igualó para poder exigirlo aquí. */
+    'constancias'  => ['emitir'],
+    'configuracionInstitucional' => ['guardar', 'subirImagen', 'quitarImagen', 'restablecerOficial'],
+    'resultadoAcademico' => ['guardarPropuesta', 'confirmar'],
+    'docente' => ['guardarEnlaceWhatsapp'],
 ];
 
 if (!isset($rutasPermitidas[$controller][$action])) {
     http_response_code(404);
     die("<h1>404 - Ruta no encontrada</h1>");
+}
+
+$metodo = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$exigePost = in_array($action, $accionesSoloPost[$controller] ?? [], true);
+
+if ($exigePost && $metodo !== 'POST') {
+    header('Allow: POST');
+
+    if (esPeticionAjax()) {
+        responderJson(405, 'Método no permitido.');
+    }
+
+    http_response_code(405);
+    die("<h1>405 - Método no permitido</h1>");
 }
 
 
@@ -329,6 +434,27 @@ if ($esRutaPublica && isset($_SESSION['usuario_id'])) {
 }
 
 
+// 8.1 VERIFICACION CSRF
+// Todo POST en rutas privadas debe traer el token de la sesion, en el campo 'csrf' (formularios)
+// o en la cabecera X-CSRF-Token (AJAX). Va despues de la autenticacion para que
+// una sesion expirada responda 'sesion_expirada' y no un error de token.
+// hash_equals compara en tiempo constante (evita ataques por temporizacion).
+// En rutas publicas de autenticacion no se bloquea si el usuario aun no ha iniciado sesion.
+if ($metodo === 'POST' && !$esRutaPublica) {
+    $esperado = (string) ($_SESSION['csrf'] ?? '');
+    $recibido = (string) ($_POST['csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
+
+    if ($esperado === '' || $recibido === '' || !hash_equals($esperado, $recibido)) {
+        if (esPeticionAjax()) {
+            responderJson(403, 'Tu sesión de formulario venció. Recarga la página e inténtalo de nuevo.', 'csrf_invalido');
+        }
+
+        http_response_code(403);
+        die("<h1>403 - Token de seguridad inválido</h1>");
+    }
+}
+
+
 // 9. INYECCION DE PARAMETROS EN $_GET
 // El primer parametro de la ruta queda en $_GET['id'], los siguientes en param2, param3...
 // Se guardan sin escapar: htmlspecialchars se aplica al imprimir en la vista.
@@ -340,7 +466,11 @@ if (!empty($parametrosRuta)) {
 }
 
 
-// 10. AUTOLOADER CON NAMESPACES
+// 10. AUTOLOADER CON NAMESPACES Y COMPOSER VENDOR
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+}
+
 // Convierte App\Controllers\XController en app/Controllers/XController.php
 // y lo carga solo cuando se necesita, sin require manuales.
 spl_autoload_register(function ($clase) {
