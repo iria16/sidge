@@ -46,19 +46,36 @@ class EstudiantesController extends CrudController
         $idsAnios = array_map(static fn (array $anio): int => (int) $anio['id'], $anios);
         $anioSolicitado = (int) ($_GET['anio'] ?? 0);
 
-        if (!in_array($anioSolicitado, $idsAnios, true)) {
+        if ($docente !== null) {
+            /* El docente únicamente puede consultar el año escolar activo. Y grado,
+               sección y estado no le sirven de filtro: su lista ya está acotada a la
+               sección que da, así que los tres valores le son constantes. Esos tres
+               selectores no se le pintan, y aquí además se ignoran si vinieran en la
+               URL, para que un enlace guardado de secretaría no le devuelva una
+               lista vacía. */
             $anioActivo = $model->getAnioEscolarActivoId();
-            $anioSolicitado = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
-                ? $anioActivo
-                : ($idsAnios[0] ?? 0);
+            $anioSolicitado = $anioActivo !== null ? (int) $anioActivo : 0;
+            $grado   = '';
+            $seccion = '';
+            $estado  = '';
+        } else {
+            if (!in_array($anioSolicitado, $idsAnios, true)) {
+                $anioActivo = $model->getAnioEscolarActivoId();
+                $anioSolicitado = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
+                    ? $anioActivo
+                    : ($idsAnios[0] ?? 0);
+            }
+            $grado   = trim($_GET['grado'] ?? '');
+            $seccion = trim($_GET['seccion'] ?? '');
+            $estado  = trim($_GET['estado'] ?? '');
         }
 
         return [
             'q'       => trim($_GET['q'] ?? ''),
             'anio'    => (string) $anioSolicitado,
-            'grado'   => trim($_GET['grado'] ?? ''),
-            'seccion' => trim($_GET['seccion'] ?? ''),
-            'estado'  => trim($_GET['estado'] ?? ''),
+            'grado'   => $grado,
+            'seccion' => $seccion,
+            'estado'  => $estado,
             'id_turno' => $turno === null ? '' : (string) $turno,
             // Solo el docente se acota a sus estructuras; para los demás queda en null y
             // el modelo no aplica ninguna restricción adicional.
@@ -70,13 +87,24 @@ class EstudiantesController extends CrudController
     {
         $model = $this->modelo();
         $turno = $this->turnoSecretariaActual();
+        $aniosEscolares = $model->getAniosEscolares($turno);
+        $esDocente = $this->docenteActualId() !== null;
+        if ($esDocente) {
+            $anioActivoId = $model->getAnioEscolarActivoId();
+            $aniosEscolares = array_values(array_filter(
+                $aniosEscolares,
+                static fn (array $a): bool => (int) $a['id'] === (int) $anioActivoId
+            ));
+        }
+
         return [
             'stats'          => $model->getStats($filters),
             'estudiantes'    => $items,
             // Para que una tabla vacía se entienda: un docente sin asignaciones no ve a
             // nadie por diseño, no por un error de la consulta.
-            'sinAsignaciones' => $this->docenteActualId() !== null && $model->getEstructurasDocente($this->docenteActualId()) === [],
-            'aniosEscolares' => $model->getAniosEscolares($turno),
+            'sinAsignaciones' => $esDocente && $model->getEstructurasDocente($this->docenteActualId()) === [],
+            'aniosEscolares' => $aniosEscolares,
+            'esDocente'      => $esDocente,
             'grados'         => $model->getGrados(),
             'secciones'      => $model->getSecciones(),
         ];
@@ -91,11 +119,18 @@ class EstudiantesController extends CrudController
             $anios = $model->getAniosEscolares($turno);
             $idsAnios = array_map(static fn (array $anio): int => (int) $anio['id'], $anios);
             $anioId = (int) ($_GET['anio'] ?? 0);
-            if (!in_array($anioId, $idsAnios, true)) {
+            $esDocente = $this->docenteActualId() !== null;
+
+            if ($esDocente) {
                 $anioActivo = $model->getAnioEscolarActivoId();
-                $anioId = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
-                    ? $anioActivo
-                    : ($idsAnios[0] ?? 0);
+                $anioId = $anioActivo !== null ? (int) $anioActivo : 0;
+            } else {
+                if (!in_array($anioId, $idsAnios, true)) {
+                    $anioActivo = $model->getAnioEscolarActivoId();
+                    $anioId = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
+                        ? $anioActivo
+                        : ($idsAnios[0] ?? 0);
+                }
             }
             $anioSeleccionado = $anioId;
 
@@ -107,8 +142,27 @@ class EstudiantesController extends CrudController
                 $this->redirect('index');
             }
             $historialAcademico = $model->getHistorialAcademico($id, $turno);
+            if ($esDocente) {
+                /* Del historial el docente ve el recorrido del alumno por la escuela.
+                   La justificación de un salto de grado explica una situación familiar
+                   que no le corresponde conocer, así que esa línea no se le da. */
+                $historialAcademico = array_values(array_filter(
+                    $historialAcademico,
+                    static fn (array $reg): bool => ($reg['estado_anio'] ?? '') === 'ACTIVO'
+                ));
+                foreach ($historialAcademico as &$registro) {
+                    unset($registro['motivo_anticipo']);
+                }
+                unset($registro);
+            }
             $ratificacionModel = new RatificacionModel($this->conexion());
-            $datosEditables = $ratificacionModel->getEstudianteEditable($id) ?? [];
+            /* Tallas y ficha médica solo se piden para quien tiene la pestaña de
+               Información Adicional. El docente no la tiene, así que ni se consulta:
+               es la salud del alumno y los documentos de identidad de los terceros,
+               que no le corresponden. */
+            $datosEditables = $esDocente
+                ? []
+                : ($ratificacionModel->getEstudianteEditable($id) ?? []);
 $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
               $estados = $catFamiliares['estados'];
             /* El catálogo de nacionalidades va también acá, y no solo en inscripción y
@@ -121,12 +175,16 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
  y los autorizados a retirar el alumno. Son dos preguntas distintas —a quién se le informa y
  quién puede recogerlo— y en una sola lista un autorizado por confianza, como el transporte,
  parecía un pariente. Una misma persona puede estar en los dos.*/
-              $vinculados              = $ratificacionModel->getFamiliaresParaExpediente($id);
+$vinculados              = $ratificacionModel->getFamiliaresParaExpediente($id, $esDocente);
               $familiaresNucleo        = $vinculados['nucleo'];
               $autorizadosParaRetiro   = $vinculados['autorizados'];
             /* Recaudos: catálogo activo contra lo que el representante entregó. Se leen del
- modelo de inscripción y no del de ratificación porque el trait vive allí.*/
-            $recaudos = (new InscripcionesModel($this->conexion()))->getRecaudosDeEstudiante($id);
+ modelo de inscripción y no del de ratificación porque el trait vive allí. Al
+ docente no se le piden: viven en la pestaña de Información Adicional, que él no
+ tiene. */
+              $recaudos = $esDocente
+                  ? []
+                  : (new InscripcionesModel($this->conexion()))->getRecaudosDeEstudiante($id);
             $puedeEditar = sigde_rol_clave($_SESSION['rol'] ?? '') === 'secretaria';
 
             require __DIR__ . "/../Views/{$this->viewPath}/show.php";
@@ -217,11 +275,18 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
             $anios = $model->getAniosEscolares($turno);
             $idsAnios = array_map(static fn (array $anio): int => (int) $anio['id'], $anios);
             $anioId = (int) ($_GET['anio'] ?? 0);
-            if (!in_array($anioId, $idsAnios, true)) {
+            $esDocente = $this->docenteActualId() !== null;
+
+            if ($esDocente) {
                 $anioActivo = $model->getAnioEscolarActivoId();
-                $anioId = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
-                    ? $anioActivo
-                    : ($idsAnios[0] ?? 0);
+                $anioId = $anioActivo !== null ? (int) $anioActivo : 0;
+            } else {
+                if (!in_array($anioId, $idsAnios, true)) {
+                    $anioActivo = $model->getAnioEscolarActivoId();
+                    $anioId = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
+                        ? $anioActivo
+                        : ($idsAnios[0] ?? 0);
+                }
             }
 
             $estudiante = $id > 0 && $anioId > 0
@@ -232,17 +297,26 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
                 throw new \RuntimeException('No se encontró el expediente solicitado.');
             }
 
-$ratificacionModel = new RatificacionModel($this->conexion());
-              $datosEditables = $ratificacionModel->getEstudianteEditable($id) ?? [];
-    /* La lista completa se conserva para buscar al representante del membrete, y además llegan los
- dos grupos separados para el reporte. Es la MISMA separación que muestra la pantalla, hecha
- con getFamiliaresParaExpediente() para que el PDF no pueda apartarse de la ficha digital:
- si mañana cambia la regla, cambia en los dos sitios o en ninguno.*/
-              $familiares            = $ratificacionModel->getFamiliares($id);
-              $vinculados            = $ratificacionModel->getFamiliaresParaExpediente($id);
-              $familiaresNucleo      = $vinculados['nucleo'];
-              $autorizadosParaRetiro = $vinculados['autorizados'];
+            $ratificacionModel = new RatificacionModel($this->conexion());
+            $datosEditables = $ratificacionModel->getEstudianteEditable($id) ?? [];
+            /* El representante del membrete se busca en el grupo NÚCLEO, no en la lista
+               completa: es la MISMA separación que muestra la pantalla, hecha con
+               getFamiliaresParaExpediente() para que el PDF no pueda apartarse de la ficha
+               digital. Antes también se pasaba $familiares (la lista completa) y el view la
+               recorría para buscar al representante; ahora no hace falta, porque el núcleo
+               siempre incluye al legal (getFamiliaresParaExpediente entra con
+               $esRepresentante || ...). Quitar esa llamada NO ahorra una consulta: el
+               método de abajo llama a getFamiliares() por dentro. */
+            $vinculados            = $ratificacionModel->getFamiliaresParaExpediente($id);
+            $familiaresNucleo      = $vinculados['nucleo'];
+            $autorizadosParaRetiro = $vinculados['autorizados'];
             $historialAcademico = $model->getHistorialAcademico($id, $turno);
+            if ($esDocente) {
+                $historialAcademico = array_values(array_filter(
+                    $historialAcademico,
+                    static fn (array $reg): bool => ($reg['estado_anio'] ?? '') === 'ACTIVO'
+                ));
+            }
             $schoolLogoDataUri = $this->imagenPublicaDataUri('/assets/img/logo.png');
             $ministryLogoDataUri = $this->imagenPublicaDataUri(
                 '/assets/img/Ministerio-de-Educacion-Venezuela-Logo-Vector.svg-.png',

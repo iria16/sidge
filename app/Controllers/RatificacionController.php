@@ -218,20 +218,34 @@ class RatificacionController extends CrudController
 
         // 3. Manejo de excepciones (try...catch)
         try {
+            $encuesta = [
+                'tiene_canaima'      => !empty($_POST['tiene_canaima']) ? 1 : 0,
+                'serial_canaima'     => trim((string) ($_POST['serial_canaima'] ?? '')),
+                'tiene_ingreso_sige' => !empty($_POST['tiene_ingreso_sige']) ? 1 : 0,
+                'fecha_ingreso_sige' => trim((string) ($_POST['fecha_ingreso_sige'] ?? '')),
+                'motivo_sige'        => trim((string) ($_POST['motivo_sige'] ?? '')),
+                'repite_grado'       => !empty($_POST['repite_grado']) ? 1 : 0,
+            ];
+
+            if ($encuesta['tiene_canaima'] === 1 && $encuesta['serial_canaima'] === '') {
+                $fallar('Debe ingresar el serial del equipo Canaima si posee uno.', 400);
+            }
+
             $destino = [
-                'id_grado'   => (int) ($_POST['id_grado'] ?? 0),
-                'id_seccion' => (int) ($_POST['id_seccion'] ?? 0),
-                'id_turno'   => (int) ($_POST['id_turno'] ?? 0),
+                'id_grado'        => (int) ($_POST['id_grado'] ?? 0),
+                'id_seccion'      => (int) ($_POST['id_seccion'] ?? 0),
+                'id_turno'        => (int) ($_POST['id_turno'] ?? 0),
                 /* El año al que se ratifica. Viaja en un campo oculto porque el modal
- lo muestra bloqueado, y un input readonly que además fuera el único
- campo no se puede leer en el servidor: readonly deshabilita la
- edición pero no impide que se falsee en el POST. El modelo lo
- contrasta con el año destino que él resuelve y lo usa para elegir la
- estructura, así que un año manipulado no llega a escribir nada.*/
+                   lo muestra bloqueado, y un input readonly que además fuera el único
+                   campo no se puede leer en el servidor: readonly deshabilita la
+                   edición pero no impide que se falsee en el POST. El modelo lo
+                   contrasta con el año destino que él resuelve y lo usa para elegir la
+                   estructura, así que un año manipulado no llega a escribir nada.*/
                 'id_anio_escolar' => (int) ($_POST['id_anio_escolar'] ?? 0),
                 // Justificación del salto de grado. El modelo decide si hace falta: solo es
                 // obligatoria cuando se adelante más de un nivel.
-                'motivo'     => trim((string) ($_POST['motivo'] ?? '')),
+                'motivo'          => trim((string) ($_POST['motivo'] ?? '')),
+                'encuesta'        => $encuesta,
             ];
             $turnoSecretaria = $this->turnoSecretariaActual();
             if ($turnoSecretaria !== null && $destino['id_turno'] !== $turnoSecretaria) {
