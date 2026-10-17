@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+/* La redacción del domicilio la pone Support\Direccion, la misma del modal de
+   detalle del empleado y de Listados y Actas. Antes estaba escrita aquí tramo
+   por tramo, y con un campo faltando cada copia se desincronizaba. */
+use App\Support\Direccion;
+
 $valor = static fn ($value): string => trim((string) ($value ?? ''));
 $hayDato = static fn ($value): bool => $valor($value) !== '';
 $hayDatos = static function (array $valores) use ($hayDato): bool {
@@ -53,10 +58,21 @@ $documento = trim(
 $etiquetaDocumento = str_starts_with(strtoupper((string) ($estudiante['tipo_documento'] ?? '')), 'CE')
     ? 'Cédula escolar'
     : 'Cédula de identidad';
+/* Se busca en $familiaresNucleo, el MISMO grupo que recorre la ficha digital
+   (consulta_academica/estudiantes/show.php). Antes este bucle recorría la lista
+   completa de getFamiliares(): con la separación actual —el representante entra
+   siempre al núcleo, y también pueden entrar otros con parentesco informado— los
+   dos recorridos eran distintos, y si algún día una ficha tuviera dos personas
+   marcadas como representante, el PDF podía tomar una y la pantalla otra. Que sea
+   el mismo grupo es lo que impide que el membrete y la ficha discrepan.
+
+   No hace falta comprobar estado_relacion: getFamiliares(), que es la base de los
+   dos grupos, ya devuelve solo relaciones VIGENTES (WHERE pe.estado_relacion =
+   ACTIVO), de modo que lo que llega aquí está activo por construcción. La ausencia
+   de representante se comprueba más abajo, contra la regla de negocio. */
 $representante = null;
-foreach ($familiares as $familiar) {
-    if (!empty($familiar['representante_principal'])
-        && ($familiar['estado_relacion'] ?? '') !== 'INACTIVO') {
+foreach ($familiaresNucleo as $familiar) {
+    if (!empty($familiar['representante_principal'])) {
         $representante = $familiar;
         break;
     }
@@ -64,29 +80,36 @@ foreach ($familiares as $familiar) {
 $telefonoRepresentante = $representante
     ? trim(($representante['contacto']['codigo'] ?? '') . ' ' . ($representante['contacto']['numero'] ?? ''))
     : '';
-$direccionRepresentante = $representante
-    ? implode(', ', array_filter([
-        $representante['direccion']['calle'] ?? '',
-        $hayDato($representante['direccion']['casa'] ?? '')
-            ? 'Casa nro ' . $valor($representante['direccion']['casa'])
-            : '',
-        $hayDato($representante['direccion']['sector'] ?? '')
-            ? 'Sector ' . $valor($representante['direccion']['sector'])
-            : '',
-        $hayDato($representante['direccion']['parroquia_nombre'] ?? '')
-            ? 'Parroquia ' . $valor($representante['direccion']['parroquia_nombre'])
-            : '',
-        $hayDato($representante['direccion']['municipio_nombre'] ?? '')
-            ? 'Municipio ' . $valor($representante['direccion']['municipio_nombre'])
-            : '',
-        $hayDato($representante['direccion']['estado_nombre'] ?? '')
-            ? 'Estado ' . $valor($representante['direccion']['estado_nombre'])
-            : '',
-        $hayDato($representante['direccion']['referencia'] ?? '')
-            ? 'Punto de referencia ' . $valor($representante['direccion']['referencia'])
-            : '',
-    ], static fn ($parte): bool => trim((string) $parte) !== ''))
-    : '';
+/* El estudiante es menor de edad: la dirección que vale es la de su representante
+   legal, no la suya. Por eso NO hay respaldo a la dirección del alumno —que además
+   casi nunca está registrada— y por eso getById() no se molestó en traer los tres
+   niveles de la suya. La redacción la pone Support\Direccion, igual que en el modal
+   de detalle del empleado y en Listados y Actas.
+
+   Que no haya representante es una INCUMPLIMIENTO de la regla de negocio, no un
+   caso válido: el alta la rechaza (FamiliaresModelTrait, guarda 1) y tampoco se
+   puede desvincular al último (guarda 2). Aquí se corta en vez de imprimir el campo
+   en blanco, porque esto es un documento oficial: un membrete con la Dirección
+   vacía se le entrega a la familia sin que nadie note que faltaba, y esa falla no
+   se descubre hasta que un retiro o una constancia tienen que resolverse con ese
+   expediente. El require está dentro del try del Controller, así que esto sale como
+   error controlado y no como un PDF con un hueco. */
+if ($representante === null) {
+    throw new \RuntimeException(sprintf(
+        'El estudiante %s no tiene representante legal activo, y la regla de negocio exige uno. '
+        . 'No se emite el expediente sin él: revisa los familiares del alumno.',
+        (string) ($estudiante['nombre'] ?? ('id ' . ($estudiante['id'] ?? 'desconocido')))
+    ));
+}
+$direccion = Direccion::linea(
+    $representante['direccion']['calle'] ?? null,
+    $representante['direccion']['casa'] ?? null,
+    $representante['direccion']['sector'] ?? null,
+    $representante['direccion']['parroquia_nombre'] ?? null,
+    $representante['direccion']['municipio_nombre'] ?? null,
+    $representante['direccion']['estado_nombre'] ?? null,
+    $representante['direccion']['referencia'] ?? null
+);
 $fechaNacimiento = '';
 $edad = '';
 if (!empty($estudiante['fecha_nacimiento'])) {
@@ -121,19 +144,6 @@ if ((int) ($estudiante['id_estado_nacimiento'] ?? 0) > 0) {
     }
     $lugarNacimiento = trim(implode(', ', array_filter($partes, static fn ($p): bool => trim((string) $p) !== '')));
 }
-$direccionEstudiante = trim(implode(', ', array_filter([
-    $estudiante['calle_avenida'] ?? '',
-    $hayDato($estudiante['nro_casa_apto'] ?? '')
-        ? 'Casa nro ' . $valor($estudiante['nro_casa_apto'])
-        : '',
-    $hayDato($estudiante['sector_urbanizacion'] ?? '')
-        ? 'Sector ' . $valor($estudiante['sector_urbanizacion'])
-        : '',
-    $hayDato($estudiante['punto_referencia'] ?? '')
-        ? 'Punto de referencia ' . $valor($estudiante['punto_referencia'])
-        : '',
-], static fn ($parte): bool => trim((string) $parte) !== '')));
-$direccion = $direccionRepresentante !== '' ? $direccionRepresentante : $direccionEstudiante;
 $telefono = $telefonoRepresentante !== ''
     ? $telefonoRepresentante
     : (string) ($estudiante['telefono'] ?? '');

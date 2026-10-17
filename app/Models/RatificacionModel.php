@@ -84,7 +84,9 @@ class RatificacionModel extends BaseModel implements Listable
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
                 LEFT JOIN turno t ON t.id_turno = ea.id_turno
                 LEFT JOIN matricula sig ON sig.id_estudiante = est.id_estudiante
-                                     AND sig.id_anio_escolar = $anio";
+                                     AND sig.id_anio_escolar = $anio
+                LEFT JOIN resultado_academico ra ON ra.id_estudiante = est.id_estudiante
+                                                AND ra.id_anio_escolar = m.id_anio_escolar";
     }
 
     /**
@@ -161,6 +163,9 @@ class RatificacionModel extends BaseModel implements Listable
                        COALESCE(s.nombre, 'Sin sección') AS seccion,
                        COALESCE(t.nombre, 'Sin turno') AS turno,
                        a.nombre_periodo AS anio_actual,
+                       ra.estado_resultado AS resultado_academico_estado,
+                       ra.literal AS resultado_academico_literal,
+                       ra.id_grado_destino AS resultado_id_grado_destino,
                        " . self::EXPRESION_ESTADO . " AS estado,
                        " . self::EXPRESION_FLUJO . " AS flujo
                 FROM estudiante est
@@ -188,11 +193,30 @@ class RatificacionModel extends BaseModel implements Listable
             $row['id_seccion']   = (int) $row['id_seccion'];
             $row['id_turno']     = (int) $row['id_turno'];
 
-    /* El próximo grado se calcula SIEMPRE con el grado que cursa cada estudiante, no solo cuando
- ya está ratificado: sin matrícula en el año en curso el grado es el que venía de origen.*/
-            $siguiente = $this->siguienteGradoConId($grados, $row['id_grado']);
-            $row['proximo_grado']    = $siguiente['nombre'] ?? '—';
-            $row['proximo_grado_id'] = (int) ($siguiente['id'] ?? 0);
+            // Lógica de grado sugerido según resultado académico confirmado del año cursado:
+            $estadoRes  = $row['resultado_academico_estado'] ?? null;
+            $literalRes = $row['resultado_academico_literal'] ?? null;
+
+            if ($estadoRes === 'PROMOVIDO') {
+                $siguiente = $this->siguienteGradoConId($grados, $row['id_grado']);
+                $row['proximo_grado']    = $siguiente['nombre'] ?? '—';
+                $row['proximo_grado_id'] = (int) ($siguiente['id'] ?? 0);
+                $row['promocion_badge']  = 'Promovido' . ($literalRes ? " ({$literalRes})" : '');
+                $row['promocion_tipo']   = 'promovido';
+            } elseif ($estadoRes === 'NO_PROMOVIDO') {
+                // Alumno no promovido: sugerir el MISMO grado (repitiente)
+                $row['proximo_grado']    = ($row['grado_actual'] ?? 'Grado actual') . ' (Repite)';
+                $row['proximo_grado_id'] = (int) $row['id_grado'];
+                $row['promocion_badge']  = 'No promovido' . ($literalRes ? " ({$literalRes})" : '');
+                $row['promocion_tipo']   = 'no_promovido';
+            } else {
+                // Pendiente de confirmación o sin resultado
+                $siguiente = $this->siguienteGradoConId($grados, $row['id_grado']);
+                $row['proximo_grado']    = $siguiente['nombre'] ?? '—';
+                $row['proximo_grado_id'] = (int) ($siguiente['id'] ?? 0);
+                $row['promocion_badge']  = 'Pendiente';
+                $row['promocion_tipo']   = 'pendiente';
+            }
         }
         return $rows;
     }
@@ -393,12 +417,12 @@ class RatificacionModel extends BaseModel implements Listable
     /**
  * Datos del estudiante para el modal de edición, y también su id_persona.
  *
- * Devuelve persona + talla + ficha en una sola consulta con subconsultas
- * escalares, que es lo mismo que se hace al escribir (ver
- * actualizarEstudiante()): leer y escribir tienen que mirar los mismos
- * campos, o el formulario se llenaría con unos y se guardarían otros.
- *
- * @return array<string, mixed>|null null si el estudiante no existe.
+* Devuelve persona + talla + ficha en una sola consulta con subconsultas
+     * escalares, que es lo mismo que se hace al escribir (ver
+     * actualizarEstudiante()): leer y escribir tienen que mirar los mismos
+     * campos, o el formulario se llenaría con unos y se guardarían otros.
+     *
+     * @return array<string, mixed>|null null si el estudiante no existe.
 */
     public function getEstudianteEditable(int $idEstudiante): ?array
     {
@@ -597,8 +621,7 @@ class RatificacionModel extends BaseModel implements Listable
         return [
             'parentescos'         => $this->pdo->query("SELECT nombre FROM parentesco WHERE estado = 'ACTIVO' ORDER BY nombre")
                                 ->fetchAll(\PDO::FETCH_COLUMN),
-            'niveles_instruccion' => $this->pdo->query("SELECT nombre FROM nivel_instruccion WHERE estado = 'ACTIVO' ORDER BY nombre")
-                                ->fetchAll(\PDO::FETCH_COLUMN),
+            'niveles_instruccion' => [],
             'ocupaciones'         => $this->pdo->query("SELECT nombre FROM ocupacion WHERE estado = 'ACTIVO' ORDER BY nombre")
                                 ->fetchAll(\PDO::FETCH_COLUMN),
             /* Los estados se devuelven con la clave `id_estado`, que es como los entrega
@@ -633,7 +656,7 @@ class RatificacionModel extends BaseModel implements Listable
                     p.id_estado_nacimiento, p.id_parroquia_nacimiento, p.id_nacionalidad,
                      COALESCE(nac.nombre, "") AS nacionalidad,
                     COALESCE(pa.nombre, "") AS parentesco,
-                    COALESCE(ni.nombre, "") AS nivel_instruccion,
+                    "" AS nivel_instruccion,
                     COALESCE(oc.nombre, "") AS ocupacion,
                     pe.es_representante_legal, pe.es_autorizado_retiro,
                     pe.vive_con_estudiante, pe.estado_relacion,
@@ -648,8 +671,7 @@ es.nombre AS estado_nombre
                 FROM persona_estudiante pe
                   INNER JOIN persona p ON p.id_persona = pe.id_persona
                     LEFT JOIN parentesco pa         ON pa.id_parentesco         = pe.id_parentesco
-                    LEFT JOIN nivel_instruccion ni ON ni.id_nivel_instruccion = pe.id_nivel_instruccion
-                    LEFT JOIN ocupacion oc         ON oc.id_ocupacion         = pe.id_ocupacion
+                    LEFT JOIN ocupacion oc         ON oc.id_ocupacion         = pe.id_profesion
                     LEFT JOIN contacto c           ON c.id_persona            = pe.id_persona
                     LEFT JOIN direccion d          ON d.id_persona            = pe.id_persona
                     LEFT JOIN parroquia pq         ON pq.id_parroquia         = d.id_parroquia
@@ -770,9 +792,13 @@ es.nombre AS estado_nombre
  * alta de inscripción. Aquí solo se agrupa lo que ya vino, sin volver a
  * consultar: la separación es de lectura, no un dato nuevo de la base.
  *
+ * @param bool $soloDocente true cuando quien lee es un docente: se quitan el
+ *        documento de identidad y la nacionalidad de los terceros. Del alumno se
+ *        los conserva porque son suyos y la ficha se los muestra.
+ *
  * @return array{nucleo: array<int, array<string,mixed>>, autorizados: array<int, array<string,mixed>>}
 */
-    public function getFamiliaresParaExpediente(int $idEstudiante): array
+    public function getFamiliaresParaExpediente(int $idEstudiante, bool $soloDocente = false): array
     {
         $nucleo = [];
         $autorizados = [];
@@ -798,6 +824,24 @@ es.nombre AS estado_nombre
             if ((int) ($familiar['autorizado_retiros'] ?? 0) === 1) {
                 $autorizados[] = $familiar;
             }
+        }
+
+        /* El docente verifica de quién se trata mirando a la persona y con su
+           teléfono. El documento de un tercero y su nacionalidad no le hacen falta
+           para nada de lo que hace aquí, así que se quitan de la lista completa en
+           lugar de confiar en que la vista no los imprima. */
+        if ($soloDocente) {
+            foreach ([&$nucleo, &$autorizados] as &$grupo) {
+                foreach ($grupo as &$persona) {
+                    unset(
+                        $persona['tipo_documento'],
+                        $persona['numero_documento'],
+                        $persona['nacionalidad']
+                    );
+                }
+                unset($persona);
+            }
+            unset($grupo);
         }
 
         return ['nucleo' => $nucleo, 'autorizados' => $autorizados];
@@ -979,7 +1023,13 @@ es.nombre AS estado_nombre
                     tr_d.nombre AS turno_destino,
                     md.id_matricula AS id_matricula_destino,
                     md.tipo AS tipo_destino,
-                    md.fecha_matricula AS fecha_ratificacion
+                    md.fecha_matricula AS fecha_ratificacion,
+                    er.tiene_canaima,
+                    er.serial_canaima,
+                    er.tiene_ingreso_sige,
+                    er.fecha_ingreso_sige,
+                    er.motivo_sige,
+                    er.repite_grado
                FROM estudiante est
                INNER JOIN persona p ON p.id_persona = est.id_persona
                LEFT JOIN matricula md ON md.id_estudiante = est.id_estudiante
@@ -990,6 +1040,7 @@ es.nombre AS estado_nombre
                LEFT JOIN grado gd    ON gd.id_grado   = ed.id_grado
                LEFT JOIN seccion sd  ON sd.id_seccion = ed.id_seccion
                LEFT JOIN turno tr_d  ON tr_d.id_turno = ed.id_turno
+               LEFT JOIN encuesta_ratificacion er ON er.id_matricula = md.id_matricula
               WHERE est.id_estudiante = :id
               LIMIT 1"
         );
@@ -1024,6 +1075,14 @@ es.nombre AS estado_nombre
                 ? (int) $fila['id_matricula_destino'] : null,
             'fecha_ratificacion'  => $fila['fecha_ratificacion']
                 ? date('d/m/Y', strtotime((string) $fila['fecha_ratificacion'])) : '—',
+
+            'tiene_canaima'       => isset($fila['tiene_canaima']) && $fila['tiene_canaima'] !== null ? (int) $fila['tiene_canaima'] : null,
+            'serial_canaima'      => $fila['serial_canaima'] ?? null,
+            'tiene_ingreso_sige'  => isset($fila['tiene_ingreso_sige']) && $fila['tiene_ingreso_sige'] !== null ? (int) $fila['tiene_ingreso_sige'] : null,
+            'fecha_ingreso_sige'  => !empty($fila['fecha_ingreso_sige'])
+                ? date('d/m/Y', strtotime((string) $fila['fecha_ingreso_sige'])) : null,
+            'motivo_sige'         => $fila['motivo_sige'] ?? null,
+            'repite_grado'        => isset($fila['repite_grado']) && $fila['repite_grado'] !== null ? (int) $fila['repite_grado'] : null,
 
             'es_ratificacion'     => $esRatif,
             'estado'              => $esRatif ? 'ratificado' : 'inscrito',
@@ -1186,6 +1245,16 @@ es.nombre AS estado_nombre
                 'motivo'     => $motivoAnticipo !== '' ? mb_substr($motivoAnticipo, 0, 200) : null,
             ]);
 
+            /* La encuesta va en la MISMA transacción y no en un INSERT aparte después
+               del commit. Si el commit fallara y la encuesta quedara, el expediente tendría una
+               respuesta de un proceso que no ocurrió; y si la encuesta fallara, la matrícula
+               quedaría sin los datos que la explican. Las dos cosas o ninguna. Por eso se hace
+               justo después del INSERT de la matrícula y antes del commit.*/
+            $this->guardarEncuesta(
+                (int) $this->pdo->lastInsertId(),
+                $destino['encuesta'] ?? null
+            );
+
             /* Dentro de la transacción, como en el resto de procesos: si el commit falla,
  el rollback se lleva también la bitácora y no queda constancia de una
  ratificación que no ocurrió. El mensaje incluye el origen y el destino, así
@@ -1224,6 +1293,54 @@ es.nombre AS estado_nombre
             error_log('RatificacionModel::ratificar(): ' . $e->getMessage());
             return ['ok' => false, 'mensaje' => 'No se pudo registrar la ratificación.'];
         }
+    }
+
+    /**
+     * Registra las respuestas de la encuesta de ratificación (Canaima, SIGE, repitencia)
+     * vinculadas a la nueva matrícula.
+     */
+    private function guardarEncuesta(int $idMatricula, ?array $encuesta): void
+    {
+        if ($idMatricula <= 0 || $encuesta === null) {
+            return;
+        }
+
+        $tieneCanaima = !empty($encuesta['tiene_canaima']) ? 1 : 0;
+        $serialCanaima = ($tieneCanaima && isset($encuesta['serial_canaima']) && trim((string) $encuesta['serial_canaima']) !== '')
+            ? mb_substr(trim((string) $encuesta['serial_canaima']), 0, 50)
+            : null;
+
+        $tieneSige = !empty($encuesta['tiene_ingreso_sige']) ? 1 : 0;
+        $fechaSige = ($tieneSige && !empty($encuesta['fecha_ingreso_sige']))
+            ? trim((string) $encuesta['fecha_ingreso_sige'])
+            : null;
+        $motivoSige = ($tieneSige && isset($encuesta['motivo_sige']) && trim((string) $encuesta['motivo_sige']) !== '')
+            ? mb_substr(trim((string) $encuesta['motivo_sige']), 0, 200)
+            : null;
+
+        $repiteGrado = !empty($encuesta['repite_grado']) ? 1 : 0;
+
+        $stmt = $this->pdo->prepare(
+            'INSERT INTO encuesta_ratificacion (
+                id_matricula, tiene_canaima, serial_canaima,
+                tiene_ingreso_sige, fecha_ingreso_sige, motivo_sige,
+                repite_grado
+            ) VALUES (
+                :id_matricula, :tiene_canaima, :serial_canaima,
+                :tiene_ingreso_sige, :fecha_ingreso_sige, :motivo_sige,
+                :repite_grado
+            )'
+        );
+
+        $stmt->execute([
+            'id_matricula'       => $idMatricula,
+            'tiene_canaima'      => $tieneCanaima,
+            'serial_canaima'     => $serialCanaima,
+            'tiene_ingreso_sige' => $tieneSige,
+            'fecha_ingreso_sige' => $fechaSige,
+            'motivo_sige'        => $motivoSige,
+            'repite_grado'       => $repiteGrado,
+        ]);
     }
 
     /** Nombre y cédula de un estudiante, para que la bitácora se lea sin consultar.*/
@@ -1372,12 +1489,19 @@ es.nombre AS estado_nombre
         if ($gradoElegido > 0) {
             $gradoDestino = $gradoElegido;
         } else {
-            $grados = $this->gradosOrdenados();
-            $siguiente = $this->siguienteGradoConId($grados, $matricula['id_grado']);
-            if (!$siguiente) {
-                return null;
+            // Consultar si el estudiante tiene resultado académico NO_PROMOVIDO en su matrícula de origen
+            $resAcad = (new ResultadoAcademicoModel($this->pdo))->getResultadoUltimoAnio((int) $matricula['id_estudiante'], (int) $this->anioEnCurso());
+            if ($resAcad && $resAcad['estado_resultado'] === ResultadoAcademicoModel::ESTADO_NO_PROMOVIDO) {
+                // Si no fue promovido, debe repetir el mismo grado
+                $gradoDestino = (int) $matricula['id_grado'];
+            } else {
+                $grados = $this->gradosOrdenados();
+                $siguiente = $this->siguienteGradoConId($grados, $matricula['id_grado']);
+                if (!$siguiente) {
+                    return null;
+                }
+                $gradoDestino = (int) $siguiente['id'];
             }
-            $gradoDestino = (int) $siguiente['id'];
         }
 
         $seccion = (int) ($destino['id_seccion'] ?? 0) ?: (int) $matricula['id_seccion'];

@@ -40,6 +40,7 @@ $breadcrumbs = [
 $stats          = $stats ?? ['total' => 0, 'activos' => 0, 'inactivos' => 0];
 $estudiantes    = $estudiantes ?? [];
 $aniosEscolares = $aniosEscolares ?? [];
+$esDocente      = !empty($esDocente);
 $grados         = $grados ?? [];
 $secciones      = $secciones ?? [];
 $filters        = $filters ?? ['q' => '', 'anio' => '', 'grado' => '', 'seccion' => '', 'estado' => ''];
@@ -61,6 +62,12 @@ ob_start();
 ?>
 
 <!-- ---------- Stat cards ---------- -->
+<?php /* Los tres contadores (total, activos, inactivos) son de administración del
+         alumnado: le dicen a secretaría y a dirección cómo está la matrícula en el
+         conjunto del turno. Al docente no le sirven —su lista es una sola sección y
+         todos están activos, así que los tres números le dirían siempre lo mismo—,
+         de modo que no se le pintan. El resto de la pantalla es igual para todos. */
+if (!$esDocente): ?>
 <div class="row g-3 mb-4">
   <?php
     $statCards = [
@@ -104,6 +111,7 @@ ob_start();
     </div>
   <?php endforeach; ?>
 </div>
+<?php endif; ?>
 
 <?php
   // ---------- Data panel: filtros ----------
@@ -113,26 +121,43 @@ ob_start();
 
   ob_start();
   ?>
-  <label for="filtroAnio" class="visually-hidden">Año escolar</label>
+<label for="filtroAnio" class="visually-hidden">Año escolar</label>
   <div class="data-panel__year-filter">
     <i class="bi bi-calendar3" aria-hidden="true"></i>
-    <select id="filtroAnio" name="anio" class="form-select" aria-label="Filtrar por año escolar">
-      <?php if (!$aniosEscolares): ?>
-        <option value="0" selected disabled>No hay años escolares para este turno</option>
-      <?php endif; ?>
-      <?php foreach ($aniosEscolares as $anio): ?>
-        <option value="<?= (int) $anio['id'] ?>" <?= (string) ($filters['anio'] ?? '') === (string) $anio['id'] ? 'selected' : '' ?>>
+    <?php if ($esDocente): ?>
+      <?php /* El año del docente no se elige: es el activo, siempre. Como texto y no
+             como un <select> deshabilitado, que parece un control y no lo es. El
+             oculto mantiene el parámetro en la URL para el resto de la página. */ ?>
+      <span class="data-panel__year-fixed" id="filtroAnio">
+        <?php foreach ($aniosEscolares as $anio): ?>
           <?= htmlspecialchars($anio['nombre']) ?>
-        </option>
-      <?php endforeach; ?>
-    </select>
+        <?php endforeach; ?>
+      </span>
+      <input type="hidden" name="anio" value="<?= htmlspecialchars((string) ($filters['anio'] ?? '')) ?>">
+    <?php else: ?>
+      <select id="filtroAnio" name="anio" class="form-select" aria-label="Filtrar por año escolar">
+        <?php if (!$aniosEscolares): ?>
+          <option value="0" selected disabled>No hay años escolares para este turno</option>
+        <?php endif; ?>
+        <?php foreach ($aniosEscolares as $anio): ?>
+          <option value="<?= (int) $anio['id'] ?>" <?= (string) ($filters['anio'] ?? '') === (string) $anio['id'] ? 'selected' : '' ?>>
+            <?= htmlspecialchars($anio['nombre']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    <?php endif; ?>
   </div>
 
+  <?php /* Grado, sección y estado solo se pintan fuera del rol docente: ahí son
+         filtros de verdad. El docente tiene una sola sección y sus alumnos están
+         todos activos, así que esos selectores solo podrían devolverle una lista
+         vacía. Se queda con el buscador, que sí le sirve. */ ?>
+  <?php if (!$esDocente): ?>
   <label for="filtroGrado" class="visually-hidden">Grado</label>
   <select id="filtroGrado" name="grado" class="form-select" aria-label="Filtrar por grado">
     <option value="">Grado (Todos)</option>
     <?php foreach ($grados as $grado): ?>
-      <option value="<?= htmlspecialchars($grado) ?>" <?= (string) ($filters['grado'] ?? '') === (string) $grado ? 'selected' : '' ?>>
+      <option value="<?= htmlspecialchars($grado) ?>" <?= (string) ($filters['grado'] ?? '') === $grado ? 'selected' : '' ?>>
         <?= htmlspecialchars($grado) ?>
       </option>
     <?php endforeach; ?>
@@ -142,7 +167,7 @@ ob_start();
   <select id="filtroSeccion" name="seccion" class="form-select" aria-label="Filtrar por sección">
     <option value="">Sección (Todas)</option>
     <?php foreach ($secciones as $seccion): ?>
-      <option value="<?= htmlspecialchars($seccion) ?>" <?= (string) ($filters['seccion'] ?? '') === (string) $seccion ? 'selected' : '' ?>>
+      <option value="<?= htmlspecialchars($seccion) ?>" <?= (string) ($filters['seccion'] ?? '') === $seccion ? 'selected' : '' ?>>
         <?= htmlspecialchars($seccion) ?>
       </option>
     <?php endforeach; ?>
@@ -156,6 +181,7 @@ ob_start();
     <option value="egresado" <?= ($filters['estado'] ?? '') === 'egresado' ? 'selected' : '' ?>>Egresado</option>
     <option value="inactivo" <?= ($filters['estado'] ?? '') === 'inactivo' ? 'selected' : '' ?>>Inactivo (retirado o egresado)</option>
   </select>
+  <?php endif; ?>
   <?php
   $panelFilters           = ob_get_clean();
   $panelSearchName        = 'q';
@@ -163,15 +189,22 @@ ob_start();
   $panelSearchPlaceholder = 'Buscar por nombre o cédula...';
 
   // ---------- Data panel: colgroup ----------
-  // Anchos fijos: Estudiante / Cédula / Grado y sección / Estado / Acción.
+  /* Los <col> tienen que coincidir con las columnas que realmente se pintan y
+     sumar 100%. Con el colgroup viejo (cinco columnas al 85%) el docente, que ve
+     cuatro, se quedaba con un 15% de tabla vacía al final: la quinta <col> no
+     tenía celda a la que repartirse y el hueco aparecía a la derecha.
+
+     El nombre del alumno es la columna larga y se lleva el ancho mayor; el estado
+     y la acción son cortas y no necesitan tanto. */
+  $anchosColumnas = $esDocente
+      ? ['46%', '24%', '12%', '18%']                      // Nombre / Cédula / Estado / Acción
+      : ['38%', '20%', '16%', '10%', '16%'];               // + Grado y sección
   ob_start();
   ?>
   <colgroup>
-    <col style="width: 30%;">
-    <col style="width: 20%;">
-    <col style="width: 20%;">
-    <col style="width: 15%;">
-    <col style="width: 15%;">
+    <?php foreach ($anchosColumnas as $ancho): ?>
+      <col style="width: <?= $ancho ?>;">
+    <?php endforeach; ?>
   </colgroup>
   <?php
   $panelColgroup = ob_get_clean();
@@ -180,11 +213,17 @@ ob_start();
   ob_start();
   ?>
   <tr>
-    <th scope="col">Nombre completo</th>
-    <th scope="col">Cédula escolar</th>
-    <th scope="col">Grado y sección</th>
-    <th scope="col" class="text-center">Estado</th>
-    <th scope="col" class="text-center">Acciones</th>
+      <th scope="col">Nombre completo</th>
+      <th scope="col">Cédula escolar</th>
+      <?php /* «Grado y sección» no se le pinta al docente: su lista ya es de una sola
+               sección, la que da, así que la columna repite en cada fila lo mismo que
+               ya dice el encabezado de la página. Es la misma razón por la que sus
+               filtros de grado y sección no existen. */ ?>
+      <?php if (!$esDocente): ?>
+        <th scope="col">Grado y sección</th>
+      <?php endif; ?>
+      <th scope="col" class="text-center">Estado</th>
+      <th scope="col" class="text-center data-panel__col-acciones">Acciones</th>
   </tr>
   <?php
   $panelTableHead = ob_get_clean();
@@ -202,7 +241,7 @@ ob_start();
     $estadoColor   = ['activo' => 'active', 'retirado' => 'inactive', 'egresado' => 'info'][$estadoCiclo] ?? 'active';
   ?>
     <tr class="<?= $esInactivo ? 'is-muted' : '' ?>">
-      <td>
+      <td data-label="">
         <div class="avatar-group">
           <?php
             $avatarSize     = 'md';
@@ -215,20 +254,24 @@ ob_start();
           <span class="avatar-group__name"><?= htmlspecialchars($estudiante['nombre'] ?? '') ?></span>
         </div>
       </td>
-      <td class="text-support"><?= htmlspecialchars($estudiante['cedula_escolar'] ?? '') ?></td>
-      <td class="text-support">
-        <?= htmlspecialchars($estudiante['grado'] ?? 'Sin grado') ?>
-        <div class="text-support small">Sección <?= htmlspecialchars($estudiante['seccion'] ?? '—') ?></div>
-      </td>
-      <td class="text-center">
+      <td class="text-support" data-label="Cédula escolar"><?= htmlspecialchars($estudiante['cedula_escolar'] ?? '') ?></td>
+      <?php if (!$esDocente): ?>
+        <td class="text-support" data-label="Grado y sección">
+          <?= htmlspecialchars($estudiante['grado'] ?? 'Sin grado') ?>
+          <div class="text-support small">Sección <?= htmlspecialchars($estudiante['seccion'] ?? '—') ?></div>
+        </td>
+      <?php endif; ?>
+      <td class="text-center" data-label="Estado">
         <?php
           $badgeLabel  = $estadoEtiqueta;
           $badgeStatus = $estadoColor;
           include __DIR__ . '/../../components/status-badge.php';
         ?>
       </td>
-      <td class="text-center">
+      <td class="text-center data-panel__col-acciones" data-label="">
         <div class="data-panel__actions">
+          <?php /* Con su texto: la columna tiene el ancho que le da el <col> y no se desborda
+                   (ver _data-panel.scss), así que el botón se lee entero. */ ?>
           <a href="<?= BASE_URL ?>estudiantes/show/<?= (int) ($estudiante['id'] ?? 0) ?>?anio=<?= (int) ($filters['anio'] ?? 0) ?>"
              class="btn btn-sm btn-outline-primary" title="Ver expediente">
             <i class="bi bi-eye me-1" aria-hidden="true"></i>Ver expediente
@@ -239,7 +282,7 @@ ob_start();
   <?php endforeach; ?>
   <?php if (!$estudiantes): ?>
     <tr>
-      <td colspan="5" class="text-center text-support py-4">
+      <td colspan="<?= $esDocente ? 4 : 5 ?>" class="text-center text-support py-4">
         <?php /* Sin asignaciones la tabla vacía es la respuesta correcta, no un fallo: el
  docente solo ve lo que tiene asignado. Se dice explícitamente para que no
  parezca que el listado no funciona.*/ ?>
@@ -259,10 +302,15 @@ ob_start();
 
   $panelSummary = 'Mostrando ' . (int) $paginacion['desde'] . ' a ' . (int) $paginacion['hasta']
                 . ' de ' . number_format((int) $paginacion['total'], 0, ',', '.') . ' expedientes';
-  $panelPagination = [
+$panelPagination = [
       'pagina_actual' => $paginacion['pagina_actual'],
       'total_paginas' => $paginacion['total_paginas'],
   ];
+  /* Las columnas de esta tabla se dimensionan por su contenido (ver
+     _data-panel.scss). En pantalla angosta se conserva la tabla con barra
+     horizontal, que es como se comportan el resto de listas de la aplicación:
+     el contenedor .data-panel__body ya tiene overflow-x. */
+  $panelTableClass = 'data-panel__table--contenido';
 
   include __DIR__ . '/../../components/data-panel.php';
 ?>

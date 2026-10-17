@@ -4,7 +4,11 @@
 */
 $pageTitle       = 'Expediente del Estudiante';
 $pageDescription = 'Información personal y académica del estudiante.';
-$currentNav      = 'estudiantes';
+/* El docente entra a esta misma ficha, con la misma foto y las mismas pestañas. Lo
+   único que cambia es qué hay dentro: la ficha médica y los documentos de identidad
+   de los terceros no son asunto suyo, ni para consultarlos ni para exportarlos. */
+$esDocente        = $esDocente ?? false;
+$currentNav       = $esDocente ? 'mi-seccion-estudiantes' : 'estudiantes';
 $puedeEditar      = $puedeEditar ?? false;
 $estudiante      = $estudiante ?? [];
 $historialAcademico = $historialAcademico ?? [];
@@ -43,7 +47,10 @@ $sexo = match ($estudiante['sexo'] ?? '') {
 $anioId = (int) ($anioSeleccionado ?? 0);
 
 $breadcrumbs = [
-    ['label' => 'Gestión de estudiantes', 'href' => BASE_URL . 'estudiantes/index?anio=' . $anioId],
+    /* "Gestión de estudiantes" es la sección donde vive la secretaría. El docente
+       no entra ahí: su entrada son los estudiantes de su propia sección. */
+    ['label' => $esDocente ? 'Mis estudiantes' : 'Gestión de estudiantes',
+     'href' => BASE_URL . 'estudiantes/index?anio=' . $anioId],
     ['label' => 'Expediente', 'href' => null],
 ];
 
@@ -79,10 +86,15 @@ ob_start();
       $badgeStatus = ['activo' => 'active', 'retirado' => 'inactive', 'egresado' => 'info'][$estadoClave] ?? 'active';
       include __DIR__ . '/../../components/status-badge.php';
     ?>
+      <?php /* El PDF es un documento oficial con espacio para la firma del directivo:
+       lo genera quien administra la matrícula, no quien consulta. El botón desaparece
+       para el docente y la ruta tampoco lo acepta. */ ?>
+    <?php if (!$esDocente): ?>
       <button type="button" class="btn btn-sm btn-light"
               data-bs-toggle="modal" data-bs-target="#modalVistaPreviaExpediente">
       <i class="bi bi-printer me-1" aria-hidden="true"></i>Exportar ficha
     </button>
+    <?php endif; ?>
     <a href="<?= BASE_URL ?>estudiantes/index?anio=<?= $anioId ?>" class="btn btn-sm btn-light">
       <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Volver
     </a>
@@ -114,6 +126,10 @@ ob_start();
       Datos Personales
     </button>
   </li>
+  <?php /* La segunda pestaña no se le muestra al docente. Reúne la ficha médica y
+         los recaudos, que son trámite de matrícula, no asunto suyo. Como el bloque
+         no existe para él, tampoco se arma en el controller: no hay ni consulta. */ ?>
+  <?php if (!$esDocente): ?>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="student-tab-adicional" data-bs-toggle="tab"
             data-bs-target="#student-pane-adicional" type="button" role="tab"
@@ -121,6 +137,7 @@ ob_start();
       Información Adicional
     </button>
   </li>
+  <?php endif; ?>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="student-tab-familiares" data-bs-toggle="tab"
             data-bs-target="#student-pane-familiares" type="button" role="tab"
@@ -182,6 +199,10 @@ ob_start();
         </div>
       </div>
     </section>
+    <?php /* Atajo a la pestaña de Familiares. Al docente no se le muestra: la dirección
+         y el teléfono del representante ya los tiene en «Listados y Actas →
+         Contacto» y en «Direcciones», y en la ficha no viene a añadir nada. */ ?>
+    <?php if (!$esDocente): ?>
     <button type="button"
             class="student-record__contact-shortcut<?= $puedeEditar ? ' student-record__edit' : '' ?>"
             data-id="<?= (int) ($estudiante['id'] ?? 0) ?>"
@@ -196,8 +217,10 @@ ob_start();
         <i class="bi bi-arrow-right" aria-hidden="true"></i>
       </span>
     </button>
+    <?php endif; ?>
       </div>
 
+      <?php if (!$esDocente): ?>
       <div class="tab-pane fade" id="student-pane-adicional" role="tabpanel"
            aria-labelledby="student-tab-adicional" tabindex="0">
     <section class="content-card student-record__section mt-4" id="informacionAdicional" aria-labelledby="informacionAdicionalHeading">
@@ -227,6 +250,11 @@ ob_start();
           </div>
         </div>
       </div>
+      <?php /* Ficha médica: la salud del alumno no se consulta desde el expediente, ni
+       siquiera para ver las alertas. Se pide por el canal que usa la escuela para
+       eso. El bloque no se pinta y además el controller no trae los datos: si
+       alguien revierte esta condición, el dato sigue sin estar en la página. */ ?>
+      <?php if (!$esDocente): ?>
       <div class="student-record__subsection">
         <h3><i class="bi bi-heart-pulse me-2" aria-hidden="true"></i>Ficha médica</h3>
         <div class="student-record__fields">
@@ -256,11 +284,13 @@ ob_start();
           </div>
         </div>
       </div>
+      <?php endif; /* !$esDocente */ ?>
 
       <?php /* Solo lectura. La EDICIÓN de los recaudos es una pestaña del modal "Actualizar
  expediente" (el mismo que usa la ratificación); aquí solo se informa, y sin
- botón, porque quien llega hasta aquí puede ser un docente o un coordinador que
- consulta y no tiene por qué poder alterar documentos de matrícula.*/ ?>
+ botón, porque quien llega hasta aquí puede ser un coordinador que consulta y no
+ tiene por qué poder alterar documentos de matrícula. El docente no llega a esta
+ pestaña, así que el panel siempre enseña la observación completa. */ ?>
       <div class="student-record__subsection">
         <h3><i class="bi bi-folder2-open me-2" aria-hidden="true"></i>Recaudos</h3>
         <?php
@@ -272,6 +302,7 @@ ob_start();
       </div>
     </section>
       </div>
+      <?php endif; /* !$esDocente — cierra la pestaña de Información Adicional */ ?>
 
       <div class="tab-pane fade" id="student-pane-familiares" role="tabpanel"
            aria-labelledby="student-tab-familiares" tabindex="0">
@@ -313,8 +344,10 @@ ob_start();
                 <span><?= htmlspecialchars($familiar['parentesco'] ?: 'Parentesco no indicado') ?></span>
                 <?php /* La nacionalidad se escribe aunque venga vacía, sin texto de
                        relleno: una celda en blanco dice "falta el dato" y un "—"
-                       sería indistinguible de las que sí lo tienen. */ ?>
-                <?php if (($familiar['nacionalidad'] ?? '') !== ''): ?>
+                       sería indistinguible de las que sí lo tienen.
+                       Al docente no se le muestra: es un dato del tercero, no del
+                       alumno, y el controller ya se lo quitó de la lista. */ ?>
+                <?php if (!$esDocente && ($familiar['nacionalidad'] ?? '') !== ''): ?>
                   <span><?= htmlspecialchars((string) $familiar['nacionalidad']) ?></span>
                 <?php endif; ?>
               </div>
@@ -385,7 +418,10 @@ ob_start();
               <div class="student-record__family-details">
                 <strong><?= htmlspecialchars($nombreAutorizado ?: 'Autorizado') ?></strong>
                 <span><?= htmlspecialchars($vinculo) ?></span>
-                <?php if ($cedula !== ''): ?>
+                <?php /* Cédula y nacionalidad del tercero: no se muestran al docente.
+                       No solo se tapan aquí: el controller las quita de la lista, así
+                       que tampoco llegan a la página. */ ?>
+                <?php if (!$esDocente && $cedula !== ''): ?>
                   <span><?= htmlspecialchars($cedula) ?></span>
                 <?php endif; ?>
                 <?php if ($telefono !== ''): ?>
@@ -393,7 +429,7 @@ ob_start();
                 <?php endif; ?>
                 <?php /* Va después del teléfono: es el dato menos consultado de los
                        cuatro, y el orden mantiene arriba lo que se lee primero. */ ?>
-                <?php if (($autorizado['nacionalidad'] ?? '') !== ''): ?>
+                <?php if (!$esDocente && ($autorizado['nacionalidad'] ?? '') !== ''): ?>
                   <span><?= htmlspecialchars((string) $autorizado['nacionalidad']) ?></span>
                 <?php endif; ?>
               </div>
@@ -464,7 +500,7 @@ $pageContent = ob_get_clean();
 
 $extraScripts = $extraScripts ?? [];
 if ($puedeEditar) {
-    $extraScripts = ['/js/familiares.js', '/js/ratificacion.js'];
+    $extraScripts = ['/js/modules/estudiantes/familiares.js', '/js/modules/ratificacion/ratificacion.js'];
     ob_start();
     require __DIR__ . '/../../gestion_estudiante/ratificacion/modals/editar-estudiante-modal.php';
     $pageModals = ob_get_clean();
@@ -472,35 +508,39 @@ if ($puedeEditar) {
     /* La edición de recaudos es una pestaña del modal "Actualizar expediente", el mismo que
  usa la ratificación. Aquí solo se necesita el script para pintar los pendientes que se
  leen al abrir el expediente.*/
-    $extraScripts[] = '/js/recaudos.js';
+    $extraScripts[] = '/js/modules/estudiantes/recaudos.js';
 }
-$extraScripts[] = '/js/student-record.js';
+$extraScripts[] = '/js/modules/estudiantes/student-record.js';
 
-$urlPdf = BASE_URL . 'estudiantes/exportar/' . (int) ($estudiante['id'] ?? 0) . '?anio=' . $anioId;
-ob_start();
-?>
-<div class="student-record__pdf-preview">
-  <iframe data-src="<?= htmlspecialchars($urlPdf) ?>" title="Vista previa del expediente estudiantil"></iframe>
-</div>
-<?php
-$modalBody = ob_get_clean();
+/* La vista previa del PDF va con su botón: sin botón el modal es un iframe
+   apuntando a una ruta que el docente no puede abrir. No se construye para él. */
+if (!$esDocente) {
+    $urlPdf = BASE_URL . 'estudiantes/exportar/' . (int) ($estudiante['id'] ?? 0) . '?anio=' . $anioId;
+    ob_start();
+    ?>
+    <div class="student-record__pdf-preview">
+      <iframe data-src="<?= htmlspecialchars($urlPdf) ?>" title="Vista previa del expediente estudiantil"></iframe>
+    </div>
+    <?php
+    $modalBody = ob_get_clean();
 
-ob_start();
-?>
-<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar vista previa</button>
-<a href="<?= htmlspecialchars($urlPdf . '&descargar=1') ?>"
-   class="btn btn-primary" target="_blank" rel="noopener">
-  <i class="bi bi-download me-1" aria-hidden="true"></i>Descargar PDF
-</a>
-<?php
-$modalFooter = ob_get_clean();
-$modalId = 'modalVistaPreviaExpediente';
-$modalTitle = 'Vista previa del expediente';
-$modalSubtitle = 'Revise el documento antes de descargarlo.';
-$modalSize = 'xl';
-$modalCentered = false;
-ob_start();
-require __DIR__ . '/../../components/modal.php';
-$pageModals = ($pageModals ?? '') . ob_get_clean();
+    ob_start();
+    ?>
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar vista previa</button>
+    <a href="<?= htmlspecialchars($urlPdf . '&descargar=1') ?>"
+       class="btn btn-primary" target="_blank" rel="noopener">
+      <i class="bi bi-download me-1" aria-hidden="true"></i>Descargar PDF
+    </a>
+    <?php
+    $modalFooter = ob_get_clean();
+    $modalId = 'modalVistaPreviaExpediente';
+    $modalTitle = 'Vista previa del expediente';
+    $modalSubtitle = 'Revise el documento antes de descargarlo.';
+    $modalSize = 'xl';
+    $modalCentered = false;
+    ob_start();
+    require __DIR__ . '/../../components/modal.php';
+    $pageModals = ($pageModals ?? '') . ob_get_clean();
+}
 
 require __DIR__ . '/../../layouts/app.php';
