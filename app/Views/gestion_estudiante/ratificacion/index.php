@@ -239,23 +239,6 @@ ob_start();
  indistinguibles: no había forma de ver qué tenía cada alumno ni
  comprobar que el filtro hacía lo que decía.*/ ?>
       <td class="text-support"><?= htmlspecialchars($item['turno'] ?? '') ?></td>
-        <?php
-          /* Se muestra el proceso que corresponde a ESTE estudiante, ya evaluado
- por el modelo con la misma pregunta que usa el guardado. La secretaria
- no tiene que deducirlo: si dice "Inscribir", el botón de ratificar no
- está porque ratificar no es su proceso.*/
-          $etiquetas = [
-              'ratificado'  => ['Ratificado', 'active',  'Ya tiene su continuación registrada'],
-              'retirado'    => ['Retirado',   'inactive', 'Se retiró antes de culminar el año'],
-              'egresado'    => ['Egresado',   'info',    'Culminó el ciclo completo: su año está cerrado'],
-              'pendiente'   => ['Pendiente',  'pending', 'Ya estaba inscripto: le corresponde ratificación'],
-          ];
-          $etiqueta = $etiquetas[$estadoItem] ?? $etiquetas['pendiente'];
-          $badgeLabel  = $etiqueta[0];
-          $badgeStatus = $etiqueta[1];
-          include __DIR__ . '/../../components/status-badge.php';
-        ?>
-      </td>
       <td>
         <?php
           /* Se muestra el proceso que corresponde a ESTE estudiante, ya evaluado
@@ -273,6 +256,14 @@ ob_start();
           $badgeStatus = $etiqueta[1];
           include __DIR__ . '/../../components/status-badge.php';
         ?>
+        <?php /* La insignia de promoción se queda con el Estado. Al quitar la
+                 columna de próximo grado no puede perderse el dato: es lo que le
+                 dice a la secretaria si el alumno promovió o no. */ ?>
+        <?php if (!empty($item['promocion_badge'])): ?>
+          <span class="badge <?= ($item['promocion_tipo'] ?? '') === 'promovido' ? 'bg-success-subtle text-success border border-success-subtle' : (($item['promocion_tipo'] ?? '') === 'no_promovido' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle') ?> py-0 px-2 mt-1" style="font-size: 0.75rem;">
+            <?= htmlspecialchars($item['promocion_badge']) ?>
+          </span>
+        <?php endif; ?>
       </td>
       <td class="text-center">
         <div class="data-panel__actions">
