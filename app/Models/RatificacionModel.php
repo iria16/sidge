@@ -646,15 +646,36 @@ class RatificacionModel extends BaseModel implements Listable
  *
  * @return array<int, array<string, mixed>>
 */
-    public function getFamiliares(int $idEstudiante): array
+    /**
+     * Familiares y contactos de un estudiante.
+     *
+     * @param bool $sinDatosSensibles Cuando es true, las columnas de documento de
+     *        identidad y nacionalidad NO se piden a la base: llegan vacías y el
+     *        dato ni siquiera sale del servidor. Es el camino del docente, que no
+     *        necesita el documento de un tercero. El resto de los usuarios (secretaría
+     *        al inscribir, coordinación al consultar) lo piden normal.
+     */
+    public function getFamiliares(int $idEstudiante, bool $sinDatosSensibles = false): array
     {
+        /* Columnas que se sustituyen por NULL cuando el destino es el docente.
+           NULL y no '' a propósito: que un documento venga vacío de verdad es
+           distinta cosa de que no se haya consultado, y así el código que lo
+           recibe se comporta igual que antes. */
+        $columnasDocumento = $sinDatosSensibles
+            ? 'NULL AS tipo_documento, NULL AS numero_documento'
+            : 'p.tipo_documento, p.numero_documento';
+
+        $columnasNacionalidad = $sinDatosSensibles
+            ? 'NULL AS id_nacionalidad, NULL AS nacionalidad'
+            : 'p.id_nacionalidad, COALESCE(nac.nombre, "") AS nacionalidad';
+
         $stmt = $this->pdo->prepare(
             'SELECT pe.id_persona,
-                    p.tipo_documento, p.numero_documento,
+                    ' . $columnasDocumento . ',
                     p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
                     p.sexo, p.fecha_nacimiento,
-                    p.id_estado_nacimiento, p.id_parroquia_nacimiento, p.id_nacionalidad,
-                     COALESCE(nac.nombre, "") AS nacionalidad,
+                    p.id_estado_nacimiento, p.id_parroquia_nacimiento,
+                    ' . $columnasNacionalidad . ',
                     COALESCE(pa.nombre, "") AS parentesco,
                     "" AS nivel_instruccion,
                     COALESCE(oc.nombre, "") AS ocupacion,
@@ -803,7 +824,11 @@ es.nombre AS estado_nombre
         $nucleo = [];
         $autorizados = [];
 
-        foreach ($this->getFamiliares($idEstudiante) as $familiar) {
+        /* Para el docente la consulta ya viene sin documento ni nacionalidad:
+           el dato no sale de la base, no llega a PHP y se quita después. El
+           unset de más abajo se queda como segunda barrera, para que ningún
+           cambio futuro en la consulta pueda filtrar un documento por accidente. */
+        foreach ($this->getFamiliares($idEstudiante, $soloDocente) as $familiar) {
             $esRepresentante = (int) ($familiar['representante_principal'] ?? 0) === 1;
             $parentesco = trim((string) ($familiar['parentesco'] ?? ''));
             $esLogistico = $parentesco !== ''
@@ -827,9 +852,10 @@ es.nombre AS estado_nombre
         }
 
         /* El docente verifica de quién se trata mirando a la persona y con su
-           teléfono. El documento de un tercero y su nacionalidad no le hacen falta
-           para nada de lo que hace aquí, así que se quitan de la lista completa en
-           lugar de confiar en que la vista no los imprima. */
+           teléfono. El documento de un tercero y su nacionalidad no le hacen falta,
+           así que no se piden arriba (getFamiliares) y además se quitan aquí. Es
+           doble barrera a propósito: la consulta evita traerlos y el unset evita
+           que lleguen a la vista si algo los colara de nuevo. */
         if ($soloDocente) {
             foreach ([&$nucleo, &$autorizados] as &$grupo) {
                 foreach ($grupo as &$persona) {

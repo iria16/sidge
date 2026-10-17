@@ -878,42 +878,6 @@ c.numero_telefono_principal,
         return $codigo !== '' ? "{$codigo}-{$numero}" : $numero;
     }
 
-    /**
-     * Cumpleaños del mes en curso, ordenados por día.
-     * Solo informativo: no dispara nada ni guarda preferencias.
-     *
-     * @return array<int,array<string,mixed>>
-     */
-    public function getCumpleanosDocente(int $idEstructura): array
-    {
-        $stmt = $this->pdo->prepare(
-            "SELECT e.id_estudiante,
-                    {$this->exprNombre('p')} AS nombre,
-                    p.fecha_nacimiento,
-                    DAY(p.fecha_nacimiento) AS dia,
-                    TIMESTAMPDIFF(YEAR, p.fecha_nacimiento, CURDATE()) AS edad,
-                    DATEDIFF(
-                        DATE(CONCAT(YEAR(CURDATE()), '-', MONTH(p.fecha_nacimiento), '-', DAY(p.fecha_nacimiento))),
-                        CURDATE()
-                    ) AS dias_faltantes
-               FROM matricula m
-               INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
-               INNER JOIN persona p ON p.id_persona = e.id_persona
-              WHERE m.id_estructura_academica = :estructura
-                AND " . Matriculas::condicionCursando('m') . "
-                AND MONTH(p.fecha_nacimiento) = MONTH(CURDATE())
-              ORDER BY dia, p.primer_nombre"
-        );
-        $stmt->execute(['estructura' => $idEstructura]);
-        $filas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-        foreach ($filas as &$f) {
-            $d = (int) $f['dias_faltantes'];
-            $f['etiqueta'] = $d === 0 ? 'Hoy' : ($d <= 7 ? 'Próximos 7 días' : '');
-        }
-
-        return $filas;
-    }
 
     /**
      * Resumen general de la sección para las stat-cards del dashboard docente.
