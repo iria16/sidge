@@ -1,0 +1,58 @@
+// ==========================================================================
+// SIGDE - Componente: Period Chip
+// Chip indicador del período escolar activo en cabeceras y vistas.
+// Usado por: app/Views/components/period-chip.php
+// ==========================================================================
+
+.period-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: $border-radius-pill;
+  background: rgba($info, 0.1);
+  color: $primary;
+  border: 1px solid rgba($info, 0.2);
+  white-space: nowrap;
+
+  i {
+    font-size: 0.85rem;
+    color: $info;
+  }
+
+  &__text {
+    color: $dark;
+    font-weight: 500;
+  }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 700;
+    color: $success;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+
+    &::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: $success;
+      display: inline-block;
+    }
+  }
+
+  &--active {
+    background: rgba($success, 0.08);
+    border-color: rgba($success, 0.25);
+
+    i {
+      color: $success;
+    }
+  }
+}

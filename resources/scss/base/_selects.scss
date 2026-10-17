@@ -1,0 +1,24 @@
+/* ==========================================================================
+   Selects: una sola flecha en todos los navegadores
+   --------------------------------------------------------------------------
+   Bootstrap ya pone `appearance: none` en `select` para que la flecha la
+   pinte el propio CSS con su icono, pero el proyecto compila con `sass` pelado,
+   sin autoprefixer, así que esa propiedad llega sin el prefijo de WebKit. En
+   Safari —iPhone, iPad y el de escritorio en sus versiones antiguas— eso deja
+   la flecha nativa del navegador puesta ADEMÁS de la del CSS, y el control
+   aparece con dos flechas superpuestas. Chrome y Firefox, que sí respetan
+   `appearance`, muestran una sola.
+
+   Aquí se repite la propiedad con el prefijo para cerrar esa diferencia. Va en
+   la fuente y no en cada vista: cualquier select que pinte su propia flecha
+   (el de literal, los filtros, los de los formularios) hereda el arreglo.
+
+   No se aplica a `input` de ningún tipo: para select basta con quitar el
+   adorno de la flecha, la lista sigue abriéndose de forma nativa. Tocar los
+   `input` sí rompería los selectores de fecha y de color en iOS.
+   ========================================================================== */
+
+select {
+  -webkit-appearance: none;
+  appearance: none;
+}

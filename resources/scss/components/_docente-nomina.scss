@@ -1,0 +1,155 @@
+/* ── Listados de la sección del docente (/docente/nomina) ─────────────────────
+   Pantalla: chips de vista + tabla única. En el acta la columna "Firma" queda
+   con una línea en blanco y altura suficiente.                                */
+
+.nomina-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nomina-chip {
+  display: inline-block;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid $border-color;
+  border-radius: 999px;
+  color: $body-color;
+  font-size: 0.875rem;
+  text-decoration: none;
+  background: $white;
+
+  &:hover {
+    border-color: $primary;
+    color: $primary;
+  }
+
+  &.is-active {
+    background: $primary;
+    border-color: $primary;
+    color: $white;
+  }
+}
+
+.nomina-tabla {
+  table-layout: auto;
+
+  th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  td {
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    vertical-align: top;
+  }
+
+  .nomina-col--n,
+  .nomina-col--dia,
+  .nomina-col--edad,
+  .nomina-col--sexo {
+    width: 3.5rem;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .nomina-col--cedula,
+  .nomina-col--cedula_rep,
+  .nomina-col--fecha_nac,
+  .nomina-col--edad_cumple,
+  .nomina-col--telefonos_rep {
+    white-space: nowrap;
+  }
+
+  .nomina-col--firma {
+    width: 30%;
+  }
+
+  /* Autorizados: ni el parentesco ni el teléfono se parten ("Responsable" es una
+     palabra, no dos líneas; un número, tampoco). */
+  .nomina-col--parentesco_aut,
+  .nomina-col--telefono_aut {
+    white-space: nowrap;
+  }
+
+  /* Separador fino entre un estudiante y el siguiente: lo lleva la primera fila
+     de cada grupo (clase nomina-grupo-inicio), menos la del primer grupo, que ya
+     la separa del encabezado. */
+  tbody tr.nomina-grupo-inicio:not(:first-child) > td {
+    border-top: 1px solid $border-color;
+  }
+}
+
+/* Teléfono de los autorizados: cada número en su línea, con el ícono de
+   WhatsApp a la derecha dentro de una columna de ancho fijo. Así los números
+   empiezan todos en la misma columna y los botones terminan en la misma, aunque
+   uno tenga botón y otro no: el fijo (0212) deja el hueco vacío. */
+.nomina-tel-linea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  + .nomina-tel-linea {
+    margin-top: 4px;
+  }
+}
+
+.nomina-tel-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+}
+
+/* El botón NO lleva medidas propias: es el mismo .nomina-wa de la columna de
+   teléfonos de Contacto —mismo borde, mismo relleno, mismo radio y glifo del
+   mismo tamaño—, solo que aquí ocupa la columna fija de la derecha. Si se le
+   fijan width/height o font-size, el ícono deja de coincidir con el de las demás
+   pantallas, que es justo lo que se veía. */
+.nomina-tel-ico__boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Cifras de ancho fijo: los dígitos ocupan siempre lo mismo y las dos columnas
+   de números quedan alineadas. */
+.nomina-tel-num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cumpleañeros: la edad se dice siempre, y en gris la marca de que ese mes ya
+   pasó. Es una etiqueta pequeña, no un segundo titular: la información es la edad. */
+.nomina-cumple-ok {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid $border-color;
+  border-radius: 999px;
+  background: $gray-100;
+  color: $gray-600;
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.5;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Línea en blanco para firmar. */
+.nomina-firma {
+  display: block;
+  height: 1.75rem;
+  border-bottom: 1px solid $gray-600;
+}
+
+.nomina-wa {
+  --bs-btn-padding-y: 0.05rem;
+  --bs-btn-padding-x: 0.35rem;
+  --bs-btn-font-size: 0.75rem;
+  vertical-align: baseline;
+}

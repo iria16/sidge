@@ -1,0 +1,401 @@
+// ==========================================================================
+// SIGDE - Estilos del Dashboard Docente
+// Distribución de sección, avance de literales y lista de cumpleaños.
+// ==========================================================================
+
+.docente-badge-rol {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: $info;
+  background: rgba($info, 0.1);
+  padding: 0.25rem 0.6rem;
+  border-radius: $border-radius-pill;
+  margin-bottom: 0.4rem;
+}
+
+// ---------- Stat Card Matrícula Total (desglose varones/hembras) ----------
+.stat-card__split-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: $dark;
+
+  .stat-card__split-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    &::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    &--varones::before {
+      background: $primary;
+    }
+
+    &--hembras::before {
+      background: $warning;
+    }
+  }
+}
+
+.stat-card__split-bar {
+  display: flex;
+  height: 4px;
+  border-radius: $border-radius-pill;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  background: $tint-hover;
+
+  .stat-card__split-seg--varones {
+    background: $primary;
+  }
+
+  .stat-card__split-seg--hembras {
+    background: $warning;
+  }
+}
+
+// ---------- Distribución de la Sección ----------
+.section-distribution {
+  &__subtitle {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: $dark;
+    margin-bottom: 0.75rem;
+  }
+
+  &__header-info {
+    font-size: 0.78rem;
+    color: $secondary;
+    font-weight: 600;
+  }
+
+  // Barra de proporción por sexo
+  &__sex-bar-wrapper {
+    display: flex;
+    width: 100%;
+    border-radius: $border-radius-lg;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(10, 20, 64, 0.08);
+  }
+
+  &__sex-seg {
+    display: flex;
+    align-items: center;
+    padding: 0.65rem 1rem;
+    white-space: nowrap;
+    gap: 0.5rem;
+    transition: width 0.3s ease;
+
+    i {
+      font-size: 0.9rem;
+    }
+
+    &--varones {
+      background: $primary;
+    }
+
+    &--hembras {
+      background: $info;
+    }
+  }
+
+  // Distribución por edades
+  &__age-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  &__age-row {
+    display: grid;
+    grid-template-columns: 70px 1fr 50px;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.82rem;
+  }
+
+  &__age-label {
+    font-weight: 600;
+    color: $secondary;
+  }
+
+  &__age-track {
+    position: relative;
+    height: 28px;
+    background: $surface-soft;
+    border-radius: $border-radius;
+    overflow: hidden;
+    border: 1px solid $border-color-soft;
+  }
+
+  &__age-fill {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 0.75rem;
+    background: rgba($info, 0.18);
+    color: $primary;
+    font-weight: 700;
+    font-size: 0.75rem;
+    border-radius: inherit;
+    gap: 0.5rem;
+    transition: width 0.3s ease;
+
+    &--highlight {
+      background: $primary;
+      color: #ffffff;
+    }
+  }
+
+  &__tag-comun {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: rgba(#ffffff, 0.2);
+    color: #ffffff;
+    padding: 0.15rem 0.4rem;
+    border-radius: $border-radius-pill;
+    letter-spacing: 0.04em;
+  }
+
+  &__age-pct {
+    text-align: right;
+    font-weight: 600;
+    color: $secondary;
+    font-size: 0.78rem;
+  }
+}
+
+// ---------- Avance de Literales Finales ----------
+.literales-gauge-card {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1rem 0.5rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  &__donut-wrap {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+  }
+
+  &__donut-svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+  }
+
+  &__donut-bg {
+    fill: none;
+    stroke: $border-color-soft;
+    stroke-width: 10;
+  }
+
+  &__donut-val {
+    fill: none;
+    stroke: $primary;
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease;
+  }
+
+  &__donut-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  &__donut-count {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: $primary;
+    line-height: 1;
+  }
+
+  &__donut-sub {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: $secondary;
+    margin-top: 0.15rem;
+  }
+
+  &__content {
+    flex: 1;
+  }
+
+  &__desc {
+    font-size: 0.85rem;
+    color: $secondary;
+    line-height: 1.45;
+    margin-bottom: 0.85rem;
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: $info;
+    text-decoration: none;
+    transition: color 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      color: shade-color($info, 15%);
+      transform: translateX(3px);
+    }
+  }
+
+  &__all-done {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: $success;
+  }
+}
+
+// ---------- Cumpleaños del Mes ----------
+.birthday-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: $border-radius-lg;
+    background: $surface-soft;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      background: #ffffff;
+      border-color: $border-color-soft;
+    }
+
+    &--today {
+      background: rgba($primary, 0.04);
+      border-color: rgba($primary, 0.18);
+    }
+  }
+
+  &__main {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  &__date-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: $border-radius;
+    background: #ffffff;
+    border: 1px solid $border-color-soft;
+    color: $dark;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(10, 20, 64, 0.04);
+
+    &--today {
+      background: $primary;
+      color: #ffffff;
+      border-color: $primary;
+
+      .birthday-list__month {
+        color: rgba(#ffffff, 0.75);
+      }
+    }
+  }
+
+  &__month {
+    font-size: 0.58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: $secondary;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  &__day {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  &__info {
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: $dark;
+    margin-bottom: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__age {
+    font-size: 0.75rem;
+    color: $secondary;
+    margin: 0;
+  }
+
+  &__pill {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.25rem 0.65rem;
+    border-radius: $border-radius-pill;
+    white-space: nowrap;
+
+    &--pasado {
+      background: rgba($secondary, 0.12);
+      color: $secondary;
+    }
+
+    &--hoy {
+      background: $primary;
+      color: #ffffff;
+    }
+
+    &--proximo {
+      background: rgba($info, 0.12);
+      color: $info;
+    }
+  }
+}

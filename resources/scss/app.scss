@@ -4,6 +4,7 @@
 @import "custom";
 @import "base/mixins";
 @import "base/typography";
+@import "base/selects";
 @import "components/input-icon-group";
 @import "components/auth";
 @import "layouts/app-shell";
@@ -23,4 +24,8 @@
 @import "components/tables";
 @import "components/form-wizard";
 @import "components/retiro-buscador";
-@import "components/student-record-pdf";
+@import "components/configuracion-institucional";
+@import "components/period-chip";
+@import "components/featured-birthday-card";
+@import "components/docente-dashboard";
+@import "components/docente-nomina";
