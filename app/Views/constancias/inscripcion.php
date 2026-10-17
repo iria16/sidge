@@ -186,6 +186,7 @@ ob_start();
           <?= ($tipoMat === 'INSCRIPCION') ? 'Primer Ingreso' : 'Continuidad' ?>
         </span>
       </td>
+        <td class="text-center">
         <?php /* Formulario y no enlace. `constancias/emitir` genera un documento,
                así que public/index.php la exige por POST: un enlace se puede
                poner en cualquier href y disparar la generación sin que nadie lo
