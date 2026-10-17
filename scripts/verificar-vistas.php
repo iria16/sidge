@@ -159,6 +159,10 @@ if (in_array('--html', $argv, true)) {
                 $malos[] = sprintf('<%s> %d/%d', $etiqueta, $abren, $cierran);
             }
         }
+        foreach (revisarTablas($html) as $aviso) {
+            $malos[] = $aviso;
+        }
+
         if ($malos !== []) {
             printf("  !! %s\n", basename($archivoHtml));
             foreach ($malos as $m) {
@@ -172,6 +176,89 @@ if (in_array('--html', $argv, true)) {
 
     printf("\n  archivos renderizados con desbalance: %d\n", $problemas);
     exit($problemas > 0 ? 1 : 0);
+}
+
+
+/**
+ * Comprueba que cada fila de la tabla tenga las mismas columnas que la cabecera.
+ *
+ * Cuenta la suma de los colspan de las celdas, no el número de `<td>`: la fila
+ * de "no hay resultados" es una sola celda con colspan="6" y es correcta.
+ * Solo mira tablas con `<th>` de cabecera; las de maquetación se saltan.
+ *
+ * @return string[] Problemas encontrados, uno por tabla.
+ */
+function revisarTablas(string $html): array
+{
+    $problemas = [];
+
+    // Se recorren las tablas de fuera adentro, saltando las anidadas: el
+    // código de una tabla interior no es una tabla propia de la página.
+    $pos = 0;
+    $total = strlen($html);
+
+    while (($ini = strpos($html, '<table', $pos)) !== false) {
+        $prof = 0;
+        $fin = null;
+        for ($i = $ini; $i < $total; $i++) {
+            if (strncasecmp(substr($html, $i, 7), '<table', 6) === 0) {
+                $prof++;
+                $i += 5;
+                continue;
+            }
+            if (strncasecmp(substr($html, $i, 8), '</table>', 8) === 0) {
+                $prof--;
+                $i += 7;
+                if ($prof === 0) {
+                    $fin = $i;
+                    break;
+                }
+                continue;
+            }
+        }
+        if ($fin === null) {
+            break;
+        }
+
+        $tabla = substr($html, $ini, $fin - $ini + 8);
+        $pos   = $fin + 8;
+
+        $cuerpo = stripos($tabla, '<tbody');
+        $cabeza = $cuerpo === false ? $tabla : substr($tabla, 0, $cuerpo);
+
+        if (!preg_match_all('/<th\b/i', $cabeza, $m)) {
+            continue; // tabla de maquetación, sin cabeceras
+        }
+        $columnas = count($m[0]);
+        if ($columnas < 2) {
+            continue; // una sola columna: no hay desalineación que ver
+        }
+
+        $cuerpoTxt = $cuerpo === false ? $tabla : substr($tabla, $cuerpo);
+        if (!preg_match_all('#<tr\b[^>]*>(.*?)</tr>#is', $cuerpoTxt, $filas)) {
+            continue;
+        }
+
+        foreach ($filas[1] as $fila) {
+            if (!preg_match_all('/<td\b([^>]*)>/i', $fila, $celdas)) {
+                continue;
+            }
+            $ancho = 0;
+            foreach ($celdas[1] as $attrs) {
+                $ancho += preg_match('/colspan\s*=\s*"?(\d+)/i', $attrs, $c) ? (int) $c[1] : 1;
+            }
+            if ($ancho !== $columnas) {
+                $problemas[] = sprintf(
+                    'tabla con %d columnas en la cabecera y una fila que suma %d',
+                    $columnas,
+                    $ancho
+                );
+                break;
+            }
+        }
+    }
+
+    return $problemas;
 }
 
 $raiz = realpath(RAIZ) ?: RAIZ;
