@@ -177,8 +177,8 @@ ob_start();
     <col style="width: 14%;">
     <col style="width: 10%;">
     <col style="width: 12%;">
-    <col style="width: 20%;">
-    <col style="width: 16%;">
+    <col style="width: 17%;">
+    <col style="width: 19%;">
   </colgroup>
   <?php
   $panelColgroup = ob_get_clean();
@@ -261,17 +261,12 @@ ob_start();
           $badgeStatus = $etiqueta[1];
           include __DIR__ . '/../../components/status-badge.php';
         ?>
-        <?php /* La insignia de promoción va con el Estado, pero en su PROPIA
-                 línea. Los dos badges son nowrap: en la misma línea el segundo
-                 se salía de la celda y el botón Ratificar lo tapaba. El div es
-                 lo que los parte en dos filas. */ ?>
-        <?php if (!empty($item['promocion_badge'])): ?>
-          <div class="mt-1">
-            <span class="badge <?= ($item['promocion_tipo'] ?? '') === 'promovido' ? 'bg-success-subtle text-success border border-success-subtle' : (($item['promocion_tipo'] ?? '') === 'no_promovido' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle') ?> py-0 px-2" style="font-size: 0.75rem;">
-              <?= htmlspecialchars($item['promocion_badge']) ?>
-            </span>
-          </div>
-        <?php endif; ?>
+        <?php /* Aquí NO va la insignia de promoción. Cuando el alumno está
+                 pendiente, su texto es «Pendiente», o sea que se leía la misma
+                 palabra dos veces en la misma celda y a un lado del badge de
+                 estado. Ese dato sigue en el botón (data-promocion-badge) y en
+                 el detalle; la decisión de promoción vive en Resultados y
+                 Promoción, que es donde se toma. */ ?>
       </td>
       <td class="text-center">
         <div class="data-panel__actions">
