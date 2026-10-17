@@ -1041,11 +1041,17 @@
         /* Al familiar solo se le declara la entidad federal: la parroquia es un dato
         que el sistema necesita del estudiante, no de sus familiares. El name lleva el
         prefijo `familiar_` porque el sub-modal reutiliza persona-form.php con prefijo.*/
-        id_estado_nacimiento: parseInt(valor('familiar_id_estado_nacimiento'), 10) || 0,
+        /* El id NO es el name: lugar-nacimiento-form.php llama al select
+           #familiarEstadoNacimiento y le pone el name familiar_id_estado_nacimiento.
+           Leer el name por aquí devolvía vacío siempre, así que la entidad federal
+           del familiar llegaba en 0 y no se guardaba nunca. */
+        id_estado_nacimiento: parseInt(valor('familiarEstadoNacimiento'), 10) || 0,
 
-        /* La nacionalidad se le pregunta a toda persona, al familiar included. El name
-        lleva el prefijo `familiar_` porque el sub-modal reutiliza persona-form.php.*/
-        id_nacionalidad: parseInt(valor('familiar_id_nacionalidad'), 10) || 0,
+        /* Se le pregunta a toda persona, al familiar incluido. El select es
+        #familiarNacionalidad: su name es familiar_id_nacionalidad, y leer ese name
+        en vez del id hacía que la nacionalidad llegara siempre en 0 y tampoco se
+        guardara. Mismo error que en la entidad federal. */
+        id_nacionalidad: parseInt(valor('familiarNacionalidad'), 10) || 0,
         /* El teléfono principal es obligatorio para cualquier familiar; el correo y el
  alternativo son opcionales.*/
         contacto: contacto,
