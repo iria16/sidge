@@ -401,31 +401,6 @@ class ConstanciaModel extends BaseModel
         return $row;
     }
 
-    /**
-     * Estadísticas para el resumen de Constancias de Estudio.
-     * Cuenta únicamente los estudiantes activos con matrícula en el período activo.
-     */
-    public function getStatsEstudio(): array
-    {
-        $idAnioActivo = \App\Support\AniosEscolares::idEnCurso($this->pdo);
-        if ($idAnioActivo <= 0) {
-            return ['total' => 0, 'activos' => 0];
-        }
-
-        $sql = "SELECT COUNT(DISTINCT est.id_estudiante) AS total
-                FROM estudiante est
-                INNER JOIN persona p ON p.id_persona = est.id_persona
-                WHERE {$this->sqlCondicionElegibilidadEstudio()}";
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(['id_anio_activo' => $idAnioActivo]);
-        $total = (int) $stmt->fetchColumn();
-
-        return [
-            'total'   => $total,
-            'activos' => $total,
-        ];
-    }
 
     public function getAniosEscolares(): array
     {

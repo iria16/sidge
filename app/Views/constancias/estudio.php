@@ -8,7 +8,6 @@ declare(strict_types=1);
  *
  * @var array<int, array<string, mixed>> $estudiantes
  * @var int $total
- * @var array<string, int> $stats
  * @var array<int, string> $grados
  * @var array<int, string> $secciones
  * @var array<string, string> $filters
@@ -75,19 +74,6 @@ ob_start();
       </div>
     </div>
   <?php endif; ?>
-
-  <!-- Tarjetas de Estadísticas -->
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6 col-xl-3">
-      <?php
-      $statLabel   = 'Total Estudiantes';
-      $statValue   = (string) ($stats['total'] ?? 0);
-      $statIcon    = 'bi-people';
-      $statTone    = 'primary';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-  </div>
 
   <!-- Panel de Datos: Tabla con filtros -->
   <?php

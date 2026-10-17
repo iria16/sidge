@@ -71,7 +71,6 @@ class ConstanciasController extends BaseController
 
             $estudiantes = $model->getEstudiantesEstudio($filters, $page, $perPage);
             $total       = $model->countEstudiantesEstudio($filters);
-            $stats       = $model->getStatsEstudio();
             $grados      = $model->getGrados();
             $secciones   = $model->getSecciones();
 
