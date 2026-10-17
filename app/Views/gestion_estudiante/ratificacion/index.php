@@ -15,7 +15,7 @@
  * - array $stats ['porRatificar' => int, 'yaRatificados' => int, 'avance' => int]
  * - array $ratificaciones cada uno: ['id','nombre','cedula','iniciales','avatar_color',
  * 'avatar_img' (opcional),'grado_actual','seccion','turno',
- * 'proximo_grado','estado' => 'ratificado'|'pendiente']
+ * 'estado' => 'ratificado'|'pendiente']
  * - array $grados lista de grados para el filtro
  * - array $secciones lista de secciones para el filtro
  * - array $turnos lista de turnos para el filtro
@@ -186,7 +186,6 @@ ob_start();
     <th scope="col">Grado actual</th>
     <th scope="col">Sección</th>
     <th scope="col">Turno</th>
-    <th scope="col">Próximo grado</th>
     <th scope="col">Estado</th>
     <th scope="col" class="text-center">Acción</th>
   </tr>
@@ -240,7 +239,23 @@ ob_start();
  indistinguibles: no había forma de ver qué tenía cada alumno ni
  comprobar que el filtro hacía lo que decía.*/ ?>
       <td class="text-support"><?= htmlspecialchars($item['turno'] ?? '') ?></td>
-      <td class="fw-semibold"><?= htmlspecialchars($item['proximo_grado'] ?? '—') ?></td>
+        <?php
+          /* Se muestra el proceso que corresponde a ESTE estudiante, ya evaluado
+ por el modelo con la misma pregunta que usa el guardado. La secretaria
+ no tiene que deducirlo: si dice "Inscribir", el botón de ratificar no
+ está porque ratificar no es su proceso.*/
+          $etiquetas = [
+              'ratificado'  => ['Ratificado', 'active',  'Ya tiene su continuación registrada'],
+              'retirado'    => ['Retirado',   'inactive', 'Se retiró antes de culminar el año'],
+              'egresado'    => ['Egresado',   'info',    'Culminó el ciclo completo: su año está cerrado'],
+              'pendiente'   => ['Pendiente',  'pending', 'Ya estaba inscripto: le corresponde ratificación'],
+          ];
+          $etiqueta = $etiquetas[$estadoItem] ?? $etiquetas['pendiente'];
+          $badgeLabel  = $etiqueta[0];
+          $badgeStatus = $etiqueta[1];
+          include __DIR__ . '/../../components/status-badge.php';
+        ?>
+      </td>
       <td>
         <?php
           /* Se muestra el proceso que corresponde a ESTE estudiante, ya evaluado
@@ -283,14 +298,14 @@ ob_start();
                     title="Ratificar estudiante"
                     data-id="<?= $estudianteId ?>"
                     data-anio-origen="<?= htmlspecialchars($item['anio_actual'] ?? '—') ?>"
+                    data-grado-origen-id="<?= (int) ($item['id_grado'] ?? 0) ?>"
+                    data-grado-origen="<?= htmlspecialchars($item['grado_actual'] ?? '—') ?>"
                     data-grado-destino-id="<?= (int) ($item['proximo_grado_id'] ?? 0) ?>"
-                    /* El nombre del grado predicho viaja además del id para poder nombrarlo
- en el aviso del modal cuando no exista en la estructura del período:
- "3er Grado no tiene secciones" es accionable; "no hay grados
- disponibles" no.*/
                     data-grado-destino="<?= htmlspecialchars($item['proximo_grado'] ?? '—') ?>"
                     data-seccion-destino-id="<?= (int) ($item['id_seccion'] ?? 0) ?>"
-                    data-turno-destino-id="<?= (int) ($item['id_turno'] ?? 0) ?>">
+                    data-turno-destino-id="<?= (int) ($item['id_turno'] ?? 0) ?>"
+                    data-promocion-tipo="<?= htmlspecialchars($item['promocion_tipo'] ?? 'pendiente') ?>"
+                    data-promocion-badge="<?= htmlspecialchars($item['promocion_badge'] ?? '') ?>">
               Ratificar
             </button>
           <?php endif; ?>
@@ -306,7 +321,7 @@ ob_start();
   <?php endforeach; ?>
   <?php if (!$ratificaciones): ?>
     <tr>
-      <td colspan="7" class="text-center text-support py-4">
+      <td colspan="6" class="text-center text-support py-4">
         No se encontraron estudiantes con los filtros seleccionados.
       </td>
     </tr>
@@ -362,5 +377,5 @@ $pageModals = ob_get_clean();
  Los dos archivos se cargan en las dos pantallas porque el sub-modal de
  familiares es el MISMO (inscripcion/modal-agregar-familiar.php) y sus reglas son
  las mismas; lo que cambia es la configuración que le pasa cada uno.*/
-$extraScripts = ['/js/familiares.js', '/js/ratificacion.js', '/js/recaudos.js'];
+$extraScripts = ['/js/modules/estudiantes/familiares.js', '/js/modules/ratificacion/ratificacion.js', '/js/modules/estudiantes/recaudos.js'];
 require __DIR__ . '/../../layouts/app.php';

@@ -121,12 +121,11 @@ ob_start();
   ob_start();
   ?>
   <tr>
-    <th scope="col" style="width: 28%;">Estudiante</th>
-    <th scope="col" style="width: 15%;">Documento</th>
-    <th scope="col" style="width: 15%;">Grado y Sección</th>
-    <th scope="col" style="width: 14%;">Período Escolar</th>
-    <th scope="col" style="width: 13%;">Tipo Matrícula</th>
-    <th scope="col" class="text-center" style="width: 15%;">Acción</th>
+    <th scope="col" style="width: 30%;">Estudiante</th>
+    <th scope="col" style="width: 17%;">Documento</th>
+    <th scope="col" style="width: 19%;">Grado y Sección</th>
+    <th scope="col" style="width: 17%;">Tipo Matrícula</th>
+    <th scope="col" class="text-center" style="width: 17%;">Acción</th>
   </tr>
   <?php
   $panelTableHead = ob_get_clean();
@@ -136,7 +135,7 @@ ob_start();
   if (empty($inscripciones)):
   ?>
     <tr>
-      <td colspan="6" class="text-center py-4 text-muted">
+      <td colspan="5" class="text-center py-4 text-muted">
         <i class="bi bi-inbox fs-2 d-block mb-2"></i>
         No se encontraron inscripciones que coincidan con los criterios de búsqueda.
       </td>
@@ -170,11 +169,6 @@ ob_start();
         <div class="text-muted small">Sección <?= htmlspecialchars((string) ($i['seccion'] ?? '—')) ?></div>
       </td>
       <td class="text-support">
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-          <?= htmlspecialchars((string) ($i['anio_escolar'] ?? '—')) ?>
-        </span>
-      </td>
-      <td class="text-support small">
         <span class="badge bg-light text-dark border">
           <?= ($tipoMat === 'INSCRIPCION') ? 'Primer Ingreso' : 'Continuidad' ?>
         </span>
