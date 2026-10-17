@@ -226,6 +226,22 @@ function revisarTablas(string $html): array
         $cuerpo = stripos($tabla, '<tbody');
         $cabeza = $cuerpo === false ? $tabla : substr($tabla, 0, $cuerpo);
 
+        /* El colgroup tiene que tener tantos <col> como columnas tiene la
+           cabecera. Con table-layout: fixed el navegador aplica los primeros
+           anchos: un <col> de más squeezea la tabla al ancho que sumen los
+           primeros y el contenido acaba encima de la celda de al lado. */
+        if (preg_match('/<colgroup\b/i', $tabla)) {
+            $colgroup = preg_match('#<colgroup\b[^>]*>(.*?)</colgroup>#is', $tabla, $cg) ? $cg[1] : '';
+            $cols = preg_match_all('/<col\b/i', $colgroup, $cm);
+            if (preg_match_all('/<th\b/i', $cabeza, $hm) && $cols !== count($hm[0])) {
+                $problemas[] = sprintf(
+                    'colgroup con %d <col> para %d columnas de cabecera',
+                    $cols,
+                    count($hm[0])
+                );
+            }
+        }
+
         if (!preg_match_all('/<th\b/i', $cabeza, $m)) {
             continue; // tabla de maquetación, sin cabeceras
         }

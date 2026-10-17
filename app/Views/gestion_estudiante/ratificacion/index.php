@@ -166,13 +166,18 @@ ob_start();
   // Anchos fijos: Estudiante / Grado / Sección / Turno / Próximo / Estado / Acción.
   ob_start();
   ?>
+  <?php /* Seis columnas, seis anchos y suman 100. Sobraba una: la de Próximo
+           grado, que se quitó con la columna. Con table-layout: fixed el
+           navegador usa los primeros anchos, así que con un col de más las
+           columnas se comprimían al 84% y el botón de acción acababa encima
+           de la celda de Estado. Estado toma el ancho que necesita para los
+           dos badges apilados. */ ?>
   <colgroup>
-    <col style="width: 26%;">
-    <col style="width: 12%;">
-    <col style="width: 9%;">
-    <col style="width: 10%;">
+    <col style="width: 28%;">
     <col style="width: 14%;">
-    <col style="width: 13%;">
+    <col style="width: 10%;">
+    <col style="width: 12%;">
+    <col style="width: 20%;">
     <col style="width: 16%;">
   </colgroup>
   <?php
@@ -256,13 +261,16 @@ ob_start();
           $badgeStatus = $etiqueta[1];
           include __DIR__ . '/../../components/status-badge.php';
         ?>
-        <?php /* La insignia de promoción se queda con el Estado. Al quitar la
-                 columna de próximo grado no puede perderse el dato: es lo que le
-                 dice a la secretaria si el alumno promovió o no. */ ?>
+        <?php /* La insignia de promoción va con el Estado, pero en su PROPIA
+                 línea. Los dos badges son nowrap: en la misma línea el segundo
+                 se salía de la celda y el botón Ratificar lo tapaba. El div es
+                 lo que los parte en dos filas. */ ?>
         <?php if (!empty($item['promocion_badge'])): ?>
-          <span class="badge <?= ($item['promocion_tipo'] ?? '') === 'promovido' ? 'bg-success-subtle text-success border border-success-subtle' : (($item['promocion_tipo'] ?? '') === 'no_promovido' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle') ?> py-0 px-2 mt-1" style="font-size: 0.75rem;">
-            <?= htmlspecialchars($item['promocion_badge']) ?>
-          </span>
+          <div class="mt-1">
+            <span class="badge <?= ($item['promocion_tipo'] ?? '') === 'promovido' ? 'bg-success-subtle text-success border border-success-subtle' : (($item['promocion_tipo'] ?? '') === 'no_promovido' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle') ?> py-0 px-2" style="font-size: 0.75rem;">
+              <?= htmlspecialchars($item['promocion_badge']) ?>
+            </span>
+          </div>
         <?php endif; ?>
       </td>
       <td class="text-center">
