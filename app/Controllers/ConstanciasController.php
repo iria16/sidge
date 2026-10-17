@@ -107,14 +107,22 @@ class ConstanciasController extends BaseController
                 'q'       => trim((string) ($_GET['q'] ?? '')),
                 'grado'   => trim((string) ($_GET['grado'] ?? '')),
                 'seccion' => trim((string) ($_GET['seccion'] ?? '')),
-                'anio'    => trim((string) ($_GET['anio'] ?? '')),
+                /* Sin filtro de año: la constancia se emite sobre el período en
+                   curso. Leerlo de la URL además abría la puerta a pedir un
+                   período que ya no está en marcha; la consulta ya se limita al
+                   año activo por su cuenta. */
                 // Ver estudio(): null para admin y directivo, el turno para la secretaria.
                 'turno'   => $this->turnoSecretariaActual(),
             ];
 
             $inscripciones  = $model->getEstudiantesInscripcion($filters, $page, $perPage);
             $total          = $model->countEstudiantesInscripcion($filters);
-            $aniosEscolares = $model->getAniosEscolares();
+            /* Solo el activo, que es el único que la vista muestra. Antes llegaba
+               la lista entera para alimentar un selector que ya no existe. */
+            $aniosEscolares = [[
+                'id_anio_escolar' => \App\Support\AniosEscolares::idEnCurso($this->conexion()),
+                'nombre_periodo' => \App\Support\AniosEscolares::nombreEnCurso($this->conexion()),
+            ]];
             $grados         = $model->getGrados();
             $secciones      = $model->getSecciones();
 

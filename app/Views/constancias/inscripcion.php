@@ -81,15 +81,15 @@ ob_start();
   // Filtros del Toolbar
   ob_start();
   ?>
-  <label for="filtroAnio" class="visually-hidden">Período Escolar</label>
-  <select id="filtroAnio" name="anio" class="form-select" aria-label="Filtrar por período">
-    <option value="">Período Escolar (Todos)</option>
+  <?php /* El año no se elige: es el activo, siempre. La constancia se emite sobre el
+         matrícula en curso, así que ofrecer otros años hacía creer que se podía
+         sacar de un período que ya no está en marcha. Como texto y no como un
+         <select> deshabilitado, que parece un control y no lo es. */ ?>
+  <span class="data-panel__year-fixed" id="filtroAnio">
     <?php foreach ($aniosEscolares as $a): ?>
-      <option value="<?= htmlspecialchars((string) $a['nombre_periodo']) ?>" <?= ($filters['anio'] ?? '') === $a['nombre_periodo'] ? 'selected' : '' ?>>
-        <?= htmlspecialchars((string) $a['nombre_periodo']) ?>
-      </option>
+      <?= htmlspecialchars((string) $a['nombre_periodo']) ?>
     <?php endforeach; ?>
-  </select>
+  </span>
 
   <label for="filtroGrado" class="visually-hidden">Grado</label>
   <select id="filtroGrado" name="grado" class="form-select" aria-label="Filtrar por grado">
