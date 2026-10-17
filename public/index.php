@@ -305,7 +305,6 @@ $rutasPermitidas = [
         'index'       => ['admin', 'directivo', 'secretaria'],
         'estudio'     => ['admin', 'directivo', 'secretaria'],
         'inscripcion' => ['admin', 'directivo', 'secretaria'],
-        'verPrueba'   => ['admin', 'directivo', 'secretaria'],
         'emitir'      => ['admin', 'directivo', 'secretaria'],
     ],
     'resultadoAcademico' => [

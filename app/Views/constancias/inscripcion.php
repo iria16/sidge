@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Vista: constancias/inscripcion.php
- * Listado de inscripciones para emisión de Constancia de Inscripción y visor de formato de prueba.
+ * Listado de inscripciones para emisión de Constancia de Inscripción.
  *
  * @var array<int, array<string, mixed>> $inscripciones
  * @var int $total
@@ -35,17 +35,8 @@ ob_start();
   <?php
   ob_start();
   ?>
-  <div class="d-flex align-items-center gap-2 flex-wrap">
-    <a href="<?= BASE_URL ?>constancias/verPrueba?tipo=inscripcion"
-       target="_blank"
-       class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm"
-       id="btnVerPruebaInscripcion">
-      <i class="bi bi-file-earmark-pdf fs-5" aria-hidden="true"></i>
-      <span>Ver Formato de Prueba (PDF)</span>
-    </a>
-  </div>
-  <?php
-  $pageHeaderActions = ob_get_clean();
+  <?php /* Sin acciones en el encabezado: el visor de formato de prueba se retiró. */
+  $pageHeaderActions = ''; ?>
   $pageHeading       = 'Constancias de Inscripción';
   $pageSubheading    = 'Consulte los registros de inscripción por período escolar y emita la constancia oficial en formato Carta/Dompdf.';
   include __DIR__ . '/../components/page-header.php';
