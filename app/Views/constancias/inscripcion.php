@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Vista: constancias/inscripcion.php
- * Listado de inscripciones para emisión de Constancia de Inscripción.
+ * Listado de inscripciones para emisión de Constancia de Inscripción y visor de formato de prueba.
  *
  * @var array<int, array<string, mixed>> $inscripciones
  * @var int $total
@@ -33,9 +33,11 @@ ob_start();
 
   <!-- Encabezado de página -->
   <?php
-  ob_start();
-  ?>
-  <?php /* Sin acciones en el encabezado: el visor de formato de prueba se retiró. */
+  /* Sin acciones en el encabezado: el visor de formato de prueba se retiró.
+     No se abre búfer porque no hay nada que capturar aquí: si se abriera sin
+     cerrarlo, el ob_get_clean() final se llevaría el búfer equivocado, toda la
+     página se imprimiría antes del <!DOCTYPE> y el layout se quedaría sin
+     contenido. Ese fallo ya pasó una vez. */
   $pageHeaderActions = '';
   $pageHeading       = 'Constancias de Inscripción';
   $pageSubheading    = 'Consulte los registros de inscripción por período escolar y emita la constancia oficial en formato Carta/Dompdf.';

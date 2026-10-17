@@ -104,6 +104,30 @@ function revisar(string $ruta, string $contenido): array
         }
     }
 
+    /* Regla 3: búferes de salida descuadrados.
+       Un ob_start() sin su ob_get_clean() hace que el ob_get_clean() final se
+       quede con el búfer equivocado: la página se imprime ANTES del <!DOCTYPE>
+       y el layout queda sin contenido. Rompe el documento entero, y
+       `php -l` y el conteo de etiquetas no lo detectan. */
+    /* Se cuenta solo el código: los comentarios Explain el ob_get_clean() que
+       se está buscando y no deben contar como llamadas. */
+    $codigo = preg_replace(['#/\*.*?\*/#s', '#//[^\n]*#'], ' ', $contenido);
+    $abre = preg_match_all('/ob_start\(\)/', (string) $codigo);
+    $cierra = preg_match_all('/ob_get_clean\(\)/', (string) $codigo);
+    $end = preg_match_all('/ob_end_clean\(\)|ob_end_flush\(\)/', (string) $codigo);
+    if ($abre !== $cierra + $end) {
+        $hallazgos[] = [
+            'regla' => sprintf(
+                'búferes descuadrados: %d ob_start() y %d ob_get_clean()/ob_end (faltan %d)',
+                $abre,
+                $cierra + $end,
+                $abre - $cierra - $end
+            ),
+            'linea' => 0,
+            'texto' => '',
+        ];
+    }
+
     return $hallazgos;
 }
 
@@ -178,7 +202,7 @@ foreach ($archivos as $ruta) {
         if ($h['linea'] > 0) {
             printf("       L%-4d %s\n           %s\n", $h['linea'], $h['regla'], substr($h['texto'], 0, 78));
         } else {
-            printf("       %s (candidato: revisa si es de verdad)\n", $h['regla']);
+            printf("       %s\n", $h['regla']);
         }
     }
 }
