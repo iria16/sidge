@@ -5,14 +5,15 @@
   "main": "index.js",
   "scripts": {
     "build": "npm run copy:vendor-js && npm run copy:vendor-icons && npm run sass:build && npm run sass:build:pdf",
-    "verificar": "php scripts/verificar-assets.php && php scripts/verificar-ids.php",
+    "verificar": "php scripts/verificar-assets.php && php scripts/verificar-ids.php && php scripts/verificar-vistas.php",
     "sass:build": "sass resources/scss/app.scss public/assets/css/app.css --style=compressed --no-source-map",
     "sass:watch": "sass --watch resources/scss/app.scss:public/assets/css/app.css",
     "sass:build:pdf": "sass resources/scss/pdf/constancia.scss public/assets/css/pdf/constancia.css --style=expanded --no-source-map && sass resources/scss/pdf/ficha-estudiante.scss public/assets/css/pdf/ficha-estudiante.css --style=expanded --no-source-map && sass resources/scss/pdf/nomina-seccion.scss public/assets/css/pdf/nomina-seccion.css --style=expanded --no-source-map",
     "sass:watch:pdf": "sass --watch resources/scss/pdf/constancia.scss:public/assets/css/pdf/constancia.css resources/scss/pdf/ficha-estudiante.scss:public/assets/css/pdf/ficha-estudiante.css resources/scss/pdf/nomina-seccion.scss:public/assets/css/pdf/nomina-seccion.css",
     "copy:vendor-js": "mkdir -p public/assets/js/vendor && cp node_modules/bootstrap/dist/js/bootstrap.bundle.min.js public/assets/js/vendor/ && cp node_modules/sweetalert2/dist/sweetalert2.all.min.js public/assets/js/vendor/",
     "copy:vendor-icons": "mkdir -p public/assets/vendor/bootstrap-icons && cp -r node_modules/bootstrap-icons/font/* public/assets/vendor/bootstrap-icons/",
-    "verificar:ids": "php scripts/verificar-ids.php"
+    "verificar:ids": "php scripts/verificar-ids.php",
+    "verificar:vistas": "php scripts/verificar-vistas.php"
   },
   "keywords": [],
   "author": "",
