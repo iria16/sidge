@@ -36,7 +36,7 @@ ob_start();
   ob_start();
   ?>
   <?php /* Sin acciones en el encabezado: el visor de formato de prueba se retiró. */
-  $pageHeaderActions = ''; ?>
+  $pageHeaderActions = '';
   $pageHeading       = 'Constancias de Inscripción';
   $pageSubheading    = 'Consulte los registros de inscripción por período escolar y emita la constancia oficial en formato Carta/Dompdf.';
   include __DIR__ . '/../components/page-header.php';

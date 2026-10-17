@@ -37,7 +37,7 @@ ob_start();
   ?>
   <?php /* Sin acciones en el encabezado: el visor de formato de prueba y su
          desplegable de variantes se retiraron. */
-  $pageHeaderActions = ''; ?>
+  $pageHeaderActions = '';
   $pageHeading       = 'Constancias de Estudio';
   $pageSubheading    = 'Consulte los expedientes del alumnado y emita la constancia oficial de estudio en formato Carta/Dompdf.';
   include __DIR__ . '/../components/page-header.php';
