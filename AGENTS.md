@@ -183,9 +183,14 @@ para reescribir los otros 11; sí es el patrón a seguir en las nuevas.
   sobre el mismo elemento y ganaría la última del bundle, estirando la tabla
   sin que nada fallara.
 - **Coherencia:** una clase entra en `_columnas.scss` solo si su ancho se
-  repite en **2 o más módulos**. Un ancho que solo necesita un módulo se queda
-  en su `<colgroup>` con estilo en línea. Los valores se añaden por orden de
-  aparición, no se adelantan: una clase que nadie usa es CSS muerto.
+  repite en **2 o más archivos** del proyecto. Un ancho que solo usa un archivo
+  se queda en su `<colgroup>` con estilo en línea, aunque tenga el prefijo
+  `ancho-` al lado: mezclar es preferible a llenar el archivo de utilidades de
+  un solo uso. Los valores se añaden por orden de aparición, no se adelantan:
+  una clase que nadie usa es CSS muerto.
+- Al contar, hay que tolerar `style="width: 14%;"` con espacio y punto y coma:
+  un patrón que solo acepte `%` justo antes de la comilla cuenta menos
+  repeticiones de las que hay y hace quedarse inline un ancho que sí se repite.
 - Verificar que los anchos de una tabla **suman 100%** antes y después de
   convertir, porque `table-layout: fixed` reparte el sobrante.
 
@@ -282,7 +287,7 @@ del código, no supuestas):
 | `.transparency-pattern`, `.image-preview-box`, `.cintillo-preview-box`, `.private-preview-box` | `_configuracion-institucional.scss` | Cajas de previsualización de imágenes |
 | `.nomina-*` (23 clases) | `_docente-nomina.scss` | Nómina del docente |
 | `.table` | `_tables.scss` | Estilo de tablas |
-| `.ancho-<N>` | `base/_columnas.scss` | Ancho de columna de tabla (12, 13, 15…) |
+| `.ancho-<N>` | `base/_columnas.scss` | Ancho de columna de tabla. Hoy: 12, 13, 14, 15, 16, 17, 18, 19, 22, 30 |
 
 ### 5.3 Paleta y tokens (`resources/scss/_variables.scss`)
 
@@ -377,6 +382,24 @@ Cubre siete fallos que rompen la pantalla en silencio:
 7. Icono `.bi-*` que no existe en la librería.
 
 ---
+
+### 9.1 Pendientes anotados (migrar en un módulo posterior, con aprobación)
+
+| Qué | Dónde | Nº |
+|---|---|---|
+| `style=""` estáticos | `app/Views/empleados/modals/show-modal.php` | 4 |
+| `style=""` estáticos | `app/Views/empleados/modals/add-title-modal.php` | 2 |
+| `style=""` estáticos | `app/Views/empleados/modals/edit-modal.php` | 1 |
+| `declare(strict_types=1)` ausente | 13 archivos de `empleados/` (6 `employee-steps/`, 6 `modals/`, `partials/employee-rows.php`) | 13 |
+
+Los `style=""` de esos modales son estáticos y pueden ir a
+`resources/scss/components/_empleados.scss`, que todavía no existe. Antes de
+añadir `strict_types` a cualquiera de esos 13 hay que revisar, variable por
+variable, qué llega a `htmlspecialchars()` y a funciones con tipos: si puede
+venir `null`, el tipo estricto convierte un *deprecation* en un **TypeError
+fatal**. Ese análisis se hizo para `empleados/index.php` y salió limpio
+(el único `htmlspecialchars` del archivo recibe `cargo.nombre`, que es
+`NOT NULL` con clave única).
 
 ## 9. Fuera de alcance por ahora (decisiones tomadas)
 
