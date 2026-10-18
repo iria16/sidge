@@ -6,7 +6,8 @@
  * Variables que la vista debe definir ANTES del include:
  * - string $assetsPath    Ruta relativa hacia public/assets desde la vista actual. Requerido.
  * - array  $extraScripts  Opcional. Rutas adicionales (relativas a $assetsPath) que
- *                         una vista específica necesite, ej. ['/js/usuarios.js'].
+ *                         una vista específica necesite, ej.
+ *                         ['/js/modules/estudiantes/enrollments.js'].
  */
 
 /* Versionado de los estáticos con el mtime del archivo; el comentario de por
@@ -33,9 +34,9 @@ $extraScripts = $extraScripts ?? [];
            - sigde-ui.js : avisos, red, modales, portapapeles, <select>
            - wizard-ui.js: foto, tarjetas de sexo y filtros de escritura
                             de los formularios tipo wizard */ ?>
-<script src="<?php echo $assetsPath, '/js/sigde-ui.js?v=', $versionDe('/js/sigde-ui.js'); ?>"></script>
-<script src="<?php echo $assetsPath, '/js/wizard-ui.js?v=', $versionDe('/js/wizard-ui.js'); ?>"></script>
-<script src="<?php echo $assetsPath, '/js/main.js?v=', $versionDe('/js/main.js'); ?>"></script>
+<script src="<?php echo $assetsPath, '/js/core/sigde-ui.js?v=', $versionDe('/js/core/sigde-ui.js'); ?>"></script>
+<script src="<?php echo $assetsPath, '/js/core/wizard-ui.js?v=', $versionDe('/js/core/wizard-ui.js'); ?>"></script>
+<script src="<?php echo $assetsPath, '/js/core/main.js?v=', $versionDe('/js/core/main.js'); ?>"></script>
 
 <?php foreach ($extraScripts as $script): ?>
   <script src="<?php echo $assetsPath, $script, '?v=', $versionDe($script); ?>"></script>

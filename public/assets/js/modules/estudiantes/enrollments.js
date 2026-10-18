@@ -7,12 +7,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* Helpers
 */
-  function escHtml(str) {
-    if (str == null) return '';
-    return String(str)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
   function textoSeleccionado(id) {
     var el = document.getElementById(id);
     return el && el.selectedOptions && el.selectedOptions[0]
@@ -274,9 +268,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* ---------- Foto del estudiante (paso 1) ----------
  Previsualización, "quitar foto" y filtros de escritura delegan en
- public/assets/js/wizard-ui.js, el mismo módulo que consume el wizard de
+ public/assets/js/core/wizard-ui.js, el mismo módulo que consume el wizard de
  empleado. La foto del FAMILIAR no se inicializa aquí: la inicializa
- public/assets/js/familiares.js, que es el dueño del sub-modal.*/
+ public/assets/js/modules/estudiantes/familiares.js, que es el dueño del sub-modal.*/
   SIGDEWizardUI.initFoto({
     inputId: 'fotoInput',
     previewId: 'fotoPreview',
@@ -600,9 +594,9 @@ document.addEventListener('DOMContentLoaded', function () {
         var nombreDoc = fila.querySelector('.fw-semibold').textContent;
         if (chk && chk.checked) {
           marcadosDocs++;
-          htmlDocs += '<li class="mb-2 text-success d-flex align-items-start"><i class="bi bi-check-circle-fill me-2 mt-1"></i><span>' + escHtml(nombreDoc) + '</span></li>';
+          htmlDocs += '<li class="mb-2 text-success d-flex align-items-start"><i class="bi bi-check-circle-fill me-2 mt-1"></i><span>' + SIGDEUI.escapeHtml(nombreDoc) + '</span></li>';
         } else {
-          htmlDocs += '<li class="mb-2 text-danger d-flex align-items-start"><i class="bi bi-x-circle me-2 mt-1"></i><span class="text-muted">' + escHtml(nombreDoc) + '</span></li>';
+          htmlDocs += '<li class="mb-2 text-danger d-flex align-items-start"><i class="bi bi-x-circle me-2 mt-1"></i><span class="text-muted">' + SIGDEUI.escapeHtml(nombreDoc) + '</span></li>';
         }
       });
       listaDocs.innerHTML = htmlDocs;
@@ -648,12 +642,12 @@ document.addEventListener('DOMContentLoaded', function () {
             badges += insignia('Desactivado', 'inactive');
           }
 
-          var parentesco = escHtml(f.parentesco_texto || 'Familiar');
+          var parentesco = SIGDEUI.escapeHtml(f.parentesco_texto || 'Familiar');
           var nombre = (f.primer_nombre || '') + ' ' + (f.primer_apellido || '');
           /* Sin nombres propios queda el nombre de referencia que se escribió a mano;
  si tampoco está, se muestra "Familiar" en vez de un "undefined" suelto.*/
-          var nombreCompleto = escHtml(SIGDEUI.normalizarNombre(nombre.trim() || f.nombre_referencia || 'Familiar'));
-          var iniciales = escHtml(
+          var nombreCompleto = SIGDEUI.escapeHtml(SIGDEUI.normalizarNombre(nombre.trim() || f.nombre_referencia || 'Familiar'));
+          var iniciales = SIGDEUI.escapeHtml(
             ((f.primer_nombre || '') + (f.primer_apellido || '')).trim().charAt(0).toUpperCase() || 'F'
           );
 

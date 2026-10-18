@@ -70,15 +70,23 @@ function initAutoFilters() {
         var doc = parser.parseFromString(html, 'text/html');
 
         if (panel) {
-          // Ubicamos el MISMO form de filtros en el HTML devuelto y subimos
-          // desde ahí con closest(), en vez de tomar el primer '.data-panel'
-          // del documento: en vistas con más de un '.data-panel' (ej.
-          // catalogo/index.php, que también tiene el panel del selector de
-          // tipo de catálogo arriba), querySelector('.data-panel') podía
-          // devolver el panel equivocado y el reemplazo de body/footer
-          // fallaba en silencio.
+          /* Ubicamos el MISMO form de filtros en el HTML devuelto y subimos desde ahí con
+           closest(), en vez de tomar el primer '.data-panel' del documento: en vistas con
+           más de un '.data-panel' (ej. catalogo/index.php, que también tiene el panel del
+           selector de tipo de catálogo arriba), querySelector('.data-panel') podía devolver
+           el panel equivocado y el reemplazo de body/footer fallaba en silencio.
+
+           El `|| doc.querySelector(...)` no es redundante con el de arriba: es lo que hace
+           que las dos resolutions usen la MISMA regla. El panel original se busca con
+           closest() y, si el form no está dentro de él, con el primer .data-panel del
+           documento (docente/nomina.php, donde el form de filtros es HERMANO del panel y no
+           hijo). Como aquí solo se usaba closest(), en esa vista newPanel llegaba null, el
+           `if` de abajo no entraba nunca y el filtro hacía la petición y cambiaba la URL
+           sin tocar la tabla: se veía como que los filtros no se aplicaban. */
           var newForm = doc.querySelector('form.data-panel__filters, form.auto-filters');
-          var newPanel = newForm ? newForm.closest('.data-panel') : doc.querySelector('.data-panel');
+          var newPanel = newForm
+            ? (newForm.closest('.data-panel') || doc.querySelector('.data-panel'))
+            : doc.querySelector('.data-panel');
 
           if (newPanel) {
             var currentBody = panel.querySelector('.data-panel__body');

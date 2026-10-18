@@ -32,12 +32,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  function fechaVisible(value) {
-    if (!value) return '—';
-    var partes = value.slice(0, 10).split('-');
-    return partes.length === 3 ? partes[2] + '/' + partes[1] + '/' + partes[0] : value;
-  }
-
+  /* La fecha corta la pinta core/sigde-ui.js (formatearFechaCorta), que es la misma que usa el
+   * módulo de empleados. Antes tenía aquí su propia copia idéntica. */
   function texto(id, value) {
     var element = document.getElementById(id);
     if (element) element.textContent = value || '—';
@@ -60,8 +56,8 @@ document.addEventListener('DOMContentLoaded', function () {
     button.addEventListener('click', function () {
       texto('verAnioNombre', button.dataset.nombre);
       texto('verAnioEstado', button.dataset.estado);
-      texto('verAnioInicio', fechaVisible(button.dataset.inicio));
-      texto('verAnioCierre', fechaVisible(button.dataset.cierre));
+      texto('verAnioInicio', SIGDEUI.formatearFechaCorta(button.dataset.inicio));
+      texto('verAnioCierre', SIGDEUI.formatearFechaCorta(button.dataset.cierre));
       dato('verAnioIniciadoPor', button.dataset.iniciadoPor);
       dato('verAnioIniciadoEn', button.dataset.iniciadoEn ? button.dataset.iniciadoEn.replace('T', ' ') : '');
       dato('verAnioReabiertoPor', button.dataset.reabiertoPor);

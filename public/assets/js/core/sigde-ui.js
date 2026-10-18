@@ -106,12 +106,27 @@ window.SIGDEUI = (function () {
     return new Promise(function () {});
   }
 
+  function getCsrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.content) return meta.content;
+    var input = document.querySelector('input[name="csrf"]');
+    if (input && input.value) return input.value;
+    return window.CSRF_TOKEN || '';
+  }
+
   function enviar(url, opciones) {
     var o = opciones || {};
     var cuerpo = o.cuerpo;
+    var metodo = (o.metodo || 'GET').toUpperCase();
 
-    if (cuerpo && !(cuerpo instanceof FormData) && !(cuerpo instanceof URLSearchParams)) {
-      cuerpo = new URLSearchParams(cuerpo);
+    if (o.json) {
+      if (cuerpo && !(cuerpo instanceof FormData) && !(cuerpo instanceof URLSearchParams)) {
+        cuerpo = JSON.stringify(cuerpo);
+      }
+    } else {
+      if (cuerpo && !(cuerpo instanceof FormData) && !(cuerpo instanceof URLSearchParams)) {
+        cuerpo = new URLSearchParams(cuerpo);
+      }
     }
 
     var cabeceras = { 'X-Requested-With': 'XMLHttpRequest' };
@@ -120,13 +135,27 @@ window.SIGDEUI = (function () {
     }
     if (o.json) {
       cabeceras['Content-Type'] = 'application/json';
-      if (cuerpo && !(cuerpo instanceof FormData) && !(cuerpo instanceof URLSearchParams)) {
-        cuerpo = JSON.stringify(cuerpo);
+    }
+
+    // Inyectar CSRF token para peticiones de mutación (POST, PUT, DELETE, PATCH)
+    if (metodo !== 'GET' && metodo !== 'HEAD') {
+      var token = getCsrfToken();
+      if (token) {
+        cabeceras['X-CSRF-Token'] = token;
+        if (cuerpo instanceof FormData) {
+          if (!cuerpo.has('csrf')) {
+            cuerpo.append('csrf', token);
+          }
+        } else if (cuerpo instanceof URLSearchParams) {
+          if (!cuerpo.has('csrf')) {
+            cuerpo.append('csrf', token);
+          }
+        }
       }
     }
 
     return fetch(url, {
-      method: o.metodo || 'GET',
+      method: metodo,
       headers: cabeceras,
       body: cuerpo,
       signal: o.signal
@@ -561,6 +590,18 @@ window.SIGDEUI = (function () {
     return palabras.join(' ');
   }
 
+  /* Fechas. '2024-03-15' -> '15/03/2024'. Sin pasar por Date a propósito: Date interpretaría
+   '2024-03-15' como medianoche UTC y en una zona horaria negativa mostraría el día anterior.
+   Recorta a los 10 primeros caracteres porque un DATETIME ('2024-03-15 00:00:00') también debe
+   salir como fecha, no con la hora pegada. Vive aquí porque lo usan el módulo de empleados y el
+   de años escolares, que antes tenían cada uno su copia. NO es el formateador de fecha y hora de
+   cuentas.js, que sí usa toLocaleString a propósito. */
+  function formatearFechaCorta(valor) {
+    if (!valor) return '—';
+    var partes = String(valor).slice(0, 10).split('-');
+    return partes.length === 3 ? partes[2] + '/' + partes[1] + '/' + partes[0] : valor;
+  }
+
   /* ── Catálogos*/
 
   /**
@@ -649,8 +690,9 @@ window.SIGDEUI = (function () {
     rellenarSelect: rellenarSelect,
     filtrarOpciones: filtrarOpciones,
     guardarCatalogoRapido: guardarCatalogoRapido,
-esDebounced: esDebounced,
+    esDebounced: esDebounced,
       escapeHtml: escapeHtml,
+      formatearFechaCorta: formatearFechaCorta,
       mostrarErroresDeCampos: mostrarErroresDeCampos,
       limpiarErroresDeCampos: limpiarErroresDeCampos,
     normalizarNombre: normalizarNombre

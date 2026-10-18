@@ -2,7 +2,7 @@
 /**
  * Comprueba que cada recurso que el layout pide exista en disco.
  *
- *   php verificar-assets.php        (o: npm run verificar)
+ *   php scripts/verificar-assets.php        (o: npm run verificar)
  *
  * El layout arma sus rutas con <?php echo $assetsPath, '...' ?>, así que no hay forma
  * fácil de saber a mano si algo falta: la página carga, responde 200 y simplemente
@@ -14,7 +14,8 @@
  */
 declare(strict_types=1);
 
-$raiz = __DIR__;
+/* El script vive en scripts/, así que la raíz del proyecto es un nivel arriba. */
+$raiz = dirname(__DIR__);
 $public = $raiz . '/public';
 $assets = $public . '/assets';
 
@@ -23,9 +24,9 @@ $patrones = [
     '/vendor/bootstrap-icons/bootstrap-icons.css',
     '/js/vendor/bootstrap.bundle.min.js',
     '/js/vendor/sweetalert2.all.min.js',
-    '/js/sigde-ui.js',
-    '/js/wizard-ui.js',
-    '/js/main.js',
+    '/js/core/sigde-ui.js',
+    '/js/core/wizard-ui.js',
+    '/js/core/main.js',
     '/css/app.css',
 ];
 
@@ -47,8 +48,21 @@ foreach ($iter as $v) {
         if ($t === '' || $t[0] === '*' || $t[0] === '/' || $t[0] === '#') {
             continue;
         }
-        if (preg_match("#'/(js/[a-z0-9-]+\.js)'#i", $linea, $m)) {
-            $modulos[$m[1]] = true;
+        /* Desde que el JavaScript está organizado en carpetas (core/, auth/,
+           modules/<modulo>/) la ruta lleva subdirectorios: '/js/modules/
+           empleados/empleado-alta.js'. El patrón tiene que admitirlos o la
+           comprobación dejaría de mirar esos archivos en silencio, que es
+           exactamente el fallo invisible que este script existe para evitar.
+
+           preg_match_all y no preg_match: varias vistas declaran los tres
+           scripts del módulo en la MISMA línea
+           ($extraScripts = ['/js/.../familiares.js', '/js/.../enrollments.js']).
+           Con preg_match solo se registraba el primero y los otros dos nunca
+           se comprobaban: un archivo faltante pasaba el control sin avisar.*/
+        if (preg_match_all("#'(/js/[a-z0-9-]+(?:/[a-z0-9-]+)*\.js)'#i", $linea, $m)) {
+            foreach ($m[1] as $ruta) {
+                $modulos[$ruta] = true;
+            }
         }
     }
 }
