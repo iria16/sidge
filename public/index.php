@@ -337,11 +337,11 @@ $rutasPermitidas = [
     /* Solo 'docente': el listado de la sección es del docente, que es quien
        tiene la sección asignada. Ni el administrativo del sistema, ni el
        directivo ni el coordinador lo consultan. */
-    'listadosSeccion' => [
-        'index'        => ['docente'],
-        'descargarPdf' => ['docente'],
-        'exportarCsv'  => ['docente'],
-    ],
+    /* Sin listadosSeccion: era la versión anterior de docente/nomina y quedó
+       sin uso. Se le habían portado imprimir y se renunció a propósito a
+       ordenar, ocultar columnas y elegir otra sección (esa última era un
+       agujero de privacidad). La pestaña «Asistencia» era un informe en papel
+       que no guardaba nada: no se Migra. Ver AGENTS.md 9.1. */
     // Listados del docente (GET) y enlace de WhatsApp de su sección (POST). La sección sale de la sesión.
     'docente' => [
         'nomina'                => ['docente'],

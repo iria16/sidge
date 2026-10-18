@@ -401,28 +401,28 @@ Se ejecuta con `npm run verificar` o suelto con
 
 ---
 
-### 9.1 Dos pantallas de listados que conviven a propósito
+### 9.1 Pantalla vieja de listados: retirada
 
-`docente/nomina.php` (ruta `docente/nomina`) y `docente/listados_actas.php`
-(ruta `listadosSeccion`) son **la misma pantalla en dos versiones**. El menú
-del docente apunta a la primera, que es la buena: seis pestañas, la sección
-fija por sesión y la vista previa en modal. La segunda es la anterior: tres
-pestañas, su propio JS en la vista y 1.035 líneas.
+`docente/listados_actas.php` era la versión anterior de `docente/nomina.php`, que
+es la que usa el menú del docente. Se retiró el 2026-10-18: borrados la vista,
+`ListadosSeccionController` y `ListadosSeccionModel`, más las tres rutas
+`listadosSeccion/*`.
 
-**No borrar la vieja hasta cerrar esto**, porque tiene tres cosas que la
-nueva no tiene:
+Lo único que tenía y no se portó, y por qué:
 
-| Qué | Estado | Decisión |
-|---|---|---|
-| **Imprimir** desde la vista previa | **Portado** a `nomina.php` | El botón imprime el `iframe` de la propia vista previa, con el mismo respaldo que usaba la vieja si el navegador no deja llamar a `print()` |
-| **Ordenar por columna** | Solo en la vieja | No se porta: la sección tiene 4-6 alumnos, no hay nada que ordenar |
-| **Mostrar/ocultar columnas** | Solo en la vieja | No se porta, por lo mismo |
-| **Elegir otra sección** | Solo en la vieja | **No se porta a propósito**: la vieja dejaba ver la lista de una sección que no era del docente. La nueva lo cierra, y está escrito en `DocenteController::nomina()` |
-| **Pestaña «Asistencia»** | Solo en la vieja | No es una función que se pueda移植: es un informe distinto («Registro de Asistencia a Reunión») que necesita vista, datos y plantilla PDF propias. Es funcionalidad nueva, y decidirla no es un refactor |
+| Qué | Por qué no se migra |
+|---|---|
+| **Ordenar por columna** | La sección tiene 4-6 alumnos. No hay nada que ordenar |
+| **Mostrar/ocultar columnas** | Por lo mismo |
+| **Elegir otra sección** | La vieja dejaba ver la lista de una sección que no era del docente. Es un agujero de privacidad, no una función |
+| **Pestaña «Asistencia»** | No registraba asistencia: era un registro en blanco para imprimir y firmar a mano, sin guardar nada en la base. No hay tabla de asistencia en el esquema. Portarlo no era un refactor, era diseñar el circuito completo |
 
-Cuando «Asistencia» esté decidida, se borran `docente/listados_actas.php`,
-`ListadosSeccionController` y las tres rutas `listadosSeccion/*`, y con eso
-desaparece el aviso del verificador.
+Lo que sí era útil se portó antes de borrar: **imprimir desde la vista previa**
+del `docente/nomina.php`, con el mismo respaldo que usaba la vieja.
+
+Si algún día se quiere la asistencia **de verdad**, es un módulo nuevo: tabla
+`asistencia_reunion`, quién la registra, y qué pasa con el papel. Va en su
+propia decisión, no aquí.
 
 ### 9.2 Pendientes anotados (migrar en un módulo posterior, con aprobación)
 

@@ -208,8 +208,7 @@ foreach ($roles as $rol) {
 
     /* Chequeo inverso: rutas que abren a este rol un módulo que su menú no le
        ofrece. Con el menú se tapa el acceso, no la autorización: el enlace no
-       aparece, pero escribir la URL a mano entra igual. Sucedió con academicYear
-       y listadosSeccion para el admin. Se informa y no falla, porque puede ser
+       aparece, pero escribir la URL a mano entra igual. Sucedió con academicYear para el admin. Se informa y no falla, porque puede ser
        legítimo: un módulo al que se llega desde el detalle de otro y no desde
        el menú. 'auth' queda fuera a propósito: cerrar sesión y cambiar clave los
        tiene todo el mundo y no son un módulo de navegación. */
