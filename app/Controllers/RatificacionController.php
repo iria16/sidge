@@ -224,7 +224,13 @@ class RatificacionController extends CrudController
                 'tiene_ingreso_sige' => !empty($_POST['tiene_ingreso_sige']) ? 1 : 0,
                 'fecha_ingreso_sige' => trim((string) ($_POST['fecha_ingreso_sige'] ?? '')),
                 'motivo_sige'        => trim((string) ($_POST['motivo_sige'] ?? '')),
-                'repite_grado'       => !empty($_POST['repite_grado']) ? 1 : 0,
+                /* La pregunta «¿El estudiante repite el grado?» se quitó de la
+                   encuesta: el grado de destino ya lo propone el sistema a partir
+                   del resultado y la secretaria lo elige en el desplegable, así
+                   que la respuesta solo se guardaba. La columna se queda en 0
+                   porque en la tabla es NOT NULL con CHECK (0,1); no se manda
+                   nada desde el formulario porque ya no existe ese campo. */
+                'repite_grado'       => 0,
             ];
 
             if ($encuesta['tiene_canaima'] === 1 && $encuesta['serial_canaima'] === '') {

@@ -70,6 +70,57 @@ ob_start();
     </div>
   </div>
 
+  <div class="mb-4">
+    <div class="d-flex align-items-center mb-3">
+      <div class="bg-warning rounded" style="width: 4px; height: 16px; margin-right: 8px;"></div>
+      <h6 class="mb-0 fw-bold">Encuesta de Ratificación</h6>
+    </div>
+
+    <div class="border rounded p-3">
+      <div class="mb-3">
+        <label class="form-label text-muted small mb-2 d-block fw-semibold">1. ¿Posee equipo Canaima? *</label>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tiene_canaima" id="tieneCanaimaNo" value="0" checked>
+          <label class="form-check-label" for="tieneCanaimaNo">No</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tiene_canaima" id="tieneCanaimaSi" value="1">
+          <label class="form-check-label" for="tieneCanaimaSi">Sí</label>
+        </div>
+
+        <div id="bloqueSerialCanaima" class="mt-2" style="display: none;">
+          <label class="form-label text-muted small mb-1" for="serialCanaima">Serial de la Canaima *</label>
+          <input type="text" class="form-control" id="serialCanaima" name="serial_canaima"
+                 maxlength="50" placeholder="Ej.: CAN-2023-XXXXX">
+        </div>
+      </div>
+
+      <div class="mb-0 pt-3 border-top">
+        <label class="form-label text-muted small mb-2 d-block fw-semibold">2. ¿Tiene ingreso al SIGE? *</label>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tiene_ingreso_sige" id="tieneIngresoSigeNo" value="0" checked>
+          <label class="form-check-label" for="tieneIngresoSigeNo">No</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tiene_ingreso_sige" id="tieneIngresoSigeSi" value="1">
+          <label class="form-check-label" for="tieneIngresoSigeSi">Sí</label>
+        </div>
+
+        <div id="bloqueDetallesSige" class="mt-2 row g-3" style="display: none;">
+          <div class="col-md-6">
+            <label class="form-label text-muted small mb-1" for="fechaIngresoSige">Fecha de Ingreso al SIGE</label>
+            <input type="date" class="form-control" id="fechaIngresoSige" name="fecha_ingreso_sige">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label text-muted small mb-1" for="motivoSige">Motivo SIGE</label>
+            <input type="text" class="form-control" id="motivoSige" name="motivo_sige"
+                   maxlength="200" placeholder="Motivo o descripción del ingreso">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div>
     <div class="d-flex align-items-center mb-3">
       <div class="bg-warning rounded" style="width: 4px; height: 16px; margin-right: 8px;"></div>
