@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: usuarios/cuentas/index.php
  * Gestión de Cuentas de Usuario — listado, filtros y accesos rápidos.
@@ -249,5 +252,5 @@ require_once __DIR__ . '/modals/show-modal.php';
 require_once __DIR__ . '/modals/edit-modal.php';
 $pageModals = ob_get_clean();
 
-$extraScripts = ['/js/cuentas.js']; // la version la agrega partials/scripts.php
+$extraScripts = ['/js/modules/usuarios/cuentas.js']; // la version la agrega partials/scripts.php
 include __DIR__ . '/../../layouts/app.php';
