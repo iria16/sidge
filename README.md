@@ -32,11 +32,21 @@ es la forma más difícil de detectar de una vista. `npm run verificar` existe p
 
 ## Base de datos
 
-Las credenciales están en `app/Config/Database.php`.
+Las credenciales **no** están en el código: se leen del archivo `.env` de la raíz del
+proyecto. `.env` está en `.gitignore` y no debe subirse nunca; `.env.example` documenta
+las variables necesarias sin valores reales.
+
+```bash
+cp .env.example .env      # y rellena DB_USER, DB_PASS y las demás
+```
 
 ```bash
 mysql -u root -p sidge < database/schema_actual.sql
 ```
+
+Usa un usuario propio de la aplicación, no `root`: con permisos solo sobre la base
+`sidge` es imposible que una fuga borre el servidor de MySQL entero. Los comandos
+para crearlo están en `DESPLIEGUE.md`.
 
 `database/migrations/` guarda el historial de cambios de esquema, en orden de fecha. **No
 hay que ejecutarlas para instalar de cero**: `schema_actual.sql` ya está consolidado y
@@ -83,6 +93,7 @@ database/         esquema, migraciones y respaldos
 docs/             documentos del proyecto
 public/           raíz web: index.php y assets
 resources/scss/   fuentes de estilos
+scripts/          utilidades de mantenimiento (fuera de la raíz web)
 ```
 
 El punto de entrada es `public/index.php`, que enruta por `/controlador/accion`. Con el
@@ -118,10 +129,24 @@ Las acciones disponibles de cada módulo están en la lista blanca de
 
 ## Reporte PDF
 
-El expediente del estudiante se exporta a PDF con Dompdf. La plantilla es
-`app/Views/consulta_academica/estudiantes/export-pdf.php` y los estilos que usa están
-en `resources/scss/components/_student-record-pdf.scss`, que se compila dentro del mismo
-`app.css`.
+Los PDF se maquetan con Dompdf, no con el navegador: no resuelven rutas relativas,
+no descargan recursos remotos y su subconjunto de CSS es reducido. Por eso los
+documentos no toman su estilo de `app.css` (el bundle de la interfaz web, con
+Bootstrap) sino de hojas propias.
+
+| Documento | Vista | Hoja de estilos |
+|---|---|---|
+| Constancia de estudio / inscripción | `app/Views/constancias/pdf/` | `public/assets/css/pdf/constancia.css` |
+| Ficha integral del estudiante | `app/Views/consulta_academica/estudiantes/export-pdf.php` | `public/assets/css/pdf/ficha-estudiante.css` |
+
+Las fuentes SCSS están en `resources/scss/pdf/` y se compilan aparte del bundle
+web con `npm run sass:build:pdf`. `_base.scss` es el reinicio común a todos los
+documentos y se incrusta en cada hoja al compilar. Para tocar el estilo de un
+PDF: editar su SCSS y recompilar; `npm run build` hace las dos cosas.
+
+`app/Support/PdfRecursos.php` carga esas hojas y arma las opciones de Dompdf
+(`chroot`, `isRemoteEnabled` en false). Las imágenes llegan como Data URI, que es
+la única forma de que entren sin depender de rutas del servidor.
 
 La plantilla comparte con la pantalla el método de agrupación de familiares
 (`RatificacionModel::getFamiliaresParaExpediente()`), de modo que el documento impreso y
@@ -136,6 +161,10 @@ Revisar con `npm run verificar`.
 fallo más difícil de ver porque el CSS carga igual. `npm run verificar` lo detecta.
 
 **Faltan estilos.** No se compiló el SCSS: `npm run sass:build`.
+
+**Un PDF sale sin márgenes ni con el contenido pegado al borde.** Almost siempre es
+que se editó la hoja compilada a mano en vez del SCSS, o que se borró
+`public/assets/css/pdf/`. Regenerar con `npm run sass:build:pdf`.
 
 **Las fotos que sube la aplicación no aparecen.** `public/uploads/` está en
 `.gitignore` a propósito: son datos personales y no deben entrar al repositorio.
