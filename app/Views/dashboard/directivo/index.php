@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: dashboard/directivo/index.php
  * Placeholder de diseño hasta el módulo directivo.

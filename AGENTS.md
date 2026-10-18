@@ -58,7 +58,10 @@ public/assets/js/modules/<modulo>/
 
 | Tipo | Patrón | Ejemplos que ya existen |
 |---|---|---|
-| Modal | `<accion>-modal.php` | `create-modal.php`, `edit-modal.php`, `show-modal.php`, `ratificar-modal.php`, `editar-estudiante-modal.php` |
+| Modal | `modals/<accion>-modal.php` | `create-modal.php`, `edit-modal.php`, `show-modal.php`, `ratificar-modal.php`, `editar-estudiante-modal.php` |
+
+El guion bajo inicial (`_crear.php`) queda **descartado**: la convención real del
+proyecto es `<accion>-modal.php` dentro de `modals/`.
 | Partial | `<nombre>.php` | `employee-rows.php`, `recaudos-panel.php` |
 | JS de módulo | `<modulo>.js` | `familiares.js`, `withdrawals.js`, `enrollments.js` |
 
@@ -166,6 +169,25 @@ para reescribir los otros 11; sí es el patrón a seguir en las nuevas.
 - Los estilos van en `resources/scss/components/_<modulo>.scss`, que llega
   compilado en `app.css`.
 - Respetar la paleta y variables Sass existentes. No colores sueltos.
+- **Exención: las plantillas de PDF.** `app/Views/constancias/pdf/`,
+  `app/Views/docente/pdf/` y `app/Views/consulta_academica/estudiantes/export-pdf.php`
+  son documentos autónomos, no pantallas: no cargan `app.css` y necesitan su CSS
+  dentro. Sus `<style>` **no son una infracción** y no se tocan en este refactor.
+  Cada uno lleva su hoja aparte en `resources/scss/pdf/`.
+- Los `<col style="width: 15%">` repetidos en muchas tablas **no se dejan como
+  estilo en línea**: se convierten en clases compartidas y la tabla usa
+  `<col class="col-15">`. Esas clases viven en
+  `resources/scss/base/_columnas.scss`, que **se crea al migrar el primer módulo
+  que tenga `<col>`**; hasta entonces el archivo no existe y no debe anticiparse,
+  porque CSS sin usar es CSS muerto.
+
+### Datos para el JavaScript
+- Un `<script>` en la vista está prohibido, **con una excepción**: un bloque
+  `<script type="application/json">` que solo lleva datos (un
+  `json_encode($datos)`) no ejecuta nada y es el patrón estándar para pasar datos
+  del servidor al JS sin inventar un `data-*` gigante. Lo que no vale es
+  `<script>` con JavaScript dentro; ese va a
+  `public/assets/js/modules/<modulo>/`.
 
 ### JavaScript
 - **Nunca** `<script>` dentro de la vista.

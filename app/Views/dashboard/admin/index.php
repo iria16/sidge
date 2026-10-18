@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: dashboard/admin/index.php
  * Placeholder de diseño hasta el módulo de administrador

@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: dashboard/secretaria/index.php
  * Panel de secretaría.

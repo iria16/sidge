@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: dashboard/coordinador/index.php
  * Placeholder de diseño hasta el módulo de coordinación.
