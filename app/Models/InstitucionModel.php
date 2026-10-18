@@ -59,10 +59,16 @@ class InstitucionModel extends CatalogoModel
     public function tipoDeInstitucion(int $idInstitucion): ?string
     {
         $stmt = $this->pdo->prepare(
-            "SELECT tipo
-             FROM institucion
-             WHERE id_institucion = :id
-               AND estado = 'ACTIVO'
+            "SELECT CASE t.id_tipo_institucion
+                      WHEN 1 THEN 'preescolar'
+                      WHEN 6 THEN 'titulo_academico'
+                      WHEN 8 THEN 'escuela'
+                    END AS tipo
+             FROM institucion i
+             JOIN tipo_institucion t
+               ON t.id_tipo_institucion = i.id_tipo_institucion
+             WHERE i.id_institucion = :id
+               AND i.estado = 'ACTIVO'
              LIMIT 1"
         );
         $stmt->execute(['id' => $idInstitucion]);
@@ -90,11 +96,10 @@ class InstitucionModel extends CatalogoModel
         $tipo = trim((string) ($data['tipo'] ?? ''));
 
         return $this->pdo->prepare(
-            'INSERT INTO institucion (nombre, tipo, id_tipo_institucion)
-             VALUES (:nombre, :tipo, :id_tipo_institucion)'
+            'INSERT INTO institucion (nombre, id_tipo_institucion)
+             VALUES (:nombre, :id_tipo_institucion)'
         )->execute([
             'nombre'             => trim((string) ($data['nombre'] ?? '')),
-            'tipo'               => $tipo,
             'id_tipo_institucion' => Instituciones::idCatalogo($tipo),
         ]);
     }
@@ -116,12 +121,10 @@ class InstitucionModel extends CatalogoModel
         return $this->pdo->prepare(
             'UPDATE institucion
                 SET nombre = :nombre,
-                    tipo = :tipo,
                     id_tipo_institucion = :id_tipo_institucion
               WHERE id_institucion = :id'
         )->execute([
             'nombre'             => trim((string) ($data['nombre'] ?? '')),
-            'tipo'               => $tipo,
             'id_tipo_institucion' => Instituciones::idCatalogo($tipo),
             'id'                 => $id,
         ]);

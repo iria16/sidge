@@ -155,7 +155,9 @@ ob_start();
     <tr class="<?= $esInactivo ? 'is-muted' : '' ?>">
       <td class="fw-semibold"><?= htmlspecialchars($el['nombre']) ?></td>
       <?php if (!empty($tiposInstitucion)): ?>
-        <td><?= htmlspecialchars(\App\Support\Instituciones::etiqueta((string) ($el['tipo'] ?? ''))) ?></td>
+        <td><?= htmlspecialchars(\App\Support\Instituciones::etiquetaPorCatalogo(
+                isset($el['id_tipo_institucion']) ? (int) $el['id_tipo_institucion'] : null
+            )) ?></td>
       <?php endif; ?>
       <td class="text-center">
         <?php
@@ -170,7 +172,9 @@ ob_start();
                   class="action-btn action-btn--edit editar-elemento"
                   data-elemento-id="<?= (int) $el['id'] ?>"
                   data-elemento-nombre="<?= htmlspecialchars($el['nombre']) ?>"
-                  <?php if (!empty($tiposInstitucion)): ?>data-elemento-tipo="<?= htmlspecialchars($el['tipo'] ?? '') ?>"<?php endif; ?>
+                  <?php if (!empty($tiposInstitucion)): ?>data-elemento-tipo="<?= htmlspecialchars(
+                        isset($el['id_tipo_institucion']) ? (string) $el['id_tipo_institucion'] : ''
+                      ) ?>"<?php endif; ?>
                   title="<?= $esInactivo ? 'No se puede editar un elemento inactivo' : 'Editar elemento' ?>"
                   <?= $esInactivo ? 'disabled' : '' ?>>
             <i class="bi bi-pencil" aria-hidden="true"></i>

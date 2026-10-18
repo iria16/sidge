@@ -133,6 +133,44 @@ final class Instituciones
     }
 
     /**
+     * Texto del tipo a partir del id de `tipo_institucion`, el reves de
+     * idCatalogo().
+     *
+     * Se necesita cuando el listado ya no trae la columna de texto: despues
+     * del 3b la columna `tipo` ya no existe y el unico dato disponible es el
+     * id de la FK. Sin este metodo, el listado de Catalogos mostraria el tipo
+     * en blanco.
+     *
+     * Un id desconocido devuelve la cadena vacia: es preferible una celda
+     * vacia a inventar un nombre.
+     */
+    public static function etiquetaPorCatalogo(?int $id): string
+    {
+        if ($id === null) {
+            return '';
+        }
+
+        $codigo = array_search($id, self::ID_CATALOGO, true);
+
+        return $codigo === false ? '' : self::etiqueta((string) $codigo);
+    }
+
+    /**
+     * Ids de `tipo_institucion` de los tipos de estudiante, para filtrar en SQL
+     * con WHERE id_tipo_institucion IN (...). Es la traduccion de
+     * TIPOS_DE_ESTUDIANTE, que sigue siendo la lista de codigos.
+     *
+     * @return array<int, int>
+     */
+    public static function idsCatalogoDeEstudiante(): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (string $tipo): ?int => self::idCatalogo($tipo),
+            self::TIPOS_DE_ESTUDIANTE
+        )));
+    }
+
+    /**
      * Número de grado que representa un texto del catálogo `grado` o del
      * <select> de procedencia: "1er Grado" y "1er grado" -> 1, "6to" -> 6.
      *

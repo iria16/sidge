@@ -326,16 +326,20 @@ $row['id']          = (int) $row['id'];
 */
     public function getInstituciones(): array
     {
-        $marcadores = implode(', ', array_fill(0, count(Instituciones::TIPOS_DE_ESTUDIANTE), '?'));
+        // El filtro va por id_tipo_institucion, no por `institucion.tipo`: la
+        // columna de texto desaparece con la migracion 3b, y el id es ademas
+        // lo que manda ahora.
+        $ids = Instituciones::idsCatalogoDeEstudiante();
+        $marcadores = implode(', ', array_fill(0, count($ids), '?'));
 
         $stmt = $this->pdo->prepare(
             "SELECT i.id_institucion AS id, i.nombre
              FROM institucion i
              WHERE i.estado = 'ACTIVO'
-               AND i.tipo IN ({$marcadores})
+               AND i.id_tipo_institucion IN ({$marcadores})
              ORDER BY i.nombre"
         );
-        $stmt->execute(Instituciones::TIPOS_DE_ESTUDIANTE);
+        $stmt->execute($ids);
 
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
