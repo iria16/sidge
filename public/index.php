@@ -334,10 +334,13 @@ $rutasPermitidas = [
        del coordinador. */
     /* Sin 'admin': son listados de una seccion, que es materia del
        directivo y del coordinador. */
+    /* Solo 'docente': el listado de la sección es del docente, que es quien
+       tiene la sección asignada. Ni el administrativo del sistema, ni el
+       directivo ni el coordinador lo consultan. */
     'listadosSeccion' => [
-        'index'        => ['directivo', 'coordinador'],
-        'descargarPdf' => ['directivo', 'coordinador'],
-        'exportarCsv'  => ['directivo', 'coordinador'],
+        'index'        => ['docente'],
+        'descargarPdf' => ['docente'],
+        'exportarCsv'  => ['docente'],
     ],
     // Listados del docente (GET) y enlace de WhatsApp de su sección (POST). La sección sale de la sesión.
     'docente' => [
