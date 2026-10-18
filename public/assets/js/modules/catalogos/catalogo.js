@@ -37,11 +37,18 @@ function getTipoCatalogoActivo() {
 function aplicarValidacionNombreElemento(input) {
   if (!input) return;
 
+  // El limite lo declara el formulario con data-max-length. No es una
+  // constante fija porque cada catalogo tiene el suyo: los de siempre 50,
+  // institucion 100, que es lo que admite su columna.
+  var form = input.form;
+  var maximo = form ? parseInt(form.getAttribute('data-max-length'), 10) : 50;
+  if (isNaN(maximo)) maximo = 50;
+
   var actualizarMensaje = function () {
     if (input.validity.valueMissing) {
       input.setCustomValidity('El nombre es obligatorio.');
     } else if (input.validity.tooLong) {
-      input.setCustomValidity('El nombre no puede superar los 50 caracteres.');
+      input.setCustomValidity('El nombre no puede superar los ' + maximo + ' caracteres.');
     } else {
       input.setCustomValidity('');
     }
@@ -218,9 +225,15 @@ function initEditarElementoModal() {
     var d = btnEditar.dataset;
     var inputId = modalEditarEl.querySelector('#editarElementoId');
     var inputNombre = modalEditarEl.querySelector('#editarElementoNombre');
+    var selectTipo = modalEditarEl.querySelector('#editarElementoTipo');
 
     if (inputId) inputId.value = d.elementoId || '';
     if (inputNombre) inputNombre.value = d.elementoNombre || '';
+
+    // Solo existe en el catalogo institucion. Sin esto, al corregir una
+    // institucion creada con el tipo equivocado habria que elegirlo otra vez
+    // a mano, y el formulario lo enviaria vacio.
+    if (selectTipo) selectTipo.value = d.elementoTipo || '';
 
     if (inputNombre) inputNombre.dispatchEvent(new Event('input'));
 

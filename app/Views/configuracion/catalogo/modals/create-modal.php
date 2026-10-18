@@ -1,13 +1,14 @@
 <?php
 /**
  * Modal: Nuevo Elemento
- * Espera del index.php: $catalogoActivo, $catalogoInfo
+ * Espera del index.php: $catalogoActivo, $catalogoInfo, $catalogoMaxLength,
+ * $tiposInstitucion
  */
 
 // ---------- Cuerpo del Modal ----------
 ob_start();
 ?>
-<form id="formNuevoElemento" novalidate>
+<form id="formNuevoElemento" novalidate data-max-length="<?= (int) ($catalogoMaxLength ?? 50) ?>"<?= !empty($tiposInstitucion) ? ' data-pide-tipo="1"' : '' ?>>
   <div class="alert alert-danger d-none" data-form-error></div>
 
   <!-- Campo oculto con el catálogo activo -->
@@ -25,11 +26,33 @@ ob_start();
           name="nombre"
           class="form-control"
           required
-          maxlength="50"
+          maxlength="<?= (int) ($catalogoMaxLength ?? 50) ?>"
           autocomplete="off"
         >
-        <div class="invalid-feedback">El nombre es obligatorio (máximo 100 caracteres).</div>
+        <div class="invalid-feedback">El nombre es obligatorio (máximo <?= (int) ($catalogoMaxLength ?? 50) ?> caracteres).</div>
       </div>
+
+      <?php if (!empty($tiposInstitucion)): ?>
+        <!-- Solo institución. El campo no es opcional: la columna
+             id_tipo_institucion es NOT NULL y no tiene valor por defecto, así
+             que sin tipo el registro no entra. -->
+        <div class="mb-3">
+          <label for="nuevoElementoTipo" class="form-label">
+            Tipo de institución <span class="text-danger">*</span>
+          </label>
+          <select id="nuevoElementoTipo" name="tipo" class="form-select" required>
+            <option value="">Seleccione el tipo...</option>
+            <?php foreach ($tiposInstitucion as $tipoOpcion): ?>
+              <option value="<?= htmlspecialchars($tipoOpcion['tipo']) ?>"><?= htmlspecialchars($tipoOpcion['nombre']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="invalid-feedback">Selecciona el tipo de institución.</div>
+          <div class="text-support mt-1" style="font-size: 0.75rem">
+            Universidad para el título académico de un empleado; Preescolar o Escuela
+            para la procedencia de un estudiante.
+          </div>
+        </div>
+      <?php endif; ?>
     </div>
   </section>
 </form>

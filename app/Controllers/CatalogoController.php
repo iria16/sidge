@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\CatalogoModel;
+use App\Models\InstitucionModel;
+use App\Support\Instituciones;
 use App\Interfaces\Listable;
 use App\Interfaces\Updatable;
 use PDO;
@@ -44,7 +46,16 @@ class CatalogoController extends CrudController
         // Los pide el sub-modal de familiares para el representante legal.
         'ocupacion'         => ['nombre' => 'Ocupación',           'icono'  => 'bi-briefcase',          'modelClass' => 'OcupacionModel',        'formato' => 'titulo'],
         'nacionalidad'      => ['nombre' => 'Nacionalidad',         'icono' => 'bi-globe-americas',     'modelClass' => 'NacionalidadModel',    'formato' => 'titulo'],
+        // Único catálogo con un campo propio además del nombre: el tipo. No es
+        // opcional ni decorativo: institucion.id_tipo_institucion es NOT NULL
+        // sin valor por defecto, así que sin tipo el INSERT no entra.
+        // 'maxLength' sube a 100, lo que admite la columna, porque los nombres
+        // de institución son largos. Los otros once catálogos siguen en 50.
+        'institucion'       => ['nombre' => 'Institución',          'icono' => 'bi-building',           'modelClass' => 'InstitucionModel',    'formato' => 'titulo', 'maxLength' => 100, 'pideTipo' => true],
     ];
+
+    /** Largo máximo del nombre para los catálogos que no fijan el suyo. */
+    private const MAX_NOMBRE = 50;
 
     /** Clave del catálogo activo; se fija en createModel(). */
     private string $catalogoActivo;
@@ -114,6 +125,14 @@ class CatalogoController extends CrudController
             $paginacion     = $this->buildPagination($total, $page, $this->perPage);
             $catalogoActivo = $this->catalogoActivo;
             $tiposCatalogo  = $this->buildTiposCatalogo();
+
+            // Datos que los modales necesitan y que solo el controlador puede
+            // resolver: el largo máximo del catálogo activo y, cuando el
+            // catálogo pide tipo, la lista de categorías de institución.
+            $catalogoMaxLength = self::CATALOGOS[$this->catalogoActivo]['maxLength'] ?? self::MAX_NOMBRE;
+            $tiposInstitucion  = (self::CATALOGOS[$this->catalogoActivo]['pideTipo'] ?? false)
+                ? (new InstitucionModel($this->conexion()))->tiposFormulario(Instituciones::TIPOS)
+                : [];
 
             require __DIR__ . "/../Views/{$this->viewPath}/index.php";
         } catch (Throwable $e) {
@@ -217,11 +236,19 @@ class CatalogoController extends CrudController
         $nombre  = trim($source['nombre'] ?? '');
         $formato = self::CATALOGOS[$this->catalogoActivo]['formato'] ?? 'titulo';
 
-        return [
+        $data = [
             'nombre' => $formato === 'oracion'
                 ? $this->capitalizarOracion($nombre)
                 : $this->capitalizarTitulo($nombre),
         ];
+
+        // Solo institución lleva tipo. El código se contrasta contra el enum en
+        // validate(); aquí solo se normaliza.
+        if (self::CATALOGOS[$this->catalogoActivo]['pideTipo'] ?? false) {
+            $data['tipo'] = trim((string) ($source['tipo'] ?? ''));
+        }
+
+        return $data;
     }
 
     /**
@@ -237,7 +264,7 @@ class CatalogoController extends CrudController
         $model  = $this->modelo();
 
         $minimo = $this->catalogoActivo === 'seccion' ? 1 : 2;
-        $maximo = 50;
+        $maximo = self::CATALOGOS[$this->catalogoActivo]['maxLength'] ?? self::MAX_NOMBRE;
 
         if (empty($data['nombre'])) {
             $errors['nombre'] = 'El nombre del elemento es obligatorio.';
@@ -247,6 +274,18 @@ class CatalogoController extends CrudController
             $errors['nombre'] = "El nombre no puede superar los {$maximo} caracteres.";
         } elseif ($model->existeNombre($data['nombre'], $excludeId)) {
             $errors['nombre'] = 'Ya existe un registro con este nombre en el catálogo activo.';
+        }
+
+        if (self::CATALOGOS[$this->catalogoActivo]['pideTipo'] ?? false) {
+            $tipo = trim((string) ($data['tipo'] ?? ''));
+
+            if ($tipo === '') {
+                $errors['tipo'] = 'Selecciona el tipo de institución.';
+            } elseif (!Instituciones::esValido($tipo)) {
+                $errors['tipo'] = 'El tipo de institución seleccionado no existe.';
+            } elseif (Instituciones::idCatalogo($tipo) === null) {
+                $errors['tipo'] = 'El tipo de institución no tiene categoría asignada.';
+            }
         }
 
         return $errors;

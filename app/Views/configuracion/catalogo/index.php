@@ -115,7 +115,12 @@ ob_start();
   ob_start();
   ?>
   <colgroup>
-    <col style="width: 380px;">
+    <?php if (empty($tiposInstitucion)): ?>
+      <col style="width: 380px;">
+    <?php else: ?>
+      <col style="width: 280px;">
+      <col style="width: 180px;">
+    <?php endif; ?>
     <col class="ancho-170px">
     <col class="ancho-170px">
   </colgroup>
@@ -127,6 +132,7 @@ ob_start();
   ?>
   <tr>
     <th scope="col">Nombre</th>
+    <?php if (!empty($tiposInstitucion)): ?><th scope="col">Tipo</th><?php endif; ?>
     <th scope="col" class="text-center">Estado</th>
     <th scope="col" class="text-center">Acciones</th>
   </tr>
@@ -148,6 +154,9 @@ ob_start();
   ?>
     <tr class="<?= $esInactivo ? 'is-muted' : '' ?>">
       <td class="fw-semibold"><?= htmlspecialchars($el['nombre']) ?></td>
+      <?php if (!empty($tiposInstitucion)): ?>
+        <td><?= htmlspecialchars(\App\Support\Instituciones::etiqueta((string) ($el['tipo'] ?? ''))) ?></td>
+      <?php endif; ?>
       <td class="text-center">
         <?php
           $badgeLabel  = $esInactivo ? 'Inactivo' : 'Activo';
@@ -161,6 +170,7 @@ ob_start();
                   class="action-btn action-btn--edit editar-elemento"
                   data-elemento-id="<?= (int) $el['id'] ?>"
                   data-elemento-nombre="<?= htmlspecialchars($el['nombre']) ?>"
+                  <?php if (!empty($tiposInstitucion)): ?>data-elemento-tipo="<?= htmlspecialchars($el['tipo'] ?? '') ?>"<?php endif; ?>
                   title="<?= $esInactivo ? 'No se puede editar un elemento inactivo' : 'Editar elemento' ?>"
                   <?= $esInactivo ? 'disabled' : '' ?>>
             <i class="bi bi-pencil" aria-hidden="true"></i>

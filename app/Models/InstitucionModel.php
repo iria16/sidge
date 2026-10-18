@@ -98,4 +98,32 @@ class InstitucionModel extends CatalogoModel
             'id_tipo_institucion' => Instituciones::idCatalogo($tipo),
         ]);
     }
+
+    /**
+     * Edición de institución. Igual que create(), escribe las dos columnas de
+     * tipo para que no queden desincronizadas.
+     *
+     * El padre (CatalogoModel) solo toca `nombre`, así que sin este sobrescribe
+     * el tipo quedaría congelado con el valor del alta. Desde la pantalla de
+     * Catálogos se puede corregir una institución creada por error.
+     *
+     * @param array $data Se espera 'nombre' y 'tipo' (código del enum).
+     */
+    public function update(int $id, array $data): bool
+    {
+        $tipo = trim((string) ($data['tipo'] ?? ''));
+
+        return $this->pdo->prepare(
+            'UPDATE institucion
+                SET nombre = :nombre,
+                    tipo = :tipo,
+                    id_tipo_institucion = :id_tipo_institucion
+              WHERE id_institucion = :id'
+        )->execute([
+            'nombre'             => trim((string) ($data['nombre'] ?? '')),
+            'tipo'               => $tipo,
+            'id_tipo_institucion' => Instituciones::idCatalogo($tipo),
+            'id'                 => $id,
+        ]);
+    }
 }
