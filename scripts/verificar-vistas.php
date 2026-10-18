@@ -151,7 +151,8 @@ if (in_array('--html', $argv, true)) {
             $problemas++;
             continue;
         }
-        $malos = [];
+        $malos  = [];
+        $avisos = [];
         foreach (ESTRUCTURA as $etiqueta) {
             $abren = preg_match_all('/<' . $etiqueta . '\b/i', $html);
             $cierran = preg_match_all('|</' . $etiqueta . '>|i', $html);
@@ -162,8 +163,12 @@ if (in_array('--html', $argv, true)) {
         foreach (revisarTablas($html) as $aviso) {
             $malos[] = $aviso;
         }
-        foreach (revisarModales($html) as $aviso) {
-            $malos[] = $aviso;
+        [$malosModal, $avisosModal] = revisarModales($html);
+        foreach ($malosModal as $m) {
+            $malos[] = $m;
+        }
+        foreach ($avisosModal as $a) {
+            $avisos[] = $a;
         }
         foreach (revisarIconos($html) as $aviso) {
             $malos[] = $aviso;
@@ -177,6 +182,10 @@ if (in_array('--html', $argv, true)) {
             $problemas++;
         } else {
             printf("  ok  %s\n", basename($archivoHtml));
+        }
+
+        foreach ($avisos as $aviso) {
+            printf("       aviso: %s\n", $aviso);
         }
     }
 
@@ -198,11 +207,12 @@ if (in_array('--html', $argv, true)) {
  * internos: modal-dialog, modal-content, modal-header... son sus hijos y
  * aparecerían como falsos positivos.
  *
- * @return string[] Problemas encontrados, uno por modal.
+ * @return array{0: string[], 1: string[]} [errores, avisos].
  */
 function revisarModales(string $html): array
 {
-    $problemas = [];
+    $problemas = [];   // errores: hacen salir con codigo 1
+    $avisos   = [];   // recomendaciones: se imprimen pero no fallan
 
     /* Selocalizan primero TODOS los div raiz de modal y luego se recorta entre
        ellos. Buscando el siguiente "class=\"modal" sobre la marcha se cruzaba
@@ -215,6 +225,7 @@ function revisarModales(string $html): array
         PREG_OFFSET_CAPTURE
     );
 
+    $sinCentrarGlobales = [];
     $raices = [];
     foreach ($m[1] as $i => $captura) {
         $clase = $captura[0];
@@ -231,7 +242,12 @@ function revisarModales(string $html): array
     }
 
     foreach ($raices as $n => $raiz) {
-        $falta = [];
+        $falta       = [];
+        $sinCentrar  = [];
+        $modalId     = '';
+        if (preg_match('/id=\"([^\"]+)\"/', $raiz['tag'], $im)) {
+            $modalId = $im[1];
+        }
         if (!preg_match('/\bapp-modal\b/', $raiz['clase'])) {
             $falta[] = '.app-modal';
         }
@@ -252,8 +268,12 @@ function revisarModales(string $html): array
         if (!preg_match('/\bbtn-close\b/', $trozo)) {
             $falta[] = '.btn-close';
         }
+        /* modal-dialog-centered NO es obligatorio: components/modal.php acepta
+           $modalCentered = false, y hay modales donde tiene sentido — una vista
+           previa de PDF en alto completo, por ejemplo. Exigirlo en el HTML
+           contradecía la propia API del componente. */
         if (!preg_match('/\bmodal-dialog-centered\b/', $trozo)) {
-            $falta[] = '.modal-dialog-centered';
+            $sinCentrar[] = $modalId;
         }
 
         if ($falta !== []) {
@@ -262,9 +282,20 @@ function revisarModales(string $html): array
                 implode(', ', $falta)
             );
         }
+
+        if ($sinCentrar !== []) {
+            $sinCentrarGlobales = array_merge($sinCentrarGlobales, $sinCentrar);
+        }
     }
 
-    return $problemas;
+    if ($sinCentrarGlobales !== []) {
+        $avisos[] = sprintf(
+            'modal sin .modal-dialog-centered (puede ser intencionado): %s',
+            implode(', ', $sinCentrarGlobales)
+        );
+    }
+
+    return [$problemas, $avisos];
 }
 
 

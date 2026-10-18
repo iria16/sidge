@@ -85,6 +85,7 @@
     var contenedorPreview = document.getElementById('contenedorPreviewDocumento');
     var iframeDocumento   = document.getElementById('iframeVistaPreviaDocumento');
     var btnDescargar      = document.getElementById('btnDescargarDocumentoPdf');
+    var btnImprimir       = document.getElementById('btnImprimirDocumentoPdf');
     var regexMotivo       = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9\s.,;:()°ºª\-\/'"]+$/;
 
     function sanitizarMotivoActa(valor) {
@@ -204,6 +205,27 @@
             urlPdf.searchParams.set('descargar', '1');
             btnDescargar.setAttribute('href', urlPdf.pathname + urlPdf.search);
             btnDescargar.classList.remove('d-none');
+
+            if (btnImprimir) {
+                btnImprimir.classList.remove('d-none');
+            }
+        });
+    }
+
+    /* Imprimir desde la vista previa. Se imprime el iframe y no una descarga
+       aparte, para que salga el mismo documento que el docente acaba de ver.
+       El respaldo es el mismo: si el navegador no deja llamar a print() sobre
+       un iframe de otro origen, se abre el PDF en otra pestaña y se imprime
+       desde ahí. */
+    if (btnImprimir && iframeDocumento) {
+        btnImprimir.addEventListener('click', function () {
+            try {
+                iframeDocumento.contentWindow.focus();
+                iframeDocumento.contentWindow.print();
+            } catch (e) {
+                var urlImprimir = btnDescargar ? btnDescargar.getAttribute('href') : null;
+                window.open(urlImprimir || '#', '_blank');
+            }
         });
     }
 

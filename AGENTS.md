@@ -401,7 +401,30 @@ Se ejecuta con `npm run verificar` o suelto con
 
 ---
 
-### 9.1 Pendientes anotados (migrar en un módulo posterior, con aprobación)
+### 9.1 Dos pantallas de listados que conviven a propósito
+
+`docente/nomina.php` (ruta `docente/nomina`) y `docente/listados_actas.php`
+(ruta `listadosSeccion`) son **la misma pantalla en dos versiones**. El menú
+del docente apunta a la primera, que es la buena: seis pestañas, la sección
+fija por sesión y la vista previa en modal. La segunda es la anterior: tres
+pestañas, su propio JS en la vista y 1.035 líneas.
+
+**No borrar la vieja hasta cerrar esto**, porque tiene tres cosas que la
+nueva no tiene:
+
+| Qué | Estado | Decisión |
+|---|---|---|
+| **Imprimir** desde la vista previa | **Portado** a `nomina.php` | El botón imprime el `iframe` de la propia vista previa, con el mismo respaldo que usaba la vieja si el navegador no deja llamar a `print()` |
+| **Ordenar por columna** | Solo en la vieja | No se porta: la sección tiene 4-6 alumnos, no hay nada que ordenar |
+| **Mostrar/ocultar columnas** | Solo en la vieja | No se porta, por lo mismo |
+| **Elegir otra sección** | Solo en la vieja | **No se porta a propósito**: la vieja dejaba ver la lista de una sección que no era del docente. La nueva lo cierra, y está escrito en `DocenteController::nomina()` |
+| **Pestaña «Asistencia»** | Solo en la vieja | No es una función que se pueda移植: es un informe distinto («Registro de Asistencia a Reunión») que necesita vista, datos y plantilla PDF propias. Es funcionalidad nueva, y decidirla no es un refactor |
+
+Cuando «Asistencia» esté decidida, se borran `docente/listados_actas.php`,
+`ListadosSeccionController` y las tres rutas `listadosSeccion/*`, y con eso
+desaparece el aviso del verificador.
+
+### 9.2 Pendientes anotados (migrar en un módulo posterior, con aprobación)
 
 | Qué | Dónde | Nº |
 |---|---|---|

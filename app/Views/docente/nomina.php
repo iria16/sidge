@@ -487,6 +487,14 @@ if ($tieneSeccion) {
     ob_start();
     ?>
     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+    <?php /* Imprimir va junto a Descargar y se destapa con él, por el mismo motivo:
+             la vista previa es el momento en que el docente decide, y antes de
+             revisarla no hay nada que imprimir. Imprime el iframe de la propia
+             vista previa, no una descarga aparte: el mismo documento que acaba
+             de ver. */ ?>
+    <button type="button" class="btn btn-outline-secondary d-none" id="btnImprimirDocumentoPdf">
+      <i class="bi bi-printer me-1" aria-hidden="true"></i>Imprimir
+    </button>
     <a href="#" id="btnDescargarDocumentoPdf" class="btn btn-primary d-none" target="_blank" rel="noopener">
       <i class="bi bi-download me-1" aria-hidden="true"></i>Descargar PDF
     </a>
