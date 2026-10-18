@@ -248,6 +248,7 @@ CREATE TABLE `estructura_academica` (
   `id_seccion` int(11) NOT NULL,
   `id_turno` int(11) NOT NULL,
   `capacidad_maxima` int(11) NOT NULL,
+  `enlace_whatsapp` varchar(120) DEFAULT NULL,
   PRIMARY KEY (`id_estructura_academica`),
   UNIQUE KEY `uk_estructura_academica` (`id_anio_escolar`,`id_grado`,`id_seccion`,`id_turno`),
   KEY `idx_estructura_anio` (`id_anio_escolar`),
