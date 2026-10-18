@@ -1,0 +1,70 @@
+/* ── Reinicio común a todos los documentos PDF ──────────────────────────────────
+   Los PDF de Dompdf no se maquetan con el navegador: no hay flexbox, ni grid,
+   ni variables CSS, ni fuentes del sistema. Este archivo fija el comportamiento
+   base que antes venía implícito dentro de app.css (el bundle de Bootstrap).
+
+   Bootstrap pesa 300 KB y define utilidades de rejilla, media queries y
+   componentes que Dompdf nunca resuelve. Injectarlo entero en el documento solo
+   para heredar su "reboot" hace que el PDF dependa de una hoja que no le
+   pertenece: un cambio en la interfaz web movía el PDF. Estas son exactamente
+   las reglas del reboot que el documento de ficha sí usa, copiadas aquí para que
+   el resultado sea idéntico sin arrastrar Bootstrap.
+
+   Dompdf es un motor de PDF, no un navegador: aquí "reiniciar" significa dejar
+   el lienzo en blanco y sin sangrado, que es lo que espera un documento
+   impreso. NO es el mismo reinicio que el de una pantalla.                      */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: #ffffff;
+}
+
+/* El margen y el padding a cero van SÓLO en body. Declararlos también en html
+   hace que Dompdf descarte el margen de @page y el documento imprima de borde
+   a borde, por muy correcta que parezca la regla. */
+body {
+  margin: 0;
+  padding: 0;
+  color: #000000;
+}
+
+/* Dompdf no implementa box-shadow ni flex/grid, así que nada de eso se
+   declara aquí: una regla que el motor no entiende se descarta en silencio y
+   deja una declaración que parece funcionar pero no maqueta nada. */
+table {
+  border-collapse: collapse;
+}
+
+th {
+  text-align: inherit;
+}
+
+img {
+  vertical-align: middle;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+strong,
+b {
+  font-weight: bolder;
+}
