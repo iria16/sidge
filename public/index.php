@@ -301,15 +301,21 @@ $rutasPermitidas = [
         'verPrivado'         => ['admin'],
         'restablecerOficial' => ['admin'],
     ],
+    /* Sin 'admin': la constancia es un documento oficial firmado por la
+       institución y lo emite la secretaría o el directivo. El administrador
+       del sistema no es personal de la escuela. */
     'constancias' => [
-        'index'       => ['admin', 'directivo', 'secretaria'],
-        'estudio'     => ['admin', 'directivo', 'secretaria'],
-        'inscripcion' => ['admin', 'directivo', 'secretaria'],
-        'emitir'      => ['admin', 'directivo', 'secretaria'],
+        'index'       => ['directivo', 'secretaria'],
+        'estudio'     => ['directivo', 'secretaria'],
+        'inscripcion' => ['directivo', 'secretaria'],
+        'emitir'      => ['directivo', 'secretaria'],
     ],
+    /* Sin 'admin': quien escribe literales es el docente y quien confirma es
+       el directivo, y el resto son consulta. El administrador del sistema no
+       participa del proceso académico. */
     'resultadoAcademico' => [
-        'index'            => ['admin', 'directivo', 'coordinador', 'docente'],
-        'seccion'          => ['admin', 'directivo', 'coordinador', 'docente'],
+        'index'            => ['directivo', 'coordinador', 'docente'],
+        'seccion'          => ['directivo', 'coordinador', 'docente'],
         /* Quién escribe literales está cerrado por rol y es solo de dos:
            el DOCENTE propone y el DIRECTIVO confirma. El coordinador es de
            consulta y el admin no escribe, así que ninguno de los dos tiene

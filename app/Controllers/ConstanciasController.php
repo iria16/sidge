@@ -64,7 +64,7 @@ class ConstanciasController extends BaseController
                 'q'       => trim((string) ($_GET['q'] ?? '')),
                 'grado'   => trim((string) ($_GET['grado'] ?? '')),
                 'seccion' => trim((string) ($_GET['seccion'] ?? '')),
-                // null para admin y directivo (ven todos); el id del turno para la
+                // null para el directivo (ven todos); el id del turno para la
                 // secretaria, que solo debe listar los alumnos de su turno.
                 'turno'   => $this->turnoSecretariaActual(),
             ];
@@ -110,7 +110,7 @@ class ConstanciasController extends BaseController
                    curso. Leerlo de la URL además abría la puerta a pedir un
                    período que ya no está en marcha; la consulta ya se limita al
                    año activo por su cuenta. */
-                // Ver estudio(): null para admin y directivo, el turno para la secretaria.
+                // Ver estudio(): null para el directivo, el turno para la secretaria.
                 'turno'   => $this->turnoSecretariaActual(),
             ];
 
@@ -169,7 +169,8 @@ class ConstanciasController extends BaseController
         /* El id llega por POST, así que sin esto una secretaria podría emitir la
            constancia de cualquier alumno de la escuela, no solo de su turno: el PDF
            sale firmado por la institución. Mismo helper que usan retiro y fichas.
-           Devuelve true para admin y directivo, que sí están autorizados a todos. */
+           Devuelve true para quien no es secretaria, que aquí es el directivo y tiene
+           acceso total. El administrador del sistema ya no llega a constancias. */
         if (!$this->secretariaTieneAccesoAEstudiante($idEst)) {
             $this->setFlash('error', 'Ese estudiante no pertenece a su turno.');
             $this->redirect($tipo);

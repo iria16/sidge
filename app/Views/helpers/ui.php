@@ -118,13 +118,13 @@ if (!function_exists('sigde_nav_sections')) {
             ],
             [
                 'label' => 'Gestión de estudiantes',
-                'roles' => ['secretaria', 'directivo', 'admin', 'coordinador'],
+                'roles' => ['secretaria', 'directivo', 'coordinador'],
                 'items' => [
                     ['id' => 'inscripcion',  'label' => 'Inscripción',  'icon' => 'bi-person-plus',     'href' => BASE_URL . 'inscripciones/index', 'roles' => ['secretaria']],
                     ['id' => 'ratificacion', 'label' => 'Ratificación', 'icon' => 'bi-arrow-repeat',    'href' => BASE_URL . 'ratificacion/index',  'roles' => ['secretaria']],
                     ['id' => 'retiro',       'label' => 'Retiro',       'icon' => 'bi-box-arrow-right', 'href' => BASE_URL . 'withdrawal/index',    'roles' => ['secretaria', 'directivo']],
                     ['id' => 'egreso',       'label' => 'Egreso',       'icon' => 'bi-mortarboard-fill','href' => BASE_URL . 'egresos/index',       'roles' => ['secretaria']],
-                    ['id' => 'promocion',    'label' => 'Promoción Académica', 'icon' => 'bi-award',     'href' => BASE_URL . 'resultadoAcademico/index', 'roles' => ['directivo', 'admin', 'coordinador']],
+                    ['id' => 'promocion',    'label' => 'Promoción Académica', 'icon' => 'bi-award',     'href' => BASE_URL . 'resultadoAcademico/index', 'roles' => ['directivo', 'coordinador']],
                 ],
             ],
             [
@@ -146,10 +146,11 @@ if (!function_exists('sigde_nav_sections')) {
 
             [
                 'label' => 'Constancias',
-                /* Sin 'coordinador': public/index.php solo abre constancias/estudio,
-                   constancias/inscripcion y constancias/emitir a admin, directivo y
-                   secretaria. Mostrarselas al coordinador producia un 403 al pulsar. */
-                'roles' => ['secretaria', 'directivo', 'admin'],
+                /* Sin 'admin' ni 'coordinador': constancias/* solo lo abre
+                   public/index.php a 'directivo' y 'secretaria'. La constancia es un
+                   documento oficial firmado por la institucion y no le toca al
+                   administrador del sistema. */
+                'roles' => ['secretaria', 'directivo'],
                 'items' => [
                     ['id' => 'constancia-estudio',     'label' => 'Constancia de Estudio',     'icon' => 'bi-file-earmark-text',  'href' => BASE_URL . 'constancias/estudio'],
                     ['id' => 'constancia-inscripcion', 'label' => 'Constancia de Inscripción', 'icon' => 'bi-file-earmark-check', 'href' => BASE_URL . 'constancias/inscripcion'],
