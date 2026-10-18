@@ -219,12 +219,18 @@ $rutasPermitidas = [
         'guardarTitulo' => ['directivo'],
         'guardarInstitucion' => ['directivo']
     ],
+    /* Solo 'directivo': el año escolar es de la escuela, no del sistema. La
+       accion reabrir ya era solo del directivo y estas cinco se le quedaban
+       abiertas al admin sin que el menú se lo ofreciera. */
+    /* Solo 'directivo': el ano escolar es de la escuela, no del sistema. La accion
+       reabrir ya era solo del directivo, y estas cinco se le quedaban abiertas al
+       admin sin que el menu se lo ofreciera. */
     'academicYear' => [
-        'index' => ['admin', 'directivo'],
-        'store' => ['admin', 'directivo'],
-        'update' => ['admin', 'directivo'],
-        'iniciar' => ['admin', 'directivo'],
-        'cerrar' => ['admin', 'directivo'],
+        'index' => ['directivo'],
+        'store' => ['directivo'],
+        'update' => ['directivo'],
+        'iniciar' => ['directivo'],
+        'cerrar' => ['directivo'],
         // Solo la directiva: quien decide el ciclo del año es quien puede revertir un
         // cierre por error, y queda con su nombre y su motivo en la bitácora.
         'reabrir' => ['directivo']
@@ -324,10 +330,14 @@ $rutasPermitidas = [
         'guardarPropuesta' => ['docente'],
         'confirmar'        => ['directivo'],
     ],
+    /* Sin 'admin': son listados de una sección, que es materia del directivo y
+       del coordinador. */
+    /* Sin 'admin': son listados de una seccion, que es materia del
+       directivo y del coordinador. */
     'listadosSeccion' => [
-        'index'        => ['admin', 'directivo', 'coordinador'],
-        'descargarPdf' => ['admin', 'directivo', 'coordinador'],
-        'exportarCsv'  => ['admin', 'directivo', 'coordinador'],
+        'index'        => ['directivo', 'coordinador'],
+        'descargarPdf' => ['directivo', 'coordinador'],
+        'exportarCsv'  => ['directivo', 'coordinador'],
     ],
     // Listados del docente (GET) y enlace de WhatsApp de su sección (POST). La sección sale de la sesión.
     'docente' => [

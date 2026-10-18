@@ -136,6 +136,19 @@ $revisados = 0;
 foreach ($roles as $rol) {
     $secciones = sigde_nav_sections($rol);
 
+    /* De qué controladores le ofrece el menú enlaces a este rol. Se usa después
+       para el chequeo inverso: rutas que abren a un módulo que su menú no ofrece. */
+    $enMenu = [];
+    foreach ($secciones as $seccion) {
+        foreach ($seccion['items'] as $item) {
+            $ruta = (string) parse_url((string) ($item['href'] ?? ''), PHP_URL_PATH);
+            $partes = array_values(array_filter(explode('/', (string) $ruta), static fn($p) => $p !== ''));
+            if (($partes[0] ?? '') !== '') {
+                $enMenu[$partes[0]] = true;
+            }
+        }
+    }
+
     printf("\n  %s\n", $rol);
     if ($secciones === []) {
         printf("    (sin secciones visibles)\n");
@@ -192,11 +205,38 @@ foreach ($roles as $rol) {
             printf("    %-30s %s\n", $rotulo, 'ok');
         }
     }
+
+    /* Chequeo inverso: rutas que abren a este rol un módulo que su menú no le
+       ofrece. Con el menú se tapa el acceso, no la autorización: el enlace no
+       aparece, pero escribir la URL a mano entra igual. Sucedió con academicYear
+       y listadosSeccion para el admin. Se informa y no falla, porque puede ser
+       legítimo: un módulo al que se llega desde el detalle de otro y no desde
+       el menú. 'auth' queda fuera a propósito: cerrar sesión y cambiar clave los
+       tiene todo el mundo y no son un módulo de navegación. */
+    foreach ($rutasPermitidas as $controlador => $acciones) {
+        if ($controlador === 'auth' || isset($enMenu[$controlador])) {
+            continue;
+        }
+        foreach ($acciones as $accion => $permitidos) {
+            if (in_array('publico', (array) $permitidos, true)) {
+                continue;
+            }
+            if (in_array($rol, (array) $permitidos, true)) {
+                $avisos[] = sprintf(
+                    '%s puede abrir %s/%s, y su menú no le ofrece ese módulo',
+                    $rol,
+                    $controlador,
+                    $accion
+                );
+                break;
+            }
+        }
+    }
 }
 
 // --------------------------------------------------------------- salida ---
 if ($avisos !== []) {
-    printf("\n  Enlaces sin destino (no fallan la verificación):\n");
+    printf("\n  Avisos (no fallan la verificación):\n");
     foreach ($avisos as $aviso) {
         printf("    - %s\n", $aviso);
     }
