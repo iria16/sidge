@@ -601,23 +601,6 @@
 }
 
 // ---------- Nota informativa del paso 3 ----------
-.wizard-info-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.75rem 0.95rem;
-  border-radius: $border-radius-sm;
-  background: rgba($info, 0.08);
-  color: $info;
-  font-size: 0.76rem;
-  line-height: 1.4;
-
-  i {
-    flex: 0 0 auto;
-    margin-top: 0.05rem;
-    font-size: 0.9rem;
-  }
-}
 
 // ---------- Botón outline pequeño del wizard ----------
 .wizard-btn-outline-sm {

@@ -9,24 +9,6 @@ html, body {
   height: 100%;
 }
 
-.skip-link {
-  position: absolute;
-  left: 1rem;
-  top: -3rem;
-  z-index: $zindex-tooltip;
-  padding: 0.5rem 0.85rem;
-  background: $primary;
-  color: #fff;
-  border-radius: $border-radius;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-decoration: none;
-
-  &:focus {
-    top: 0.75rem;
-    color: #fff;
-  }
-}
 
 body {
   background-color: $light;

@@ -162,6 +162,12 @@ if (in_array('--html', $argv, true)) {
         foreach (revisarTablas($html) as $aviso) {
             $malos[] = $aviso;
         }
+        foreach (revisarModales($html) as $aviso) {
+            $malos[] = $aviso;
+        }
+        foreach (revisarIconos($html) as $aviso) {
+            $malos[] = $aviso;
+        }
 
         if ($malos !== []) {
             printf("  !! %s\n", basename($archivoHtml));
@@ -176,6 +182,135 @@ if (in_array('--html', $argv, true)) {
 
     printf("\n  archivos renderizados con desbalance: %d\n", $problemas);
     exit($problemas > 0 ? 1 : 0);
+}
+
+
+/**
+ * Comprueba que los modales guarden el mismo esquema.
+ *
+ * El portal tiene un solo diseño de modal, el de components/modal.php, que se
+ * apoya en la clase .app-modal para el aspecto de marca. Un modal escrito a
+ * mano sin esa clase sale con el Bootstrap crudo: otro radio, otra sombra, otro
+ * color de título y sin el cuerpo con scroll, que es justo lo que hace que dos
+ * pantallas del mismo sitio no parezcan las mismas.
+ *
+ * Solo mira el div raíz del modal (el que lleva .fade o .app-modal), no los
+ * internos: modal-dialog, modal-content, modal-header... son sus hijos y
+ * aparecerían como falsos positivos.
+ *
+ * @return string[] Problemas encontrados, uno por modal.
+ */
+function revisarModales(string $html): array
+{
+    $problemas = [];
+
+    /* Selocalizan primero TODOS los div raiz de modal y luego se recorta entre
+       ellos. Buscando el siguiente "class=\"modal" sobre la marcha se cruzaba
+       con class="modal-dialog", que empieza igual, y la ventana se quedaba en
+       una sola etiqueta: el modal saliaikatoriado como si le faltara todo. */
+    preg_match_all(
+        '/<div\b[^>]*class="([^"]*)"[^>]*>/i',
+        $html,
+        $m,
+        PREG_OFFSET_CAPTURE
+    );
+
+    $raices = [];
+    foreach ($m[1] as $i => $captura) {
+        $clase = $captura[0];
+        /* .fade a secas es tambien la transicion de Bootstrap (tab-pane fade,
+           collapse, alert). Sin exigir la palabra "modal" el veridor senalaba
+           cuatro pestanas de una vista como si fueran modales rotos. */
+        if (!preg_match('/\bmodal\b/', $clase)) {
+            continue;
+        }
+        if (!preg_match('/\bfade\b/', $clase) && !preg_match('/\bapp-modal\b/', $clase)) {
+            continue;
+        }
+        $raices[] = ['clase' => $clase, 'tag' => $m[0][$i][0], 'ini' => $m[0][$i][1]];
+    }
+
+    foreach ($raices as $n => $raiz) {
+        $falta = [];
+        if (!preg_match('/\bapp-modal\b/', $raiz['clase'])) {
+            $falta[] = '.app-modal';
+        }
+        if (!preg_match('/aria-labelledby=/i', $raiz['tag'])) {
+            $falta[] = 'aria-labelledby';
+        }
+
+        $desde = $raiz['ini'] + strlen($raiz['tag']);
+        $hasta = isset($raices[$n + 1]) ? $raices[$n + 1]['ini'] : min(strlen($html), $desde + 6000);
+        $trozo = substr($html, $desde, max(0, $hasta - $desde));
+
+        if (!preg_match('/\bmodal-header\b/', $trozo)) {
+            $falta[] = '.modal-header';
+        }
+        if (!preg_match('/\bmodal-title\b/', $trozo)) {
+            $falta[] = '.modal-title';
+        }
+        if (!preg_match('/\bbtn-close\b/', $trozo)) {
+            $falta[] = '.btn-close';
+        }
+        if (!preg_match('/\bmodal-dialog-centered\b/', $trozo)) {
+            $falta[] = '.modal-dialog-centered';
+        }
+
+        if ($falta !== []) {
+            $problemas[] = sprintf(
+                'modal sin el esquema de components/modal.php, le falta: %s',
+                implode(', ', $falta)
+            );
+        }
+    }
+
+    return $problemas;
+}
+
+
+/**
+ * Comprueba que cada icono que pide la vista exista de verdad en bootstrap-icons.
+ *
+ * El nombre de un icono que no existe no da error en ningun sitio: el navegador
+ * dibuja un <i> vacio y el hueco aparece en pantalla sin que nada avise. Con
+ * 2000 iconos en la libreria y los nombres tomados de memoria, un .bi-arrow-
+ * repeat o un .bi-clipboard-check mal escrito son facilisimos de escribir y
+ * silenciosos de fallar.
+ *
+ * Se lee el CSS que se sirve de verdad (public/assets/vendor/bootstrap-icons),
+ * no el paquete de npm, porque es el que resuelve el navegador.
+ *
+ * @return string[] Iconos usados que la libreria no define.
+ */
+function revisarIconos(string $html): array
+{
+    $rutaCss = __DIR__ . '/../public/assets/vendor/bootstrap-icons/bootstrap-icons.min.css';
+    if (!is_file($rutaCss)) {
+        return []; // la libreria no esta desplegada: no hay contra que comparar
+    }
+
+    static $cache = null;
+    if ($cache === null) {
+        $css = (string) file_get_contents($rutaCss);
+        preg_match_all('/\.(bi-[a-z0-9-]+)::?before/', $css, $c);
+        $cache = array_flip($c[1]);
+    }
+
+    preg_match_all('/\b(bi-[a-z0-9-]+)\b/', $html, $u);
+    $faltan = [];
+    foreach (array_unique($u[1]) as $icono) {
+        // bi-<numero> existe en la libreria, pero el patron de nombres alfabetico
+        // tambien deja pasar cosas como bi-m4 o similar.
+        if (!isset($cache[$icono])) {
+            $faltan[] = $icono;
+        }
+    }
+    sort($faltan);
+
+    return array_map(
+        static fn(string $i): string => sprintf('.%s no existe en bootstrap-icons', $i),
+        $faltan
+    );
 }
 
 
