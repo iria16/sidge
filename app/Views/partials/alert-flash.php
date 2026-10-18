@@ -1,14 +1,19 @@
 <?php
 /**
  * Partial: alert-flash.php
- * Renderiza mensajes flash de sesión (flash_error / flash_success) como
+ * Renderiza mensajes flash de sesión (flash_error / flash_success / flash_info) como
  * alertas Bootstrap descartables. Se leen y se eliminan en una sola pasada.
  */
 $flashError   = $_SESSION['flash_error']   ?? null;
 $flashSuccess = $_SESSION['flash_success'] ?? null;
-unset($_SESSION['flash_error'], $_SESSION['flash_success']);
+$flashInfo    = $_SESSION['flash_info']    ?? null;
+unset($_SESSION['flash_error'], $_SESSION['flash_success'], $_SESSION['flash_info']);
 
-foreach ([['type' => 'success', 'texto' => $flashSuccess], ['type' => 'danger', 'texto' => $flashError]] as $alerta) {
+foreach ([
+    ['type' => 'success', 'texto' => $flashSuccess],
+    ['type' => 'danger',  'texto' => $flashError],
+    ['type' => 'info',    'texto' => $flashInfo],
+] as $alerta) {
     if ($alerta['texto'] === null) {
         continue;
     }

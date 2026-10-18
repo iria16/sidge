@@ -8,7 +8,7 @@
  * components/page-header.php, components/stat-card.php,
  * components/avatar.php, components/status-badge.php y
  * components/data-panel.php. El wizard vive en enrollment-modal.php y su
- * JS en public/assets/js/enrollments.js ($extraScripts).
+ * JS en public/assets/js/modules/estudiantes/enrollments.js ($extraScripts).
  *
  * El filtrado y la paginación los aplica automáticamente main.js sobre el
  * form del panel (initAutoFilters), igual que en el resto de módulos: por
@@ -53,7 +53,7 @@ $pageDescription = 'Registra el ingreso de nuevos estudiantes al plantel. Un alu
 $currentNav      = 'inscripcion';
 /* familiares.js va PRIMERO: enrollments.js arranca el módulo con
  FamiliaresUI.init(), así que tiene que existir ya. El orden importa.*/
-$extraScripts    = ['/js/familiares.js', '/js/enrollments.js'];
+$extraScripts    = ['/js/modules/estudiantes/familiares.js', '/js/modules/estudiantes/enrollments.js'];
 
 $breadcrumbs = [
     ['label' => 'Gestión de estudiantes', 'href' => null],

@@ -263,7 +263,7 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
  * egreso exige el período activo y el retiro solo alcanza hasta el cierre. Hay que
  * egresarlos o retirarlos antes.
 */
-    private function pendientesDeCierre(int $idAnioEscolar): array
+    public function pendientesDeCierre(int $idAnioEscolar): array
     {
         $motivos = [];
 
@@ -302,6 +302,12 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
                 . strtolower((string) $ultimo['grado'])
                 . ' sección ' . ($seccion !== '' ? $seccion : '—')
                 . ' sin egresar ni retirar. Egréselos o regístreles el retiro antes de cerrar.';
+        }
+
+        $pendientesResultado = (new ResultadoAcademicoModel($this->pdo))->contarPendientesDeCierre($idAnioEscolar);
+        if ($pendientesResultado > 0) {
+            $motivos[] = "No se puede cerrar: quedan {$pendientesResultado} estudiante(s) activo(s) sin resultado académico confirmado (pendientes de confirmación). "
+                . 'Valide y confirme la promoción de todas las secciones antes de cerrar el período.';
         }
 
         return $motivos;

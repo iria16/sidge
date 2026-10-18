@@ -7,7 +7,7 @@
 $pageTitle       = 'Gestión de Grados y Secciones';
 $pageDescription = 'Administre la distribución de grados, secciones y turnos académicos.';
 $currentNav      = 'estructura-academica';
-$extraScripts    = ['/js/academic-structure.js'];
+$extraScripts    = ['/js/modules/academica/academic-structure.js'];
 $breadcrumbs     = [
     ['label' => 'Configuración académica', 'href' => null],
     ['label' => 'Estructura académica',     'href' => null],
@@ -29,6 +29,12 @@ $paginacion  = $paginacion ?? [
     'desde' => 0, 'hasta' => 0, 'total' => 0, 'pagina_actual' => 1, 'total_paginas' => 1,
 ];
 
+/* El coordinador consulta la estructura pero no la modifica: crearla o cambiarla
+  es decisión de la dirección. Entra en la misma condición que un año cerrado,
+  que ya tenía resuelto el "no mostrar un botón que el servidor va a rechazar",
+  en vez de abrir un segundo camino para lo mismo. */
+$soloLectura = ($anioEsLectura ?? false) || !empty($esConsulta);
+
 ob_start();
 
 // ---------- Page header ----------
@@ -37,7 +43,7 @@ ob_start();
 <?php /* Un año CERRADO es historial: se consulta, no se escribe. El botón se esconde en
  vez de deshabilitarse para que no quede a la vista una acción que nunca va a
  funcionar. La misma condición la repite el servidor en store().*/ ?>
-<?php if (!$anioEsLectura): ?>
+<?php if (!$soloLectura): ?>
   <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaEstructuraModal">
     <i class="bi bi-plus-lg"></i> Nuevo Registro
   </button>
@@ -212,8 +218,9 @@ foreach ($estructuras as $estructura):
  botón atenuado invita a pulsarlo, y el servidor lo rechaza con 409.
  Antes de este filtro, además, ni siquiera había forma de abrir la
  edición, porque el listado siempre enseñaba el año activo.*/ ?>
-        <?php if ($anioEsLectura): ?>
-          <span class="action-btn" aria-hidden="true" title="Año cerrado: solo consulta">
+        <?php if ($soloLectura): ?>
+          <span class="action-btn" aria-hidden="true"
+                title="<?= !empty($esConsulta) ? 'Solo consulta: su rol no modifica la estructura' : 'Año cerrado: solo consulta' ?>">
             <i class="bi bi-lock-fill"></i>
           </span>
         <?php else: ?>
@@ -259,21 +266,27 @@ $panelPagination = [
 include __DIR__ . '/../../components/data-panel.php';
 ?>
 
+<?php /* Los modales solo sirven para escribir. En consulta no se incluyen: si
+  estuvieran, el JavaScript los abriría y mandaría un POST que la ruta
+  rechaza con 403. */ ?>
+<?php if (!$soloLectura): ?>
+  <?php
+  $modalId       = 'nuevaEstructuraModal';
+  $modalTitle    = 'Nuevo Registro';
+  $modalSubtitle = 'Configure una nueva sección académica.';
+  $formId        = 'formNuevaEstructura';
+  $editMode      = false;
+  include __DIR__ . '/structure-modal.php';
+
+  $modalId       = 'editarEstructuraModal';
+  $modalTitle    = 'Editar Registro';
+  $modalSubtitle = 'Actualice la configuración académica.';
+  $formId        = 'formEditarEstructura';
+  $editMode      = true;
+  include __DIR__ . '/structure-modal.php';
+  ?>
+<?php endif; ?>
+
 <?php
-// ---------- Modales (crear / editar) ----------
-$modalId       = 'nuevaEstructuraModal';
-$modalTitle    = 'Nuevo Registro';
-$modalSubtitle = 'Configure una nueva sección académica.';
-$formId        = 'formNuevaEstructura';
-$editMode      = false;
-include __DIR__ . '/structure-modal.php';
-
-$modalId       = 'editarEstructuraModal';
-$modalTitle    = 'Editar Registro';
-$modalSubtitle = 'Actualice la configuración académica.';
-$formId        = 'formEditarEstructura';
-$editMode      = true;
-include __DIR__ . '/structure-modal.php';
-
 $pageContent = ob_get_clean();
 require __DIR__ . '/../../layouts/app.php';

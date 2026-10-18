@@ -21,6 +21,7 @@ $hayEmpleadosDisponibles = !empty($empleadosDisponibles);
 ob_start();
 ?>
 <form id="formCrearUsuario" novalidate>
+  <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrfToken()) ?>">
 
   <section class="wizard-summary__section">
     <div class="wizard-summary__section-header">

@@ -70,8 +70,7 @@ trait FamiliaresModelTrait
             ]);
 
             $idParentesco = $this->resolverIdCatalogo('parentesco', 'id_parentesco', (string) ($f['parentesco'] ?? ''));
-            $idInstruccion = $this->resolverIdCatalogo('nivel_instruccion', 'id_nivel_instruccion', (string) ($f['nivel_instruccion'] ?? ''));
-            $idOcupacion = $this->resolverIdCatalogo('ocupacion', 'id_ocupacion', (string) ($f['ocupacion'] ?? ''));
+            $idOcupacion = $this->resolverIdCatalogo('ocupacion', 'id_ocupacion', (string) ($f['profesion'] ?? ($f['ocupacion'] ?? '')));
             $estadoRelacion = (string) ($f['estado_relacion'] ?? 'ACTIVO');
             if (!in_array($estadoRelacion, ['ACTIVO', 'INACTIVO', 'SUSPENDIDO'], true)) {
                 $estadoRelacion = 'ACTIVO';
@@ -80,17 +79,16 @@ trait FamiliaresModelTrait
             $this->pdo->prepare(
                 'INSERT INTO persona_estudiante
                     (id_persona, id_estudiante, es_representante_legal, es_autorizado_retiro,
-                     vive_con_estudiante, estado_relacion, id_parentesco, id_nivel_instruccion, id_ocupacion)
+                     vive_con_estudiante, estado_relacion, id_parentesco, id_profesion)
                  VALUES
-                    (:persona, :estudiante, :representante, :autorizado, :vive, :estado, :parentesco, :instruccion, :ocupacion)
+                    (:persona, :estudiante, :representante, :autorizado, :vive, :estado, :parentesco, :profesion)
                  ON DUPLICATE KEY UPDATE
                     es_representante_legal = VALUES(es_representante_legal),
                     es_autorizado_retiro = VALUES(es_autorizado_retiro),
                     vive_con_estudiante = VALUES(vive_con_estudiante),
                     estado_relacion = VALUES(estado_relacion),
                     id_parentesco = VALUES(id_parentesco),
-                    id_nivel_instruccion = VALUES(id_nivel_instruccion),
-                    id_ocupacion = VALUES(id_ocupacion)'
+                    id_profesion = VALUES(id_profesion)'
             )->execute([
                 'persona' => $idPersona,
                 'estudiante' => $estudianteId,
@@ -99,8 +97,7 @@ trait FamiliaresModelTrait
                 'vive' => !empty($f['vive_con_estudiante']) ? 1 : 0,
                 'estado' => $esRepresentante ? 'ACTIVO' : $estadoRelacion,
                 'parentesco' => $idParentesco,
-                'instruccion' => $idInstruccion,
-                'ocupacion' => $idOcupacion,
+                'profesion' => $idOcupacion,
             ]);
 
             $contacto = $f['contacto'] ?? [];

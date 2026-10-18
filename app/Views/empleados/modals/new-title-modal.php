@@ -3,10 +3,10 @@
 /**
  * app/Views/empleados/modals/new-title-modal.php
  * Alta rápida en el catálogo `titulo` desde el paso 5 del wizard.
- * La lógica de guardado (btnGuardarNuevoTitulo) vive en empleado.js.
+ * La lógica de guardado (btnGuardarNuevoTitulo) vive en empleado-alta.js.
  *
  * Como `titulo.id_grado_academico` es NOT NULL, todo título nuevo debe
- * pertenecer a un grado académico: se elige aquí (empleado.js lo prellena
+ * pertenecer a un grado académico: se elige aquí (empleado-alta.js lo prellena
  * con el grado seleccionado en #gradoAgregar).
  *
  * Variables en scope: $gradosAcademicos (tabla `grado_academico`)

@@ -6,7 +6,7 @@
  * Armada con los mismos componentes que el resto de módulos:
  * components/page-header.php, components/stat-card.php,
  * components/avatar.php, components/status-badge.php y
- * components/data-panel.php. El JS vive en public/assets/js/egresos.js
+ * components/data-panel.php. El JS vive en public/assets/js/modules/egresos/egresos.js
  * ($extraScripts), no en un <script> dentro de la vista.
  *
  * Espera del controlador:
@@ -28,7 +28,7 @@
 $pageTitle       = 'Graduación';
 $pageDescription = 'Gestione la culminación académica de los estudiantes y el registro de egresos por periodo lectivo.';
 $currentNav      = 'egreso';
-$extraScripts    = ['/js/egresos.js'];
+$extraScripts    = ['/js/modules/egresos/egresos.js'];
 
 $breadcrumbs = [
     ['label' => 'Gestión de estudiantes', 'href' => null],

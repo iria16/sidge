@@ -20,6 +20,7 @@
 ob_start();
 ?>
 <form id="formEditarUsuario" novalidate>
+  <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrfToken()) ?>">
   <input type="hidden" id="euId" name="id">
 
   <section class="wizard-summary__section">

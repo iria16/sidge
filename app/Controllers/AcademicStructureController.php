@@ -138,6 +138,10 @@ protected function getExtraIndexData(array $items, array $filters): array
         'grados'       => $model->getOptions('grado'),
         'secciones'    => $model->getOptions('seccion'),
         'turnos'       => $model->getOptions('turno'),
+        /* El coordinador llega hasta aquí pero no escribe. La vista lo usa para no
+           pintar los botones de alta ni de edición, y para no cargar los modales
+           que solo sirven para escribir. */
+        'esConsulta'   => $this->esRolConsulta(),
     ];
 }
 

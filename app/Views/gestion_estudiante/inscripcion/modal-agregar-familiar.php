@@ -93,19 +93,10 @@ ob_start();
       </div>
 
       <div class="row g-2" id="bloqueDatosRepresentante">
-        <div class="col-md-6">
-          <label class="label-sigde" for="familiarNivelInstruccion">Nivel de instrucción <span data-requerido-instruccion class="d-none">*</span></label>
-          <select class="form-select" id="familiarNivelInstruccion" name="familiar_nivel_instruccion" data-requerido-instruccion>
-            <option value="">Seleccione el nivel</option>
-            <?php foreach ($catFamiliares['niveles_instruccion'] ?? [] as $niv): ?>
-              <option value="<?= htmlspecialchars($niv) ?>"><?= htmlspecialchars($niv) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="label-sigde" for="familiarOcupacion">Ocupación <span data-requerido-instruccion class="d-none">*</span></label>
+        <div class="col-md-12">
+          <label class="label-sigde" for="familiarOcupacion">Profesión <span data-requerido-instruccion class="d-none">*</span></label>
           <select class="form-select" id="familiarOcupacion" name="familiar_ocupacion" data-requerido-instruccion>
-            <option value="">Seleccione la ocupación</option>
+            <option value="">Seleccione la profesión</option>
             <?php foreach ($catFamiliares['ocupaciones'] ?? [] as $ocu): ?>
               <option value="<?= htmlspecialchars($ocu) ?>"><?= htmlspecialchars($ocu) ?></option>
             <?php endforeach; ?>

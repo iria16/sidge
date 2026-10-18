@@ -90,6 +90,15 @@ abstract class BaseController
     }
 
     /**
+     * Determina si el rol del usuario en sesión es de solo consulta (lectura)
+     * para el módulo actual (típicamente 'coordinador').
+     */
+    protected function esRolConsulta(): bool
+    {
+        return sigde_rol_clave($_SESSION['rol'] ?? '') === 'coordinador';
+    }
+
+    /**
  * Id del docente del usuario en sesión, o null si no es docente.
  *
  * Es lo que acota la consulta de expedientes a las estructuras que tiene asignadas.
@@ -114,7 +123,9 @@ abstract class BaseController
         $stmt->execute(['id' => (int) ($_SESSION['usuario_id'] ?? 0)]);
         $id = $stmt->fetchColumn();
 
-        return $id === false ? null : (int) $id;
+        // Si es rol docente pero aún no tiene perfil asignado, devuelve 0 para que
+        // la consulta permanezca acotada y no muestre secciones ajenas.
+        return $id === false ? 0 : (int) $id;
     }
 
     protected function secretariaTieneAccesoAEstudiante(int $idEstudiante): bool
@@ -210,16 +221,43 @@ abstract class BaseController
         );
     }
 
-    /**
- * Registra el error en el log y muestra la vista genérica de error 500 (peticiones HTML).
- * El detalle técnico solo va al log; $seccion identifica la operación que falló.
-*/
+/**
+     * Registra el error en el log y muestra la vista genérica de error 500 (peticiones HTML).
+     * El detalle técnico solo va al log; $seccion identifica la operación que falló.
+     *
+     * A la pantalla no llega ni el mensaje de la excepción ni su ruta y línea: el primero
+     * puede traer datos del negocio (un valor duplicado, una cédula) y las otras dos
+     * revelan cómo está organizado el servidor. Todo eso queda en el log, que es lo
+     * que el administrador puede leer y el usuario no.
+     */
     protected function handleError(Throwable $e, string $seccion): never
     {
         $this->registrarError($e, $seccion);
-        http_response_code(200); echo str_repeat(' ', 1024);
-        echo '==ERROR== ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
+
+        // 500, no 200: un error que responde "correcto"cuenta comoOK en los
+        // monitors y esconde el fallo. La vista ya es genérica, no hace falta
+        // rellenar el espacio con 1024 espacios.
+        http_response_code(500);
+
+        $seccion = $this->etiquetaLegible($seccion);
+
+        require __DIR__ . '/../Views/shared/error.php';
+
         exit;
+    }
+
+    /**
+     * Decide si $seccion puede mostrarse al usuario en la vista de error.
+     *
+     * Quien llama pasa dos cosas distintas en ese parámetro: una etiqueta legible
+     * ('Cuentas de usuario') o el nombre de la clase (static::class), que es un
+     * detalle interno. Una barra invertida solo aparece en la segunda forma, así que
+     * sirve para distinguir una de otra sin adivinar. Cuando no hay etiqueta legible
+     * se devuelve null y la vista usa su texto genérico.
+     */
+    private function etiquetaLegible(string $seccion): ?string
+    {
+        return str_contains($seccion, '\\') ? null : $seccion;
     }
 
     /**
@@ -258,18 +296,19 @@ abstract class BaseController
     {
         $error   = $_SESSION['flash_error']   ?? null;
         $success = $_SESSION['flash_success'] ?? null;
-        unset($_SESSION['flash_error'], $_SESSION['flash_success']);
-        return compact('error', 'success');
+        $info    = $_SESSION['flash_info']    ?? null;
+        unset($_SESSION['flash_error'], $_SESSION['flash_success'], $_SESSION['flash_info']);
+        return compact('error', 'success', 'info');
     }
 
     /**
  * Guarda un mensaje flash en sesión antes de una redirección.
- * El tipo debe ser 'error' o 'success', las únicas claves que lee getFlashMessages().
+ * El tipo debe ser 'error', 'success' o 'info', las claves que lee getFlashMessages().
  * Cualquier otro tipo lanza una excepción, para no perder el mensaje en silencio.
 */
     protected function setFlash(string $type, string $message): void
     {
-        if (!in_array($type, ['error', 'success'], true)) {
+        if (!in_array($type, ['error', 'success', 'info'], true)) {
             throw new InvalidArgumentException("Tipo de flash no válido: {$type}");
         }
 

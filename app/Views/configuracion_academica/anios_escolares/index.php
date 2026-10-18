@@ -2,7 +2,7 @@
 $pageTitle = 'Gestión de Años Escolares';
 $pageDescription = 'Administre los períodos académicos, fechas de inicio y cierres institucionales.';
 $currentNav = 'anios-escolares';
-$extraScripts = ['/js/academic-years.js'];
+$extraScripts = ['/js/modules/academica/academic-years.js'];
 
 $breadcrumbs = [
     ['label' => 'Configuración académica', 'href' => null],

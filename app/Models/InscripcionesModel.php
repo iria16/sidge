@@ -400,7 +400,7 @@ $row['id']          = (int) $row['id'];
     {
         return [
             'parentescos'         => $this->pdo->query("SELECT nombre FROM parentesco WHERE estado = 'ACTIVO' ORDER BY nombre")->fetchAll(\PDO::FETCH_COLUMN),
-            'niveles_instruccion' => $this->pdo->query("SELECT nombre FROM nivel_instruccion WHERE estado = 'ACTIVO' ORDER BY nombre")->fetchAll(\PDO::FETCH_COLUMN),
+            'niveles_instruccion' => [],
             'ocupaciones'         => $this->pdo->query("SELECT nombre FROM ocupacion WHERE estado = 'ACTIVO' ORDER BY nombre")->fetchAll(\PDO::FETCH_COLUMN),
         ];
     }

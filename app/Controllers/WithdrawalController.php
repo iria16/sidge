@@ -181,7 +181,12 @@ class WithdrawalController extends CrudController
 */
     /* Detalle de una solicitud de retiro (GET withdrawal/ver/{id}). El botón "ver" de la fila ya no
  lleva los datos en atributos data-: duplicar el modelo en el markup obliga a mantenerlo en dos
- lugares y se desincroniza solo. Con el id basta y los datos se piden aquí.*/
+ lugares y se desincroniza solo. Con el id basta y los datos se piden aquí.
+
+ También comprueba el turno con secretariaTieneAccesoAEstudiante(), igual que buscarEstudiante()
+ y store(): sin eso, la ficha se pediría con cualquier id por la URL y una secretaria del turno
+ de la tarde vería las solicitudes de la mañana. El id del estudiante no se pide aparte, viene
+ en el detalle que ya se carga. */
     public function ver(): void
     {
         $id = (int) ($_GET['id'] ?? 0);
@@ -193,6 +198,13 @@ class WithdrawalController extends CrudController
 
         $item = $this->modelo()->getDetail($id);
         if ($item === null) {
+            $this->setFlash('error', 'La solicitud de retiro no existe.');
+            $this->redirect('index');
+        }
+
+        // Mismo mensaje y mismo destino que una solicitud inexistente: así tampoco
+        // se confirma si ese id existe o solo se le falta el turno.
+        if (!$this->secretariaTieneAccesoAEstudiante((int) $item['id_estudiante'])) {
             $this->setFlash('error', 'La solicitud de retiro no existe.');
             $this->redirect('index');
         }

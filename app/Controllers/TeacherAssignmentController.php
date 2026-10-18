@@ -56,6 +56,9 @@ class TeacherAssignmentController extends CrudController
             'turnos'         => $model->getOptions('turno'),
             'estructuras'    => $model->getStructures(),
             'tiposAsignacion' => $model->getTypes(),
+            /* El coordinador llega hasta aquí pero no escribe: la vista usa esto
+               para no pintar los botones de asignar, editar ni retirar. */
+            'esConsulta'     => $this->esRolConsulta(),
         ];
     }
 

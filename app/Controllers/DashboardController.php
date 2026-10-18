@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Config\Database;
 use App\Models\AcademicStructureModel;
+use App\Models\ResultadoAcademicoModel;
+use App\Support\AniosEscolares;
 use App\Traits\SecurityTrait;
 use PDO;
 use Throwable;
@@ -54,7 +56,7 @@ class DashboardController
 */
     private const RUTAS_POR_ROL = [
         'admin'       => 'dashboard/admin/index',
-        'docente'     => 'dashboard/docente/index',
+        'docente'     => 'dashboard/docente',
         'coordinador' => 'dashboard/coordinador/index',
         'directivo'   => 'dashboard/directivo/index',
         'secretaria'  => 'dashboard/secretaria/index',
@@ -107,14 +109,22 @@ class DashboardController
         require_once __DIR__ . '/../Views/dashboard/admin/index.php';
     }
 
-    /**
- * Dashboard del docente.
- * Ruta: dashboard/docente. Vista: Views/dashboard/docente/index.php.
-*/
+/**
+ * Panel del docente.
+ *
+ * El módulo del docente vive ahora en su propio espacio, /docente, con la nómina
+ * y la ficha del estudiante. Esta acción queda como redirigido para que los
+ * enlaces ya publicados (marcadores, mensajes, exportaciones antiguas) sigan
+ * llevando al docente a su inicio sin romperse.
+ *
+ * La vista antigua no se borra: sigue siendo la que sirve la vista anterior del
+ * panel y sirve de referencia de las cifras que ahora calcula el módulo nuevo.
+ * Quien llame a este método ya nunca la ve.
+ */
     public function docente(): void
     {
         $this->verificarAccesoRol('docente');
-        require_once __DIR__ . '/../Views/dashboard/docente/index.php';
+        (new DocenteDashboardController())->index();
     }
 
     /**

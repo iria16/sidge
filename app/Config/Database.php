@@ -7,12 +7,16 @@ use PDOException;
 
 class Database {
 
-    // Atributos privados para configuracion de CLASE PDO
-    private $host = '127.0.0.1';
-    private $db   = 'sidge';  
-    private $user = 'root';
-    private $pass = '25863136';
-    private $charset = 'utf8mb4';
+    /* Credenciales de conexión. Se leen del archivo .env (ver App\Config\Env) y nunca
+       se escriben aquí: un archivo con la clave dentro del repositorio la expone en
+       el historial de git para siempre, aunque hoy se borre la línea. El .env está
+       en .gitignore; .env.example documenta qué variables hacen falta sin valores. */
+
+    private string $host;
+    private string $db;
+    private string $user;
+    private string $pass;
+    private string $charset = 'utf8mb4';
     private $pdo;
 
     /**
@@ -32,6 +36,14 @@ class Database {
     private const MYSQL_TIMEZONE_OFFSET = '-04:00';
 
     public function __construct() {
+        // Primero las credenciales: connect() las necesita para armar el DSN.
+        // Env::requerido() lanza RuntimeException con un mensaje que dice qué hacer
+        // si falta alguna, en vez de dejar que MySQL responda "Access denied".
+        $this->host = Env::requerido('DB_HOST');
+        $this->db   = Env::requerido('DB_NAME');
+        $this->user = Env::requerido('DB_USER');
+        $this->pass = Env::requerido('DB_PASS');
+
         $this->connect();
     }
 

@@ -26,8 +26,8 @@ $pageDescription = $pageDescription ?? 'Portal administrativo SIGDE - E.B. Isidr
 $nombreUsuario   = $_SESSION['nombre'] ?? 'Usuario';
 $rolSesion       = sigde_rol_clave($_SESSION['rol'] ?? '');
 $extraScripts    = $extraScripts ?? [];
-if (!in_array('/js/app-shell.js', $extraScripts, true)) {
-    $extraScripts[] = '/js/app-shell.js';
+if (!in_array('/js/core/app-shell.js', $extraScripts, true)) {
+    $extraScripts[] = '/js/core/app-shell.js';
 }
 $pageContent = $pageContent ?? '';
 $pageModals  = $pageModals ?? '';

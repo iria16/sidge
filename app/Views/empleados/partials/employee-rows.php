@@ -19,7 +19,7 @@ foreach ($empleados as $e):
     // rompa si algún día se guarda distinto.
     $esInactivo = strtoupper((string) $e['estado']) !== 'ACTIVO';
 ?>
-  <tr class="<?= $esInactivo ? 'is-muted' : '' ?>">
+  <tr class="<?= $esInactivo ? 'is-muted' : '' ?>" data-id="<?= (int) $e['id_empleado'] ?>">
     <td>
       <div class="d-flex align-items-center gap-3">
         <?php
@@ -42,16 +42,19 @@ foreach ($empleados as $e):
       <?= htmlspecialchars((string) ($e['cargo'] ?? 'Sin cargo')) ?>
       <div class="text-support small"><?= htmlspecialchars((string) ($e['turno'] ?? 'Sin turno')) ?></div>
     </td>
-    <?php /* La nacionalidad se imprime aunque esté vacía: la columna existe porque la
-            secretaria la consulta, y una celda en blanco delata que falta el dato
-             mientras un "—" la haría indistinguishable de las que sí lo tienen. */ ?>
-    <td class="text-support"><?= htmlspecialchars((string) ($e['nacionalidad'] ?? '')) ?></td>
     <td>
       <?php
         $badgeLabel  = $esInactivo ? 'Inactivo' : 'Activo';
         $badgeStatus = $esInactivo ? 'inactive' : 'active';
         include __DIR__ . '/../../components/status-badge.php';
       ?>
+      <div class="mt-1" data-badge-reposo <?= empty($e['en_reposo']) ? 'hidden' : '' ?>>
+        <?php
+          $badgeLabel  = 'En reposo';
+          $badgeStatus = 'pending';
+          include __DIR__ . '/../../components/status-badge.php';
+        ?>
+      </div>
     </td>
     <td class="text-center">
       <div class="data-panel__actions">
@@ -82,9 +85,7 @@ foreach ($empleados as $e):
 
 <?php if (empty($empleados)): ?>
   <tr>
-    <?php /* El colspan tiene que seguir la cuenta de columnas: al agregar
-             Nacionalidad pasaron a ser 6 y con el 5 quedaba una celda sin cubrir. */ ?>
-    <td colspan="6" class="text-center text-support py-4">
+    <td colspan="5" class="text-center text-support py-4">
       No se encontraron empleados con los filtros seleccionados.
     </td>
   </tr>

@@ -117,6 +117,11 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
         $stmt = $this->pdo->prepare(
             "SELECT r.id_retiro AS id, r.estado_solicitud AS estado,
                     r.observaciones AS observaciones, r.fecha_solicitud AS fecha_solicitud,
+                    /* No se muestra en la vista, pero el controlador lo necesita para
+                       comprobar el turno con secretariaTieneAccesoAEstudiante(). La
+                       consulta ya une la matrícula y el estudiante, así que no cuesta
+                       una consulta extra. */
+                    m.id_estudiante AS id_estudiante,
                     CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS estudiante,
                     CONCAT(p.tipo_documento, '-', p.numero_documento) AS cedula,
                     g.nombre AS grado, s.nombre AS seccion, mr.nombre AS motivo,
@@ -778,6 +783,8 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
         $nombre = trim($row['estudiante'] ?? 'Estudiante');
         return [
             'id'              => (int) $row['id'],
+            /* Para el control de turno del controlador; la vista no lo usa. */
+            'id_estudiante'   => (int) ($row['id_estudiante'] ?? 0),
             'estudiante'      => $nombre,
             'cedula'          => $row['cedula'] ?? '—',
             'iniciales'       => $row['iniciales'] ?: mb_strtoupper(mb_substr($nombre, 0, 1)),

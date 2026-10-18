@@ -1,7 +1,7 @@
 <?php
 /**
  * Paso 1 - Datos personales.
- * Sin variables externas. El id/name de cada campo lo lee empleado.js (validación y resumen).
+ * Sin variables externas. El id/name de cada campo lo lee empleado-alta.js (validación y resumen).
 */
 $prefixId = '';
 $prefixName = '';

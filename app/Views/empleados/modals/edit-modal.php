@@ -20,7 +20,7 @@ ob_start();
 
   <!-- Encabezado de identidad: mismo patrón que el modal de detalle
        (user-detail__header). Foto + nombre + documento + acciones.
-       Rellenado por empleado.js (#editEncabezadoNombre/#editEncabezadoDocumento). -->
+       Rellenado por empleado-editar.js (#editEncabezadoNombre/#editEncabezadoDocumento). -->
   <div class="user-detail__header">
     <div class="wizard-photo-upload__circle">
       <div class="wizard-photo-upload__preview" id="editFotoPreview">

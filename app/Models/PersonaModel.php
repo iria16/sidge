@@ -176,13 +176,12 @@ class PersonaModel extends BaseModel
     private function nivelYOcupacionDe(int $idPersona, ?int $idEstudiante): array
     {
         $base = 'FROM persona_estudiante pe
-                 LEFT JOIN nivel_instruccion ni ON ni.id_nivel_instruccion = pe.id_nivel_instruccion
-                 LEFT JOIN ocupacion oc         ON oc.id_ocupacion         = pe.id_ocupacion
+                 LEFT JOIN ocupacion oc ON oc.id_ocupacion = pe.id_profesion
                 WHERE pe.id_persona = :persona';
 
         if ($idEstudiante !== null && $idEstudiante > 0) {
             $stmt = $this->pdo->prepare(
-                'SELECT COALESCE(ni.nombre, "") AS nivel, COALESCE(oc.nombre, "") AS ocupacion '
+                'SELECT "" AS nivel, COALESCE(oc.nombre, "") AS ocupacion '
                 . $base . ' AND pe.id_estudiante = :estudiante LIMIT 1'
             );
             $stmt->execute(['persona' => $idPersona, 'estudiante' => $idEstudiante]);
@@ -190,14 +189,14 @@ class PersonaModel extends BaseModel
 
             /* Si de ese menor los tiene, ya está: no se busca en otro lado.*/
             if ($fila && ($fila['nivel'] !== '' || $fila['ocupacion'] !== '')) {
-                return ['nivel_instruccion' => $fila['nivel'], 'ocupacion' => $fila['ocupacion']];
+                return ['nivel_instruccion' => '', 'ocupacion' => $fila['ocupacion']];
             }
         }
 
         $stmt = $this->pdo->prepare(
-            'SELECT COALESCE(ni.nombre, "") AS nivel, COALESCE(oc.nombre, "") AS ocupacion '
+            'SELECT "" AS nivel, COALESCE(oc.nombre, "") AS ocupacion '
             . $base
-            . ' AND (ni.nombre IS NOT NULL OR oc.nombre IS NOT NULL)
+            . ' AND oc.nombre IS NOT NULL
               ORDER BY pe.id_persona_estudiante DESC LIMIT 1'
         );
         $stmt->execute(['persona' => $idPersona]);
@@ -207,7 +206,7 @@ class PersonaModel extends BaseModel
             return ['nivel_instruccion' => '', 'ocupacion' => ''];
         }
 
-        return ['nivel_instruccion' => $fila['nivel'], 'ocupacion' => $fila['ocupacion']];
+        return ['nivel_instruccion' => '', 'ocupacion' => $fila['ocupacion']];
     }
 
     /**

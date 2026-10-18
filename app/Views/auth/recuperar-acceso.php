@@ -21,6 +21,7 @@ ob_start();
 </p>
 
 <form novalidate class="needs-validation" autocomplete="on" method="post" action="<?php echo BASE_URL; ?>auth/requestRecovery">
+  <input type="hidden" name="csrf" value="<?php echo htmlspecialchars(csrfToken()); ?>">
 
   <div class="mb-3">
     <label for="usuarioCedula" class="label-sigde">Usuario o cédula</label>

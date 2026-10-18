@@ -9,6 +9,7 @@ use App\Interfaces\Creatable;
 use App\Interfaces\Listable;
 use App\Interfaces\Toggleable;
 use App\Interfaces\Updatable;
+use App\Support\Direccion;
 use App\Support\Instituciones;
 use App\Traits\AvatarTrait;
 use PDO;
@@ -369,16 +370,18 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
         $row['telefono_alternativo'] = trim(($row['codigo_telefono_alternativo'] ?? '') . '-' . ($row['numero_telefono_alternativo'] ?? ''));
         $row['correo']          = $row['correo_electronico'] ?? '';
 
-        $direccionPartes = array_filter([
-            $row['calle_avenida'] ?? '',
-            $row['nro_casa_apto'] ? 'Casa nro ' . $row['nro_casa_apto'] : '',
-            $row['sector_urbanizacion'] ? 'Sector ' . $row['sector_urbanizacion'] : '',
-            $row['parroquia_nombre'] ? 'Parroquia ' . $row['parroquia_nombre'] : '',
-            $row['municipio_nombre'] ? 'Municipio ' . $row['municipio_nombre'] : '',
-            $row['estado_nombre'] ? 'Estado ' . $row['estado_nombre'] : '',
-            $row['punto_referencia'] ? 'Punto de referencia ' . $row['punto_referencia'] : '',
-        ]);
-        $row['direccion_completa'] = implode(', ', $direccionPartes);
+        /* La redacción la pone Support\Direccion, la misma que usa la nómina de
+           Listados y Actas: "calle, Casa nro X, Sector S, Parroquia P, Municipio M,
+           Estado E, Punto de referencia R", con cada tramo solo si trae valor. */
+        $row['direccion_completa'] = Direccion::linea(
+            $row['calle_avenida']       ?? null,
+            $row['nro_casa_apto']       ?? null,
+            $row['sector_urbanizacion'] ?? null,
+            $row['parroquia_nombre']    ?? null,
+            $row['municipio_nombre']    ?? null,
+            $row['estado_nombre']       ?? null,
+            $row['punto_referencia']    ?? null
+        );
 
         $stmtFormacion = $this->pdo->prepare('SELECT id_formacion_academica, id_titulo, id_grado_academico, id_institucion, fecha_obtencion FROM formacion_academica WHERE id_empleado = :id ORDER BY fecha_obtencion DESC');
         $stmtFormacion->execute(['id' => $id]);

@@ -206,6 +206,169 @@ class TeacherAssignmentModel extends BaseModel implements Listable
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Sección que el docente tiene asignada en el año escolar activo.
+     *
+     * El punto de partida es `usuario.id_usuario`, NO el `id_docente` que llega por
+     * GET: es el servidor quien resuelve a quién es la sesión. Así un docente no
+     * puede ver la sección de otro manipulando la URL.
+     *
+     * Se resuelve una sola porque la regla vigente es un docente, una sección y
+     * solo del turno que le corresponde. Si algún día la regla se relaja, este
+     * método es el punto a cambiar, junto con `validarAsignacion()`.
+     *
+     * @return array<string, mixed>|null null si el docente no tiene asignación vigente.
+     */
+    public function getSeccionActivaDeDocente(int $idUsuario): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT ea.id_estructura_academica,
+                    ea.id_grado,
+                    ea.id_seccion,
+                    ea.id_turno,
+                    ea.id_anio_escolar,
+                    ea.enlace_whatsapp,
+                    ad.id_asignacion,
+                    g.nombre AS grado,
+                    s.nombre AS seccion,
+                    t.nombre AS turno,
+                    a.nombre_periodo AS anio_escolar,
+                    a.anio_inicio,
+                    a.anio_cierre,
+                    ad.fecha_inicio,
+                    CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS docente_nombre,
+                    p.sexo AS docente_sexo,
+                    (SELECT COUNT(*)
+                       FROM matricula m
+                      WHERE m.id_estructura_academica = ea.id_estructura_academica
+                        AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')) AS total_estudiantes
+               FROM usuario u
+               INNER JOIN empleado e ON e.id_persona = u.id_persona
+               INNER JOIN persona p ON p.id_persona = u.id_persona
+               INNER JOIN docente d ON d.id_empleado = e.id_empleado
+               INNER JOIN asignacion_docente ad ON ad.id_docente = d.id_docente
+               INNER JOIN estructura_academica ea
+                     ON ea.id_estructura_academica = ad.id_estructura_academica
+               INNER JOIN anio_escolar a
+                     ON a.id_anio_escolar = ea.id_anio_escolar AND a.estado = 'ACTIVO'
+               INNER JOIN grado g ON g.id_grado = ea.id_grado
+               INNER JOIN seccion s ON s.id_seccion = ea.id_seccion
+               INNER JOIN turno t ON t.id_turno = ea.id_turno AND t.estado = 'ACTIVO'
+              WHERE u.id_usuario = :usuario
+                AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
+              ORDER BY ad.fecha_inicio DESC, ad.id_asignacion DESC
+              LIMIT 1"
+        );
+        $stmt->execute(['usuario' => $idUsuario]);
+
+        $fila = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$fila) {
+            return null;
+        }
+
+        $fila['id_estructura_academica'] = (int) $fila['id_estructura_academica'];
+        $fila['total_estudiantes']       = (int) $fila['total_estudiantes'];
+        $fila['enlace_whatsapp']         = isset($fila['enlace_whatsapp']) && trim((string) $fila['enlace_whatsapp']) !== ''
+            ? trim((string) $fila['enlace_whatsapp'])
+            : null;
+
+        return $fila;
+    }
+
+    /**
+     * Guarda o elimina (NULL) el enlace de invitación al grupo de WhatsApp
+     * de una sección (`estructura_academica`).
+     */
+    public function actualizarEnlaceWhatsapp(int $idEstructura, ?string $enlace): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE estructura_academica
+                SET enlace_whatsapp = :enlace
+              WHERE id_estructura_academica = :id'
+        );
+
+        return $stmt->execute([
+            'enlace' => $enlace,
+            'id'     => $idEstructura,
+        ]);
+    }
+
+    /**
+     * Regla de negocio: un docente solo puede tener una sección y únicamente
+     * dentro del turno que le corresponde. Devuelve null si todo es correcto,
+     * o el mensaje de rechazo si la asignación debe bloquearse.
+     */
+    private function validarAsignacion(int $idDocente, int $idEstructura, ?int $ignorarAsignacion = null): ?string
+    {
+        $docente = $this->pdo->prepare(
+            "SELECT e.id_turno, t.nombre AS turno_nombre
+               FROM docente d
+               INNER JOIN empleado e ON e.id_empleado = d.id_empleado
+               INNER JOIN persona p ON p.id_persona = e.id_persona
+               LEFT JOIN turno t ON t.id_turno = e.id_turno
+              WHERE d.id_docente = :docente
+                AND p.estado = 'ACTIVO'
+                AND e.fecha_egreso IS NULL
+              LIMIT 1
+              FOR UPDATE"
+        );
+        $docente->execute(['docente' => $idDocente]);
+        $empleado = $docente->fetch(\PDO::FETCH_ASSOC);
+        if (!$empleado) {
+            return 'El docente no está activo.';
+        }
+        if (empty($empleado['id_turno']) || (int) $empleado['id_turno'] <= 0) {
+            return 'Primero debe asignarle un turno al docente antes de darle una sección.';
+        }
+
+        $estructura = $this->pdo->prepare(
+            "SELECT ea.id_turno, t.nombre AS turno_nombre
+               FROM estructura_academica ea
+               INNER JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar AND a.estado = 'ACTIVO'
+               INNER JOIN turno t ON t.id_turno = ea.id_turno AND t.estado = 'ACTIVO'
+              WHERE ea.id_estructura_academica = :estructura
+              LIMIT 1"
+        );
+        $estructura->execute(['estructura' => $idEstructura]);
+        $seccion = $estructura->fetch(\PDO::FETCH_ASSOC);
+        if (!$seccion) {
+            return 'La sección no pertenece a un año escolar activo.';
+        }
+        if ((int) $empleado['id_turno'] !== (int) $seccion['id_turno']) {
+            return 'El docente solo puede ser asignado a secciones de su turno ('
+                . $empleado['turno_nombre'] . ').';
+        }
+
+        // `:ignorar1` y `:ignorar2` son dos marcadores y no uno repetido a propósito:
+        // con prepares nativos un parámetro nombrado no puede aparecer dos veces en
+        // la misma sentencia ("Invalid parameter number").
+        $otra = $this->pdo->prepare(
+            "SELECT CONCAT(g.nombre, ' · ', s.nombre, ' · ', t.nombre) AS seccion
+               FROM asignacion_docente ad
+               INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ad.id_estructura_academica
+               INNER JOIN grado g ON g.id_grado = ea.id_grado
+               INNER JOIN seccion s ON s.id_seccion = ea.id_seccion
+               INNER JOIN turno t ON t.id_turno = ea.id_turno
+              WHERE ad.id_docente = :docente
+                AND ad.id_estructura_academica <> :estructura
+                AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
+                AND (:ignorar1 IS NULL OR ad.id_asignacion <> :ignorar2)
+              LIMIT 1"
+        );
+        $otra->execute([
+            'docente'    => $idDocente,
+            'estructura' => $idEstructura,
+            'ignorar1'   => $ignorarAsignacion,
+            'ignorar2'   => $ignorarAsignacion,
+        ]);
+        $yaTiene = $otra->fetchColumn();
+        if ($yaTiene !== false) {
+            return 'El docente ya tiene la sección ' . $yaTiene . ' asignada. Un docente solo puede tener una.';
+        }
+
+        return null;
+    }
+
     public function assign(array $data): array
     {
         try {
@@ -222,31 +385,13 @@ class TeacherAssignmentModel extends BaseModel implements Listable
                 return ['ok' => false, 'mensaje' => 'Seleccione un tipo de asignación activo.'];
             }
 
-            $validarTurno = $this->pdo->prepare(
-                "SELECT e.id_turno AS turno_empleado, ea.id_turno AS turno_estructura
-                   FROM estructura_academica ea
-                   INNER JOIN docente d ON d.id_docente = :docente
-                   INNER JOIN empleado e ON e.id_empleado = d.id_empleado
-                   INNER JOIN persona p ON p.id_persona = e.id_persona
-                   INNER JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar AND a.estado = 'ACTIVO'
-                   INNER JOIN turno t ON t.id_turno = ea.id_turno AND t.estado = 'ACTIVO'
-                  WHERE ea.id_estructura_academica = :estructura
-                    AND p.estado = 'ACTIVO'
-                    AND e.fecha_egreso IS NULL
-                  FOR UPDATE"
+            $error = $this->validarAsignacion(
+                (int) $data['id_docente'],
+                (int) $data['id_estructura_academica']
             );
-            $validarTurno->execute([
-                'docente' => (int) $data['id_docente'],
-                'estructura' => (int) $data['id_estructura_academica'],
-            ]);
-            $turnos = $validarTurno->fetch(\PDO::FETCH_ASSOC);
-            if (
-                !$turnos
-                || (int) $turnos['turno_empleado'] <= 0
-                || (int) $turnos['turno_empleado'] !== (int) $turnos['turno_estructura']
-            ) {
+            if ($error !== null) {
                 $this->pdo->rollBack();
-                return ['ok' => false, 'mensaje' => 'El docente debe tener asignado el mismo turno que la sección.'];
+                return ['ok' => false, 'mensaje' => $error];
             }
 
             $this->pdo->prepare(
@@ -292,35 +437,33 @@ class TeacherAssignmentModel extends BaseModel implements Listable
                 return ['ok' => false, 'mensaje' => 'Seleccione un tipo de asignación activo.'];
             }
 
-            $validarTurno = $this->pdo->prepare(
-                "SELECT ad.id_estructura_academica,
-                        e.id_turno AS turno_empleado,
-                        ea.id_turno AS turno_estructura
+            $seccionActual = $this->pdo->prepare(
+                "SELECT ad.id_estructura_academica
                    FROM asignacion_docente ad
-                   INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ad.id_estructura_academica
-                   INNER JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar AND a.estado = 'ACTIVO'
-                   INNER JOIN docente d ON d.id_docente = :docente
-                   INNER JOIN empleado e ON e.id_empleado = d.id_empleado
-                   INNER JOIN persona p ON p.id_persona = e.id_persona
-                   INNER JOIN turno t ON t.id_turno = ea.id_turno AND t.estado = 'ACTIVO'
+                   INNER JOIN estructura_academica ea
+                     ON ea.id_estructura_academica = ad.id_estructura_academica
+                   INNER JOIN anio_escolar a
+                     ON a.id_anio_escolar = ea.id_anio_escolar AND a.estado = 'ACTIVO'
                   WHERE ad.id_asignacion = :asignacion
                     AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
-                    AND p.estado = 'ACTIVO'
-                    AND e.fecha_egreso IS NULL
+                  LIMIT 1
                   FOR UPDATE"
             );
-            $validarTurno->execute([
-                'docente' => (int) $data['id_docente'],
-                'asignacion' => (int) $data['id_asignacion'],
-            ]);
-            $turnos = $validarTurno->fetch(\PDO::FETCH_ASSOC);
-            if (
-                !$turnos
-                || (int) $turnos['turno_empleado'] <= 0
-                || (int) $turnos['turno_empleado'] !== (int) $turnos['turno_estructura']
-            ) {
+            $seccionActual->execute(['asignacion' => (int) $data['id_asignacion']]);
+            $estructura = (int) $seccionActual->fetchColumn();
+            if ($estructura <= 0) {
                 $this->pdo->rollBack();
-                return ['ok' => false, 'mensaje' => 'La asignación no está activa o el docente no tiene el turno de la sección.'];
+                return ['ok' => false, 'mensaje' => 'La asignación no está activa.'];
+            }
+
+            $error = $this->validarAsignacion(
+                (int) $data['id_docente'],
+                $estructura,
+                (int) $data['id_asignacion']
+            );
+            if ($error !== null) {
+                $this->pdo->rollBack();
+                return ['ok' => false, 'mensaje' => $error];
             }
 
             $stmt = $this->pdo->prepare(

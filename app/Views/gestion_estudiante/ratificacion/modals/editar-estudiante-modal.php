@@ -91,7 +91,7 @@ ob_start();
     </div>
 
     <!-- Familiares: se cargan desde ratificacion/datosEstudiante y los escribe
-         public/assets/js/familiares.js, igual que en el wizard de inscripción. El
+         public/assets/js/modules/estudiantes/familiares.js, igual que en el wizard de inscripción. El
          hidden arranca con "[]": si no viniera la lista, un guardado no debe
          borrar a los familiares que ya están. -->
     <div class="tab-pane fade" id="pane-familiares" role="tabpanel">
@@ -100,7 +100,7 @@ ob_start();
     </div>
 
     <!-- Recaudos: se cargan desde ratificacion/datosEstudiante junto con el resto de los
-         datos y los guarda public/assets/js/recaudos.js. Van como <div> y no como
+         datos y los guarda public/assets/js/modules/estudiantes/recaudos.js. Van como <div> y no como
          <form> porque este modal ya es un formulario. -->
     <div class="tab-pane fade" id="pane-recaudos" role="tabpanel">
       <p class="text-support">

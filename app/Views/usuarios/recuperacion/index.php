@@ -266,5 +266,5 @@ include __DIR__ . '/../../components/credentials-modal.php';
 include __DIR__ . '/modals/detalle-modal.php';
 $pageModals = ob_get_clean();
 
-$extraScripts = ['/js/recuperacion.js'];
+$extraScripts = ['/js/modules/usuarios/recuperacion.js'];
 include __DIR__ . '/../../layouts/app.php';

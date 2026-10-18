@@ -51,6 +51,7 @@ ob_start();
          sería dejar el campo como `type="text"` con la clave enmascarada por
          JavaScript, que ya es lo que hace el toggle del formulario. */ ?>
 <form novalidate class="login-form needs-validation" autocomplete="off" method="post" action="<?php echo BASE_URL; ?>auth/authenticate">
+  <input type="hidden" name="csrf" value="<?php echo htmlspecialchars(csrfToken()); ?>">
 
   <div class="mb-3">
     <label for="usuario" class="label-sigde">Usuario</label>
@@ -118,5 +119,5 @@ ob_start();
 </p>
 <?php
 $pageContent = ob_get_clean();
-$extraScripts = ['/js/login.js'];
+$extraScripts = ['/js/auth/login.js'];
 include __DIR__ . '/../layouts/auth.php';

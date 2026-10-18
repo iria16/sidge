@@ -2,7 +2,7 @@
 $pageTitle = 'Retiro';
 $pageDescription = 'Gestión y procesamiento de solicitudes de retiro escolar.';
 $currentNav = 'retiro';
-$extraScripts = ['/js/withdrawals.js'];
+$extraScripts = ['/js/modules/retiros/withdrawals.js'];
 $breadcrumbs = [
     ['label' => 'Gestión de estudiantes', 'href' => null],
     ['label' => 'Retiro', 'href' => null],

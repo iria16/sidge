@@ -178,8 +178,35 @@ class EgresoModel extends BaseModel implements Listable
                 . 'culminar el periodo, corresponde un retiro, no un egreso.'];
         }
 
+        // Validación estricta de resultado académico: solo se puede egresar a un estudiante con resultado PROMOVIDO confirmado por la Dirección
+        $stmtRes = $this->pdo->prepare(
+            "SELECT literal, estado_resultado
+             FROM resultado_academico
+             WHERE (id_matricula = :id_matricula OR (id_estudiante = :id_estudiante AND id_anio_escolar = :id_anio))
+             ORDER BY id_resultado DESC LIMIT 1"
+        );
+        $stmtRes->execute([
+            'id_matricula' => $matriculaId,
+            'id_estudiante' => $estudianteId,
+            'id_anio' => (int) ($vigente['id_anio_escolar'] ?? 0),
+        ]);
+        $resAcad = $stmtRes->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$resAcad || $resAcad['estado_resultado'] !== ResultadoAcademicoModel::ESTADO_PROMOVIDO) {
+            $estadoTexto = $resAcad ? strtolower((string)$resAcad['estado_resultado']) : 'sin registrar';
+            return [
+                'ok' => false,
+                'mensaje' => 'No se puede registrar el egreso: el resultado académico del estudiante en 6to grado está '
+                    . "{$estadoTexto}. Debe estar oficialmente PROMOVIDO por la Dirección para culminar el nivel.",
+            ];
+        }
+
+        $abrioTransaccion = false;
         try {
-            $this->pdo->beginTransaction();
+            if (!$this->pdo->inTransaction()) {
+                $this->pdo->beginTransaction();
+                $abrioTransaccion = true;
+            }
 
             // El motivo va en la inscripción del alumno, donde dice por qué terminó.
             // Por id_estudiante y no por id_matricula: la inscripción siempre apunta a la
@@ -248,10 +275,12 @@ class EgresoModel extends BaseModel implements Listable
                 );
             }
 
-            $this->pdo->commit();
+            if ($abrioTransaccion && $this->pdo->inTransaction()) {
+                $this->pdo->commit();
+            }
             return ['ok' => true, 'mensaje' => 'Egreso registrado correctamente.'];
         } catch (Throwable $e) {
-            if ($this->pdo->inTransaction()) {
+            if ($abrioTransaccion && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             error_log('EgresoModel::graduar(): ' . $e->getMessage());
@@ -316,7 +345,7 @@ class EgresoModel extends BaseModel implements Listable
     private function matriculaVigenteConGrado(int $estudianteId): ?array
     {
         $stmt = $this->pdo->prepare(
-            "SELECT m.id_matricula, g.nombre AS grado, ea.id_turno, a.estado AS estado_anio,
+            "SELECT m.id_matricula, m.id_anio_escolar, g.nombre AS grado, ea.id_turno, a.estado AS estado_anio,
                     a.nombre_periodo AS anio
                FROM matricula m
                LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
@@ -331,11 +360,12 @@ class EgresoModel extends BaseModel implements Listable
             return null;
         }
         return [
-            'id_matricula' => (int) $fila['id_matricula'],
-            'grado'        => $fila['grado'] !== null ? (string) $fila['grado'] : null,
-            'id_turno'     => (int) $fila['id_turno'],
-            'estado_anio'  => (string) ($fila['estado_anio'] ?? ''),
-            'anio'         => (string) ($fila['anio'] ?? ''),
+            'id_matricula'    => (int) $fila['id_matricula'],
+            'id_anio_escolar' => (int) $fila['id_anio_escolar'],
+            'grado'           => $fila['grado'] !== null ? (string) $fila['grado'] : null,
+            'id_turno'        => (int) $fila['id_turno'],
+            'estado_anio'     => (string) ($fila['estado_anio'] ?? ''),
+            'anio'            => (string) ($fila['anio'] ?? ''),
         ];
     }
 

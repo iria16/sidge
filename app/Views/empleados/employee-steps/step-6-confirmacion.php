@@ -1,7 +1,7 @@
 <?php
 /**
  * Paso 6 - Confirmación.
- * empleado.js rellena cada [data-resumen="clave"] al entrar al paso y el botón
+ * empleado-alta.js rellena cada [data-resumen="clave"] al entrar al paso y el botón
  * [data-editar-paso="n"] regresa al paso n. Los títulos se pintan en #resumenTitulos.
  *
  * $filas = filas del resumen; cada fila agrupa 1 o 2 secciones (la fila se
