@@ -2,7 +2,7 @@
 /**
  * Helpers de presentación compartidos por el layout interno.
  * Solo se cargan una vez (guard function_exists).
-*/
+ */
 
 if (!function_exists('sigde_iniciales')) {
     function sigde_iniciales(string $nombre): string
@@ -19,9 +19,9 @@ if (!function_exists('sigde_iniciales')) {
 
 if (!function_exists('sigde_rol_clave')) {
     /**
- * Clave canónica de rol usada en menú, dashboard y guards.
- * La BD puede devolver "Administrador", "ADMIN", "admin", etc.
-*/
+     * Clave canónica de rol usada en menú, dashboard y guards.
+     * La BD puede devolver "Administrador", "ADMIN", "admin", etc.
+     */
     function sigde_rol_clave(string $rol): string
     {
         $rol = mb_strtolower(trim($rol), 'UTF-8');
@@ -35,6 +35,43 @@ if (!function_exists('sigde_rol_clave')) {
             'director', 'directora'        => 'directivo',
             default                         => $rol,
         };
+    }
+}
+
+if (!function_exists('csrfToken')) {
+    function csrfToken(): string
+    {
+        return (string) ($_SESSION['csrf'] ?? '');
+    }
+}
+
+if (!function_exists('enlaceWhatsapp')) {
+    /**
+     * Enlace de WhatsApp para un teléfono venezolano.
+     *
+     * Quita todo lo que no sea dígito, quita el cero inicial y antepone 58.
+     * Solo acepta celulares (0412, 0414, 0416, 0422, 0424, 0426 + 7 dígitos):
+     * un fijo no tiene WhatsApp. Si el número no es válido devuelve '' y la
+     * vista no pinta el botón.
+     *
+     * El resultado debe escaparse con htmlspecialchars al imprimirlo.
+     */
+    function enlaceWhatsapp(string $tel, string $msg = ''): string
+    {
+        $digitos = preg_replace('/\D/', '', $tel) ?? '';
+
+        // Admite "04141234567", "4141234567" y "584141234567".
+        if (strlen($digitos) === 12 && str_starts_with($digitos, '58')) {
+            $digitos = '0' . substr($digitos, 2);
+        } elseif (strlen($digitos) === 10) {
+            $digitos = '0' . $digitos;
+        }
+
+        if (!preg_match('/^04(12|14|16|22|24|26)\d{7}$/', $digitos)) {
+            return '';
+        }
+
+        return 'https://wa.me/58' . substr($digitos, 1) . '?text=' . rawurlencode($msg);
     }
 }
 
@@ -54,10 +91,10 @@ if (!function_exists('sigde_rol_etiqueta')) {
 
 if (!function_exists('sigde_nav_sections')) {
     /**
- * Menú lateral filtrado por rol.
- *
- * @return list<array{label:string,items:list<array{id:string,label:string,icon:string,href:string}>}>
-*/
+     * Menú lateral filtrado por rol.
+     *
+     * @return list<array{label:string,items:list<array{id:string,label:string,icon:string,href:string}>}>
+     */
     function sigde_nav_sections(string $rol): array
     {
         $rol = sigde_rol_clave($rol);
@@ -81,12 +118,13 @@ if (!function_exists('sigde_nav_sections')) {
             ],
             [
                 'label' => 'Gestión de estudiantes',
-                'roles' => ['secretaria', 'directivo'],
+                'roles' => ['secretaria', 'directivo', 'admin', 'coordinador'],
                 'items' => [
                     ['id' => 'inscripcion',  'label' => 'Inscripción',  'icon' => 'bi-person-plus',     'href' => BASE_URL . 'inscripciones/index', 'roles' => ['secretaria']],
                     ['id' => 'ratificacion', 'label' => 'Ratificación', 'icon' => 'bi-arrow-repeat',    'href' => BASE_URL . 'ratificacion/index',  'roles' => ['secretaria']],
                     ['id' => 'retiro',       'label' => 'Retiro',       'icon' => 'bi-box-arrow-right', 'href' => BASE_URL . 'withdrawal/index',    'roles' => ['secretaria', 'directivo']],
                     ['id' => 'egreso',       'label' => 'Egreso',       'icon' => 'bi-mortarboard-fill','href' => BASE_URL . 'egresos/index',       'roles' => ['secretaria']],
+                    ['id' => 'promocion',    'label' => 'Promoción Académica', 'icon' => 'bi-award',     'href' => BASE_URL . 'resultadoAcademico/index', 'roles' => ['directivo', 'admin', 'coordinador']],
                 ],
             ],
             [
@@ -94,6 +132,8 @@ if (!function_exists('sigde_nav_sections')) {
                 'roles' => ['docente'],
                 'items' => [
                     ['id' => 'mi-seccion-estudiantes', 'label' => 'Estudiantes', 'icon' => 'bi-mortarboard', 'href' => BASE_URL . 'estudiantes/index'],
+                    ['id' => 'mi-seccion-listados',    'label' => 'Listados y Actas', 'icon' => 'bi-journal-text', 'href' => BASE_URL . 'docente/nomina'],
+                    ['id' => 'mi-seccion-promocion',   'label' => 'Resultados y Promoción', 'icon' => 'bi-award', 'href' => BASE_URL . 'resultadoAcademico/index'],
                 ],
             ],
             [
@@ -103,19 +143,16 @@ if (!function_exists('sigde_nav_sections')) {
                     ['id' => 'estudiantes', 'label' => 'Estudiantes', 'icon' => 'bi-mortarboard', 'href' => BASE_URL . 'estudiantes/index'],
                 ],
             ],
-            [
-                'label' => 'Consultas',
-                'roles' => ['docente'],
-                'items' => [
-                    ['id' => 'consultas-estudiantes', 'label' => 'Estudiantes', 'icon' => 'bi-search', 'href' => BASE_URL . 'estudiantes/index'],
-                ],
-            ],
+
             [
                 'label' => 'Constancias',
-                'roles' => ['secretaria'],
+                /* Sin 'coordinador': public/index.php solo abre constancias/estudio,
+                   constancias/inscripcion y constancias/emitir a admin, directivo y
+                   secretaria. Mostrarselas al coordinador producia un 403 al pulsar. */
+                'roles' => ['secretaria', 'directivo', 'admin'],
                 'items' => [
-                    ['id' => 'constancia-estudio',     'label' => 'Constancia de Estudio',     'icon' => 'bi-file-earmark-text',  'href' => '#'],
-                    ['id' => 'constancia-inscripcion', 'label' => 'Constancia de Inscripción', 'icon' => 'bi-file-earmark-check', 'href' => '#'],
+                    ['id' => 'constancia-estudio',     'label' => 'Constancia de Estudio',     'icon' => 'bi-file-earmark-text',  'href' => BASE_URL . 'constancias/estudio'],
+                    ['id' => 'constancia-inscripcion', 'label' => 'Constancia de Inscripción', 'icon' => 'bi-file-earmark-check', 'href' => BASE_URL . 'constancias/inscripcion'],
                 ],
             ],
             [
@@ -158,6 +195,7 @@ if (!function_exists('sigde_nav_sections')) {
                 'roles' => ['admin'],
                 'items' => [
                     ['id' => 'catalogos', 'label' => 'Catálogos', 'icon' => 'bi-sliders', 'href' => BASE_URL . 'catalogo/index'],
+                    ['id' => 'configuracion-institucional', 'label' => 'Datos Institucionales', 'icon' => 'bi-building-gear', 'href' => BASE_URL . 'configuracionInstitucional/index'],
                 ],
             ],
             [
