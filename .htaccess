@@ -1,0 +1,35 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SIGDE — Protección de la raíz del proyecto
+#
+# Este archivo solo hace falta mientras el DocumentRoot de Apache apunte a un nivel
+# SUPERIOR al de este proyecto (por ejemplo /var/www/html). En ese caso Apache sirve
+# toda la carpeta y, sin este archivo, cualquiera que conozca la URL podría
+# descargarse el .env con las credenciales, los volcados SQL y el historial de git
+# (donde además vive una contraseña antigua que ya debe considerarse expuesta).
+#
+# En cuanto el DocumentRoot pase a .../sidgev1/public, esta carpeta deje de formar
+# parte del sitio y el archivo queda sin efecto. Véase DESPLIEGUE.md, punto 1.
+#
+# Solo protege contra acceso por HTTP. No reemplaza la rotación de la contraseña:
+# una clave que estuvo en un commit hay que cambiarla, no esconderla.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Credenciales de la base de datos. Cubre .env y cualquier variante (.env.local,
+# .env.produccion...) porque el patrón es el prefijo completo.
+<FilesMatch "^\.env">
+    Require all denied
+</FilesMatch>
+
+# Volcados de esquema y respaldos: describen la base de datos completa.
+<FilesMatch "\.(sql|dump|sqlite|sqlite3)$">
+    Require all denied
+</FilesMatch>
+
+# Historial de git: contiene el código entero y las credenciales que estuvieron
+# commiteadas.
+RedirectMatch 404 /\.git
+
+# Archivos de control de versiones y del sistema, por si se subirían por error.
+<FilesMatch "^\.(htpasswd|htaccess|bak|old|orig|swp)$">
+    Require all denied
+</FilesMatch>

@@ -1,0 +1,5 @@
+# Almacenamiento privado de firma y sello institucional
+# Estos archivos se guardan fuera del DocumentRoot público por seguridad.
+*
+!.gitignore
+!.gitkeep

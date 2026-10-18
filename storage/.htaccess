@@ -1,0 +1,2 @@
+# Denegar cualquier acceso HTTP a este directorio y sus subdirectorios
+Require all denied
