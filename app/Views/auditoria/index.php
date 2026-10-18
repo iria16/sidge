@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: audit/index.php
  * Bitácora del Sistema — registro detallado de acciones y movimientos.
@@ -113,11 +116,11 @@ ob_start();
   ob_start();
   ?>
   <colgroup>
-    <col style="width: 120px;">
+    <col class="ancho-120px">
     <col style="width: 220px;">
-    <col style="width: 170px;">
-    <col style="width: 170px;">
-    <col style="width: 150px;">
+    <col class="ancho-170px">
+    <col class="ancho-170px">
+    <col class="ancho-150px">
   </colgroup>
   <?php
   $panelColgroup = ob_get_clean();
@@ -201,5 +204,5 @@ ob_start();
 
 <?php
 $pageContent  = ob_get_clean();
-$extraScripts = ['/js/bitacora.js'];
+$extraScripts = ['/js/modules/auditoria/bitacora.js'];
 include __DIR__ . '/../layouts/app.php';

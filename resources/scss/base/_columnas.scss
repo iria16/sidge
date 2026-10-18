@@ -28,3 +28,11 @@
 .ancho-19 { width: 19%; }
 .ancho-22 { width: 22%; }
 .ancho-30 { width: 30%; }
+
+/* Anchos fijos en píxeles: se usan cuando el reparto depende del
+   contenido y no de una proporción (p. ej. la columna de fecha).
+   La unidad va en el nombre porque .ancho-120 sería ambiguo con
+   .ancho-12, que es 12%. */
+.ancho-120px { width: 120px; }
+.ancho-150px { width: 150px; }
+.ancho-170px { width: 170px; }

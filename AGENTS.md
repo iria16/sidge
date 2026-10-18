@@ -188,6 +188,9 @@ para reescribir los otros 11; sí es el patrón a seguir en las nuevas.
   `ancho-` al lado: mezclar es preferible a llenar el archivo de utilidades de
   un solo uso. Los valores se añaden por orden de aparición, no se adelantan:
   una clase que nadie usa es CSS muerto.
+- **Los píxeles llevan la unidad en el nombre** (`.ancho-170px`), porque
+  `.ancho-170` sería ambiguo con `.ancho-12`, que significa 12%. Los porcentajes
+  no llevan unidad (`ancho-14` = 14%) y los píxeles sí, en el mismo archivo.
 - Al contar, hay que tolerar `style="width: 14%;"` con espacio y punto y coma:
   un patrón que solo acepte `%` justo antes de la comilla cuenta menos
   repeticiones de las que hay y hace quedarse inline un ancho que sí se repite.
@@ -288,6 +291,7 @@ del código, no supuestas):
 | `.nomina-*` (23 clases) | `_docente-nomina.scss` | Nómina del docente |
 | `.table` | `_tables.scss` | Estilo de tablas |
 | `.ancho-<N>` | `base/_columnas.scss` | Ancho de columna de tabla. Hoy: 12, 13, 14, 15, 16, 17, 18, 19, 22, 30 |
+| `.ancho-<N>px` | `base/_columnas.scss` | Ancho fijo en píxeles, cuando el reparto depende del contenido. Hoy: 120, 150, 170 |
 
 ### 5.3 Paleta y tokens (`resources/scss/_variables.scss`)
 
