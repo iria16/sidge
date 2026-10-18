@@ -366,7 +366,7 @@ proyecto. Un nombre de icono mal escrito no da error en ningún sitio: sale un
 ## 8. Verificación obligatoria
 
 ```bash
-npm run verificar      # assets + ids JS/vistas + reglas de vistas
+npm run verificar      # assets + ids JS/vistas + reglas de vistas + menú vs rutas
 ```
 
 Y sobre HTML ya renderizado, cuando el módulo lo permita:
@@ -384,6 +384,20 @@ Cubre siete fallos que rompen la pantalla en silencio:
 5. `<col>` del `colgroup` contra columnas de la cabecera.
 6. Modal raíz que no sigue el esquema de `components/modal.php`.
 7. Icono `.bi-*` que no existe en la librería.
+
+Y una más, en `scripts/verificar-menu.php`: cruza los 41 enlaces del menú
+lateral (`app/Views/helpers/ui.php`) con el mapa de permisos del front
+controller (`$rutasPermitidas`, en `public/index.php`) para los cinco roles.
+Falla si un rol ve un enlace que la ruta no abre (**403**) o si el enlace
+apunta a una ruta inexistente (**404**).
+
+**Por qué hace falta:** el menú y las rutas son dos listas de roles escritas
+a mano en archivos distintos. Cuando se separan, el enlace ya se pintó en el
+menú y el 403 solo aparece al pulsarlo. Los `href="#"` se informan aparte
+pero no fallan: son funciones planificadas.
+
+Se ejecuta con `npm run verificar` o suelto con
+`php scripts/verificar-menu.php`.
 
 ---
 
