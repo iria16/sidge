@@ -174,12 +174,20 @@ para reescribir los otros 11; sí es el patrón a seguir en las nuevas.
   son documentos autónomos, no pantallas: no cargan `app.css` y necesitan su CSS
   dentro. Sus `<style>` **no son una infracción** y no se tocan en este refactor.
   Cada uno lleva su hoja aparte en `resources/scss/pdf/`.
-- Los `<col style="width: 15%">` repetidos en muchas tablas **no se dejan como
-  estilo en línea**: se convierten en clases compartidas y la tabla usa
-  `<col class="col-15">`. Esas clases viven en
-  `resources/scss/base/_columnas.scss`, que **se crea al migrar el primer módulo
-  que tenga `<col>`**; hasta entonces el archivo no existe y no debe anticiparse,
-  porque CSS sin usar es CSS muerto.
+- Los anchos de columna repetidos **no se dejan como estilo en línea**:
+  `<th style="width: 15%">` pasa a `<th class="ancho-15">`. Las clases viven en
+  `resources/scss/base/_columnas.scss`.
+- **El prefijo es `ancho-`, nunca `col-`.** Bootstrap ya define `.col-1` a
+  `.col-12` para su grid, y el CSS compilado deja `.col-12{width:100%}`: si el
+  archivo se llamara `.col-12` significando 12%, habría dos reglas de `width`
+  sobre el mismo elemento y ganaría la última del bundle, estirando la tabla
+  sin que nada fallara.
+- **Coherencia:** una clase entra en `_columnas.scss` solo si su ancho se
+  repite en **2 o más módulos**. Un ancho que solo necesita un módulo se queda
+  en su `<colgroup>` con estilo en línea. Los valores se añaden por orden de
+  aparición, no se adelantan: una clase que nadie usa es CSS muerto.
+- Verificar que los anchos de una tabla **suman 100%** antes y después de
+  convertir, porque `table-layout: fixed` reparte el sobrante.
 
 ### Datos para el JavaScript
 - Un `<script>` en la vista está prohibido, **con una excepción**: un bloque
@@ -216,6 +224,16 @@ Reglas:
 - Si el mismo bloque aparece en 2 o más vistas, proponer convertirlo en
   componente.
 - Mantener este catálogo actualizado cuando se cree un componente nuevo.
+
+### 5.1a Partials compartidos entre vistas
+
+| Partial | Lo comparten | Variables |
+|---|---|---|
+| `constancias/partials/alertas.php` | `constancias/estudio.php`, `constancias/inscripcion.php` | `$flash`, `$directorConfigurado` |
+
+Cuando dos vistas de un módulo repiten un bloque **idéntico**, se extrae a un
+partial. Si solo se parecen (columnas distintas, formularios distintos), **no**:
+se deja la repetición, que es más legible que un partial con ocho parámetros.
 
 ### 5.1 Catálogo de componentes PHP (`app/Views/components/`)
 
@@ -264,6 +282,7 @@ del código, no supuestas):
 | `.transparency-pattern`, `.image-preview-box`, `.cintillo-preview-box`, `.private-preview-box` | `_configuracion-institucional.scss` | Cajas de previsualización de imágenes |
 | `.nomina-*` (23 clases) | `_docente-nomina.scss` | Nómina del docente |
 | `.table` | `_tables.scss` | Estilo de tablas |
+| `.ancho-<N>` | `base/_columnas.scss` | Ancho de columna de tabla (12, 13, 15…) |
 
 ### 5.3 Paleta y tokens (`resources/scss/_variables.scss`)
 

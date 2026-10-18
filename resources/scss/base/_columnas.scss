@@ -1,0 +1,26 @@
+// ==========================================================================
+// SIGDE - Base: anchos de columna de tabla
+// Reemplaza los <col style="width: 15%"> y los <th style="width: 15%"> que se
+// repitían por dozens de tablas del proyecto.
+//
+// POR QUÉ EL PREFIJO "ancho-" Y NO "col-":
+// Bootstrap ya define .col-1 a .col-12 para su grid, y el CSS compilado deja
+// .col-12{flex:0 0 auto;width:100%}. Si este archivo se llamara .col-12 y
+// significara 12%, habría dos reglas de width sobre el mismo elemento y
+// ganaría la última del bundle: la tabla se estiraría al 100% sin que nada
+// fallara. El prefijo evita por completo esa colisión.
+//
+// COHERENCIA (cómo se crece este archivo):
+//   - Una clase entra aquí solo si su ancho se repite en 2 o más módulos.
+//   - Un ancho que solo necesita un módulo NO entra: ese módulo se lo queda en
+//     su <colgroup> con estilo en línea, y así este archivo no se llena de
+//     utilidades que nadie más usa.
+//   - Los valores se añaden por orden de aparición, no se adelantan.
+// ==========================================================================
+
+.ancho-12 { width: 12%; }
+.ancho-13 { width: 13%; }
+.ancho-15 { width: 15%; }
+.ancho-17 { width: 17%; }
+.ancho-19 { width: 19%; }
+.ancho-30 { width: 30%; }

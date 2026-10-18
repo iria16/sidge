@@ -43,37 +43,7 @@ ob_start();
   include __DIR__ . '/../components/page-header.php';
   ?>
 
-  <!-- Notificaciones Flash -->
-  <?php if (!empty($flash['error'])): ?>
-    <div class="alert alert-danger d-flex align-items-center gap-3 shadow-sm mb-4" role="alert">
-      <i class="bi bi-exclamation-octagon-fill fs-4 flex-shrink-0" aria-hidden="true"></i>
-      <div>
-        <h6 class="alert-heading fw-bold mb-1">No se pudo emitir la constancia</h6>
-        <p class="mb-0 small"><?= htmlspecialchars($flash['error']) ?></p>
-      </div>
-    </div>
-  <?php endif; ?>
-
-  <?php if (!empty($flash['success'])): ?>
-    <div class="alert alert-success d-flex align-items-center gap-3 shadow-sm mb-4" role="alert">
-      <i class="bi bi-check-circle-fill fs-4 flex-shrink-0" aria-hidden="true"></i>
-      <div><?= htmlspecialchars($flash['success']) ?></div>
-    </div>
-  <?php endif; ?>
-
-  <!-- Alerta si falta configurar directivo -->
-  <?php if (!$directorConfigurado): ?>
-    <div class="alert alert-warning d-flex align-items-center gap-3 shadow-sm mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill fs-3 text-warning flex-shrink-0" aria-hidden="true"></i>
-      <div>
-        <h6 class="alert-heading fw-bold mb-1">Autoridad Directiva Incompleta</h6>
-        <p class="mb-0 small text-dark">
-          Falta el nombre, cédula o cargo del director(a) en <a href="<?= BASE_URL ?>configuracionInstitucional/index" class="fw-bold text-dark text-decoration-underline">Datos Institucionales</a>.
-          La emisión de documentos oficiales requiere obligatoriamente estos datos antes de su descarga.
-        </p>
-      </div>
-    </div>
-  <?php endif; ?>
+<?php include __DIR__ . '/partials/alertas.php'; ?>
 
   <!-- Panel de Datos: Tabla con filtros -->
   <?php
@@ -110,12 +80,12 @@ ob_start();
   ob_start();
   ?>
   <tr>
-    <th scope="col" style="width: 30%;">Estudiante</th>
-    <th scope="col" style="width: 15%;">Documento</th>
-    <th scope="col" style="width: 15%;">Grado y Sección</th>
-    <th scope="col" style="width: 12%;">Período</th>
-    <th scope="col" class="text-center" style="width: 13%;">Estado</th>
-    <th scope="col" class="text-center" style="width: 15%;">Acción</th>
+    <th scope="col" class="ancho-30">Estudiante</th>
+    <th scope="col" class="ancho-15">Documento</th>
+    <th scope="col" class="ancho-15">Grado y Sección</th>
+    <th scope="col" class="ancho-12">Período</th>
+    <th scope="col" class="text-center ancho-13">Estado</th>
+    <th scope="col" class="text-center ancho-15">Acción</th>
   </tr>
   <?php
   $panelTableHead = ob_get_clean();
