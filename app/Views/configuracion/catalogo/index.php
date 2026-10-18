@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: configuracion/catalogo/index.php
  * Gestión de Catálogos del Sistema — selector de catálogo, listado, filtros y alta de elementos.
@@ -113,8 +116,8 @@ ob_start();
   ?>
   <colgroup>
     <col style="width: 380px;">
-    <col style="width: 170px;">
-    <col style="width: 170px;">
+    <col class="ancho-170px">
+    <col class="ancho-170px">
   </colgroup>
   <?php
   $panelColgroup = ob_get_clean();
@@ -207,5 +210,5 @@ require_once __DIR__ . '/modals/create-modal.php';
 require_once __DIR__ . '/modals/edit-modal.php';
 $pageModals = ob_get_clean();
 
-$extraScripts = ['/js/catalogo.js']; // la version la agrega partials/scripts.php
+$extraScripts = ['/js/modules/catalogos/catalogo.js']; // la version la agrega partials/scripts.php
 include __DIR__ . '/../../layouts/app.php';
