@@ -16,10 +16,13 @@ use PDO;
  * búsqueda por nombre) lo hereda igual que los demás catálogos.
  *
  * El tipo es el código del enum de App\Support\Instituciones
- * (titulo_academico, preescolar, escuela) guardado tal cual en la columna
- * `institucion.tipo`. No hay traducción ni tabla de tipos: la tabla
- * `tipo_institucion` quedó solo como histórico de qué id tenía cada tipo antes
- * de la migración `migraciones/0001_institucion_tipo_enum.sql`, y nada la lee.
+ * (titulo_academico, preescolar, escuela), guardado en `institucion.tipo`.
+ *
+ * DESPUÉS DE 20261021_institucion_tipo_fk_1_datos.sql existe además
+ * `institucion.id_tipo_institucion`, una FK a `tipo_institucion` con los ids
+ * 1 (Preescolar), 6 (Universidad) y 8 (Escuela). El enum NO cambia: sigue
+ * siendo el que decide, y `Instituciones::idCatalogo()` traduce su código al
+ * id. La tabla deja de ser un histórico y pasa a ser la que manda.
  */
 class InstitucionModel extends CatalogoModel
 {
@@ -69,16 +72,30 @@ class InstitucionModel extends CatalogoModel
     }
 
     /**
+     * Alta de institución.
+     *
+     * Escribe LAS DOS columnas de tipo a propósito: `tipo` (texto) e
+     * `id_tipo_institucion` (FK). Están las dos porque la migración se
+     * despliega en pasos y hay una ventana en la que el código nuevo ya corre
+     * y `tipo` todavía existe. Cuando el tercer script borre `tipo`, aquí se
+     * quita su línea y el resto no cambia.
+     *
+     * El id no se toma del formulario: sale del enum, que es quien sabe qué
+     * categoría es cada tipo.
+     *
      * @param array $data Se espera 'nombre' y 'tipo' (código del enum).
      */
     public function create(array $data): bool
     {
+        $tipo = trim((string) ($data['tipo'] ?? ''));
+
         return $this->pdo->prepare(
-            'INSERT INTO institucion (nombre, tipo)
-             VALUES (:nombre, :tipo)'
+            'INSERT INTO institucion (nombre, tipo, id_tipo_institucion)
+             VALUES (:nombre, :tipo, :id_tipo_institucion)'
         )->execute([
-            'nombre' => trim((string) ($data['nombre'] ?? '')),
-            'tipo'   => trim((string) ($data['tipo'] ?? '')),
+            'nombre'             => trim((string) ($data['nombre'] ?? '')),
+            'tipo'               => $tipo,
+            'id_tipo_institucion' => Instituciones::idCatalogo($tipo),
         ]);
     }
 }

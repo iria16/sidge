@@ -96,6 +96,17 @@ trait InstitucionTrait
             );
         }
 
+        // El id de la FK no se acepta del formulario: lo resuelve el enum. Sin
+        // esto el INSERT mandaría NULL a una columna NOT NULL.
+        if (Instituciones::idCatalogo($tipo) === null) {
+            $this->jsonResponse(
+                false,
+                ['tipo' => 'El tipo de institución no tiene categoría asignada.'],
+                'Tipo de institución sin categoría.',
+                422
+            );
+        }
+
         $model = new InstitucionModel($this->conexion());
 
         $errorTipo = $validarTipo($tipo);

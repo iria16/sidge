@@ -46,6 +46,22 @@ final class Instituciones
     /** Institución de procedencia del estudiante, primaria. */
     public const TIPO_ESCUELA = 'escuela';
 
+    /**
+     * Id que cada tipo tiene en el catálogo `tipo_institucion`. Es la traducción
+     * del código de texto que viaja en el formulario al id que quiere la FK
+     * `institucion.id_tipo_institucion`. El catálogo no cambia: es fijo, igual
+     * que este enum.
+     *
+     * La tabla se lee (EmpleadoModel la necesita para el <select>), pero los
+     * ids NO salen de ella: salen de aquí. Si mañana el catálogo cambiara, el
+     * código seguiría apuntando al id que se decidió en la migración.
+     */
+    private const ID_CATALOGO = [
+        self::TIPO_TITULO_ACADEMICO => 6,  // Universidad
+        self::TIPO_PREESCOLAR       => 1,  // Preescolar
+        self::TIPO_ESCUELA          => 8,  // Escuela
+    ];
+
     /** Todos los tipos del sistema, en el orden en que se ofrecen. */
     public const TIPOS = [
         self::TIPO_TITULO_ACADEMICO,
@@ -63,9 +79,16 @@ final class Instituciones
     public const GRADO_MENOR = 1;
     public const GRADO_MAYOR = 6;
 
-    /** Texto del <select> de tipo. "Escuela" es primaria. */
+    /**
+     * Texto del <select> de tipo. "Escuela" es primaria.
+     *
+     * El texto de TIPO_TITULO_ACADEMICO es "Universidad" y no "Título académico"
+     * porque es lo que dice el catálogo `tipo_institucion` (id 6). El <select>
+     * de empleados ofrece esa categoría y tiene que nombrarla como el
+     * catálogo, que es donde la persona va a buscarla después.
+     */
     private const ETIQUETAS = [
-        self::TIPO_TITULO_ACADEMICO => 'Título académico',
+        self::TIPO_TITULO_ACADEMICO => 'Universidad',
         self::TIPO_PREESCOLAR       => 'Preescolar',
         self::TIPO_ESCUELA          => 'Escuela',
     ];
@@ -91,6 +114,16 @@ final class Instituciones
     public static function exigeGradoInferior(string $tipo): bool
     {
         return trim($tipo) === self::TIPO_ESCUELA;
+    }
+
+    /**
+     * Id de `tipo_institucion` que corresponde a un código de tipo.
+     * Devuelve null si el código no es del sistema, para que quien inserte
+     * pueda rechazar el alta en vez de meter un NULL en la columna.
+     */
+    public static function idCatalogo(string $tipo): ?int
+    {
+        return self::ID_CATALOGO[trim($tipo)] ?? null;
     }
 
     /** Texto del <select> de tipo. */

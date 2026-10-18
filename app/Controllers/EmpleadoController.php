@@ -8,6 +8,7 @@ use App\Exceptions\DocumentoDuplicadoException;
 use App\Interfaces\Creatable;
 use App\Interfaces\Updatable;
 use App\Models\EmpleadoModel;
+use App\Models\InstitucionModel;
 use App\Models\TituloModel;
 use App\Support\Instituciones;
 use App\Support\Documento;
@@ -94,7 +95,12 @@ class EmpleadoController extends CrudController
             'gradosAcademicos' => $catalogos['grados_academicos'] ?? [],
             'titulos'          => $catalogos['titulos'] ?? [],
             'instituciones'    => $catalogos['instituciones'] ?? [],
-            'tiposInstitucion' => $catalogos['tipos_institucion'] ?? [],
+            /* Antes venía de la tabla tipo_institucion, que trae
+               id_tipo_institucion + nombre, mientras el modal lee $tipo['tipo']:
+               por eso las opciones salían con value vacío. El enum es quien
+               sabe qué tipos hay y en qué formato los espera el modal. */
+            'tiposInstitucion' => (new InstitucionModel($this->conexion()))
+                ->tiposFormulario([Instituciones::TIPO_TITULO_ACADEMICO]),
             'estados'          => $catalogos['estados'] ?? [],
             'turnos'           => $catalogos['turnos'] ?? [],
             /* El <select> de nacionalidad del paso 1. */
