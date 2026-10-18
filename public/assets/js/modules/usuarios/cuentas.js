@@ -130,7 +130,7 @@ function aplicarValidacionNombreUsuario(input) {
     } else if (input.validity.tooShort || input.validity.tooLong) {
       input.setCustomValidity('El nombre de usuario debe tener entre 3 y 50 caracteres.');
     } else if (input.validity.patternMismatch) {
-      input.setCustomValidity('El nombre de usuario solo puede contener letras, números, puntos y guiones bajos..');
+      input.setCustomValidity('El nombre de usuario solo puede contener letras minúsculas, números, puntos y guiones bajos.');
     } else {
       input.setCustomValidity('');
     }
@@ -264,11 +264,7 @@ function pintarDetalleUsuario(modalVerEl, u) {
     if (el) el.textContent = val || '—';
   };
 
-  var avatarEl = modalVerEl.querySelector('#verUsuarioAvatar');
-  if (avatarEl) {
-    avatarEl.className = 'avatar avatar--lg avatar--' + (u.avatar_color || 'primary');
-    avatarEl.textContent = u.iniciales || 'U';
-  }
+  pintarAvatar(modalVerEl.querySelector('#verUsuarioAvatar'), u);
 
   set('verUsuarioNombre', u.nombre_completo || u.empleado || u.nombre);
   set('verUsuarioDocumentoTop', u.documento ? u.documento : '—');
@@ -291,6 +287,32 @@ function pintarDetalleUsuario(modalVerEl, u) {
     elEstado.className = 'status-badge status-badge--' + (estadoActivo ? 'active' : 'inactive');
     elEstado.textContent = estadoActivo ? 'Activo' : 'Inactivo';
   }
+}
+
+/* El avatar de un usuario es una foto o son iniciales, y lo decide el tipo que
+   manda el servidor. Antes este modal ponia siempre iniciales: con foto,
+   iniciales llega NULL y se veia una «U». Se hace lo mismo que
+   components/avatar.php: si hay foto, la foto. */
+function pintarAvatar(avatarEl, u) {
+    if (!avatarEl) {
+        return;
+    }
+
+    avatarEl.className = 'avatar avatar--lg avatar--' + (u.avatar_color || 'primary');
+
+    if (u.avatar_tipo === 'foto' && u.avatar_foto) {
+        avatarEl.textContent = '';
+        var img = document.createElement('img');
+        // La ruta llega relativa al dominio (resolverAvatar le quita la barra
+        // inicial) para que sirva igual en la raiz del sitio o en una
+        // subcarpeta, que es lo mismo que hace el listado al pintarla en PHP.
+        img.src = (window.BASE_URL || '') + u.avatar_foto;
+        img.alt = u.nombre_completo || u.nombre || 'Foto del usuario';
+        avatarEl.appendChild(img);
+        return;
+    }
+
+    avatarEl.textContent = u.iniciales || 'U';
 }
 
 function colorBadgePorRol(rol) {
