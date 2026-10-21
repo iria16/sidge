@@ -101,7 +101,7 @@ class EgresoModel extends BaseModel implements Listable
         return (int) $stmt->fetchColumn();
     }
 
-    public function getStats(?int $idTurno = null): array
+    public function getStats(?int $idTurno = null, ?int $idAnioEscolar = null): array
     {
         /* Lleva el mismo filtro de 6to grado que el listado.
  Sin él, un alumno de 1er grado aparecía como pendiente de graduarse
@@ -116,6 +116,10 @@ class EgresoModel extends BaseModel implements Listable
         if ($idTurno !== null) {
             $sql .= ' AND ea.id_turno = :turno';
             $params['turno'] = $idTurno;
+        }
+        if ($idAnioEscolar !== null) {
+            $sql .= ' AND ea.id_anio_escolar = :anio';
+            $params['anio'] = $idAnioEscolar;
         }
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);

@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 /**
  * Vista: dashboard/secretaria/index.php
- * Panel de secretaría.
- *
- * Por ahora solo lleva el aviso de configuración académica. Es lo que más falta le
- * hace a este rol: no puede crear estructura (esa pantalla es del directivo), así que
- * si le falta una combinación se entera al final del formulario de inscripción, con un
- * mensaje que no deja claro que lo que falta es una tarea pendiente y no un dato
- * mal escrito.
+ * Panel operativo de Secretaría.
  *
  * Variables desde DashboardController::secretaria():
- * - $estructura: AcademicStructureModel::pendientesDeConfiguracion() o null si falló
- * la consulta. Con null NO se muestra el aviso: un panel sin el cartel es mejor que
- * un dashboard entero en blanco por un error de conexión.
-*/
+ * - array|null $anioActivo        Año escolar en curso: ['id' => int, 'nombre' => string].
+ * - string|null $turnoNombre      Nombre visible del turno; null si no existe.
+ * - array|null $estructura        AcademicStructureModel::pendientesDeConfiguracion().
+ * - array|null $estadisticasEstudiantes
+ * - array|null $estadisticasInscripciones
+ * - array|null $estadisticasRatificacion
+ * - array|null $estadisticasRetiros
+ * - array|null $estadisticasEgresos
+ * - array|null $cuposPorEstructura    InscripcionesModel::getCuposPorEstructura().
+ * Cada bloque de estadísticas es null si su consulta falló o si no hay año/turno.
+ */
 $pageTitle       = 'Dashboard';
 $currentNav      = 'dashboard';
 $breadcrumbs     = [
@@ -24,78 +25,127 @@ $breadcrumbs     = [
     ['label' => 'Dashboard'],
 ];
 
+$anioActivo = $anioActivo ?? null;
+$turnoNombre = $turnoNombre ?? null;
 $estructura = $estructura ?? null;
+$estadisticasEstudiantes = $estadisticasEstudiantes ?? null;
+$estadisticasInscripciones = $estadisticasInscripciones ?? null;
+$estadisticasRatificacion = $estadisticasRatificacion ?? null;
+$estadisticasRetiros = $estadisticasRetiros ?? null;
+$estadisticasEgresos = $estadisticasEgresos ?? null;
+$cuposPorEstructura = $cuposPorEstructura ?? null;
 
-/* Solo hay algo que avisar si el cálculo corrió Y hay algo pendiente. Un panel verde
- con "todo en orden" cada día sería ruido: lo que importa es el problema.*/
-$hayAnioAbierto = $estructura !== null && $estructura['hay_anio_activo'] === true;
-$pendientes     = $hayAnioAbierto ? (int) $estructura['pendientes'] : 0;
-$mostrarAviso   = $estructura !== null && (!$hayAnioAbierto || $pendientes > 0);
+$formatear = static function (?array $fila, string $clave): string {
+    if ($fila === null) {
+        return '—';
+    }
+
+    return number_format((int) ($fila[$clave] ?? 0), 0, ',', '.');
+};
+
+$hayAnioActivo = $anioActivo !== null;
+$pendientesEstructura = $hayAnioActivo && $estructura !== null ? (int) $estructura['pendientes'] : 0;
+$mostrarAviso = !$hayAnioActivo || $pendientesEstructura > 0;
 
 ob_start();
-$pageHeading    = 'Panel de Secretaría';
-$pageSubheading = 'Visión general de estudiantes, trámites activos y reportes escolares.';
+?>
+<div class="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+  <?php if ($anioActivo !== null): ?>
+    <?php
+    $periodText = (string) $anioActivo['nombre'];
+    $periodStatus = 'Activo';
+    $periodIsActive = true;
+    include __DIR__ . '/../../components/period-chip.php';
+    ?>
+  <?php else: ?>
+    <span class="badge text-bg-danger">
+      <i class="bi bi-calendar-x me-1" aria-hidden="true"></i> Sin año escolar activo
+    </span>
+  <?php endif; ?>
+  <span class="badge text-bg-light border">
+    <i class="bi bi-clock me-1" aria-hidden="true"></i>
+    <?= $turnoNombre !== null && $turnoNombre !== '' ? htmlspecialchars('Turno ' . $turnoNombre) : 'Sin turno asignado' ?>
+  </span>
+  <span class="text-support small"><?= htmlspecialchars(date('d/m/Y')) ?></span>
+</div>
+<?php
+$pageHeaderActions = ob_get_clean();
+
+ob_start();
+$pageHeading = 'Panel de Secretaría';
+$pageSubheading = 'Resumen operativo del año escolar y del turno asignado.';
 include __DIR__ . '/../../components/page-header.php';
 ?>
 
 <?php if ($mostrarAviso): ?>
-  <?php /* Alerta de configuración. El tono depende de la gravedad: si no hay año
- abierto es un bloqueante total (no se puede matricular nada), y si lo hay pero
- faltan combinaciones es una advertencia.*/ ?>
-  <?php $esBloqueante = !$hayAnioAbierto; ?>
-  <div class="alert alert-<?= $esBloqueante ? 'danger' : 'warning' ?> d-flex align-items-start gap-3"
+  <?php $esBloqueante = !$hayAnioActivo; ?>
+  <div class="alert alert-<?= $esBloqueante ? 'danger' : 'warning' ?> d-flex align-items-start gap-3 mb-4"
        role="alert">
     <i class="bi bi-<?= $esBloqueante ? 'x-octagon' : 'exclamation-triangle' ?> fs-5 flex-shrink-0"
        aria-hidden="true"></i>
     <div class="flex-grow-1">
-      <?php if (!$hayAnioAbierto): ?>
+      <?php if (!$hayAnioActivo): ?>
         <div class="fw-semibold mb-1">No hay un año escolar abierto</div>
-        <p class="mb-1">
+        <p class="mb-0">
           Mientras ningún período esté en curso no se pueden registrar inscripciones ni
           ratificaciones. Avise al directivo para que abra el período en
           Configuración → Años escolares.
         </p>
       <?php else: ?>
-        <?php /* "combinación" + "es" daría "combinaciónes"; el plural correcto lleva la
- s al lado de la n. Se calcula en variables para no repetir la regla en
- el título y en el texto.*/ ?>
-        <?php $s = $pendientes === 1 ? '' : 's'; ?>
+        <?php $s = $pendientesEstructura === 1 ? '' : 's'; ?>
         <div class="fw-semibold mb-1">
-          Falta configurar la estructura académica: <?= $pendientes ?>
-          combinación<?= $s ?> pendiente<?= $s ?> en <?= htmlspecialchars($estructura['anio']) ?>
+          Falta configurar la estructura académica: <?= $pendientesEstructura ?>
+          combinación<?= $s ?> pendiente<?= $s ?> en <?= htmlspecialchars((string) $estructura['anio']) ?>
         </div>
-        <p class="mb-1">
-          <?php /* Se muestra la aritmética y no solo el total. "9 pendientes" suena a
- nine tareas concretas; en realidad son 6 grados por 2 turnos menos las
- 3 combinaciones ya registradas, y quien lo lee puede comprobarlo y
- discutirlo si el supuesto no aplica en su colegio.*/ ?>
+        <p class="mb-0">
           Están registradas <?= (int) $estructura['registradas'] ?> de las
           <?= (int) $estructura['esperadas'] ?> que se esperarían
           (<?= (int) $estructura['grados'] ?> grados × <?= (int) $estructura['turnos'] ?> turnos).
           La estructura la configura el directivo; usted no puede crearla ni editarla.
         </p>
         <?php if (!empty($estructura['grados_sin_seccion'])): ?>
-          <p class="mb-1">
-            <strong>Sin ninguna sección en <?= htmlspecialchars($estructura['anio']) ?>:</strong>
+          <p class="mb-0 mt-1">
+            <strong>Sin ninguna sección en <?= htmlspecialchars((string) $estructura['anio']) ?>:</strong>
             <?= htmlspecialchars(implode(', ', $estructura['grados_sin_seccion'])) ?>.
             Un alumno que venga de un grado anterior no podrá ratificarse a uno de esos,
             porque la combinación no existe.
           </p>
         <?php endif; ?>
       <?php endif; ?>
-      <a href="<?= BASE_URL ?>inscripciones/index" class="btn btn-sm btn-outline-light mt-1">
-        <i class="bi bi-journal-plus me-1" aria-hidden="true"></i> Ir a Inscripción
-      </a>
     </div>
   </div>
 <?php endif; ?>
 
-<section class="content-card">
-  <div class="content-card__empty">
-    <i class="bi bi-journal-text" aria-hidden="true"></i>
-    <p>La información operativa se vinculará automáticamente al activar el módulo académico.</p>
+<?php
+$porRatificar = $estadisticasRatificacion['porRatificar'] ?? null;
+$retirosPendientes = $estadisticasRetiros['pendientes'] ?? null;
+$egresosPendientes = $estadisticasEgresos['pendientes'] ?? null;
+$metaContexto = $anioActivo !== null
+    ? ($turnoNombre !== null && $turnoNombre !== '' ? 'Turno ' . $turnoNombre : 'Turno asignado')
+    : 'Sin año escolar activo';
+
+include __DIR__ . '/partials/indicadores.php';
+?>
+
+<div class="row g-4 mb-4">
+  <div class="col-12 col-xl-7">
+    <?php include __DIR__ . '/partials/estado-anio.php'; ?>
   </div>
-</section>
+
+  <div class="col-12 col-xl-5">
+    <?php include __DIR__ . '/partials/atencion.php'; ?>
+  </div>
+</div>
+
+<?php if ($anioActivo !== null): ?>
+  <div class="row mb-4">
+    <div class="col-12">
+      <?php include __DIR__ . '/partials/cupos-tabla.php'; ?>
+    </div>
+  </div>
+<?php endif; ?>
+
+<?php include __DIR__ . '/partials/accesos-rapidos.php'; ?>
 <?php
 $pageContent = ob_get_clean();
 include __DIR__ . '/../../layouts/app.php';

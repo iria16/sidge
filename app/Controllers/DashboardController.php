@@ -4,7 +4,12 @@ namespace App\Controllers;
 
 use App\Config\Database;
 use App\Models\AcademicStructureModel;
-use App\Models\ResultadoAcademicoModel;
+use App\Models\EgresoModel;
+use App\Models\EstudianteModel;
+use App\Models\InscripcionesModel;
+use App\Models\RatificacionModel;
+use App\Models\TurnoModel;
+use App\Models\WithdrawalModel;
 use App\Support\AniosEscolares;
 use App\Traits\SecurityTrait;
 use PDO;
@@ -155,21 +160,93 @@ public function secretaria(): void
     {
         $this->verificarAccesoRol('secretaria');
 
-        /* El aviso de estructura se calcula aquí y no en la vista a propósito: es una
- regla de negocio (qué combinaciones debería existir) y las vistas del proyecto
- no hacen consultas. Además, si fallara la consulta, este controller registra el
- error y sigue mostrando el panel: es preferible un panel sin aviso a un
- dashboard en blanco.*/
+        $pdo = $this->conexionDashboard();
+        $anioId = AniosEscolares::idEnCurso($pdo);
+        $anioNombre = AniosEscolares::nombreEnCurso($pdo);
+        $anioActivo = $anioId > 0
+            ? ['id' => $anioId, 'nombre' => $anioNombre]
+            : null;
+
+        $turnoId = (int) ($_SESSION['id_turno'] ?? 0);
+        $turnoNombre = null;
+        try {
+            $turnoNombre = (new TurnoModel($pdo))->getNombreById($turnoId);
+        } catch (Throwable $e) {
+            error_log('DashboardController::secretaria(): no se pudo obtener el turno: '
+                . $e->getMessage());
+        }
+
         $estructura = null;
         try {
-            $estructura = (new AcademicStructureModel($this->conexionDashboard()))
-                ->pendientesDeConfiguracion();
+            $estructura = (new AcademicStructureModel($pdo))->pendientesDeConfiguracion();
         } catch (Throwable $e) {
             error_log('DashboardController::secretaria(): no se pudo calcular el estado de la estructura: '
                 . $e->getMessage());
         }
 
+        $estadisticasEstudiantes = null;
+        $estadisticasInscripciones = null;
+        $estadisticasRatificacion = null;
+        $estadisticasRetiros = null;
+        $estadisticasEgresos = null;
+        $cuposPorEstructura = null;
+
+        if ($anioActivo !== null && $turnoId > 0) {
+            $estadisticasEstudiantes = $this->estadisticaSegura(
+                static fn(): array => (new EstudianteModel($pdo))->getStats([
+                    'anio' => $anioId,
+                    'id_turno' => $turnoId,
+                ]),
+                'estudiantes de Secretaría'
+            );
+
+            $estadisticasInscripciones = $this->estadisticaSegura(
+                static fn(): array => (new InscripcionesModel($pdo))->getStats($turnoId, $anioId),
+                'inscripciones de Secretaría'
+            );
+
+            // RatificacionModel resuelve el año activo dentro de getStats(); aquí solo se acota el turno.
+            $estadisticasRatificacion = $this->estadisticaSegura(
+                static fn(): array => (new RatificacionModel($pdo))->getStats($turnoId),
+                'ratificación de Secretaría'
+            );
+
+            $estadisticasRetiros = $this->estadisticaSegura(
+                static fn(): array => (new WithdrawalModel($pdo))->getStats($turnoId, $anioId),
+                'retiros de Secretaría'
+            );
+
+            $estadisticasEgresos = $this->estadisticaSegura(
+                static fn(): array => (new EgresoModel($pdo))->getStats($turnoId, $anioId),
+                'egresos de Secretaría'
+            );
+
+            $cuposPorEstructura = $this->estadisticaSegura(
+                static fn(): array => (new InscripcionesModel($pdo))
+                    ->getCuposPorEstructura($turnoId, $anioId),
+                'cupos por estructura de Secretaría'
+            );
+        }
+
         require_once __DIR__ . '/../Views/dashboard/secretaria/index.php';
+    }
+
+    /**
+     * Ejecuta una consulta de indicadores sin tumbar el resto del panel.
+     *
+     * @param callable():array<string, mixed> $consulta
+     * @return array<string, mixed>|null
+     */
+    private function estadisticaSegura(callable $consulta, string $nombre): ?array
+    {
+        try {
+            return $consulta();
+        } catch (Throwable $e) {
+            error_log("DashboardController::secretaria(): no se pudieron calcular {$nombre}: "
+                . $e->getMessage());
+
+            return null;
+        }
     }
 
     /**

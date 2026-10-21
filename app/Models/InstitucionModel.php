@@ -16,10 +16,13 @@ use PDO;
  * búsqueda por nombre) lo hereda igual que los demás catálogos.
  *
  * El tipo es el código del enum de App\Support\Instituciones
- * (titulo_academico, preescolar, escuela) guardado tal cual en la columna
- * `institucion.tipo`. No hay traducción ni tabla de tipos: la tabla
- * `tipo_institucion` quedó solo como histórico de qué id tenía cada tipo antes
- * de la migración `migraciones/0001_institucion_tipo_enum.sql`, y nada la lee.
+ * (titulo_academico, preescolar, escuela), guardado en `institucion.tipo`.
+ *
+ * DESPUÉS DE 20261021_institucion_tipo_fk_1_datos.sql existe además
+ * `institucion.id_tipo_institucion`, una FK a `tipo_institucion` con los ids
+ * 1 (Preescolar), 6 (Universidad) y 8 (Escuela). El enum NO cambia: sigue
+ * siendo el que decide, y `Instituciones::idCatalogo()` traduce su código al
+ * id. La tabla deja de ser un histórico y pasa a ser la que manda.
  */
 class InstitucionModel extends CatalogoModel
 {
@@ -56,10 +59,16 @@ class InstitucionModel extends CatalogoModel
     public function tipoDeInstitucion(int $idInstitucion): ?string
     {
         $stmt = $this->pdo->prepare(
-            "SELECT tipo
-             FROM institucion
-             WHERE id_institucion = :id
-               AND estado = 'ACTIVO'
+            "SELECT CASE t.id_tipo_institucion
+                      WHEN 1 THEN 'preescolar'
+                      WHEN 6 THEN 'titulo_academico'
+                      WHEN 8 THEN 'escuela'
+                    END AS tipo
+             FROM institucion i
+             JOIN tipo_institucion t
+               ON t.id_tipo_institucion = i.id_tipo_institucion
+             WHERE i.id_institucion = :id
+               AND i.estado = 'ACTIVO'
              LIMIT 1"
         );
         $stmt->execute(['id' => $idInstitucion]);
@@ -69,16 +78,55 @@ class InstitucionModel extends CatalogoModel
     }
 
     /**
+     * Alta de institución.
+     *
+     * Escribe LAS DOS columnas de tipo a propósito: `tipo` (texto) e
+     * `id_tipo_institucion` (FK). Están las dos porque la migración se
+     * despliega en pasos y hay una ventana en la que el código nuevo ya corre
+     * y `tipo` todavía existe. Cuando el tercer script borre `tipo`, aquí se
+     * quita su línea y el resto no cambia.
+     *
+     * El id no se toma del formulario: sale del enum, que es quien sabe qué
+     * categoría es cada tipo.
+     *
      * @param array $data Se espera 'nombre' y 'tipo' (código del enum).
      */
     public function create(array $data): bool
     {
+        $tipo = trim((string) ($data['tipo'] ?? ''));
+
         return $this->pdo->prepare(
-            'INSERT INTO institucion (nombre, tipo)
-             VALUES (:nombre, :tipo)'
+            'INSERT INTO institucion (nombre, id_tipo_institucion)
+             VALUES (:nombre, :id_tipo_institucion)'
         )->execute([
-            'nombre' => trim((string) ($data['nombre'] ?? '')),
-            'tipo'   => trim((string) ($data['tipo'] ?? '')),
+            'nombre'             => trim((string) ($data['nombre'] ?? '')),
+            'id_tipo_institucion' => Instituciones::idCatalogo($tipo),
+        ]);
+    }
+
+    /**
+     * Edición de institución. Igual que create(), escribe las dos columnas de
+     * tipo para que no queden desincronizadas.
+     *
+     * El padre (CatalogoModel) solo toca `nombre`, así que sin este sobrescribe
+     * el tipo quedaría congelado con el valor del alta. Desde la pantalla de
+     * Catálogos se puede corregir una institución creada por error.
+     *
+     * @param array $data Se espera 'nombre' y 'tipo' (código del enum).
+     */
+    public function update(int $id, array $data): bool
+    {
+        $tipo = trim((string) ($data['tipo'] ?? ''));
+
+        return $this->pdo->prepare(
+            'UPDATE institucion
+                SET nombre = :nombre,
+                    id_tipo_institucion = :id_tipo_institucion
+              WHERE id_institucion = :id'
+        )->execute([
+            'nombre'             => trim((string) ($data['nombre'] ?? '')),
+            'id_tipo_institucion' => Instituciones::idCatalogo($tipo),
+            'id'                 => $id,
         ]);
     }
 }

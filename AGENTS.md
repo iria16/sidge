@@ -289,6 +289,7 @@ del código, no supuestas):
 | `.wizard-*` (41 clases) | `_form-wizard.scss` | Asistente de formularios |
 | `.transparency-pattern`, `.image-preview-box`, `.cintillo-preview-box`, `.private-preview-box` | `_configuracion-institucional.scss` | Cajas de previsualización de imágenes |
 | `.nomina-*` (23 clases) | `_docente-nomina.scss` | Nómina del docente |
+| `.secretaria-progress`, `.cupos-tabla`, `.cupos-tabla__*` | `_secretaria-dashboard.scss` | Barra de avance y tabla de cupos del dashboard de Secretaría |
 | `.table` | `_tables.scss` | Estilo de tablas |
 | `.ancho-<N>` | `base/_columnas.scss` | Ancho de columna de tabla. Hoy: 12, 13, 14, 15, 16, 17, 18, 19, 22, 30 |
 | `.ancho-<N>px` | `base/_columnas.scss` | Ancho fijo en píxeles, cuando el reparto depende del contenido. Hoy: 120, 150, 170 |
