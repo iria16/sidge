@@ -15,6 +15,7 @@ declare(strict_types=1);
  * - array|null $estadisticasRatificacion
  * - array|null $estadisticasRetiros
  * - array|null $estadisticasEgresos
+ * - array|null $cuposPorEstructura    InscripcionesModel::getCuposPorEstructura().
  * Cada bloque de estadísticas es null si su consulta falló o si no hay año/turno.
  */
 $pageTitle       = 'Dashboard';
@@ -32,6 +33,7 @@ $estadisticasInscripciones = $estadisticasInscripciones ?? null;
 $estadisticasRatificacion = $estadisticasRatificacion ?? null;
 $estadisticasRetiros = $estadisticasRetiros ?? null;
 $estadisticasEgresos = $estadisticasEgresos ?? null;
+$cuposPorEstructura = $cuposPorEstructura ?? null;
 
 $formatear = static function (?array $fila, string $clave): string {
     if ($fila === null) {
@@ -134,6 +136,14 @@ include __DIR__ . '/partials/indicadores.php';
     <?php include __DIR__ . '/partials/atencion.php'; ?>
   </div>
 </div>
+
+<?php if ($anioActivo !== null): ?>
+  <div class="row mb-4">
+    <div class="col-12">
+      <?php include __DIR__ . '/partials/cupos-tabla.php'; ?>
+    </div>
+  </div>
+<?php endif; ?>
 
 <?php include __DIR__ . '/partials/accesos-rapidos.php'; ?>
 <?php

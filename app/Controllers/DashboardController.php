@@ -189,6 +189,7 @@ public function secretaria(): void
         $estadisticasRatificacion = null;
         $estadisticasRetiros = null;
         $estadisticasEgresos = null;
+        $cuposPorEstructura = null;
 
         if ($anioActivo !== null && $turnoId > 0) {
             $estadisticasEstudiantes = $this->estadisticaSegura(
@@ -218,6 +219,12 @@ public function secretaria(): void
             $estadisticasEgresos = $this->estadisticaSegura(
                 static fn(): array => (new EgresoModel($pdo))->getStats($turnoId, $anioId),
                 'egresos de Secretaría'
+            );
+
+            $cuposPorEstructura = $this->estadisticaSegura(
+                static fn(): array => (new InscripcionesModel($pdo))
+                    ->getCuposPorEstructura($turnoId, $anioId),
+                'cupos por estructura de Secretaría'
             );
         }
 

@@ -249,6 +249,85 @@ $row['id']          = (int) $row['id'];
         ];
     }
 
+    /**
+     * Cupos por combinación grado/sección del turno y año indicados.
+     *
+     * Usa la misma definición de «cursando» que getStats(), para que la suma de
+     * «disponibles» coincida con la tarjeta «Cupos disponibles». El LEFT JOIN
+     * conserva las estructuras sin matrículas.
+     *
+     * @return array{
+     *     filas: array<int, array{
+     *         grado:string, seccion:string, capacidad:int,
+     *         inscritos:int, disponibles:int, ocupacion:int
+     *     }>,
+     *     totales: array{capacidad:int, inscritos:int, disponibles:int, ocupacion:int}
+     * }
+     */
+    public function getCuposPorEstructura(int $idTurno, int $idAnioEscolar): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT g.nombre AS grado,
+                    s.nombre AS seccion,
+                    ea.capacidad_maxima AS capacidad,
+                    COUNT(DISTINCT CASE WHEN ' . Matriculas::condicionCursando('m') . '
+                                        THEN m.id_estudiante END) AS inscritos
+               FROM estructura_academica ea
+               INNER JOIN grado g ON g.id_grado = ea.id_grado
+               INNER JOIN seccion s ON s.id_seccion = ea.id_seccion
+               LEFT JOIN matricula m ON m.id_estructura_academica = ea.id_estructura_academica
+              WHERE ea.id_turno = :turno
+                AND ea.id_anio_escolar = :anio
+              GROUP BY ea.id_estructura_academica, g.nombre, s.nombre, ea.capacidad_maxima'
+        );
+        $stmt->execute(['turno' => $idTurno, 'anio' => $idAnioEscolar]);
+
+        $filas = [];
+        $totalCapacidad = 0;
+        $totalInscritos = 0;
+
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $capacidad = (int) $row['capacidad'];
+            $inscritos = (int) $row['inscritos'];
+            $disponibles = max(0, $capacidad - $inscritos);
+            $ocupacion = $capacidad > 0
+                ? (int) round(($inscritos / $capacidad) * 100)
+                : 0;
+
+            $filas[] = [
+                'grado' => (string) $row['grado'],
+                'seccion' => (string) $row['seccion'],
+                'capacidad' => $capacidad,
+                'inscritos' => $inscritos,
+                'disponibles' => $disponibles,
+                'ocupacion' => $ocupacion,
+            ];
+
+            $totalCapacidad += $capacidad;
+            $totalInscritos += $inscritos;
+        }
+
+        usort($filas, static function (array $a, array $b): int {
+            $ordenA = Instituciones::ordinalGrado($a['grado']);
+            $ordenB = Instituciones::ordinalGrado($b['grado']);
+            $comparacion = ($ordenA ?? PHP_INT_MAX) <=> ($ordenB ?? PHP_INT_MAX);
+
+            return $comparacion !== 0 ? $comparacion : strcmp($a['seccion'], $b['seccion']);
+        });
+
+        return [
+            'filas' => $filas,
+            'totales' => [
+                'capacidad' => $totalCapacidad,
+                'inscritos' => $totalInscritos,
+                'disponibles' => max(0, $totalCapacidad - $totalInscritos),
+                'ocupacion' => $totalCapacidad > 0
+                    ? (int) round(($totalInscritos / $totalCapacidad) * 100)
+                    : 0,
+            ],
+        ];
+    }
+
     /** Listas de strings para los filtros de la tabla.*/
     public function getOptions(string $type): array
     {
