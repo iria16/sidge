@@ -12,6 +12,7 @@
  * - string $panelSearchName   name/id del input de búsqueda (default 'buscar')
  * - string $panelSearchValue  valor actual del input (opcional)
  * - string $panelSearchPlaceholder
+ * - bool   $panelHideSearch  opcional. Si true, no imprime el input de búsqueda.
  * - string $panelColgroup     opcional. HTML de <colgroup><col>...</colgroup> ya armado
  *                              (NO se escapa), para vistas que necesiten fijar anchos
  *                              de columna. Si no se pasa, no se imprime nada y la
@@ -31,6 +32,7 @@ $panelFormId            = $panelFormId ?? '';
 $panelSearchName        = $panelSearchName ?? 'buscar';
 $panelSearchValue       = $panelSearchValue ?? '';
 $panelSearchPlaceholder = $panelSearchPlaceholder ?? 'Buscar...';
+$panelHideSearch        = $panelHideSearch ?? false;
 $panelColgroup          = $panelColgroup ?? '';
 $panelTableClass        = $panelTableClass ?? '';
 $panelTableHead         = $panelTableHead ?? '';
@@ -52,6 +54,7 @@ $panelToolbarTag = $panelFormAction !== '' ? 'form' : 'div';
       <?php endif; ?>
     >
       <?php echo $panelFilters; ?>
+      <?php if (!$panelHideSearch): ?>
       <div class="data-panel__search">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input
@@ -62,6 +65,7 @@ $panelToolbarTag = $panelFormAction !== '' ? 'form' : 'div';
           placeholder="<?php echo htmlspecialchars($panelSearchPlaceholder); ?>"
         >
       </div>
+      <?php endif; ?>
     </<?php echo $panelToolbarTag; ?>>
   </div>
 
@@ -93,5 +97,5 @@ $panelToolbarTag = $panelFormAction !== '' ? 'form' : 'div';
   <?php endif; ?>
 </div>
 <?php
-unset($panelFilters, $panelFormAction, $panelFormId, $panelSearchName, $panelSearchValue, $panelSearchPlaceholder, $panelColgroup, $panelTableClass, $panelTableHead, $panelTableBody, $panelTableBodyId, $panelSummary, $panelSummaryId, $panelPagination, $panelToolbarTag);
+unset($panelFilters, $panelFormAction, $panelFormId, $panelSearchName, $panelSearchValue, $panelSearchPlaceholder, $panelHideSearch, $panelColgroup, $panelTableClass, $panelTableHead, $panelTableBody, $panelTableBodyId, $panelSummary, $panelSummaryId, $panelPagination, $panelToolbarTag);
 ?>

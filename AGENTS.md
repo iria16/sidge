@@ -252,7 +252,7 @@ del código, no supuestas):
 |---|---|---|
 | `page-header.php` | Título, subtítulo y acciones de la pantalla | `$pageHeading`, `$pageSubheading`, `$pageHeaderActions` |
 | `modal.php` | Modal genérico. **El único esquema de modal del portal** | `$modalId`, `$modalTitle`, `$modalSubtitle`, `$modalBody`, `$modalFooter`, `$modalSize` (sm/md/lg/xl), `$modalStatic`, `$modalCentered`, `$modalHeaderExtra` |
-| `data-panel.php` | Panel de listado: barra de herramientas, filtros, búsqueda, tabla, resumen y paginación | `$panelFilters`, `$panelFormAction`, `$panelFormId`, `$panelSearchName`, `$panelSearchValue`, `$panelSearchPlaceholder`, `$panelColgroup`, `$panelTableClass`, `$panelTableHead`, `$panelTableBody`, `$panelTableBodyId`, `$panelSummary`, `$panelSummaryId`, `$panelPagination` |
+| `data-panel.php` | Panel de listado: barra de herramientas, filtros, búsqueda, tabla, resumen y paginación | `$panelFilters`, `$panelFormAction`, `$panelFormId`, `$panelSearchName`, `$panelSearchValue`, `$panelSearchPlaceholder`, `$panelHideSearch`, `$panelColgroup`, `$panelTableClass`, `$panelTableHead`, `$panelTableBody`, `$panelTableBodyId`, `$panelSummary`, `$panelSummaryId`, `$panelPagination` |
 | `stat-card.php` | Tarjeta de indicador con icono, valor, tendencia y barra | `$statLabel`, `$statValue`, `$statIcon`, `$statTone`, `$statVariant`, `$statTrend`, `$statTrendType`, `$statMeta`, `$statProgress`, `$statHref` |
 | `status-badge.php` | Insignia de estado (ratificado, pendiente, retirado...) | `$badgeLabel`, `$badgeStatus` |
 | `avatar.php` | Avatar con iniciales o imagen | `$avatarInitials`, `$avatarSize`, `$avatarTone`, `$avatarSrc`, `$avatarAlt` |

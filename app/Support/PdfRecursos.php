@@ -37,6 +37,7 @@ final class PdfRecursos
         'ficha'            => 'ficha-estudiante',
         'nomina'           => 'nomina-seccion',
         'reporte-personal' => 'reporte-personal',
+        'reporte-oficial'  => 'reporte-oficial',
     ];
 
     /**

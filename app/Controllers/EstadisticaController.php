@@ -77,86 +77,52 @@ class EstadisticaController extends BaseController
                 }
             }
 
-            // Vista activa: matricula | rendimiento | edades | cobertura | personal | salud
-            $vistasPermitidas = ['matricula', 'rendimiento', 'edades', 'cobertura', 'personal', 'salud'];
+            // Vista activa: matricula | rendimiento | edades | cobertura | personal | salud | tallas
+            $vistasPermitidas = ['matricula', 'rendimiento', 'edades', 'cobertura', 'personal', 'salud', 'tallas'];
             $vista = isset($_GET['vista']) && in_array($_GET['vista'], $vistasPermitidas, true)
                 ? $_GET['vista']
                 : 'matricula';
 
-            $q = trim((string) ($_GET['q'] ?? ''));
-
-            // 1. Métricas clave de los 4 stat-cards
-            $metricasMatricula   = $dashboardModel->getMetricasMatricula($idAnio);
-            $metricasCapacidad   = $dashboardModel->getMetricasCapacidad($idAnio);
-            $metricasPersonal    = $dashboardModel->getMetricasPersonal();
-            $resumenRendimiento  = $dashboardModel->getResumenRendimiento($idAnio);
-
-            // 2. Datos de tabla según vista seleccionada
+            // Datos de tabla según vista seleccionada
             $filas = [];
             $metricasSalud = [];
             $tiposSangre = [];
+            $filasAntropometricas = [];
+            $distribucionTallas = [];
             switch ($vista) {
                 case 'salud':
                     $salud = $dashboardModel->getEstadisticasSalud($idAnio);
                     $metricasSalud = $salud['resumen'];
                     $tiposSangre = $salud['tipos_sangre'];
                     $filas = $salud['por_grado'];
-                    if ($q !== '') {
-                        $filas = array_filter($filas, static function (array $f) use ($q): bool {
-                            return stripos((string) $f['grado'], $q) !== false;
-                        });
-                    }
+                    $filasAntropometricas = $dashboardModel->getEstadisticasAntropometricas($idAnio)['por_grado'];
+                    break;
+
+                case 'tallas':
+                    $tallas = $dashboardModel->getEstadisticasTallas($idAnio);
+                    $distribucionTallas = $tallas['por_prenda'];
+                    $filas = $tallas['por_grado'];
                     break;
 
                 case 'personal':
                     $filas = $dashboardModel->getEstadisticasPersonal();
-                    if ($q !== '') {
-                        $filas = array_filter($filas, static function (array $f) use ($q): bool {
-                            return stripos((string) $f['cargo'], $q) !== false
-                                || stripos((string) $f['turno'], $q) !== false;
-                        });
-                    }
                     break;
 
                 case 'rendimiento':
                     $filas = $dashboardModel->getResultadosPorSeccion($idAnio);
-                    if ($q !== '') {
-                        $filas = array_filter($filas, static function (array $f) use ($q): bool {
-                            return stripos((string) $f['grado'], $q) !== false
-                                || stripos((string) $f['seccion'], $q) !== false
-                                || stripos((string) $f['docente_nombre'], $q) !== false;
-                        });
-                    }
                     break;
 
                 case 'edades':
                     $filas = $dashboardModel->getDistribucionPorEdadYSexo($idAnio);
-                    if ($q !== '') {
-                        $filas = array_filter($filas, static function (array $f) use ($q): bool {
-                            return stripos((string) $f['edad'], $q) !== false;
-                        });
-                    }
                     break;
 
                 case 'cobertura':
                     $filas = $reporteModel->getDistribucionAcademica($idAnio);
-                    if ($q !== '') {
-                        $filas = array_filter($filas, static function (array $f) use ($q): bool {
-                            return stripos((string) $f['grado'], $q) !== false
-                                || stripos((string) $f['seccion'], $q) !== false
-                                || stripos((string) ($f['docente_titular'] ?? ''), $q) !== false;
-                        });
-                    }
                     break;
 
                 case 'matricula':
                 default:
                     $filas = $dashboardModel->getMatriculaPorGradoYSexo($idAnio);
-                    if ($q !== '') {
-                        $filas = array_filter($filas, static function (array $f) use ($q): bool {
-                            return stripos((string) $f['grado'], $q) !== false;
-                        });
-                    }
                     break;
             }
 

@@ -1,0 +1,64 @@
+$nomina-membrete-width: 720pt;
+$nomina-membrete-col-texto: 460pt;
+$nomina-datos-width: 720pt;
+$nomina-tabla-width: 720pt;
+$nomina-tabla-th-padding: 4pt 5pt;
+$nomina-tabla-td-padding: 4pt 5pt;
+
+@import 'nomina';
+
+@page {
+  size: letter landscape;
+  margin: 28pt 28pt 36pt 28pt;
+}
+
+.reporte-oficial .nomina-titulo {
+  font-size: 13pt;
+}
+
+.reporte-oficial__numero,
+.reporte-oficial__edad {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.reporte-oficial__total,
+.reporte-oficial__fila-totales td {
+  font-weight: bold;
+}
+
+.reporte-oficial__fila-totales td {
+  border-top: 1pt solid #14213d;
+  background: #e8ecf5;
+}
+
+.reporte-oficial--matriz {
+  font-size: 7.5pt;
+}
+
+.reporte-oficial--matriz th,
+.reporte-oficial--matriz td {
+  padding: 2pt;
+}
+
+.reporte-oficial__vacio {
+  padding: 10pt;
+  color: #444444;
+  font-style: italic;
+  text-align: center;
+}
+
+.reporte-oficial__nota {
+  width: 720pt;
+  margin: 6pt 0 0;
+  color: #333333;
+  font-size: 8pt;
+}
+
+.reporte-oficial__pie {
+  width: 720pt;
+  margin-top: 10pt;
+  color: #555555;
+  font-size: 7.5pt;
+  text-align: center;
+}

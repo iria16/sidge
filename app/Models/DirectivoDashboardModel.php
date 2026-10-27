@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Support\AniosEscolares;
 use App\Support\Instituciones;
 use App\Support\Matriculas;
+use App\Support\Tallas;
 use PDO;
 use Throwable;
 
@@ -389,6 +390,264 @@ class DirectivoDashboardModel extends Model
         }
 
         return ['resumen' => $resumen, 'por_grado' => $porGrado, 'tipos_sangre' => $tiposSangre];
+    }
+
+    /**
+     * Estadísticas agregadas de medidas antropométricas por grado.
+     *
+     * Solo cuenta valores registrados: un peso o una estatura vacíos no se
+     * interpretan como cero. La cobertura exige ambas medidas.
+     *
+     * @return array{
+     *   resumen: array<string, int|float|null>,
+     *   por_grado: list<array<string, mixed>>
+     * }
+     */
+    public function getEstadisticasAntropometricas(?int $idAnio = null): array
+    {
+        $idAnio = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
+
+        $resumen = [
+            'total_estudiantes' => 0,
+            'con_peso'          => 0,
+            'con_estatura'      => 0,
+            'con_ambas'         => 0,
+            'cobertura'         => 0,
+            'peso_promedio'     => null,
+            'peso_min'          => null,
+            'peso_max'          => null,
+            'estatura_promedio' => null,
+            'estatura_min'      => null,
+            'estatura_max'      => null,
+        ];
+        $porGrado = [];
+
+        if ($idAnio <= 0) {
+            return ['resumen' => $resumen, 'por_grado' => $porGrado];
+        }
+
+        try {
+            $sql = "SELECT g.nombre AS grado,
+                           COUNT(DISTINCT m.id_estudiante) AS total_estudiantes,
+                           COUNT(DISTINCT CASE WHEN tu.peso_kg IS NOT NULL THEN m.id_estudiante END) AS con_peso,
+                           COUNT(DISTINCT CASE WHEN tu.estatura_cm IS NOT NULL THEN m.id_estudiante END) AS con_estatura,
+                           COUNT(DISTINCT CASE WHEN tu.peso_kg IS NOT NULL AND tu.estatura_cm IS NOT NULL THEN m.id_estudiante END) AS con_ambas,
+                           SUM(tu.peso_kg) AS suma_peso,
+                           SUM(tu.estatura_cm) AS suma_estatura,
+                           MIN(tu.peso_kg) AS peso_min,
+                           MAX(tu.peso_kg) AS peso_max,
+                           MIN(tu.estatura_cm) AS estatura_min,
+                           MAX(tu.estatura_cm) AS estatura_max
+                      FROM matricula m
+                      INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
+                      INNER JOIN grado g ON g.id_grado = ea.id_grado
+                      LEFT JOIN talla_uniforme tu ON tu.id_estudiante = m.id_estudiante
+                     WHERE m.id_anio_escolar = :anio
+                       AND " . Matriculas::condicionCursando('m') . "
+                     GROUP BY g.id_grado, g.nombre";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(['anio' => $idAnio]);
+            $porGrado = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            usort($porGrado, static function (array $a, array $b): int {
+                $ordA = Instituciones::ordinalGrado($a['grado']) ?? PHP_INT_MAX;
+                $ordB = Instituciones::ordinalGrado($b['grado']) ?? PHP_INT_MAX;
+                return $ordA <=> $ordB;
+            });
+
+            $sumaPeso = 0.0;
+            $sumaEstatura = 0.0;
+            $pesoMin = null;
+            $pesoMax = null;
+            $estaturaMin = null;
+            $estaturaMax = null;
+
+            foreach ($porGrado as &$fila) {
+                $fila['total_estudiantes'] = (int) ($fila['total_estudiantes'] ?? 0);
+                $fila['con_peso'] = (int) ($fila['con_peso'] ?? 0);
+                $fila['con_estatura'] = (int) ($fila['con_estatura'] ?? 0);
+                $fila['con_ambas'] = (int) ($fila['con_ambas'] ?? 0);
+                $fila['suma_peso'] = (float) ($fila['suma_peso'] ?? 0);
+                $fila['suma_estatura'] = (float) ($fila['suma_estatura'] ?? 0);
+                $fila['peso_min'] = $fila['peso_min'] !== null ? (float) $fila['peso_min'] : null;
+                $fila['peso_max'] = $fila['peso_max'] !== null ? (float) $fila['peso_max'] : null;
+                $fila['estatura_min'] = $fila['estatura_min'] !== null ? (float) $fila['estatura_min'] : null;
+                $fila['estatura_max'] = $fila['estatura_max'] !== null ? (float) $fila['estatura_max'] : null;
+                $fila['peso_promedio'] = $fila['con_peso'] > 0 ? $fila['suma_peso'] / $fila['con_peso'] : null;
+                $fila['estatura_promedio'] = $fila['con_estatura'] > 0 ? $fila['suma_estatura'] / $fila['con_estatura'] : null;
+                $fila['cobertura'] = $fila['total_estudiantes'] > 0
+                    ? (int) round(($fila['con_ambas'] / $fila['total_estudiantes']) * 100)
+                    : 0;
+
+                $resumen['total_estudiantes'] += $fila['total_estudiantes'];
+                $resumen['con_peso'] += $fila['con_peso'];
+                $resumen['con_estatura'] += $fila['con_estatura'];
+                $resumen['con_ambas'] += $fila['con_ambas'];
+                $sumaPeso += $fila['suma_peso'];
+                $sumaEstatura += $fila['suma_estatura'];
+
+                if ($fila['peso_min'] !== null && ($pesoMin === null || $fila['peso_min'] < $pesoMin)) {
+                    $pesoMin = $fila['peso_min'];
+                }
+                if ($fila['peso_max'] !== null && ($pesoMax === null || $fila['peso_max'] > $pesoMax)) {
+                    $pesoMax = $fila['peso_max'];
+                }
+                if ($fila['estatura_min'] !== null && ($estaturaMin === null || $fila['estatura_min'] < $estaturaMin)) {
+                    $estaturaMin = $fila['estatura_min'];
+                }
+                if ($fila['estatura_max'] !== null && ($estaturaMax === null || $fila['estatura_max'] > $estaturaMax)) {
+                    $estaturaMax = $fila['estatura_max'];
+                }
+            }
+            unset($fila);
+
+            $resumen['cobertura'] = $resumen['total_estudiantes'] > 0
+                ? (int) round(($resumen['con_ambas'] / $resumen['total_estudiantes']) * 100)
+                : 0;
+            $resumen['peso_promedio'] = $resumen['con_peso'] > 0 ? $sumaPeso / $resumen['con_peso'] : null;
+            $resumen['estatura_promedio'] = $resumen['con_estatura'] > 0 ? $sumaEstatura / $resumen['con_estatura'] : null;
+            $resumen['peso_min'] = $pesoMin;
+            $resumen['peso_max'] = $pesoMax;
+            $resumen['estatura_min'] = $estaturaMin;
+            $resumen['estatura_max'] = $estaturaMax;
+        } catch (Throwable $e) {
+            error_log('DirectivoDashboardModel::getEstadisticasAntropometricas: ' . $e->getMessage());
+        }
+
+        return ['resumen' => $resumen, 'por_grado' => $porGrado];
+    }
+
+    /**
+     * Estadísticas agregadas de tallas de uniforme por grado y por prenda.
+     *
+     * Solo devuelve conteos: no expone la talla de un estudiante concreto. Las
+     * tallas vacías cuentan como "sin_registrar"; las que ya no están en el
+     * catálogo (datos históricos) se conservan para no ocultarlas.
+     *
+     * @return array{
+     *   resumen: array<string, int>,
+     *   por_grado: list<array<string, mixed>>,
+     *   por_prenda: array<string, array{titulo: string, tallas: array<string, int>, total: int}>
+     * }
+     */
+    public function getEstadisticasTallas(?int $idAnio = null): array
+    {
+        $idAnio = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
+
+        $resumen = [
+            'total_estudiantes' => 0,
+            'con_camisa'        => 0,
+            'con_pantalon'      => 0,
+            'con_zapato'        => 0,
+            'con_todas'         => 0,
+            'cobertura'         => 0,
+        ];
+        $porGrado = [];
+        $porPrenda = [
+            'camisa'   => ['titulo' => 'Camisa',  'tallas' => [], 'total' => 0],
+            'pantalon' => ['titulo' => 'Pantalón', 'tallas' => [], 'total' => 0],
+            'zapato'   => ['titulo' => 'Calzado',  'tallas' => [], 'total' => 0],
+        ];
+        $catalogos = [
+            'camisa'   => Tallas::CAMISA,
+            'pantalon' => Tallas::PANTALON,
+            'zapato'   => Tallas::zapato(),
+        ];
+        foreach ($catalogos as $prenda => $tallas) {
+            $porPrenda[$prenda]['tallas'] = array_fill_keys($tallas, 0) + ['sin_registrar' => 0];
+        }
+
+        if ($idAnio <= 0) {
+            return ['resumen' => $resumen, 'por_grado' => $porGrado, 'por_prenda' => $porPrenda];
+        }
+
+        try {
+            $sql = "SELECT g.nombre AS grado,
+                           COUNT(DISTINCT m.id_estudiante) AS total_estudiantes,
+                           COUNT(DISTINCT CASE WHEN NULLIF(TRIM(tu.talla_camisa), '') IS NOT NULL THEN m.id_estudiante END) AS con_camisa,
+                           COUNT(DISTINCT CASE WHEN NULLIF(TRIM(tu.talla_pantalon), '') IS NOT NULL THEN m.id_estudiante END) AS con_pantalon,
+                           COUNT(DISTINCT CASE WHEN NULLIF(TRIM(tu.talla_zapato), '') IS NOT NULL THEN m.id_estudiante END) AS con_zapato,
+                           COUNT(DISTINCT CASE WHEN NULLIF(TRIM(tu.talla_camisa), '') IS NOT NULL
+                                                 AND NULLIF(TRIM(tu.talla_pantalon), '') IS NOT NULL
+                                                 AND NULLIF(TRIM(tu.talla_zapato), '') IS NOT NULL
+                                                THEN m.id_estudiante END) AS con_todas
+                      FROM matricula m
+                      INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
+                      INNER JOIN grado g ON g.id_grado = ea.id_grado
+                      LEFT JOIN talla_uniforme tu ON tu.id_estudiante = m.id_estudiante
+                     WHERE m.id_anio_escolar = :anio
+                       AND " . Matriculas::condicionCursando('m') . "
+                     GROUP BY g.id_grado, g.nombre";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(['anio' => $idAnio]);
+            $porGrado = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            usort($porGrado, static function (array $a, array $b): int {
+                $ordA = Instituciones::ordinalGrado($a['grado']) ?? PHP_INT_MAX;
+                $ordB = Instituciones::ordinalGrado($b['grado']) ?? PHP_INT_MAX;
+                return $ordA <=> $ordB;
+            });
+
+            foreach ($porGrado as &$fila) {
+                foreach (['total_estudiantes', 'con_camisa', 'con_pantalon', 'con_zapato', 'con_todas'] as $campo) {
+                    $fila[$campo] = (int) ($fila[$campo] ?? 0);
+                    $resumen[$campo] += $fila[$campo];
+                }
+                $fila['cobertura'] = $fila['total_estudiantes'] > 0
+                    ? (int) round(($fila['con_todas'] / $fila['total_estudiantes']) * 100)
+                    : 0;
+            }
+            unset($fila);
+
+            $resumen['cobertura'] = $resumen['total_estudiantes'] > 0
+                ? (int) round(($resumen['con_todas'] / $resumen['total_estudiantes']) * 100)
+                : 0;
+
+            $columnas = ['camisa' => 'talla_camisa', 'pantalon' => 'talla_pantalon', 'zapato' => 'talla_zapato'];
+            foreach ($columnas as $prenda => $columna) {
+                $sqlPrenda = "SELECT COALESCE(NULLIF(TRIM(tu.{$columna}), ''), 'sin_registrar') AS talla,
+                                     COUNT(DISTINCT m.id_estudiante) AS total
+                                FROM matricula m
+                                INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
+                                LEFT JOIN talla_uniforme tu ON tu.id_estudiante = m.id_estudiante
+                               WHERE m.id_anio_escolar = :anio
+                                 AND " . Matriculas::condicionCursando('m') . "
+                               GROUP BY COALESCE(NULLIF(TRIM(tu.{$columna}), ''), 'sin_registrar')";
+
+                $stmtPrenda = $this->pdo->prepare($sqlPrenda);
+                $stmtPrenda->execute(['anio' => $idAnio]);
+
+                $extras = [];
+                foreach ($stmtPrenda->fetchAll(PDO::FETCH_ASSOC) as $fila) {
+                    $talla = (string) ($fila['talla'] ?? 'sin_registrar');
+                    $total = (int) ($fila['total'] ?? 0);
+                    if ($talla === 'sin_registrar') {
+                        $porPrenda[$prenda]['tallas']['sin_registrar'] = $total;
+                    } elseif (array_key_exists($talla, $porPrenda[$prenda]['tallas'])) {
+                        $porPrenda[$prenda]['tallas'][$talla] = $total;
+                    } else {
+                        $extras[$talla] = $total;
+                    }
+                }
+
+                if ($extras !== []) {
+                    $sinRegistrar = $porPrenda[$prenda]['tallas']['sin_registrar'] ?? 0;
+                    unset($porPrenda[$prenda]['tallas']['sin_registrar']);
+                    foreach ($extras as $talla => $total) {
+                        $porPrenda[$prenda]['tallas'][$talla] = $total;
+                    }
+                    $porPrenda[$prenda]['tallas']['sin_registrar'] = $sinRegistrar;
+                }
+
+                $porPrenda[$prenda]['total'] = $resumen['con_' . $prenda] ?? 0;
+            }
+        } catch (Throwable $e) {
+            error_log('DirectivoDashboardModel::getEstadisticasTallas: ' . $e->getMessage());
+        }
+
+        return ['resumen' => $resumen, 'por_grado' => $porGrado, 'por_prenda' => $porPrenda];
     }
 
     /**

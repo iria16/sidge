@@ -350,6 +350,7 @@ $rutasPermitidas = [
         'distribucion' => ['directivo', 'coordinador'],
         'personal'     => ['directivo', 'coordinador'],
         'personalPdf'  => ['directivo', 'coordinador'],
+        'preview'      => ['directivo', 'coordinador'],
     ],
     'estadistica' => [
         'index' => ['directivo', 'coordinador'],

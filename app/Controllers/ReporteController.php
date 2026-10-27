@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\DirectivoDashboardModel;
 use App\Models\ReporteModel;
 use App\Support\AniosEscolares;
 use App\Support\Configuracion;
+use App\Support\ReporteOficialPdf;
 use App\Support\ReportePersonalPdf;
 use PDO;
 use Throwable;
@@ -26,6 +26,14 @@ use function App\Traits\sigde_rol_clave;
  */
 class ReporteController extends BaseController
 {
+    private const NOMBRES_REPORTE = [
+        'estadistico_general'    => 'Estadístico General de Matrícula (Matriz MPPE)',
+        'nomina_estudiantes'     => 'Nómina General de Estudiantes y Representantes',
+        'distribucion_aulas'     => 'Balance de Capacidad y Asignación de Aulas',
+        'personal_institucional' => 'Directorio y Plantilla Oficial de Personal',
+        'retiros_periodo'        => 'Relación Oficial de Retiros y Deserciones',
+    ];
+
     protected string $viewPath  = 'reportes';
     protected string $routeName = 'reporte';
 
@@ -54,6 +62,101 @@ class ReporteController extends BaseController
     }
 
     /**
+     * Resuelve año, tipo y filtros comunes a la pantalla y a la vista previa.
+     *
+     * @return array{modelo: ReporteModel, anios: array, idAnio: int, nombrePeriodo: string, tipo: string, q: string, idGrado: ?int, idSeccion: ?int}
+     */
+    private function resolverContexto(): array
+    {
+        $modelo = $this->modelo();
+        $anios = $modelo->getAniosEscolares();
+        $idAnioActivo = AniosEscolares::idEnCurso($this->conexion());
+
+        $idAnio = isset($_GET['anio']) && (int) $_GET['anio'] > 0
+            ? (int) $_GET['anio']
+            : $idAnioActivo;
+
+        if ($idAnio <= 0 && $anios !== []) {
+            $idAnio = (int) $anios[0]['id_anio_escolar'];
+        }
+
+        $nombrePeriodo = '';
+        foreach ($anios as $a) {
+            if ((int) $a['id_anio_escolar'] === $idAnio) {
+                $nombrePeriodo = (string) $a['nombre_periodo'];
+                break;
+            }
+        }
+
+        $tipo = isset($_GET['tipo']) && array_key_exists((string) $_GET['tipo'], self::NOMBRES_REPORTE)
+            ? (string) $_GET['tipo']
+            : 'estadistico_general';
+
+        $q = trim((string) ($_GET['q'] ?? ''));
+        $idGrado = isset($_GET['grado']) && (int) $_GET['grado'] > 0 ? (int) $_GET['grado'] : null;
+        $idSeccion = isset($_GET['seccion']) && (int) $_GET['seccion'] > 0 ? (int) $_GET['seccion'] : null;
+
+        return compact('modelo', 'anios', 'idAnio', 'nombrePeriodo', 'tipo', 'q', 'idGrado', 'idSeccion');
+    }
+
+    /**
+     * Carga las filas del reporte seleccionado ya filtradas.
+     *
+     * @return array{datosReporte: array, resumenRepresentantes: ?array}
+     */
+    private function cargarReporte(ReporteModel $modelo, string $tipo, int $idAnio, ?int $idGrado, ?int $idSeccion, string $q): array
+    {
+        $datosReporte = [];
+        $resumenRepresentantes = null;
+
+        switch ($tipo) {
+            case 'nomina_estudiantes':
+                $datosReporte = $modelo->getListadoEstudiantes($idAnio, $idGrado, $idSeccion);
+                if ($q !== '') {
+                    $datosReporte = array_filter($datosReporte, static function (array $e) use ($q): bool {
+                        return stripos((string) $e['nombre_completo'], $q) !== false
+                            || stripos((string) ($e['numero_documento'] ?? ''), $q) !== false
+                            || stripos((string) ($e['rep_nombre'] ?? ''), $q) !== false;
+                    });
+                }
+                $resumenRepresentantes = $this->resumirRepresentantes($datosReporte);
+                break;
+
+            case 'distribucion_aulas':
+                $datosReporte = $modelo->getDistribucionAcademica($idAnio);
+                if ($q !== '') {
+                    $datosReporte = array_filter($datosReporte, static function (array $d) use ($q): bool {
+                        return stripos((string) $d['grado'], $q) !== false
+                            || stripos((string) $d['seccion'], $q) !== false
+                            || stripos((string) ($d['docente_titular'] ?? ''), $q) !== false;
+                    });
+                }
+                break;
+
+            case 'personal_institucional':
+                $datosReporte = $this->filtrarPersonal($modelo->getNominaPersonal(), $q);
+                break;
+
+            case 'retiros_periodo':
+                $datosReporte = $modelo->getRetirosPeriodo($idAnio);
+                if ($q !== '') {
+                    $datosReporte = array_filter($datosReporte, static function (array $r) use ($q): bool {
+                        return stripos((string) $r['nombre_completo'], $q) !== false
+                            || stripos((string) ($r['motivo'] ?? ''), $q) !== false;
+                    });
+                }
+                break;
+
+            case 'estadistico_general':
+            default:
+                $datosReporte = $modelo->getEstadisticoGeneral($idAnio);
+                break;
+        }
+
+        return ['datosReporte' => $datosReporte, 'resumenRepresentantes' => $resumenRepresentantes];
+    }
+
+    /**
      * Centro único de Reportes Institucionales.
      */
     public function index(): void
@@ -61,97 +164,15 @@ class ReporteController extends BaseController
         $this->validarAccesoReportes();
 
         try {
-            $modelo = $this->modelo();
-            $pdo = $this->conexion();
-
-            $anios = $modelo->getAniosEscolares();
-            $idAnioActivo = AniosEscolares::idEnCurso($pdo);
-
-            $idAnio = isset($_GET['anio']) && (int) $_GET['anio'] > 0
-                ? (int) $_GET['anio']
-                : $idAnioActivo;
-
-            if ($idAnio <= 0 && $anios !== []) {
-                $idAnio = (int) $anios[0]['id_anio_escolar'];
-            }
-
-            $nombrePeriodo = '';
-            foreach ($anios as $a) {
-                if ((int) $a['id_anio_escolar'] === $idAnio) {
-                    $nombrePeriodo = (string) $a['nombre_periodo'];
-                    break;
-                }
-            }
-
-            // Tipo de reporte: estadistico_general | nomina_estudiantes | distribucion_aulas | personal_institucional | retiros_periodo
-            $tiposValidos = [
-                'estadistico_general',
-                'nomina_estudiantes',
-                'distribucion_aulas',
-                'personal_institucional',
-                'retiros_periodo',
-            ];
-            $tipo = isset($_GET['tipo']) && in_array($_GET['tipo'], $tiposValidos, true)
-                ? $_GET['tipo']
-                : 'estadistico_general';
-
-            $q = trim((string) ($_GET['q'] ?? ''));
-            $idGrado = isset($_GET['grado']) && (int) $_GET['grado'] > 0 ? (int) $_GET['grado'] : null;
-            $idSeccion = isset($_GET['seccion']) && (int) $_GET['seccion'] > 0 ? (int) $_GET['seccion'] : null;
+            extract($this->resolverContexto());
 
             $grados = $modelo->getGrados();
             $secciones = $modelo->getSecciones();
 
-            $dashboardModel = new DirectivoDashboardModel($pdo);
-            $metricasMatricula = $dashboardModel->getMetricasMatricula($idAnio);
-            $metricasPersonal  = $dashboardModel->getMetricasPersonal();
-
-            // Cargar datos según el reporte
-            $datosReporte = [];
-            $resumenRepresentantes = null;
-            switch ($tipo) {
-                case 'nomina_estudiantes':
-                    $datosReporte = $modelo->getListadoEstudiantes($idAnio, $idGrado, $idSeccion);
-                    if ($q !== '') {
-                        $datosReporte = array_filter($datosReporte, static function (array $e) use ($q): bool {
-                            return stripos((string) $e['nombre_completo'], $q) !== false
-                                || stripos((string) ($e['numero_documento'] ?? ''), $q) !== false
-                                || stripos((string) ($e['rep_nombre'] ?? ''), $q) !== false;
-                        });
-                    }
-                    $resumenRepresentantes = $this->resumirRepresentantes($datosReporte);
-                    break;
-
-                case 'distribucion_aulas':
-                    $datosReporte = $modelo->getDistribucionAcademica($idAnio);
-                    if ($q !== '') {
-                        $datosReporte = array_filter($datosReporte, static function (array $d) use ($q): bool {
-                            return stripos((string) $d['grado'], $q) !== false
-                                || stripos((string) $d['seccion'], $q) !== false
-                                || stripos((string) ($d['docente_titular'] ?? ''), $q) !== false;
-                        });
-                    }
-                    break;
-
-                case 'personal_institucional':
-                    $datosReporte = $this->filtrarPersonal($modelo->getNominaPersonal(), $q);
-                    break;
-
-                case 'retiros_periodo':
-                    $datosReporte = $modelo->getRetirosPeriodo($idAnio);
-                    if ($q !== '') {
-                        $datosReporte = array_filter($datosReporte, static function (array $r) use ($q): bool {
-                            return stripos((string) $r['nombre_completo'], $q) !== false
-                                || stripos((string) ($r['motivo'] ?? ''), $q) !== false;
-                        });
-                    }
-                    break;
-
-                case 'estadistico_general':
-                default:
-                    $datosReporte = $modelo->getEstadisticoGeneral($idAnio);
-                    break;
-            }
+            $cargado = $this->cargarReporte($modelo, $tipo, $idAnio, $idGrado, $idSeccion, $q);
+            $datosReporte = $cargado['datosReporte'];
+            $resumenRepresentantes = $cargado['resumenRepresentantes'];
+            $nombresReporte = self::NOMBRES_REPORTE;
 
             require __DIR__ . '/../Views/reportes/index.php';
         } catch (Throwable $e) {
@@ -212,6 +233,54 @@ class ReporteController extends BaseController
                 || stripos((string) ($p['cargo'] ?? ''), $q) !== false
                 || stripos((string) ($p['numero_documento'] ?? ''), $q) !== false;
         }));
+    }
+
+    /**
+     * Vista previa y descarga PDF del reporte activo.
+     *
+     * GET reporte/preview?tipo=...&anio=...&grado=...&seccion=...&q=...
+     * Sin `descargar=1` devuelve HTML para el iframe; con `descargar=1`, PDF.
+     */
+    public function preview(): void
+    {
+        $this->validarAccesoReportes();
+
+        try {
+            extract($this->resolverContexto());
+
+            $cargado = $this->cargarReporte($modelo, $tipo, $idAnio, $idGrado, $idSeccion, $q);
+            $variables = ReporteOficialPdf::variables(
+                Configuracion::getAll(),
+                $tipo,
+                $nombrePeriodo,
+                $cargado['datosReporte'],
+                $cargado['resumenRepresentantes'],
+                ['anio' => $idAnio, 'q' => $q, 'grado' => $idGrado, 'seccion' => $idSeccion],
+                self::NOMBRES_REPORTE[$tipo] ?? 'Reporte oficial'
+            );
+
+            $esDescarga = (isset($_GET['descargar']) && (string) $_GET['descargar'] === '1');
+
+            header_remove('X-Frame-Options');
+            header('X-Frame-Options: SAMEORIGIN');
+            header('Cache-Control: private, max-age=0, must-revalidate');
+
+            if ($esDescarga) {
+                $pdf = ReporteOficialPdf::generar($variables);
+                $nombreArchivo = 'reporte_' . $tipo . '_' . date('Ymd') . '.pdf';
+
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $nombreArchivo . '"');
+                header('Content-Length: ' . (string) strlen($pdf));
+                echo $pdf;
+            } else {
+                header('Content-Type: text/html; charset=utf-8');
+                echo ReporteOficialPdf::html($variables);
+            }
+            exit;
+        } catch (Throwable $e) {
+            $this->handleError($e, 'Reportes');
+        }
     }
 
     /**

@@ -16,9 +16,9 @@ declare(strict_types=1);
  * @var int|null $idSeccion
  * @var array  $grados
  * @var array  $secciones
- * @var array  $metricasMatricula
- * @var array  $metricasPersonal
  * @var array  $datosReporte
+ * @var array<string,string> $nombresReporte
+ * @var array<string,mixed>|null $resumenRepresentantes
  */
 
 $pageTitle       = 'Centro de Reportes Institucionales';
@@ -30,103 +30,16 @@ $breadcrumbs = [
     ['label' => 'Reportes',                  'href' => null],
 ];
 
-$nombresReporte = [
-    'estadistico_general'    => 'Estadístico General de Matrícula (Matriz MPPE)',
-    'nomina_estudiantes'     => 'Nómina General de Estudiantes y Representantes',
-    'distribucion_aulas'     => 'Balance de Capacidad y Asignación de Aulas',
-    'personal_institucional' => 'Directorio y Plantilla Oficial de Personal',
-    'retiros_periodo'        => 'Relación Oficial de Retiros y Deserciones',
-];
-
 ob_start();
 ?>
 <div class="container-fluid px-0">
   <?php
   // ---------- Page Header ----------
-  ob_start();
-  ?>
-  <a href="<?= BASE_URL ?>estadistica/index<?= $idAnio > 0 ? '?anio=' . $idAnio : '' ?>" class="btn btn-primary">
-    <i class="bi bi-bar-chart me-1" aria-hidden="true"></i> Ir a Estadísticas
-  </a>
-  <?php
-  $pageHeaderActions = ob_get_clean();
+  $pageHeaderActions = '';
   $pageHeading       = $pageTitle;
   $pageSubheading    = $pageDescription;
   include __DIR__ . '/../components/page-header.php';
   ?>
-
-  <!-- ---------- Stat Cards: 4 Indicadores de Emisión ---------- -->
-  <div class="row g-3 mb-4">
-    <!-- Card 1: Formatos -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $statLabel     = 'Formatos oficiales';
-      $statValue     = '5 reportes';
-      $statIcon      = 'bi-journal-check';
-      $statTone      = 'primary';
-      $statVariant   = 'default';
-      $statTrend     = 'Estandarizados';
-      $statTrendType = 'neutral';
-      $statMeta      = 'Matrícula, nóminas, personal, aulas y retiros';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 2: Período -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $statLabel     = 'Período en emisión';
-      $statValue     = htmlspecialchars($nombrePeriodo !== '' ? $nombrePeriodo : 'Todos');
-      $statIcon      = 'bi-calendar-check';
-      $statTone      = 'info';
-      $statVariant   = 'default';
-      $statTrend     = 'Ciclo lectivo';
-      $statTrendType = 'neutral';
-      $statMeta      = 'Datos auditables del año escolar seleccionado';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 3: Estudiantes -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $totalEstud    = (int) ($metricasMatricula['total_estudiantes'] ?? 0);
-      $statLabel     = 'Alumnos reportables';
-      $statValue     = number_format($totalEstud, 0, ',', '.') . ' estud.';
-      $statIcon      = 'bi-people';
-      $statTone      = 'success';
-      $statVariant   = 'default';
-      $statTrend     = 'Matrícula activa';
-      $statTrendType = 'neutral';
-      $statMeta      = 'Con asignación de sección y expediente formal';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 4: Personal -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $totalPers     = (int) ($metricasPersonal['empleados_activos'] ?? 0);
-      $statLabel     = 'Plantilla de personal';
-      $statValue     = number_format($totalPers, 0, ',', '.') . ' empleados';
-      $statIcon      = 'bi-person-badge';
-      $statTone      = 'warning';
-      $statVariant   = 'default';
-      $statTrend     = 'Institucional';
-      $statTrendType = 'neutral';
-      $statMeta      = ($metricasPersonal['docentes_activos'] ?? 0) . ' docentes en aula';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-  </div>
 
   <?php
   // ---------- Data Panel: Filtros de Reporte y Contexto ----------
@@ -183,17 +96,28 @@ ob_start();
     </select>
   <?php endif; ?>
 
-  <?php if ($tipo === 'personal_institucional'): ?>
-    <a href="<?= BASE_URL ?>reporte/personalPdf<?= $q !== '' ? '?q=' . rawurlencode($q) : '' ?>"
-       class="btn btn-primary"
-       title="Descargar la planilla de personal en PDF">
-      <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i> Descargar PDF
-    </a>
-  <?php elseif ($tipo !== 'nomina_estudiantes'): ?>
-    <button type="button" class="btn btn-outline-secondary" onclick="window.print()" title="Imprimir o guardar en PDF">
-      <i class="bi bi-printer me-1" aria-hidden="true"></i> Imprimir
-    </button>
-  <?php endif; ?>
+  <?php
+  $parametrosPreview = array_filter([
+      'anio'    => $idAnio,
+      'tipo'    => $tipo,
+      'grado'   => $idGrado,
+      'seccion' => $idSeccion,
+      'q'       => $q,
+  ], static fn ($valor): bool => $valor !== null && $valor !== '');
+
+  $urlPreview  = BASE_URL . 'reporte/preview?' . http_build_query($parametrosPreview);
+  $urlDownload = $urlPreview . '&descargar=1';
+  ?>
+  <button type="button"
+          class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm btn-previsualizar-reporte"
+          data-url-preview="<?= htmlspecialchars($urlPreview) ?>"
+          data-url-download="<?= htmlspecialchars($urlDownload) ?>"
+          data-titulo="<?= htmlspecialchars($nombresReporte[$tipo] ?? 'Reporte oficial') ?>"
+          data-periodo="<?= htmlspecialchars($nombrePeriodo) ?>"
+          title="Visualizar el reporte antes de imprimir o descargar">
+    <i class="bi bi-eye" aria-hidden="true"></i>
+    <span>Visualizar</span>
+  </button>
   <?php
   $panelFilters           = ob_get_clean();
   $panelSearchName        = 'q';
@@ -492,5 +416,11 @@ ob_start();
 </div>
 <?php
 $pageContent = ob_get_clean();
+
+ob_start();
+include __DIR__ . '/modals/preview-modal.php';
+$pageModals = ob_get_clean();
+
+$extraScripts = ['/js/modules/reportes/reportes.js'];
 
 include __DIR__ . '/../layouts/app.php';

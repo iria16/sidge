@@ -11,13 +11,10 @@ declare(strict_types=1);
  * @var int    $idAnio
  * @var string $nombrePeriodo
  * @var string $vista
- * @var string $q
- * @var array  $metricasMatricula
- * @var array  $metricasCapacidad
- * @var array  $metricasPersonal
- * @var array  $resumenRendimiento
  * @var array  $metricasSalud
  * @var array  $tiposSangre
+ * @var array  $filasAntropometricas
+ * @var array  $distribucionTallas
  * @var array  $filas
  */
 
@@ -46,161 +43,6 @@ ob_start();
   $pageSubheading    = $pageDescription;
   include __DIR__ . '/../components/page-header.php';
   ?>
-
-  <?php if ($vista !== 'salud'): ?>
-  <!-- ---------- Stat Cards: 4 KPIs Principales ---------- -->
-  <div class="row g-3 mb-4">
-    <!-- Card 1: Matrícula -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $statLabel     = 'Matrícula cursando';
-      $statValue     = number_format((int) ($metricasMatricula['total_estudiantes'] ?? 0), 0, ',', '.') . ' estud.';
-      $statIcon      = 'bi-people';
-      $statTone      = 'primary';
-      $statVariant   = 'default';
-      $statTrend     = ($metricasMatricula['total_estudiantes'] ?? 0) > 0 ? 'En curso' : 'Sin matrícula';
-      $statTrendType = 'neutral';
-      $statMeta      = 'Varones: ' . ($metricasMatricula['varones'] ?? 0) . ' (' . ($metricasMatricula['porcentaje_varones'] ?? 0) . '%) · Hembras: ' . ($metricasMatricula['hembras'] ?? 0) . ' (' . ($metricasMatricula['porcentaje_hembras'] ?? 0) . '%)';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 2: Capacidad -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $porcOcup      = (int) ($metricasCapacidad['porcentaje_ocupacion'] ?? 0);
-      $statLabel     = 'Capacidad institucional';
-      $statValue     = $porcOcup . '% ocupación';
-      $statIcon      = 'bi-pie-chart';
-      $statTone      = 'info';
-      $statVariant   = 'default';
-      $statTrend     = ($metricasCapacidad['cupos_disponibles'] ?? 0) . ' cupos libres';
-      $statTrendType = 'neutral';
-      $statMeta      = ($metricasCapacidad['cupos_ocupados'] ?? 0) . ' de ' . ($metricasCapacidad['cupos_totales'] ?? 0) . ' cupos configurados';
-      $statProgress  = $porcOcup;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 3: Rendimiento -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $porcCarga     = (int) ($resumenRendimiento['porcentaje_carga'] ?? 0);
-      $statLabel     = 'Carga de literales';
-      $statValue     = $porcCarga . '% completado';
-      $statIcon      = 'bi-mortarboard';
-      $statTone      = $porcCarga === 100 ? 'success' : ($porcCarga > 0 ? 'info' : 'warning');
-      $statVariant   = 'default';
-      $statTrend     = ($resumenRendimiento['total_promovidos'] ?? 0) . ' promovidos';
-      $statTrendType = 'up';
-      $statMeta      = ($resumenRendimiento['total_cargados'] ?? 0) . ' evaluados · ' . ($resumenRendimiento['total_pendientes'] ?? 0) . ' sin literal';
-      $statProgress  = $porcCarga;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 4: Personal -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $reposos       = (int) ($metricasPersonal['en_reposo_hoy'] ?? 0);
-      $statLabel     = 'Personal escolar';
-      $statValue     = number_format((int) ($metricasPersonal['empleados_activos'] ?? 0), 0, ',', '.') . ' activos';
-      $statIcon      = 'bi-person-badge';
-      $statTone      = $reposos > 0 ? 'warning' : 'success';
-      $statVariant   = $reposos > 0 ? 'alert' : 'default';
-      $statTrend     = $reposos > 0 ? ($reposos . ' en reposo hoy') : 'Nómina operativa';
-      $statTrendType = $reposos > 0 ? 'down' : 'up';
-      $statMeta      = ($metricasPersonal['docentes_activos'] ?? 0) . ' docentes · ' . ($metricasPersonal['administrativos'] ?? 0) . ' admin · ' . ($metricasPersonal['obreros'] ?? 0) . ' obreros';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-  </div>
-  <?php endif; ?>
-
-  <?php if ($vista === 'salud'): ?>
-  <?php
-  $saludTotal       = (int) ($metricasSalud['total_estudiantes'] ?? 0);
-  $saludFichas      = (int) ($metricasSalud['fichas'] ?? 0);
-  $saludCobertura   = (int) ($metricasSalud['cobertura'] ?? 0);
-  $saludSinTipo     = (int) ($metricasSalud['sin_tipo_sangre'] ?? 0);
-  $saludAlergias    = (int) ($metricasSalud['con_alergias'] ?? 0);
-  $saludCondiciones = (int) ($metricasSalud['con_condiciones'] ?? 0);
-  ?>
-  <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $statLabel     = 'Fichas médicas';
-      $statValue     = $saludFichas . ' de ' . $saludTotal;
-      $statIcon      = 'bi-clipboard2-pulse';
-      $statTone      = $saludCobertura >= 80 ? 'success' : ($saludCobertura > 0 ? 'warning' : 'danger');
-      $statVariant   = 'default';
-      $statTrend     = $saludCobertura . '% cobertura';
-      $statTrendType = 'neutral';
-      $statMeta      = max(0, $saludTotal - $saludFichas) . ' estudiantes sin ficha';
-      $statProgress  = $saludCobertura;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $statLabel     = 'Tipo de sangre';
-      $statValue     = (int) ($metricasSalud['con_tipo_sangre'] ?? 0) . ' registrados';
-      $statIcon      = 'bi-droplet';
-      $statTone      = 'info';
-      $statVariant   = 'default';
-      $statTrend     = $saludSinTipo . ' sin registrar';
-      $statTrendType = 'neutral';
-      $statMeta      = 'Sobre ' . $saludFichas . ' fichas médicas';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $statLabel     = 'Alergias registradas';
-      $statValue     = $saludAlergias . ' estudiantes';
-      $statIcon      = 'bi-exclamation-triangle';
-      $statTone      = $saludAlergias > 0 ? 'warning' : 'success';
-      $statVariant   = $saludAlergias > 0 ? 'alert' : 'default';
-      $statTrend     = $saludAlergias > 0 ? 'Requieren aviso' : 'Sin alertas';
-      $statTrendType = $saludAlergias > 0 ? 'down' : 'up';
-      $statMeta      = (int) ($metricasSalud['con_medicamentos'] ?? 0) . ' con medicamentos';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $statLabel     = 'Condiciones especiales';
-      $statValue     = $saludCondiciones . ' estudiantes';
-      $statIcon      = 'bi-heart-pulse';
-      $statTone      = $saludCondiciones > 0 ? 'danger' : 'success';
-      $statVariant   = $saludCondiciones > 0 ? 'alert' : 'default';
-      $statTrend     = $saludCondiciones > 0 ? 'Requieren seguimiento' : 'Sin alertas';
-      $statTrendType = $saludCondiciones > 0 ? 'down' : 'up';
-      $statMeta      = (int) ($metricasSalud['con_enfermedades'] ?? 0) . ' con enfermedades registradas';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-  </div>
-  <p class="text-support small mb-3">
-    La cobertura cuenta las fichas creadas. Los indicadores clínicos cuentan solo los campos con contenido.
-  </p>
-  <?php endif; ?>
 
   <?php
   // ---------- Data Panel: Filtros de Período y Vista ----------
@@ -235,13 +77,12 @@ ob_start();
     <option value="edades" <?= $vista === 'edades' ? 'selected' : '' ?>>Vista: Distribución por Edades y Rezago</option>
     <option value="cobertura" <?= $vista === 'cobertura' ? 'selected' : '' ?>>Vista: Infraestructura y Asignación Docente</option>
     <option value="personal" <?= $vista === 'personal' ? 'selected' : '' ?>>Vista: Talento Humano y Personal Escolar</option>
-    <option value="salud" <?= $vista === 'salud' ? 'selected' : '' ?>>Vista: Ficha Médica y Alertas de Salud</option>
+    <option value="salud" <?= $vista === 'salud' ? 'selected' : '' ?>>Vista: Salud, Medidas y Alertas</option>
+    <option value="tallas" <?= $vista === 'tallas' ? 'selected' : '' ?>>Vista: Tallas de Uniforme</option>
   </select>
   <?php
-  $panelFilters           = ob_get_clean();
-  $panelSearchName        = 'q';
-  $panelSearchValue       = $q;
-  $panelSearchPlaceholder = $vista === 'salud' ? 'Buscar grado...' : 'Buscar en la tabla...';
+  $panelFilters      = ob_get_clean();
+  $panelHideSearch   = true;
 
   // ---------- Tabla y Cabeceras según la vista ----------
   ob_start();
@@ -291,6 +132,16 @@ ob_start();
       <col style="width: 12%;">
       <col style="width: 12%;">
       <col style="width: 12%;">
+    </colgroup>
+  <?php elseif ($vista === 'tallas'): ?>
+    <colgroup>
+      <col style="width: 22%;">
+      <col style="width: 10%;">
+      <col style="width: 12%;">
+      <col style="width: 12%;">
+      <col style="width: 12%;">
+      <col style="width: 16%;">
+      <col style="width: 16%;">
     </colgroup>
   <?php else: // matricula ?>
     <colgroup>
@@ -354,6 +205,16 @@ ob_start();
       <th scope="col" class="text-center text-warning">Alergias</th>
       <th scope="col" class="text-center text-primary">Medicamentos</th>
       <th scope="col" class="text-center text-danger">Condiciones</th>
+    </tr>
+  <?php elseif ($vista === 'tallas'): ?>
+    <tr>
+      <th scope="col">Grado</th>
+      <th scope="col" class="text-center">Matrícula</th>
+      <th scope="col" class="text-center text-info">Con camisa</th>
+      <th scope="col" class="text-center text-primary">Con pantalón</th>
+      <th scope="col" class="text-center text-success">Con calzado</th>
+      <th scope="col" class="text-center">Tallas completas</th>
+      <th scope="col" class="text-end">Cobertura</th>
     </tr>
   <?php else: // matricula ?>
     <tr>
@@ -536,6 +397,58 @@ ob_start();
           <td class="text-center"><?= $totSaludCondiciones ?></td>
         </tr>
       <?php
+    elseif ($vista === 'tallas'):
+      $totTallasAlumnos = 0;
+      $totTallasCamisa = 0;
+      $totTallasPantalon = 0;
+      $totTallasZapato = 0;
+      $totTallasCompletas = 0;
+      foreach ($filas as $f):
+        $alumnosTallas = (int) ($f['total_estudiantes'] ?? 0);
+        $camisa        = (int) ($f['con_camisa'] ?? 0);
+        $pantalon      = (int) ($f['con_pantalon'] ?? 0);
+        $zapato        = (int) ($f['con_zapato'] ?? 0);
+        $completas     = (int) ($f['con_todas'] ?? 0);
+        $cobertura     = (int) ($f['cobertura'] ?? 0);
+
+        $totTallasAlumnos += $alumnosTallas;
+        $totTallasCamisa += $camisa;
+        $totTallasPantalon += $pantalon;
+        $totTallasZapato += $zapato;
+        $totTallasCompletas += $completas;
+
+        $badgeTallas = $cobertura >= 80 ? 'success' : ($cobertura > 0 ? 'warning' : 'danger');
+      ?>
+        <tr>
+          <td class="fw-semibold"><?= htmlspecialchars((string) $f['grado']) ?></td>
+          <td class="text-center"><?= $alumnosTallas ?></td>
+          <td class="text-center <?= $camisa > 0 ? 'text-info fw-semibold' : 'text-support' ?>"><?= $camisa ?></td>
+          <td class="text-center <?= $pantalon > 0 ? 'text-primary fw-semibold' : 'text-support' ?>"><?= $pantalon ?></td>
+          <td class="text-center <?= $zapato > 0 ? 'text-success fw-semibold' : 'text-support' ?>"><?= $zapato ?></td>
+          <td class="text-center <?= $completas > 0 ? 'fw-semibold' : 'text-support' ?>"><?= $completas ?></td>
+          <td class="text-end">
+            <span class="badge text-bg-<?= $badgeTallas ?>"><?= $cobertura ?>%</span>
+          </td>
+        </tr>
+      <?php
+      endforeach;
+      $totTallasCobertura = $totTallasAlumnos > 0
+          ? (int) round(($totTallasCompletas / $totTallasAlumnos) * 100)
+          : 0;
+      $badgeTallasTotal = $totTallasCobertura >= 80 ? 'success' : ($totTallasCobertura > 0 ? 'warning' : 'danger');
+      ?>
+        <tr class="table-light fw-semibold">
+          <td>Total</td>
+          <td class="text-center"><?= $totTallasAlumnos ?></td>
+          <td class="text-center"><?= $totTallasCamisa ?></td>
+          <td class="text-center"><?= $totTallasPantalon ?></td>
+          <td class="text-center"><?= $totTallasZapato ?></td>
+          <td class="text-center"><?= $totTallasCompletas ?></td>
+          <td class="text-end">
+            <span class="badge text-bg-<?= $badgeTallasTotal ?>"><?= $totTallasCobertura ?>%</span>
+          </td>
+        </tr>
+      <?php
     else: // matricula
       $sumSec = 0; $sumCap = 0; $sumVar = 0; $sumHem = 0; $sumTot = 0;
       foreach ($filas as $f):
@@ -566,12 +479,182 @@ ob_start();
   $panelTableBody = ob_get_clean();
 
   $totalFilas   = count($filas);
-  $panelSummary = $vista === 'salud'
-      ? 'Mostrando ' . $totalFilas . ' grados · ' . ($totSaludAlumnos ?? 0) . ' estudiantes · ' . ($totSaludFichas ?? 0) . ' fichas'
-      : 'Mostrando ' . $totalFilas . ' registros estadísticos';
+  $panelSummary = match ($vista) {
+      'salud'  => 'Mostrando ' . $totalFilas . ' grados · ' . ($totSaludAlumnos ?? 0) . ' estudiantes · ' . ($totSaludFichas ?? 0) . ' fichas',
+      'tallas' => 'Mostrando ' . $totalFilas . ' grados · ' . ($totTallasAlumnos ?? 0) . ' estudiantes · ' . ($totTallasCompletas ?? 0) . ' con tallas completas',
+      default  => 'Mostrando ' . $totalFilas . ' registros estadísticos',
+  };
 
   include __DIR__ . '/../components/data-panel.php';
   ?>
+
+  <?php if ($vista === 'tallas'): ?>
+  <div class="row g-3 mt-1">
+    <?php foreach ($distribucionTallas as $prenda => $datos): ?>
+      <?php
+      $tallasPrenda = $datos['tallas'] ?? [];
+      $totalPrenda = array_sum($tallasPrenda);
+      $tallasConDatos = array_filter($tallasPrenda, static fn ($cantidad): bool => (int) $cantidad > 0);
+      $iconoPrenda = match ($prenda) {
+          'camisa'   => 'bi-person-standing',
+          'pantalon' => 'bi-tags',
+          default    => 'bi-rulers',
+      };
+      ?>
+      <div class="col-lg-4">
+        <div class="content-card h-100">
+          <div class="content-card__header">
+            <h2 class="content-card__title">
+              <i class="bi <?= $iconoPrenda ?> me-2" aria-hidden="true"></i><?= htmlspecialchars((string) ($datos['titulo'] ?? $prenda)) ?>
+            </h2>
+          </div>
+          <div class="content-card__body">
+            <p class="text-support small mb-3">
+              <?= (int) ($datos['total'] ?? 0) ?> estudiantes con talla registrada.
+            </p>
+            <table class="table mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Talla</th>
+                  <th scope="col" class="text-center">Estudiantes</th>
+                  <th scope="col" class="text-end">Porcentaje</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php if ($tallasConDatos === []): ?>
+                  <tr>
+                    <td colspan="3" class="text-center text-support py-4">Sin tallas registradas.</td>
+                  </tr>
+                <?php else: ?>
+                  <?php foreach ($tallasConDatos as $talla => $cantidad): ?>
+                    <?php
+                    $esSinRegistrar = $talla === 'sin_registrar';
+                    $porcentajeTalla = $totalPrenda > 0 ? round(($cantidad / $totalPrenda) * 100, 1) : 0;
+                    ?>
+                    <tr>
+                      <td class="fw-semibold <?= $esSinRegistrar ? 'text-support' : '' ?>">
+                        <?= htmlspecialchars($esSinRegistrar ? 'Sin registrar' : (string) $talla) ?>
+                      </td>
+                      <td class="text-center"><?= (int) $cantidad ?></td>
+                      <td class="text-end"><?= $porcentajeTalla ?>%</td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <?php if ($vista === 'salud'): ?>
+  <div class="content-card mt-4">
+    <div class="content-card__header">
+      <h2 class="content-card__title">
+        <i class="bi bi-rulers me-2" aria-hidden="true"></i>Medidas antropométricas por grado
+      </h2>
+    </div>
+    <div class="content-card__body">
+      <p class="text-support small mb-3">
+        Peso y estatura registrados en la ficha del estudiante. La cobertura cuenta a quienes
+        tienen ambas medidas; los promedios solo usan los valores registrados.
+      </p>
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Grado</th>
+            <th scope="col" class="text-center">Matrícula</th>
+            <th scope="col" class="text-center">Con peso</th>
+            <th scope="col" class="text-end">Peso prom.</th>
+            <th scope="col" class="text-center">Con estatura</th>
+            <th scope="col" class="text-end">Estatura prom.</th>
+            <th scope="col" class="text-end">Cobertura</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if ($filasAntropometricas === []): ?>
+            <tr>
+              <td colspan="7" class="text-center text-support py-4">
+                No se encontraron registros para los filtros seleccionados en este período escolar.
+              </td>
+            </tr>
+          <?php else: ?>
+            <?php
+            $totAntroAlumnos = 0;
+            $totAntroPeso    = 0;
+            $totAntroEsta    = 0;
+            $totAntroAmbas   = 0;
+            $sumaAntroPeso   = 0.0;
+            $sumaAntroEsta   = 0.0;
+
+            foreach ($filasAntropometricas as $f):
+              $alumnosAntro  = (int) ($f['total_estudiantes'] ?? 0);
+              $conPeso       = (int) ($f['con_peso'] ?? 0);
+              $conEsta       = (int) ($f['con_estatura'] ?? 0);
+              $conAmbas      = (int) ($f['con_ambas'] ?? 0);
+              $coberturaAntro = (int) ($f['cobertura'] ?? 0);
+
+              $totAntroAlumnos += $alumnosAntro;
+              $totAntroPeso    += $conPeso;
+              $totAntroEsta    += $conEsta;
+              $totAntroAmbas   += $conAmbas;
+              $sumaAntroPeso   += (float) ($f['suma_peso'] ?? 0);
+              $sumaAntroEsta   += (float) ($f['suma_estatura'] ?? 0);
+
+              $promPesoFila = $f['peso_promedio'] !== null
+                  ? number_format((float) $f['peso_promedio'], 1, ',', '.') . ' kg'
+                  : '—';
+              $promEstaFila = $f['estatura_promedio'] !== null
+                  ? number_format((float) $f['estatura_promedio'], 0, ',', '.') . ' cm'
+                  : '—';
+              $badgeAntro = $coberturaAntro >= 80 ? 'success' : ($coberturaAntro > 0 ? 'warning' : 'danger');
+            ?>
+              <tr>
+                <td class="fw-semibold"><?= htmlspecialchars((string) $f['grado']) ?></td>
+                <td class="text-center"><?= $alumnosAntro ?></td>
+                <td class="text-center <?= $conPeso > 0 ? 'text-info fw-semibold' : 'text-support' ?>"><?= $conPeso ?></td>
+                <td class="text-end <?= $conPeso > 0 ? '' : 'text-support' ?>"><?= $promPesoFila ?></td>
+                <td class="text-center <?= $conEsta > 0 ? 'text-primary fw-semibold' : 'text-support' ?>"><?= $conEsta ?></td>
+                <td class="text-end <?= $conEsta > 0 ? '' : 'text-support' ?>"><?= $promEstaFila ?></td>
+                <td class="text-end">
+                  <span class="badge text-bg-<?= $badgeAntro ?>"><?= $coberturaAntro ?>%</span>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+
+            <?php
+            $promPesoTotal = $totAntroPeso > 0
+                ? number_format($sumaAntroPeso / $totAntroPeso, 1, ',', '.') . ' kg'
+                : '—';
+            $promEstaTotal = $totAntroEsta > 0
+                ? number_format($sumaAntroEsta / $totAntroEsta, 0, ',', '.') . ' cm'
+                : '—';
+            $coberturaTotalAntro = $totAntroAlumnos > 0
+                ? (int) round(($totAntroAmbas / $totAntroAlumnos) * 100)
+                : 0;
+            $badgeTotalAntro = $coberturaTotalAntro >= 80
+                ? 'success'
+                : ($coberturaTotalAntro > 0 ? 'warning' : 'danger');
+            ?>
+            <tr class="table-light fw-semibold">
+              <td>Total</td>
+              <td class="text-center"><?= $totAntroAlumnos ?></td>
+              <td class="text-center"><?= $totAntroPeso ?></td>
+              <td class="text-end"><?= $promPesoTotal ?></td>
+              <td class="text-center"><?= $totAntroEsta ?></td>
+              <td class="text-end"><?= $promEstaTotal ?></td>
+              <td class="text-end">
+                <span class="badge text-bg-<?= $badgeTotalAntro ?>"><?= $coberturaTotalAntro ?>%</span>
+              </td>
+            </tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <?php if ($vista === 'salud'): ?>
   <?php $totalSangre = (int) ($metricasSalud['total_estudiantes'] ?? 0); ?>
