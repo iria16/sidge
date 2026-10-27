@@ -7,6 +7,9 @@ namespace App\Controllers;
 use App\Models\EstudianteModel;
 use App\Models\RatificacionModel;
 use App\Models\InscripcionesModel;
+use App\Support\Configuracion;
+use App\Support\FichaEstudiantePdf;
+use App\Support\PdfRecursos;
 use PDO;
 use Throwable;
 use function App\Traits\sigde_rol_clave;
@@ -37,46 +40,45 @@ class EstudiantesController extends CrudController
         return new EstudianteModel($pdo);
     }
 
+    private function esSecretariaActual(): bool
+    {
+        return sigde_rol_clave($_SESSION['rol'] ?? '') === 'secretaria'
+            || $this->turnoSecretariaActual() !== null;
+    }
+
     protected function getFiltersFromRequest(): array
     {
         $model = $this->modelo();
         $turno = $this->turnoSecretariaActual();
         $docente = $this->docenteActualId();
+        $esSecretaria = $this->esSecretariaActual();
         $anios = $model->getAniosEscolares($turno);
         $idsAnios = array_map(static fn (array $anio): int => (int) $anio['id'], $anios);
         $anioSolicitado = (int) ($_GET['anio'] ?? 0);
 
-        if ($docente !== null) {
-            /* El docente únicamente puede consultar el año escolar activo. Y grado,
-               sección y estado no le sirven de filtro: su lista ya está acotada a la
-               sección que da, así que los tres valores le son constantes. Esos tres
-               selectores no se le pintan, y aquí además se ignoran si vinieran en la
-               URL, para que un enlace guardado de secretaría no le devuelva una
-               lista vacía. */
+        if ($docente !== null || $esSecretaria) {
+            // Docente y Secretaría operan exclusivamente sobre la matrícula activa del año escolar en curso
             $anioActivo = $model->getAnioEscolarActivoId();
             $anioSolicitado = $anioActivo !== null ? (int) $anioActivo : 0;
-            $grado   = '';
-            $seccion = '';
-            $estado  = '';
+            $estadoFiltro = 'activo';
         } else {
+            // Directivo y Coordinador consultan el archivo general (activos, retirados y egresados de todos los períodos)
             if (!in_array($anioSolicitado, $idsAnios, true)) {
-                $anioActivo = $model->getAnioEscolarActivoId();
-                $anioSolicitado = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
-                    ? $anioActivo
-                    : ($idsAnios[0] ?? 0);
+                $anioSolicitado = 0;
             }
-            $grado   = trim($_GET['grado'] ?? '');
-            $seccion = trim($_GET['seccion'] ?? '');
-            $estado  = trim($_GET['estado'] ?? '');
+            $estadoCrudo = strtolower(trim((string) ($_GET['estado'] ?? '')));
+            $estadoFiltro = in_array($estadoCrudo, ['activo', 'retirado', 'egresado'], true)
+                ? $estadoCrudo
+                : '';
         }
 
         return [
-            'q'       => trim($_GET['q'] ?? ''),
-            'anio'    => (string) $anioSolicitado,
-            'grado'   => $grado,
-            'seccion' => $seccion,
-            'estado'  => $estado,
-            'id_turno' => $turno === null ? '' : (string) $turno,
+            'q'          => trim($_GET['q'] ?? ''),
+            'anio'       => $anioSolicitado > 0 ? (string) $anioSolicitado : '',
+            'grado'      => trim($_GET['grado'] ?? ''),
+            'seccion'    => trim($_GET['seccion'] ?? ''),
+            'estado'     => $estadoFiltro,
+            'id_turno'   => $turno === null ? '' : (string) $turno,
             // Solo el docente se acota a sus estructuras; para los demás queda en null y
             // el modelo no aplica ninguna restricción adicional.
             'id_docente' => $docente === null ? '' : (string) $docente,
@@ -89,7 +91,8 @@ class EstudiantesController extends CrudController
         $turno = $this->turnoSecretariaActual();
         $aniosEscolares = $model->getAniosEscolares($turno);
         $esDocente = $this->docenteActualId() !== null;
-        if ($esDocente) {
+        $esSecretaria = $this->esSecretariaActual();
+        if ($esDocente || $esSecretaria) {
             $anioActivoId = $model->getAnioEscolarActivoId();
             $aniosEscolares = array_values(array_filter(
                 $aniosEscolares,
@@ -98,15 +101,16 @@ class EstudiantesController extends CrudController
         }
 
         return [
-            'stats'          => $model->getStats($filters),
-            'estudiantes'    => $items,
+            'stats'           => $model->getStats($filters),
+            'estudiantes'     => $items,
             // Para que una tabla vacía se entienda: un docente sin asignaciones no ve a
             // nadie por diseño, no por un error de la consulta.
             'sinAsignaciones' => $esDocente && $model->getEstructurasDocente($this->docenteActualId()) === [],
-            'aniosEscolares' => $aniosEscolares,
-            'esDocente'      => $esDocente,
-            'grados'         => $model->getGrados(),
-            'secciones'      => $model->getSecciones(),
+            'aniosEscolares'  => $aniosEscolares,
+            'esDocente'       => $esDocente,
+            'esSecretaria'    => $esSecretaria,
+            'grados'          => $model->getGrados(),
+            'secciones'       => $model->getSecciones(),
         ];
     }
 
@@ -120,49 +124,38 @@ class EstudiantesController extends CrudController
             $idsAnios = array_map(static fn (array $anio): int => (int) $anio['id'], $anios);
             $anioId = (int) ($_GET['anio'] ?? 0);
             $esDocente = $this->docenteActualId() !== null;
+            $esSecretaria = $this->esSecretariaActual();
 
-            if ($esDocente) {
+            if ($esDocente || $esSecretaria) {
                 $anioActivo = $model->getAnioEscolarActivoId();
                 $anioId = $anioActivo !== null ? (int) $anioActivo : 0;
+                $anioConsulta = $anioId;
             } else {
-                if (!in_array($anioId, $idsAnios, true)) {
-                    $anioActivo = $model->getAnioEscolarActivoId();
-                    $anioId = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
-                        ? $anioActivo
-                        : ($idsAnios[0] ?? 0);
-                }
+                $anioConsulta = ($anioId > 0 && in_array($anioId, $idsAnios, true)) ? $anioId : null;
+                $anioId = $anioConsulta ?? 0;
             }
             $anioSeleccionado = $anioId;
 
-            $estudiante = $id > 0 && $anioId > 0
-                ? $model->getById($id, $anioId, $turno, $this->docenteActualId())
+            $estudiante = $id > 0 && (!$esDocente && !$esSecretaria || $anioConsulta > 0)
+                ? $model->getById($id, $anioConsulta, $turno, $this->docenteActualId())
                 : null;
             if (!$estudiante) {
                 $this->setFlash('error', 'El expediente solicitado no existe.');
                 $this->redirect('index');
             }
+            if ($esSecretaria && ($estudiante['estado'] ?? '') !== 'activo') {
+                $this->setFlash('error', 'Solo la Dirección puede consultar expedientes de estudiantes retirados o egresados.');
+                $this->redirect('index');
+            }
             $historialAcademico = $model->getHistorialAcademico($id, $turno);
             if ($esDocente) {
-                /* Del historial el docente ve el recorrido del alumno por la escuela.
-                   La justificación de un salto de grado explica una situación familiar
-                   que no le corresponde conocer, así que esa línea no se le da. */
                 $historialAcademico = array_values(array_filter(
                     $historialAcademico,
                     static fn (array $reg): bool => ($reg['estado_anio'] ?? '') === 'ACTIVO'
                 ));
-                foreach ($historialAcademico as &$registro) {
-                    unset($registro['motivo_anticipo']);
-                }
-                unset($registro);
             }
             $ratificacionModel = new RatificacionModel($this->conexion());
-            /* Tallas y ficha médica solo se piden para quien tiene la pestaña de
-               Información Adicional. El docente no la tiene, así que ni se consulta:
-               es la salud del alumno y los documentos de identidad de los terceros,
-               que no le corresponden. */
-            $datosEditables = $esDocente
-                ? []
-                : ($ratificacionModel->getEstudianteEditable($id) ?? []);
+            $datosEditables = $ratificacionModel->getEstudianteEditable($id, !$esDocente) ?? [];
 $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
               $estados = $catFamiliares['estados'];
             /* El catálogo de nacionalidades va también acá, y no solo en inscripción y
@@ -175,16 +168,12 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
  y los autorizados a retirar el alumno. Son dos preguntas distintas —a quién se le informa y
  quién puede recogerlo— y en una sola lista un autorizado por confianza, como el transporte,
  parecía un pariente. Una misma persona puede estar en los dos.*/
-$vinculados              = $ratificacionModel->getFamiliaresParaExpediente($id, $esDocente);
+              $vinculados              = $ratificacionModel->getFamiliaresParaExpediente($id, $esDocente);
               $familiaresNucleo        = $vinculados['nucleo'];
               $autorizadosParaRetiro   = $vinculados['autorizados'];
             /* Recaudos: catálogo activo contra lo que el representante entregó. Se leen del
- modelo de inscripción y no del de ratificación porque el trait vive allí. Al
- docente no se le piden: viven en la pestaña de Información Adicional, que él no
- tiene. */
-              $recaudos = $esDocente
-                  ? []
-                  : (new InscripcionesModel($this->conexion()))->getRecaudosDeEstudiante($id);
+ modelo de inscripción y no del de ratificación porque el trait vive allí.*/
+            $recaudos = (new InscripcionesModel($this->conexion()))->getRecaudosDeEstudiante($id);
             $puedeEditar = sigde_rol_clave($_SESSION['rol'] ?? '') === 'secretaria';
 
             require __DIR__ . "/../Views/{$this->viewPath}/show.php";
@@ -276,38 +265,37 @@ $vinculados              = $ratificacionModel->getFamiliaresParaExpediente($id, 
             $idsAnios = array_map(static fn (array $anio): int => (int) $anio['id'], $anios);
             $anioId = (int) ($_GET['anio'] ?? 0);
             $esDocente = $this->docenteActualId() !== null;
+            $esSecretaria = $this->esSecretariaActual();
 
-            if ($esDocente) {
+            if ($esDocente || $esSecretaria) {
                 $anioActivo = $model->getAnioEscolarActivoId();
                 $anioId = $anioActivo !== null ? (int) $anioActivo : 0;
+                $anioConsulta = $anioId;
             } else {
-                if (!in_array($anioId, $idsAnios, true)) {
-                    $anioActivo = $model->getAnioEscolarActivoId();
-                    $anioId = $anioActivo !== null && in_array($anioActivo, $idsAnios, true)
-                        ? $anioActivo
-                        : ($idsAnios[0] ?? 0);
-                }
+                $anioConsulta = ($anioId > 0 && in_array($anioId, $idsAnios, true)) ? $anioId : null;
+                $anioId = $anioConsulta ?? 0;
             }
 
-            $estudiante = $id > 0 && $anioId > 0
-                ? $model->getById($id, $anioId, $turno, $this->docenteActualId())
+            $estudiante = $id > 0 && (!$esDocente && !$esSecretaria || $anioConsulta > 0)
+                ? $model->getById($id, $anioConsulta, $turno, $this->docenteActualId())
                 : null;
             if (!$estudiante) {
                 http_response_code(404);
                 throw new \RuntimeException('No se encontró el expediente solicitado.');
             }
+            if ($esSecretaria && ($estudiante['estado'] ?? '') !== 'activo') {
+                http_response_code(403);
+                throw new \RuntimeException('Solo la Dirección puede exportar expedientes de estudiantes retirados o egresados.');
+            }
 
             $ratificacionModel = new RatificacionModel($this->conexion());
-            $datosEditables = $ratificacionModel->getEstudianteEditable($id) ?? [];
-            /* El representante del membrete se busca en el grupo NÚCLEO, no en la lista
-               completa: es la MISMA separación que muestra la pantalla, hecha con
-               getFamiliaresParaExpediente() para que el PDF no pueda apartarse de la ficha
-               digital. Antes también se pasaba $familiares (la lista completa) y el view la
-               recorría para buscar al representante; ahora no hace falta, porque el núcleo
-               siempre incluye al legal (getFamiliaresParaExpediente entra con
-               $esRepresentante || ...). Quitar esa llamada NO ahorra una consulta: el
-               método de abajo llama a getFamiliares() por dentro. */
-            $vinculados            = $ratificacionModel->getFamiliaresParaExpediente($id);
+            $datosEditables = $ratificacionModel->getEstudianteEditable($id, !$esDocente) ?? [];
+            /* La lista completa se conserva para buscar al representante del membrete, y además llegan los
+               dos grupos separados para el reporte. Es la MISMA separación que muestra la pantalla, hecha
+               con getFamiliaresParaExpediente() para que el PDF no pueda apartarse de la ficha digital:
+               si mañana cambia la regla, cambia en los dos sitios o en ninguno.*/
+            $familiares            = $ratificacionModel->getFamiliares($id);
+            $vinculados            = $ratificacionModel->getFamiliaresParaExpediente($id, $esDocente);
             $familiaresNucleo      = $vinculados['nucleo'];
             $autorizadosParaRetiro = $vinculados['autorizados'];
             $historialAcademico = $model->getHistorialAcademico($id, $turno);
@@ -317,60 +305,32 @@ $vinculados              = $ratificacionModel->getFamiliaresParaExpediente($id, 
                     static fn (array $reg): bool => ($reg['estado_anio'] ?? '') === 'ACTIVO'
                 ));
             }
-            $schoolLogoDataUri = $this->imagenPublicaDataUri('/assets/img/logo.png');
-            $ministryLogoDataUri = $this->imagenPublicaDataUri(
-                '/assets/img/Ministerio-de-Educacion-Venezuela-Logo-Vector.svg-.png',
-                true
-            );
-            if ($schoolLogoDataUri === null || $ministryLogoDataUri === null) {
-                throw new \RuntimeException('No se encontraron los logos oficiales requeridos para el membrete.');
-            }
+            $config = Configuracion::getAll();
             $fotoDataUri = $this->imagenPublicaDataUri(
                 (string) ($estudiante['avatar_img'] ?? ''),
                 false,
                 29 / 37
             );
-            $rutaEstilosPdf = dirname(__DIR__, 2) . '/public/assets/css/app.css';
-            $estilosPdf = is_file($rutaEstilosPdf) ? file_get_contents($rutaEstilosPdf) : false;
-            if ($estilosPdf === false) {
-                throw new \RuntimeException('No se pudieron cargar los estilos del PDF del expediente.');
-            }
 
-            $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
-            if (!is_file($autoload)) {
-                throw new \RuntimeException('No está instalada la dependencia de exportación PDF. Ejecuta composer install.');
-            }
-            require_once $autoload;
-
-            ob_start();
-            require __DIR__ . '/../Views/consulta_academica/estudiantes/export-pdf.php';
-            $html = (string) ob_get_clean();
-
-            $options = new \Dompdf\Options();
-            $options->set('isRemoteEnabled', false);
-            $options->set('isHtml5ParserEnabled', true);
-            $options->set('defaultFont', 'Helvetica');
-
-            $dompdf = new \Dompdf\Dompdf($options);
-            $dompdf->loadHtml($html, 'UTF-8');
-            $dompdf->setPaper('A4', 'portrait');
-            $dompdf->render();
-            $dompdf->getCanvas()->page_text(
-                435,
-                805,
-                'Página {PAGE_NUM} de {PAGE_COUNT}',
-                $dompdf->getFontMetrics()->getFont('Helvetica', 'normal'),
-                9,
-                [0, 0, 0]
+            $pdfContent = FichaEstudiantePdf::generar(
+                $config,
+                $estudiante,
+                $datosEditables,
+                $familiaresNucleo,
+                $autorizadosParaRetiro,
+                $historialAcademico,
+                $esDocente,
+                null,
+                $fotoDataUri
             );
 
-            $nombreArchivo = 'expediente-' . preg_replace('/[^A-Za-z0-9-]+/', '-', strtolower($estudiante['nombre'])) . '.pdf';
-            // La política global DENY se mantiene; el PDF solo se incrusta en este mismo origen.
+            $nombreArchivo = 'expediente-' . preg_replace('/[^A-Za-z0-9-]+/', '-', strtolower((string) ($estudiante['nombre'] ?? 'estudiante'))) . '.pdf';
             header_remove('X-Frame-Options');
             header('X-Frame-Options: SAMEORIGIN');
-            $dompdf->stream($nombreArchivo, [
-                'Attachment' => ($_GET['descargar'] ?? '') === '1',
-            ]);
+            header('Content-Type: application/pdf');
+            $disposition = (($_GET['descargar'] ?? '') === '1') ? 'attachment' : 'inline';
+            header("Content-Disposition: {$disposition}; filename=\"{$nombreArchivo}\"");
+            echo $pdfContent;
             exit;
         } catch (Throwable $e) {
             $this->handleError($e, static::class);

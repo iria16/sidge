@@ -14,7 +14,7 @@
  *
  * Las etiquetas son "LETRA - texto" a propósito: el select muestra solo la
  * letra mientras está cerrado (ver
- * SIGDEWizardUI.initTipoDocumentoLetra() en public/assets/js/core/wizard-ui.js) y
+ * SIGDEWizardUI.initTipoDocumentoLetra() en public/assets/js/wizard-ui.js) y
  * el texto completo al desplegarlo.
  *
  * Variables:

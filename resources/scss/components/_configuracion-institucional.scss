@@ -1,6 +1,33 @@
 // resources/scss/components/_configuracion-institucional.scss
 // Estilos específicos para la vista de Configuración Institucional
 
+.institutional-banner {
+  background: linear-gradient(135deg, $surface 0%, $surface-soft 100%);
+  border: 1px solid $border-color-soft;
+  border-radius: $border-radius-xl;
+  box-shadow: $box-shadow-sm;
+}
+
+.school-logo-frame {
+  width: 80px;
+  height: 80px;
+  border-radius: $border-radius-lg;
+  border: 2px solid $border-color-soft;
+  background-color: $surface;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: $box-shadow-sm;
+
+  img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+  }
+}
+
 .transparency-pattern {
   background-color: #ffffff;
   background-image:
@@ -14,7 +41,7 @@
 
 .image-preview-box {
   width: 100%;
-  height: 125px;
+  height: 90px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -26,7 +53,7 @@
 
   img {
     max-width: 100%;
-    max-height: 105px;
+    max-height: 75px;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -36,19 +63,19 @@
 
 .cintillo-preview-box {
   width: 100%;
-  height: 75px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--bs-border-color, #dee2e6);
   border-radius: var(--bs-border-radius, 0.5rem);
   overflow: hidden;
-  padding: 6px;
-  background-color: #f8f9fa;
+  padding: 6px 12px;
+  background-color: #ffffff;
 
   img {
     max-width: 100%;
-    max-height: 60px;
+    max-height: 52px;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -58,7 +85,7 @@
 
 .private-preview-box {
   width: 100%;
-  height: 100px;
+  height: 90px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -70,10 +97,16 @@
 
   img {
     max-width: 100%;
-    max-height: 85px;
+    max-height: 75px;
     width: auto;
     height: auto;
     object-fit: contain;
     display: block;
   }
+}
+
+.modal-preview-image {
+  max-height: 180px;
+  max-width: 100%;
+  object-fit: contain;
 }

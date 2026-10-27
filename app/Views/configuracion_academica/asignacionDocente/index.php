@@ -26,9 +26,6 @@ ob_start();
   // ---------- Page header ----------
   ob_start();
   ?>
-  <?php /* El coordinador consulta el reparto de aulas pero no lo modifica: entra a
-  ver quién tiene cada sección. El botón y los modales se esconden para que no
-  ofrezca una acción que la ruta le va a rechazar con 403. */ ?>
   <?php if (empty($esConsulta)): ?>
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaAsignacionModal">
       <i class="bi bi-plus-lg"></i> Nueva Asignación
@@ -209,7 +206,7 @@ ob_start();
             <button type="button"
               class="action-btn action-btn--edit editar-asignacion"
               data-id="<?= $estructuraId ?>"
-              data-asignacion-id="<?= $asignacionId ?>"
+              data-asignacion-id="<?= $asignacionId > 0 ? $asignacionId : '' ?>"
               data-docente-id="<?= (int) ($item['id_docente'] ?? 0) ?>"
               data-tipo-id="<?= (int) ($item['id_tipo_asignacion'] ?? 0) ?>"
               data-fecha-inicio="<?= htmlspecialchars($item['fecha_inicio'] ?? '') ?>"
@@ -225,9 +222,6 @@ ob_start();
               </button>
             <?php endif; ?>
           </div>
-        <?php else: ?>
-          <?php /* En consulta la celda queda vacía a propósito. Poner un guion o
-            "sin acciones" añade ruido a una tabla que se lee de un vistazo. */ ?>
         <?php endif; ?>
       </td>
     </tr>
@@ -250,27 +244,29 @@ ob_start();
   ];
 
   include __DIR__ . '/../../components/data-panel.php';
-?>
 
-<?php /* Los dos modales solo sirven para escribir. En consulta ni se incluyen: si se
-  cargaran, el JavaScript de la página los buscaría, los abriría por error y
-  mandaría un POST que la ruta rechaza. */ ?>
-<?php if (empty($esConsulta)): ?>
-  <?php
-  $modalId = 'nuevaAsignacionModal';
-  $modalTitle = 'Nueva Asignación';
-  $modalSubtitle = 'Asigne un docente a una sección académica.';
-  $formId = 'formNuevaAsignacion';
-  include __DIR__ . '/assignment-modal.php';
-
-  $modalId = 'editarAsignacionModal';
-  $modalTitle = 'Editar Asignación';
-  $modalSubtitle = 'Actualice el docente responsable de la sección.';
-  $formId = 'formEditarAsignacion';
-  include __DIR__ . '/assignment-modal.php';
-  ?>
-<?php endif; ?>
-
-<?php
 $pageContent = ob_get_clean();
+
+// ---------- Modales (uno por archivo, fuera del contenido) ----------
+ob_start();
+if (empty($esConsulta)) {
+    $editMode = false;
+    $modalId = 'nuevaAsignacionModal';
+    $modalTitle = 'Nueva Asignación';
+    $modalSubtitle = 'Asigne un docente a una sección académica.';
+    $formId = 'formNuevaAsignacion';
+    include __DIR__ . '/assignment-modal.php';
+
+    $editMode = true;
+    $modalId = 'editarAsignacionModal';
+    $modalTitle = 'Editar Asignación';
+    $modalSubtitle = 'Actualice el docente responsable de la sección.';
+    $formId = 'formEditarAsignacion';
+    include __DIR__ . '/assignment-modal.php';
+}
+$pageModals = ob_get_clean();
+
+// ---------- Scripts ----------
+$extraScripts = ['/js/modules/academica/teacher-assignment.js'];
+
 require __DIR__ . '/../../layouts/app.php';

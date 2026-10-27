@@ -9,7 +9,7 @@ use App\Interfaces\Creatable;
 use App\Interfaces\Listable;
 use App\Interfaces\Toggleable;
 use App\Interfaces\Updatable;
-use App\Support\Direccion;
+use App\Support\Documento;
 use App\Support\Instituciones;
 use App\Traits\AvatarTrait;
 use PDO;
@@ -34,11 +34,9 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
      *
      * Se arma fuera de la cadena del SELECT a propósito: un comentario de PHP dentro de un
      * string doble rompe el archivo, y el comentario es lo que explica por qué se calcula.
-     *
-     * La segunda columna es el motivo del reposo vigente. Solo la usa el detalle: el
-    /**
-     * Columna para el badge del listado y para getById().
      */
+
+    /** Columna para el badge del listado y para getById(). */
     private const COLUMNA_EN_REPOSO =
         ReposoEmpleadoModel::EXPRESION_EN_REPOSO . ' AS en_reposo';
 
@@ -49,8 +47,7 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
     private const COLUMNA_MOTIVO_REPOSO =
         '(SELECT r.motivo FROM reposo_empleado r'
         . '  WHERE r.id_empleado = e.id_empleado'
-        . '    AND r.fecha_inicio <= CURDATE()'
-        . '    AND (r.fecha_fin IS NULL OR r.fecha_fin >= CURDATE())'
+        . '    AND ' . ReposoEmpleadoModel::CONDICION_VIGENTE
         . '  ORDER BY r.fecha_inicio DESC LIMIT 1) AS motivo_reposo';
 
     private const CAMPOS_EMPLEADO = ['id_cargo', 'fecha_ingreso', 'id_turno'];
@@ -370,18 +367,16 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
         $row['telefono_alternativo'] = trim(($row['codigo_telefono_alternativo'] ?? '') . '-' . ($row['numero_telefono_alternativo'] ?? ''));
         $row['correo']          = $row['correo_electronico'] ?? '';
 
-        /* La redacción la pone Support\Direccion, la misma que usa la nómina de
-           Listados y Actas: "calle, Casa nro X, Sector S, Parroquia P, Municipio M,
-           Estado E, Punto de referencia R", con cada tramo solo si trae valor. */
-        $row['direccion_completa'] = Direccion::linea(
-            $row['calle_avenida']       ?? null,
-            $row['nro_casa_apto']       ?? null,
-            $row['sector_urbanizacion'] ?? null,
-            $row['parroquia_nombre']    ?? null,
-            $row['municipio_nombre']    ?? null,
-            $row['estado_nombre']       ?? null,
-            $row['punto_referencia']    ?? null
-        );
+        $direccionPartes = array_filter([
+            $row['calle_avenida'] ?? '',
+            $row['nro_casa_apto'] ? 'Casa nro ' . $row['nro_casa_apto'] : '',
+            $row['sector_urbanizacion'] ? 'Sector ' . $row['sector_urbanizacion'] : '',
+            $row['parroquia_nombre'] ? 'Parroquia ' . $row['parroquia_nombre'] : '',
+            $row['municipio_nombre'] ? 'Municipio ' . $row['municipio_nombre'] : '',
+            $row['estado_nombre'] ? 'Estado ' . $row['estado_nombre'] : '',
+            $row['punto_referencia'] ? 'Punto de referencia ' . $row['punto_referencia'] : '',
+        ]);
+        $row['direccion_completa'] = implode(', ', $direccionPartes);
 
         $stmtFormacion = $this->pdo->prepare('SELECT id_formacion_academica, id_titulo, id_grado_academico, id_institucion, fecha_obtencion FROM formacion_academica WHERE id_empleado = :id ORDER BY fecha_obtencion DESC');
         $stmtFormacion->execute(['id' => $id]);
@@ -413,6 +408,29 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
         $stmt->execute(['id_municipio' => $id_municipio]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Comprueba si una cédula ya pertenece a un empleado registrado.
+     * $ignorarId excluye al propio empleado durante la edición.
+     */
+    public function existeDocumento(string $documento, ?int $ignorarId = null): bool
+    {
+        $documento = Documento::normalizar($documento);
+        $sql = "SELECT COUNT(*) FROM empleado e
+                INNER JOIN persona p ON p.id_persona = e.id_persona
+                WHERE p.numero_documento = :doc";
+        $params = ['doc' => $documento];
+
+        if ($ignorarId !== null && $ignorarId > 0) {
+            $sql .= " AND e.id_empleado != :ignorarId";
+            $params['ignorarId'] = $ignorarId;
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        return ((int) $stmt->fetchColumn()) > 0;
     }
 
     public function create(array $data): bool
@@ -538,6 +556,294 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
 
         $this->pdo->prepare('INSERT INTO docente (id_empleado) VALUES (:empleado)')
             ->execute(['empleado' => $idEmpleado]);
+    }
+
+    /** Formación académica con los nombres de título, grado e institución. */
+    public function getFormacionAcademica(int $idEmpleado): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT fa.id_formacion_academica,
+                    fa.fecha_obtencion,
+                    t.nombre AS titulo,
+                    ga.nombre AS grado_academico,
+                    i.nombre AS institucion
+               FROM formacion_academica fa
+               INNER JOIN titulo t ON t.id_titulo = fa.id_titulo
+               INNER JOIN grado_academico ga ON ga.id_grado_academico = fa.id_grado_academico
+               INNER JOIN institucion i ON i.id_institucion = fa.id_institucion
+              WHERE fa.id_empleado = :empleado
+              ORDER BY fa.fecha_obtencion DESC'
+        );
+        $stmt->execute(['empleado' => $idEmpleado]);
+
+        $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($filas as &$fila) {
+            $fila['id_formacion_academica'] = (int) $fila['id_formacion_academica'];
+        }
+
+        return $filas;
+    }
+
+    /** Asignaciones docentes del empleado, con la estructura y el período. */
+    public function getAsignacionesDocente(int $idEmpleado): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT ad.id_asignacion,
+                    ad.fecha_inicio,
+                    ad.fecha_fin,
+                    ta.nombre AS tipo_asignacion,
+                    g.nombre AS grado,
+                    s.nombre AS seccion,
+                    t.nombre AS turno,
+                    ae.nombre_periodo AS periodo,
+                    (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE()) AS activa
+               FROM docente d
+               INNER JOIN asignacion_docente ad ON ad.id_docente = d.id_docente
+               INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ad.id_estructura_academica
+               INNER JOIN grado g ON g.id_grado = ea.id_grado
+               INNER JOIN seccion s ON s.id_seccion = ea.id_seccion
+               INNER JOIN turno t ON t.id_turno = ea.id_turno
+               INNER JOIN anio_escolar ae ON ae.id_anio_escolar = ea.id_anio_escolar
+               INNER JOIN tipo_asignacion ta ON ta.id_tipo_asignacion = ad.id_tipo_asignacion
+              WHERE d.id_empleado = :empleado
+              ORDER BY ae.anio_inicio DESC, g.nombre, s.nombre, ad.fecha_inicio DESC"
+        );
+        $stmt->execute(['empleado' => $idEmpleado]);
+
+        $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($filas as &$fila) {
+            $fila['id_asignacion'] = (int) $fila['id_asignacion'];
+            $fila['activa']         = (int) $fila['activa'] === 1;
+        }
+
+        return $filas;
+    }
+
+    /** Historial de cambios de estado del empleado. */
+    public function getHistorialEstados(int $idEmpleado): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT h.id_historial,
+                    h.estado_anterior,
+                    h.estado_nuevo,
+                    h.motivo,
+                    h.fecha_efectiva,
+                    h.created_at,
+                    h.id_usuario,
+                    CONCAT_WS(' ', up.primer_nombre, up.primer_apellido) AS registrado_por
+               FROM empleado_estado_historial h
+               LEFT JOIN usuario u ON u.id_usuario = h.id_usuario
+               LEFT JOIN persona up ON up.id_persona = u.id_persona
+              WHERE h.id_empleado = :empleado
+              ORDER BY h.fecha_efectiva DESC, h.id_historial DESC"
+        );
+        $stmt->execute(['empleado' => $idEmpleado]);
+
+        $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($filas as &$fila) {
+            $fila['id_historial'] = (int) $fila['id_historial'];
+            $fila['id_usuario']   = $fila['id_usuario'] !== null ? (int) $fila['id_usuario'] : null;
+            $registradoPor = trim((string) ($fila['registrado_por'] ?? ''));
+            $fila['registrado_por'] = $registradoPor !== '' ? $registradoPor : 'Usuario eliminado';
+        }
+
+        return $filas;
+    }
+
+    /**
+     * Impacto de cambiar el estado, para la advertencia previa del modal.
+     *
+     * @return array{estado_actual:string,estado_nuevo:string,fecha_efectiva:string,asignaciones:array,reposo_vigente:?array,requiere_confirmacion:bool}
+     */
+    public function getImpactoCambioEstado(int $idEmpleado, string $nuevoEstado, string $fechaEfectiva): array
+    {
+        $actual = $this->getEstadoActual($idEmpleado);
+
+        if ($actual === null) {
+            throw new RuntimeException('El empleado no existe.');
+        }
+
+        $asignaciones = $this->getAsignacionesActivas($idEmpleado, $fechaEfectiva);
+        $reposo = (new ReposoEmpleadoModel($this->pdo))->getVigente($idEmpleado);
+
+        return [
+            'estado_actual'         => $actual,
+            'estado_nuevo'          => $nuevoEstado,
+            'fecha_efectiva'        => $fechaEfectiva,
+            'asignaciones'          => $asignaciones,
+            'reposo_vigente'        => $reposo,
+            'requiere_confirmacion' => $nuevoEstado === 'INACTIVO'
+                && ($asignaciones !== [] || $reposo !== null),
+        ];
+    }
+
+    /**
+     * Cambia el estado de la persona y deja rastro en el historial.
+     *
+     * Al desactivar, si se confirma, cierra las asignaciones docentes activas en
+     * la fecha efectiva; no las borra.
+     *
+     * @return array{estado_anterior:string,estado_nuevo:string,asignaciones_cerradas:int,reposo_vigente:?array}
+     */
+    public function cambiarEstado(
+        int $idEmpleado,
+        string $nuevoEstado,
+        string $motivo,
+        string $fechaEfectiva,
+        int $idUsuario,
+        bool $confirmar
+    ): array {
+        $pdo = $this->pdo;
+        $pdo->beginTransaction();
+
+        try {
+            $stmt = $pdo->prepare(
+                'SELECT p.estado
+                   FROM empleado e
+                   INNER JOIN persona p ON p.id_persona = e.id_persona
+                  WHERE e.id_empleado = :id
+                  FOR UPDATE'
+            );
+            $stmt->execute(['id' => $idEmpleado]);
+            $actual = $stmt->fetchColumn();
+
+            if ($actual === false) {
+                throw new RuntimeException('El empleado no existe.');
+            }
+
+            $actual = strtoupper((string) $actual);
+
+            if ($actual === $nuevoEstado) {
+                $pdo->rollBack();
+
+                return [
+                    'estado_anterior'      => $actual,
+                    'estado_nuevo'         => $nuevoEstado,
+                    'asignaciones_cerradas' => 0,
+                    'reposo_vigente'       => (new ReposoEmpleadoModel($pdo))->getVigente($idEmpleado),
+                ];
+            }
+
+            $asignaciones = $this->getAsignacionesActivas($idEmpleado, $fechaEfectiva);
+            $reposo = (new ReposoEmpleadoModel($pdo))->getVigente($idEmpleado);
+
+            if (!$confirmar && $nuevoEstado === 'INACTIVO' && ($asignaciones !== [] || $reposo !== null)) {
+                $pdo->rollBack();
+
+                return [
+                    'estado_anterior'      => $actual,
+                    'estado_nuevo'         => $nuevoEstado,
+                    'asignaciones_cerradas' => 0,
+                    'reposo_vigente'       => $reposo,
+                    'requiere_confirmacion' => true,
+                    'asignaciones'         => $asignaciones,
+                ];
+            }
+
+            $cerradas = 0;
+
+            if ($nuevoEstado === 'INACTIVO') {
+                $cierre = $pdo->prepare(
+                    'UPDATE asignacion_docente ad
+                     INNER JOIN docente d ON d.id_docente = ad.id_docente
+                        SET ad.fecha_fin = GREATEST(:fecha, ad.fecha_inicio)
+                      WHERE d.id_empleado = :empleado
+                        AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= :fecha_limite)'
+                );
+                $cierre->execute([
+                    'fecha'        => $fechaEfectiva,
+                    'empleado'     => $idEmpleado,
+                    'fecha_limite' => $fechaEfectiva,
+                ]);
+                $cerradas = $cierre->rowCount();
+            }
+
+            $pdo->prepare(
+                'UPDATE persona p
+                 INNER JOIN empleado e ON e.id_persona = p.id_persona
+                    SET p.estado = :estado
+                  WHERE e.id_empleado = :empleado'
+            )->execute(['estado' => $nuevoEstado, 'empleado' => $idEmpleado]);
+
+            $pdo->prepare(
+                'INSERT INTO empleado_estado_historial
+                    (id_empleado, estado_anterior, estado_nuevo, motivo, fecha_efectiva, id_usuario)
+                 VALUES
+                    (:empleado, :anterior, :nuevo, :motivo, :fecha, :usuario)'
+            )->execute([
+                'empleado' => $idEmpleado,
+                'anterior' => $actual,
+                'nuevo'    => $nuevoEstado,
+                'motivo'   => $motivo,
+                'fecha'    => $fechaEfectiva,
+                'usuario'  => $idUsuario > 0 ? $idUsuario : null,
+            ]);
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            throw $e;
+        }
+
+        return [
+            'estado_anterior'       => $actual,
+            'estado_nuevo'          => $nuevoEstado,
+            'asignaciones_cerradas' => $cerradas,
+            'reposo_vigente'        => $reposo,
+        ];
+    }
+
+    /** Estado actual de la persona asociada al empleado. */
+    public function getEstadoActual(int $idEmpleado): ?string
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT p.estado
+               FROM empleado e
+               INNER JOIN persona p ON p.id_persona = e.id_persona
+              WHERE e.id_empleado = :id
+              LIMIT 1'
+        );
+        $stmt->execute(['id' => $idEmpleado]);
+        $estado = $stmt->fetchColumn();
+
+        return $estado === false ? null : strtoupper((string) $estado);
+    }
+
+    /** Asignaciones docentes que siguen activas en la fecha indicada. */
+    public function getAsignacionesActivas(int $idEmpleado, string $fecha): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT ad.id_asignacion, ad.fecha_inicio, ad.fecha_fin,
+                    ta.nombre AS tipo_asignacion,
+                    g.nombre AS grado, s.nombre AS seccion, t.nombre AS turno,
+                    ae.nombre_periodo AS periodo
+               FROM docente d
+               INNER JOIN asignacion_docente ad ON ad.id_docente = d.id_docente
+               INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ad.id_estructura_academica
+               INNER JOIN grado g ON g.id_grado = ea.id_grado
+               INNER JOIN seccion s ON s.id_seccion = ea.id_seccion
+               INNER JOIN turno t ON t.id_turno = ea.id_turno
+               INNER JOIN anio_escolar ae ON ae.id_anio_escolar = ea.id_anio_escolar
+               INNER JOIN tipo_asignacion ta ON ta.id_tipo_asignacion = ad.id_tipo_asignacion
+              WHERE d.id_empleado = :empleado
+                AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= :fecha)
+              ORDER BY ae.anio_inicio DESC, g.nombre, s.nombre"
+        );
+        $stmt->execute(['empleado' => $idEmpleado, 'fecha' => $fecha]);
+
+        $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($filas as &$fila) {
+            $fila['id_asignacion'] = (int) $fila['id_asignacion'];
+        }
+
+        return $filas;
     }
 
     public function toggleStatus(int $id, string $columna = 'estado'): bool

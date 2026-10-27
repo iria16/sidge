@@ -220,7 +220,7 @@ para reescribir los otros 11; sí es el patrón a seguir en las nuevas.
 
 Orden de revisión, de más general a más específico:
 
-1. `app/Views/components/`             → componentes PHP (17 en total)
+1. `app/Views/components/`             → componentes PHP (18 en total)
 2. `resources/scss/components/`        → clases y estilos ya creados
 3. `resources/scss/_variables.scss`    → paleta, espaciados, tipografía
 4. `public/assets/js/modules/` y `core/` → helpers de JS ya existentes
@@ -267,6 +267,7 @@ del código, no supuestas):
 | `wizard-summary-field.php` | Par etiqueta/valor del resumen del wizard y de vistas de detalle | `$wsField`, `$wsValue`, `$wsId`, `$wsLabel`, `$wsClass`, `$wsRaw` |
 | `credentials-modal.php` | Modal compartido de credenciales generadas | `$credModalTitulo`, `$credModalTexto` |
 | `featured-birthday-card.php` | Tarjeta destacada de cumpleaños del mes | `$birthdayData` |
+| `modal-identity-header.php` | Cabecera de identidad para modales con avatar circular editable, nombre, ID y botón quitar foto | `$identityPreviewId`, `$identityInputId`, `$identityInputName`, `$identityNameId`, `$identityDocId`, `$identityQuitarId`, `$identityEliminarId`, `$identityBadgeExtra` |
 
 ### 5.2 Clases de estilo existentes (reutilizar antes de crear)
 
@@ -401,7 +402,7 @@ Se ejecuta con `npm run verificar` o suelto con
 
 ---
 
-### 9.1 Pantalla vieja de listados: retirada
+### 8.1 Pantalla vieja de listados: retirada
 
 `docente/listados_actas.php` era la versión anterior de `docente/nomina.php`, que
 es la que usa el menú del docente. Se retiró el 2026-10-18: borrados la vista,
@@ -424,7 +425,7 @@ Si algún día se quiere la asistencia **de verdad**, es un módulo nuevo: tabla
 `asistencia_reunion`, quién la registra, y qué pasa con el papel. Va en su
 propia decisión, no aquí.
 
-### 9.2 Pendientes anotados (migrar en un módulo posterior, con aprobación)
+### 8.2 Pendientes anotados (migrar en un módulo posterior, con aprobación)
 
 | Qué | Dónde | Nº |
 |---|---|---|
@@ -454,3 +455,241 @@ aprobación:
 - **Las 583 llamadas de `htmlspecialchars()`** sin flags explícitos. En PHP 8.4
   ya escapan comillas correctamente; los flags explícitos solo aportarían
   independencia de la versión de PHP.
+
+## 10. Diagramas de casos de uso (documentación de tesis)
+
+Los diagramas de casos de uso se construyen en **draw.io**, quedan en **hoja
+carta vertical** y se presentan con **normas APA (7.ª ed.)** dentro de la tesis.
+No forman parte de la aplicación: viven en la carpeta de documentación, no en
+`app/`.
+
+**Archivo plantilla (maestro):**
+`docs/gestion-cuentas-usuario/diagrama-gestion-cuentas-usuario.drawio`.
+Para una interfaz nueva se **copia esa plantilla** y se cambian solo textos y
+posiciones. No se rediseñan estilos, tamaños ni colores. No se inventan casos de
+uso que no se vean en la interfaz. Si falta información, se pregunta antes de
+dibujar.
+
+Nombres de archivo: `fig-NN-<interfaz>.drawio/png/pdf`
+(p. ej. `fig-05-gestion-cuentas-usuario.png`).
+
+### 10.1 Regla principal: diagrama «por interacción»
+
+- El actor se conecta **directamente solo a casos base**, que son las
+  **interacciones visibles** de la interfaz: un botón, un grupo de filtros, una
+  columna de acciones.
+- Todo lo demás (filtros, acciones de fila, modales, resultados) cuelga de esos
+  casos base con `«extend»` o `«include»`.
+- **No** se conecta el actor a casos extend ni include.
+- **No** se crean casos genéricos como «Consultar listado»: ver el listado es lo
+  que ocurre al abrir la pantalla.
+
+| Elemento de la interfaz | Caso de uso base |
+|---|---|
+| Botón principal (ej. «+ Crear Usuario») | Crear usuario |
+| Barra de filtros y buscador | Aplicar parámetros de búsqueda |
+| Columna «Acciones» de la tabla | Administrar cuentas registradas |
+
+### 10.2 Reglas UML
+
+| Relación | Línea | Flecha | Dirección | Cuándo |
+|---|---|---|---|---|
+| Asociación (actor–caso) | Sólida | Sin punta | Actor → caso base | Solo actor con casos base |
+| `«extend»` | Punteada (`dashPattern=7 5`) | Punta abierta | **Del extensor hacia el caso base** | Opcional (filtros, acciones de fila) |
+| `«include»` | Punteada (`dashPattern=7 5`) | Punta abierta | **Del caso base hacia el incluido** | Obligatorio (siempre ocurre) |
+
+- Opcional / el usuario decide → `extend`. Siempre ocurre al ejecutar el caso →
+  `include`.
+- Un caso reutilizado (como el modal) se dibuja **una sola vez**; las flechas de
+  varios casos llegan al mismo óvalo.
+- Las credenciales generadas se conectan a **Crear usuario**, no al modal: el
+  modal solo captura datos; las credenciales son el resultado de crear.
+
+### 10.3 Página y tamaño (hoja vertical)
+
+- **Hoja carta vertical** (21,59 × 27,94 cm), márgenes de **2,54 cm** por lado.
+- Área útil: **16,51 × 22,86 cm = 624 × 864 px** (draw.io trabaja a 96 px por
+  pulgada). En draw.io: *Archivo → Configuración de página → Papel: Carta,
+  Orientación: Vertical*. El origen del diagrama es **(96, 96)** px.
+- **Ancho máximo de la figura: 624 px. Alto máximo: 760 px** (el resto del área
+  útil lo ocupan la leyenda de arriba y la nota de abajo).
+- Si un diagrama necesita más de 760 px de alto: se reduce el espacio entre
+  grupos (**nunca** el tamaño de letra) o se divide en dos figuras.
+
+**Distribución** (coordenadas relativas al área útil; en el XML llevan sumado el
+origen 96, 96):
+
+```
+x=5..85     actor (centro x=45), nombre debajo
+x=98        tronco vertical de las asociaciones del actor
+x=110..590  título del RF encima (y=2, alto 28) y recuadro del sistema (y=40, alto 710)
+x=130..280  columna A: casos base (150x70) y "Visualizar credenciales" (150x70)
+x=350..520  columna B: extend y modal (170x56)
+x=550       línea vertical (codo) del include "Editar → Modal"
+```
+
+| Elemento | y (arriba-izq.) |
+|---|---|
+| Crear usuario (A) / Modal (B) | 110 / 117 (centros alineados en y=145) |
+| Visualizar credenciales (A) | 235 |
+| Aplicar parámetros (A) | 355 (centro y=390) |
+| 3 filtros (B) | 296, 362, 428 (separación 66) |
+| Administrar cuentas (A) | 585 (centro y=620) |
+| 3 acciones (B) | 526, 592, 658 (separación 66) |
+| Actor | x=30, y=369, **tamaño exacto 30 x 60 px** (brazos a y=390, alineados con «Aplicar parámetros») |
+
+Para otra interfaz: mismas columnas y misma separación de 66 px; más extends →
+más alto, hasta 760 px.
+
+### 10.4 Estilo visual (para tesis)
+
+**Tipografía: una sola familia, `fontFamily=Times New Roman`.** Todo el texto
+del diagrama (óvalos, etiquetas, actor, sistema) la usa. La tesis exige Times
+New Roman, aunque APA 7 recomiende sans serif en figuras; prevalece la fuente de
+la institución. El tamaño va **entre 11 y 18 px** (1 px = 0,75 pt) y **nunca
+bajo 12 px**.
+
+| Elemento | fontSize (px) | ≈ pt | Estilo | Color |
+|---|---|---|---|---|
+| Título del RF, sobre el recuadro | 16 | 12 | Negrita | `#14213D` |
+| Nombre del sistema (en el recuadro) | 14 | 10,5 | Negrita | `#14213D` |
+| Institución (bajo el sistema) | 13 | 9,75 | Normal | `#14213D` |
+| Casos base | 13 | 9,75 | Negrita | `#14213D` |
+| Casos extend / include | 13 | 9,75 | Normal | `#111111` |
+| Etiquetas `«extend»` / `«include»` | 12 | 9 | Cursiva | `#3A4358` |
+| Nombre del actor | 13 | 9,75 | Negrita | `#14213D` |
+
+**Colores y trazos** (solo esta paleta; legible también en blanco y negro):
+
+- Azul marino `#14213D`: bordes, actor, asociaciones.
+- Casos base: relleno `#E8ECF5`, borde 1,5. Demás casos: relleno blanco, borde 1,3.
+- Recuadro del sistema: relleno blanco, borde 1,6.
+- Asociación: sólida, 1,4. Extend/include: punteada (`dashPattern=7 5`), 1,3,
+  color `#3A4358`, punta abierta (`endArrow=open;endFill=0`), etiqueta con fondo
+  blanco (`labelBackgroundColor=#FFFFFF`).
+
+**Estilos base (copiar tal cual):**
+
+```
+Base:      ellipse;whiteSpace=wrap;html=1;fillColor=#E8ECF5;strokeColor=#14213D;strokeWidth=1.5;fontSize=13;fontStyle=1;fontColor=#14213D;fontFamily=Times New Roman;
+Otro:      ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#14213D;strokeWidth=1.3;fontSize=13;fontColor=#111111;fontFamily=Times New Roman;
+Asoc.:     endArrow=none;html=1;strokeColor=#14213D;strokeWidth=1.4;
+Relación:  endArrow=open;endFill=0;endSize=8;dashed=1;dashPattern=7 5;html=1;strokeColor=#3A4358;strokeWidth=1.3;fontSize=12;fontStyle=2;fontColor=#3A4358;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;
+Actor:     shape=umlActor;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;strokeColor=#14213D;strokeWidth=1.8;fillColor=#FFFFFF;fontSize=13;fontStyle=1;fontColor=#14213D;fontFamily=Times New Roman;
+```
+
+**Reglas de disposición**
+
+- Actor fuera del recuadro, a la izquierda. Las asociaciones salen por un
+  **tronco vertical común** (x=98) para que ninguna línea cruce el nombre del
+  actor.
+- Sin cruces entre relaciones. Etiquetas sobre la línea, sin tapar óvalos ni
+  texto.
+- Máximo 3 líneas de texto por óvalo; separación uniforme; margen ≥ 20 px entre
+  cualquier óvalo y el borde del recuadro.
+- Nombres: verbo en infinitivo + objeto, mayúscula solo en la primera palabra,
+  mismo vocabulario de la interfaz. Símbolos « » (no `<<` `>>`).
+- Recuadro del sistema, dos líneas: `Sistema de Información para la Gestión de
+  Datos Escolares` (negrita) y `U.E. Escuela Básica Isidro Ramírez`.
+- **Título del RF** encima del recuadro, centrado sobre él, Times New Roman
+  16 px en negrita: el nombre exacto de la interfaz (ej. `Gestión de Cuentas
+  de Usuario`), precedido del código del requisito si existe (ej. `RF-03.
+  Gestión de Cuentas de Usuario`). Sin prefijo «Módulo:» ni subtítulo.
+- **Tamaños fijos, no modificar:** casos base 150 × 70 px; extend e include
+  170 × 56 px; **actor 30 × 60 px** (proporción 1:2). Si el actor se ve achatado o
+  estirado, seleccionarlo y en *Organizar → Tamaño* poner 30 × 60 con la
+  proporción bloqueada (`aspect=fixed`).
+
+### 10.5 Reglas del XML (cuando el agente escribe el archivo)
+
+- Cada caso de uso es un `vertex` con estilo `ellipse;whiteSpace=wrap;html=1;...`
+  (los estilos exactos de la plantilla; no cambiarlos).
+- Cada relación es un `edge` con `source` y `target`. En `«extend»` el `source`
+  es el extensor y el `target` el caso base. En `«include»` el `source` es el
+  caso base y el `target` el incluido.
+- Las posiciones del XML llevan **sumado el origen (96, 96)**.
+- Orden de las celdas: **recuadro del sistema primero** (queda al fondo), luego
+  óvalos y actor, luego relaciones.
+- El tronco del actor se hace con puntos de control en `x = 194`; el codo del
+  include «Editar → Modal», con puntos de control en `x = 646`.
+- Comprobar que el XML esté bien formado antes de entregar.
+
+### 10.6 Exportación
+
+1. **PNG**: zoom 300 % (o 300 DPI), borde 10, fondo **blanco** (sin
+   transparencia), sin «solo selección». Es el que se inserta en Word.
+2. **PDF**: marcar *Recortar* (crop). Respaldo vectorial.
+3. Guardar siempre también el `.drawio` (es el editable).
+
+> En este entorno **no hay conversor SVG→PNG ni a PDF instalado** (`rsvg-convert`,
+> `inkscape`, `imagemagick`, `cairosvg` no están y `pip` está bloqueado por
+> PEP 668). La exportación la hace el usuario desde draw.io, en dos clics:
+> *Archivo → Exportar como → PNG*.
+
+### 10.7 Presentación en la tesis (APA 7.ª ed.)
+
+Leyenda **encima** de la figura, en Word y no dentro de la imagen:
+
+1. Línea 1: **Figura N** (negrita, alineada a la izquierda). Numeración
+   correlativa en toda la tesis, en arábigos.
+2. Línea 2: título de la figura en *cursiva*, descriptivo y breve. Ej.:
+   *Diagrama de casos de uso del módulo Gestión de cuentas de usuario*.
+3. Debajo, la figura, sin recuadro adicional alrededor de la imagen.
+4. Debajo de la figura, la nota: *Nota.* (en cursiva) + texto. Ej.: *Nota.*
+   Elaboración propia.
+
+Reglas de uso:
+
+- Mencionar la figura **en el texto antes de que aparezca**: «En la Figura 5 se
+  muestra…» (no «la siguiente figura»).
+- Mismo tipo de letra del documento para número, título y nota (Times New Roman
+  12 o la que fije la institución); el texto interno de la imagen también es
+  Times New Roman.
+- Insertar el PNG **en línea con el texto**, a **16,5 cm de ancho como máximo**
+  y sin ampliarlo por encima del 100 %. Si se amplía, la letra supera los 14 pt;
+  si se reduce mucho, baja de 8 pt.
+- Una figura de página completa va sola en la página (hoja vertical), con su
+  leyenda y su nota.
+- Insertar las leyendas con la función de títulos de Word para generar después
+  la **lista de figuras** del índice.
+- Agregar texto alternativo a la imagen (descripción breve del diagrama).
+- **Verificar con el manual de la institución o el tutor** dos detalles que
+  varían entre universidades: mayúsculas en el título de la figura (en español
+  APA usa mayúscula solo inicial) y si exigen «Fuente: Elaboración propia (año)»
+  en lugar de la nota.
+
+### 10.8 Procedimiento
+
+1. Leer la vista del módulo y listar: botón principal, filtros y buscador,
+   columnas de acciones, modales.
+2. Presentar al usuario la tabla **casos base / extend / include** y esperar
+   confirmación antes de dibujar.
+3. Construir en draw.io desde la plantilla (secciones 10.3, 10.4 y 10.5).
+4. Revisar con la lista de verificación.
+5. Exportar PNG y PDF, **mirar el PNG** y corregir lo que se vea mal.
+6. Entregar `.drawio` + PNG + PDF, con la leyenda APA sugerida (número, título y
+   nota), y explicar brevemente qué se decidió y por qué.
+
+### 10.9 Lista de verificación
+
+- [ ] El actor solo se conecta a casos base (línea sólida sin punta).
+- [ ] Cada caso base corresponde a una interacción visible en la interfaz.
+- [ ] Cada `«extend»` apunta **hacia** su caso base; cada `«include»` sale
+      **desde** el caso base.
+- [ ] Ningún caso de uso está duplicado.
+- [ ] Título del RF encima del recuadro; nombre del sistema e institución
+      dentro del recuadro.
+- [ ] El actor mide exactamente 30 × 60 px (no se ve achatado ni estirado).
+- [ ] Nombres con verbo en infinitivo, mismos términos que la interfaz, sin
+      faltas de ortografía.
+- [ ] Hoja carta vertical; figura de máximo 624 × 760 px, dentro de los márgenes
+      de 2,54 cm.
+- [ ] Letra **Times New Roman**, con los tamaños de la tabla de 10.4 (nunca
+      menos de 12 px); ninguna celda con otra fuente.
+- [ ] Solo la paleta definida; se lee bien en blanco y negro.
+- [ ] Sin cruces de líneas, sin etiquetas sobre óvalos, ningún texto cortado.
+- [ ] Exportado en PNG (300 %, fondo blanco) y PDF; se revisó visualmente el
+      PNG.
+- [ ] Leyenda APA lista: **Figura N**, título en cursiva, *Nota.*
+- [ ] No se agregó ningún caso que no esté en la interfaz ni en las indicaciones
+      del usuario.

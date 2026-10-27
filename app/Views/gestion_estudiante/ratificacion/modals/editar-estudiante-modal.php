@@ -18,18 +18,16 @@ ob_start();
       action="<?= BASE_URL ?>ratificacion/updateEstudiante">
   <input type="hidden" name="id_estudiante" id="editEstudianteId">
   
-  <div class="d-flex align-items-center p-3 border-bottom">
-    <div class="avatar avatar--lg avatar--primary me-3" id="editAvatar">
-      <img src="" alt="" class="d-none" id="editAvatarImg">
-      <span id="editAvatarInitials"></span>
-    </div>
-    <div>
-      <div class="fw-bold text-dark fs-5" id="editNombreCompleto"></div>
-      <div class="badge bg-light text-dark border mt-1">
-        ID: <span id="editCedulaId"></span>
-      </div>
-    </div>
-  </div>
+  <?php
+  $identityPreviewId  = 'fotoPreview';
+  $identityInputId    = 'fotoInput';
+  $identityInputName  = 'foto';
+  $identityNameId     = 'editNombreCompleto';
+  $identityDocId      = 'editCedulaId';
+  $identityQuitarId   = 'btnQuitarFotoEstudiante';
+  $identityEliminarId = 'fotoEliminar';
+  include __DIR__ . '/../../../components/modal-identity-header.php';
+  ?>
 
   <ul class="nav nav-tabs modal-tabs px-3 pt-3 border-bottom-0" id="editTabs" role="tablist">
     <li class="nav-item" role="presentation">
@@ -80,9 +78,24 @@ ob_start();
              dato: eso escribiría una nacionalidad que nadie verificó. El sub-modal de
              familiares que se incluye más abajo no lleva el campo, así que la bandera
              no le afecta aunque siga en el scope. */
+      $showPhoto = false;
       $nacionalidadEsRegistroExistente = true;
       include __DIR__ . '/../../inscripcion/enrollments-steps/step-1-personales.php';
       ?>
+      <!-- Bloque para cambio de año con Cédula Escolar (CE) -->
+      <div id="bloqueCambioAnioCE" class="alert alert-warning d-none mt-3">
+        <div class="d-flex align-items-center mb-1">
+          <i class="bi bi-shield-exclamation text-warning fs-5 me-2"></i>
+          <strong>Cambio de Año de Nacimiento (Cédula Escolar)</strong>
+        </div>
+        <p class="small mb-2 text-muted">
+          Modificar el año de nacimiento regenerará la Cédula Escolar del estudiante. Esta acción es reservada para Dirección y requiere justificación obligatoria.
+        </p>
+        <label for="motivo_cambio_anio" class="form-label small fw-semibold">Motivo del cambio de año *</label>
+        <input type="text" name="motivo_cambio_anio" id="motivo_cambio_anio" class="form-control form-control-sm"
+               maxlength="40" placeholder="Ej: Rectificación en partida de nacimiento">
+        <div class="form-text">Máximo 40 caracteres (quedan <span id="contadorMotivoCE">40</span>).</div>
+      </div>
     </div>
 
     <!-- Información Adicional -->
@@ -91,7 +104,7 @@ ob_start();
     </div>
 
     <!-- Familiares: se cargan desde ratificacion/datosEstudiante y los escribe
-         public/assets/js/modules/estudiantes/familiares.js, igual que en el wizard de inscripción. El
+         public/assets/js/familiares.js, igual que en el wizard de inscripción. El
          hidden arranca con "[]": si no viniera la lista, un guardado no debe
          borrar a los familiares que ya están. -->
     <div class="tab-pane fade" id="pane-familiares" role="tabpanel">
@@ -100,7 +113,7 @@ ob_start();
     </div>
 
     <!-- Recaudos: se cargan desde ratificacion/datosEstudiante junto con el resto de los
-         datos y los guarda public/assets/js/modules/estudiantes/recaudos.js. Van como <div> y no como
+         datos y los guarda public/assets/js/recaudos.js. Van como <div> y no como
          <form> porque este modal ya es un formulario. -->
     <div class="tab-pane fade" id="pane-recaudos" role="tabpanel">
       <p class="text-support">
@@ -127,7 +140,7 @@ $modalBody = ob_get_clean();
 ob_start();
 ?>
 <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
-<button type="submit" form="formEditarEstudiante" class="btn btn-primary" style="background-color: #0b2253; border-color: #0b2253;">
+<button type="submit" form="formEditarEstudiante" class="btn btn-primary">
   <i class="bi bi-floppy me-1"></i> Guardar Cambios
 </button>
 <?php
@@ -140,15 +153,8 @@ $modalFooter = ob_get_clean();
 $modalId       = 'modalEditarEstudiante';
 $modalTitle    = 'Editar Estudiante';
 $modalSubtitle = '';
-/* xl y no lg como los demás modales. Es el único con cuatro pestañas (Datos
-   Personales, Información Adicional, Familiares, Recaudos) y con una tabla de
-   tres columnas dentro, y a 800px la caja de observación queda ilegible y el paso 1
-   (foto + nombres) se parte en dos columnas que se leen con esfuerzo. El cuerpo
-   además tiene max-height propio, así que el ancho es lo único que hace falta.
-
-   Si algún día se normaliza a xl el resto de modales del sistema, esto se vuelve
-   un 'lg' más. */
 $modalSize     = 'xl';
+$modalStatic   = true;
 include __DIR__ . '/../../../components/modal.php';
 
 /* El sub-modal de familiares, como hermano inmediato del modal de edición: los

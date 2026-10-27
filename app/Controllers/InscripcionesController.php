@@ -7,9 +7,12 @@ namespace App\Controllers;
 use App\Exceptions\AnioEscolarCerradoException;
 use App\Exceptions\CupoAgotadoException;
 use App\Models\InscripcionesModel;
+use App\Models\InstitucionModel;
 use App\Support\Instituciones;
 use App\Support\CedulaEscolar;
 use App\Support\Documento;
+use App\Support\DocumentosObligatorios;
+use App\Support\Validator;
 use App\Traits\InstitucionTrait;
 use App\Traits\UbicacionTrait;
 use App\Traits\ContactoValidacionTrait;
@@ -85,19 +88,9 @@ class InscripcionesController extends CrudController
     {
         $filters = [
             'q'       => trim($_GET['q'] ?? ''),
-            /* Solo el NOMBRE del filtro (q/grado/seccion) se usa como texto. El año
- NO se pasa crudo: si fuera un id que no existe, la lista saldría
- vacía sin explicación. getAnioSeleccionado() lo contrasta con los años
- reales y, si no está, cae en el que está en curso.*/
-            'anio'    => ctype_digit(trim((string) ($_GET['anio'] ?? ''))) ? (int) $_GET['anio'] : 0,
             'grado'   => trim($_GET['grado'] ?? ''),
             'seccion' => trim($_GET['seccion'] ?? ''),
-            /* Estado del alumno: 'activos' (por defecto, oculta a los retirados) o
- 'todos'. Se valida contra la lista en vez de pasar cualquier valor de
- la URL al modelo.*/
-            'estado'  => in_array($_GET['estado'] ?? '', ['activos', 'todos'], true)
-                            ? (string) $_GET['estado']
-                            : 'activos',
+            'estado'  => 'activos',
         ];
         $turno = $this->turnoSecretariaActual();
         if ($turno !== null) {
@@ -109,8 +102,7 @@ class InscripcionesController extends CrudController
     protected function getExtraIndexData(array $items, array $filters): array
     {
         $model            = $this->modelo();
-        $anios            = $model->getAniosEscolares();
-        $anioSeleccionado = $model->getAnioSeleccionado($filters);
+        $anioSeleccionado = $model->getAnioSeleccionado();
 
         /* Los filtros de grado y sección son los que ese AÑO tuvo, no el catálogo
  completo: el catálogo es global y ofrecería combinaciones que en ese período
@@ -120,10 +112,9 @@ class InscripcionesController extends CrudController
         $seccionesAnio = $model->getGradosSeccionesDelAnio($anioSeleccionado['id'], 'seccion');
 
         return [
-            /* El año se resuelve UNA vez y alimenta todo lo de abajo: la tabla, las
- tarjetas y los filtros. Si cada pieza lo sacara por su cuenta, con un año
- inválido en la URL se vería una lista vacía con tarjetas de otro año.*/
-            'anios'           => $anios,
+            /* El año activo se resuelve UNA vez y alimenta todo lo de abajo: la tabla,
+ las tarjetas y los filtros de grado y sección. Si cada pieza lo sacara por
+ su cuenta, podrían quedar desfasadas.*/
             'anioSeleccionado' => $anioSeleccionado,
             'anioEsLectura'   => $anioSeleccionado['es_lectura'],
 
@@ -133,10 +124,10 @@ class InscripcionesController extends CrudController
             'grados'          => $gradosAnio ?: $model->getOptions('grados'),
             'secciones'       => $seccionesAnio ?: $model->getOptions('secciones'),
 
-            /* Las combinaciones del wizard son SIEMPRE del año en curso, nunca del año
- que se está consultando: el wizard sirve para inscribir, y un año cerrado
- no admite inscripciones. Con el botón de nueva inscripción oculto en años
- cerrados, el wizard no llega a mostrarse en ese caso.*/
+            /* Las combinaciones del wizard son SIEMPRE del año en curso: el wizard
+ sirve para inscribir, y un año cerrado no admite inscripciones. Con el botón
+ de nueva inscripción oculto en años cerrados, el wizard no llega a mostrarse
+ en ese caso.*/
             'academico'       => $model->opcionesPasoAcademico($filters['id_turno'] ?? null),
 
             // Grados sueltos para el paso 2: el grado del colegio anterior no
@@ -145,6 +136,9 @@ class InscripcionesController extends CrudController
             'instituciones'   => $model->getInstituciones(),
             // Solo tipos de etapa del estudiante (preescolar o primaria).
             'tiposInstitucionEstudiante' => $model->getTiposInstitucionEstudiante(),
+            /* Ubicación y código DEA del modal de procedencia. */
+            'estadosGeo'                   => (new InstitucionModel($this->conexion()))->getEstadosGeo(),
+            'paises'                       => (new InstitucionModel($this->conexion()))->getPaises(),
             'catFamiliares'   => $model->getFamiliarCatalogs(),
             /* Nacionalidad del estudiante: catálogo propio, no el del sub-modal de
                familiares. Va suelto y no dentro de catFamiliares porque lo pinta otro
@@ -157,6 +151,8 @@ class InscripcionesController extends CrudController
             'estados'         => $model->getEstados(),
             'anioActivo'      => $model->getAnioActivo(),
             'anioEnCurso'     => \App\Support\AniosEscolares::nombreEnCurso($this->conexion()),
+            'minDateEstudiante' => ((int) substr((string) ($model->getAnioActivo()['anio_inicio'] ?? date('Y')), 0, 4) - 14) . '-01-01',
+            'maxDateEstudiante' => ((int) substr((string) ($model->getAnioActivo()['anio_inicio'] ?? date('Y')), 0, 4) - 6) . '-12-31',
         ];
     }
 
@@ -341,11 +337,28 @@ class InscripcionesController extends CrudController
             return $resultado;
         }
 
+        $digitosRep = ltrim(preg_replace('/\D/', '', $cedulaRepresentante) ?? '', '0');
+        if (strlen($digitosRep) < 7 || strlen($digitosRep) > 8) {
+            $resultado['error'] = 'Para generar la cédula escolar, la cédula del representante legal debe tener 7 u 8 dígitos.';
+            return $resultado;
+        }
+
         $fechaNacimiento = trim((string) ($source['fecha_nacimiento'] ?? ''));
+        if ($fechaNacimiento === '' || !$this->fechaValida($fechaNacimiento)) {
+            $resultado['error'] = 'Indique una fecha de nacimiento válida (YYYY-MM-DD) para generar la cédula escolar.';
+            return $resultado;
+        }
 
         try {
+            $orden = $this->modelo()->proximoOrdenHermano($cedulaRepresentante, $fechaNacimiento);
+            if ($orden > 9) {
+                return [
+                    'numero_documento' => null,
+                    'error' => 'Se superó el límite máximo de 9 hermanos con Cédula Escolar para el mismo año de nacimiento.',
+                ];
+            }
             $resultado['numero_documento'] = CedulaEscolar::generar(
-                $this->modelo()->proximoOrdenHermano($cedulaRepresentante, $fechaNacimiento),
+                $orden,
                 $fechaNacimiento,
                 $cedulaRepresentante,
                 $tipoRepresentante
@@ -393,6 +406,20 @@ class InscripcionesController extends CrudController
                 $this->borrarFoto($data['foto']);
             }
             $this->jsonResponse(false, null, $e->getMessage(), 403);
+        } catch (\PDOException $e) {
+            if ($data['foto'] !== null) {
+                $this->borrarFoto($data['foto']);
+            }
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(
+                    false,
+                    ['numero_documento' => 'El número de documento ya fue registrado concurrentemente por otro usuario. Intenta nuevamente.'],
+                    'Conflicto de documento duplicado.',
+                    422
+                );
+            }
+            $this->jsonError($e, static::class);
         } catch (CupoAgotadoException | Throwable $e) {
 
             // Revertir la foto subida en caso de excepción
@@ -412,7 +439,12 @@ class InscripcionesController extends CrudController
             $this->jsonError($e, static::class);
         }
 
-        $this->jsonResponse(true, null, 'Registro creado correctamente.');
+        $idEstudiante = $model->getUltimoEstudianteId();
+        $this->jsonResponse(
+            true,
+            $idEstudiante !== null ? ['id_estudiante' => $idEstudiante] : null,
+            'Registro creado correctamente.'
+        );
     }
 
     public function guardarInstitucion(): void
@@ -450,15 +482,38 @@ class InscripcionesController extends CrudController
             );
         }
 
-        $this->validarFechaNacimiento($p, $errores, 'fecha_nacimiento', 5, 14);
+        // Validación estricta de edad para educación primaria según el año escolar activo
+        $anioActivoInfo = $this->modelo()->getAnioActivo();
+        $inicioAnio = (int) substr((string) ($anioActivoInfo['anio_inicio'] ?? date('Y')), 0, 4);
+        if ($inicioAnio <= 0) {
+            $inicioAnio = (int) date('Y');
+        }
+        $this->validarFechaNacimientoEstudiante($p, $errores, $inicioAnio);
+
         $this->validarLugarNacimiento($p, $errores, true);
         $this->validarNacionalidad($p, $errores);
 
-        if ($p['primer_nombre'] === '') {
-            $errores['primer_nombre'] = 'Indique el primer nombre.';
+        $this->validarNombresApellidos($p, $errores);
+
+        if (!in_array($p['sexo'] ?? '', ['F', 'M'], true)) {
+            $errores['sexo'] = 'Selecciona el sexo.';
         }
-        if ($p['primer_apellido'] === '') {
-            $errores['primer_apellido'] = 'Indique el primer apellido.';
+
+        // Validación de tallas de uniforme (columnas varchar(10) en BD)
+        $talla = $data['talla_uniforme'] ?? [];
+        if (!empty($talla['camisa']) || !empty($talla['pantalon']) || !empty($talla['zapato'])) {
+            $valTalla = Validator::make($talla, [
+                'camisa'   => 'max_len:10',
+                'pantalon' => 'max_len:10',
+                'zapato'   => 'max_len:10',
+            ], [
+                'camisa.max_len'   => 'La talla de camisa no puede superar los 10 caracteres.',
+                'pantalon.max_len' => 'La talla de pantalón no puede superar los 10 caracteres.',
+                'zapato.max_len'   => 'La talla de zapato no puede superar los 10 caracteres.',
+            ]);
+            if (!$valTalla->passes()) {
+                $errores = array_merge($errores, $valTalla->errors());
+            }
         }
 
         /* El tipo de sangre es un ENUM en la base. Sin esta comprobación, un valor fuera de la
@@ -487,6 +542,22 @@ class InscripcionesController extends CrudController
         }
 
         $this->validarGradoProcedencia($data, $errores);
+
+        /* Reglas 1, 2 y 3: van al paso de recaudos (`estudiante_documento`), que es
+           donde la secretaría marca todos los documentos del alumno. */
+        $servicioDocumentos = new DocumentosObligatorios($this->conexion());
+        $faltantes = $servicioDocumentos->faltantesInscripcion(
+            (int) $data['es_primer_ingreso'] === 1,
+            $data['id_institucion'] > 0 ? (int) $data['id_institucion'] : null,
+            $data['ult_grado_cursado'],
+            $data['familiares'],
+            $data['recaudos'],
+            true
+        );
+
+        if ($faltantes !== []) {
+            $errores['recaudos'] = implode(' ', array_column($faltantes, 'mensaje'));
+        }
 
         return $errores;
     }

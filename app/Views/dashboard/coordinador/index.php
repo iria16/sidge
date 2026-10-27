@@ -1,29 +1,37 @@
 <?php
-
 declare(strict_types=1);
 
 /**
  * Vista: dashboard/coordinador/index.php
- * Placeholder de diseño hasta el módulo de coordinación.
+ * Panel de Coordinación: supervisión académica, matrícula escolar y estadísticas institucionales.
+ *
+ * Variables esperadas desde DashboardController::coordinador():
+ * @var string $saludo
+ * @var string $nombreUsuario
+ * @var array|null $anioActivo
+ * @var array $metricasMatricula
+ * @var array $metricasCapacidad
+ * @var array $metricasPersonal
+ * @var array $distribucionGrados
+ * @var array $avanceResultados
+ * @var array $alertas
+ * @var bool $esCoordinador
  */
-$pageTitle       = 'Dashboard';
-$currentNav      = 'dashboard';
-$breadcrumbs     = [
+
+$pageTitle   = 'Dashboard';
+$currentNav  = 'dashboard';
+
+$breadcrumbs = [
     ['label' => 'Panel', 'href' => BASE_URL . 'dashboard/coordinador'],
-    ['label' => 'Dashboard'],
+    ['label' => 'Dashboard', 'href' => null],
 ];
 
 ob_start();
-$pageHeading = 'Panel de coordinación';
-$pageSubheading = 'Seguimiento académico por grado. El contenido operativo se conectará más adelante.';
-include __DIR__ . '/../../components/page-header.php';
 ?>
-<section class="content-card">
-  <div class="content-card__empty">
-    <i class="bi bi-diagram-3" aria-hidden="true"></i>
-    <p>Este tablero estará disponible cuando se habilite el módulo de coordinación.</p>
-  </div>
-</section>
+<div class="container-fluid px-0">
+  <?php include __DIR__ . '/../partials/directivo-dashboard.php'; ?>
+</div>
 <?php
 $pageContent = ob_get_clean();
+
 include __DIR__ . '/../../layouts/app.php';

@@ -302,10 +302,18 @@ abstract class BaseController
     }
 
     /**
- * Guarda un mensaje flash en sesión antes de una redirección.
- * El tipo debe ser 'error', 'success' o 'info', las claves que lee getFlashMessages().
- * Cualquier otro tipo lanza una excepción, para no perder el mensaje en silencio.
-*/
+     * Guarda un mensaje flash en sesión antes de una redirección.
+     * El tipo debe ser 'error', 'success' o 'info', las claves que lee getFlashMessages().
+     * Cualquier otro tipo lanza una excepción, para no perder el mensaje en silencio.
+     *
+     * CRITERIO DE USO (setFlash vs setSwal):
+     * - setFlash(): Usar para avisos discretos en la cabecera de la página (banners Bootstrap
+     *   renderizados por partials/alert-flash.php). Ideal para el resultado ordinario de
+     *   operaciones de pantalla ("Registro actualizado", "Filtro no arrojó resultados").
+     * - setSwal(): Heredado de SecurityTrait. Usar para avisos críticos, informaciones de sesión
+     *   (sesión requerida, logout exitoso), bloqueos de cuenta o alertas modales interactivas
+     *   que requieran acuse de recibo explícito del usuario mediante SweetAlert2.
+     */
     protected function setFlash(string $type, string $message): void
     {
         if (!in_array($type, ['error', 'success', 'info'], true)) {

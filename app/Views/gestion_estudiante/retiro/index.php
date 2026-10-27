@@ -243,6 +243,27 @@ ob_start();
     </div>
 
     <div class="mb-3">
+      <label for="retiroFecha" class="label-sigde">Fecha del retiro</label>
+      <div class="input-icon-group">
+        <i class="bi bi-calendar-event" aria-hidden="true"></i>
+        <input type="date" class="form-control" id="retiroFecha" name="fecha_retiro"
+               value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>" required>
+      </div>
+      <div class="invalid-feedback" id="retiroFechaFeedback">Indique la fecha del retiro.</div>
+    </div>
+
+    <div class="mb-3">
+      <label for="retiroRepresentante" class="label-sigde">Representante legal o persona autorizada que retira</label>
+      <div class="input-icon-group">
+        <i class="bi bi-person-check" aria-hidden="true"></i>
+        <select class="form-select" id="retiroRepresentante" name="id_persona_representante" required disabled>
+          <option value="" selected disabled>Busque un estudiante primero</option>
+        </select>
+      </div>
+      <div class="invalid-feedback" id="retiroRepresentanteFeedback">Seleccione quién retira al estudiante.</div>
+    </div>
+
+    <div class="mb-3">
       <label for="retiroMotivo" class="label-sigde">Motivo del retiro</label>
       <div class="input-icon-group">
         <i class="bi bi-file-earmark-text" aria-hidden="true"></i>

@@ -16,10 +16,6 @@
  *                              (NO se escapa), para vistas que necesiten fijar anchos
  *                              de columna. Si no se pasa, no se imprime nada y la
  *                              tabla se comporta igual que siempre.
- * - string $panelTableClass   opcional. clases extra para el <table>, para vistas que
- *                              necesiten cambiar algo de la tabla en sí y no de sus
- *                              celdas (por ejemplo convertirla en tarjetas en
- *                              pantalla angosta). Sin valor, queda como siempre.
  * - string $panelTableHead    HTML del <thead>, ya armado (NO se escapa)
  * - string $panelTableBody    HTML del <tbody>, ya armado (NO se escapa)
  * - string $panelTableBodyId  opcional. id del <tbody>, para módulos con AJAX que
@@ -70,7 +66,7 @@ $panelToolbarTag = $panelFormAction !== '' ? 'form' : 'div';
   </div>
 
   <div class="data-panel__body">
-    <table class="table data-panel__table<?= $panelTableClass !== '' ? ' ' . htmlspecialchars($panelTableClass, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '' ?>">
+    <table class="table data-panel__table<?php echo $panelTableClass !== '' ? ' ' . htmlspecialchars($panelTableClass) : ''; ?>">
       <?php echo $panelColgroup; ?>
       <thead>
         <?php echo $panelTableHead; ?>
@@ -97,5 +93,5 @@ $panelToolbarTag = $panelFormAction !== '' ? 'form' : 'div';
   <?php endif; ?>
 </div>
 <?php
-unset($panelFilters, $panelFormAction, $panelFormId, $panelSearchName, $panelSearchValue, $panelSearchPlaceholder, $panelColgroup, $panelTableHead, $panelTableBody, $panelTableBodyId, $panelSummary, $panelSummaryId, $panelPagination, $panelToolbarTag);
+unset($panelFilters, $panelFormAction, $panelFormId, $panelSearchName, $panelSearchValue, $panelSearchPlaceholder, $panelColgroup, $panelTableClass, $panelTableHead, $panelTableBody, $panelTableBodyId, $panelSummary, $panelSummaryId, $panelPagination, $panelToolbarTag);
 ?>

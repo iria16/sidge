@@ -129,7 +129,7 @@ class EstudianteModel extends BaseModel implements Listable
     {
         [$where, $params] = $this->filters($filters);
         $matricula = $this->joinActual(
-            isset($filters['anio']) ? (int) $filters['anio'] : null,
+            isset($filters['anio']) && $filters['anio'] !== '' ? (int) $filters['anio'] : null,
             isset($filters['id_turno']) && $filters['id_turno'] !== '' ? (int) $filters['id_turno'] : null
         );
         $params = array_merge($matricula['params'], $params);
@@ -174,7 +174,7 @@ $sql = "SELECT est.id_estudiante AS id, est.id_estudiante,
     {
         [$where, $params] = $this->filters($filters);
         $matricula = $this->joinActual(
-            isset($filters['anio']) ? (int) $filters['anio'] : null,
+            isset($filters['anio']) && $filters['anio'] !== '' ? (int) $filters['anio'] : null,
             isset($filters['id_turno']) && $filters['id_turno'] !== '' ? (int) $filters['id_turno'] : null
         );
         $params = array_merge($matricula['params'], $params);
@@ -194,10 +194,10 @@ $sql = "SELECT est.id_estudiante AS id, est.id_estudiante,
     public function getStats(array $filters = []): array
     {
         $matricula = $this->joinActual(
-            isset($filters['anio']) ? (int) $filters['anio'] : null,
+            isset($filters['anio']) && $filters['anio'] !== '' ? (int) $filters['anio'] : null,
             isset($filters['id_turno']) && $filters['id_turno'] !== '' ? (int) $filters['id_turno'] : null
         );
-$sql = "SELECT COUNT(DISTINCT est.id_estudiante) AS total,
+        $sql = "SELECT COUNT(DISTINCT est.id_estudiante) AS total,
                        COUNT(DISTINCT CASE WHEN " . self::EXPRESION_ESTADO . " = 'activo'
                                            THEN est.id_estudiante END) AS activos,
                        COUNT(DISTINCT CASE WHEN " . self::EXPRESION_ESTADO . " = 'retirado'
@@ -223,16 +223,11 @@ $sql = "SELECT COUNT(DISTINCT est.id_estudiante) AS total,
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        $retirados = (int) ($row['retirados'] ?? 0);
-        $egresados = (int) ($row['egresados'] ?? 0);
         return [
             'total'     => (int) ($row['total'] ?? 0),
             'activos'   => (int) ($row['activos'] ?? 0),
-            'retirados' => $retirados,
-            'egresados' => $egresados,
-            // Quien no está activo es cualquiera de los dos desenlaces, que es lo que la
-            // tarjeta "Inactivos" resume; el desglose va en el filtro por estado.
-            'inactivos' => $retirados + $egresados,
+            'retirados' => (int) ($row['retirados'] ?? 0),
+            'egresados' => (int) ($row['egresados'] ?? 0),
         ];
     }
 
@@ -382,14 +377,17 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
         }
 
         return [
-            ['ea.id_estructura_academica IN (
-                SELECT ad.id_estructura_academica
-                  FROM asignacion_docente ad
-                  JOIN estructura_academica asignada ON asignada.id_estructura_academica = ad.id_estructura_academica
-                  JOIN anio_escolar asignada_anio ON asignada_anio.id_anio_escolar = asignada.id_anio_escolar
-                 WHERE ad.id_docente = :docente
-                   AND asignada_anio.estado = \'ACTIVO\'
-            )'],
+            [
+                'ea.id_estructura_academica IN (
+                    SELECT ad.id_estructura_academica
+                      FROM asignacion_docente ad
+                      JOIN estructura_academica asignada ON asignada.id_estructura_academica = ad.id_estructura_academica
+                      JOIN anio_escolar asignada_anio ON asignada_anio.id_anio_escolar = asignada.id_anio_escolar
+                     WHERE ad.id_docente = :docente
+                       AND asignada_anio.estado = \'ACTIVO\'
+                )',
+                Matriculas::condicionCursando('m'),
+            ],
             ['docente' => $idDocente],
         ];
     }
@@ -496,10 +494,12 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
         if (($filtros['autorizados'] ?? '') === 'sin') {
             $where[] = "NOT EXISTS (
                 SELECT 1 FROM persona_estudiante ax
+                 INNER JOIN persona axp ON axp.id_persona = ax.id_persona
                  WHERE ax.id_estudiante = e.id_estudiante
                    AND ax.es_representante_legal = 0
                    AND ax.es_autorizado_retiro = 1
-                   AND ax.estado_relacion = 'ACTIVO')";
+                   AND ax.estado_relacion = 'ACTIVO'
+                   AND axp.es_fallecido = 0)";
         }
 
         $literal = strtolower(trim((string) ($filtros['literal'] ?? '')));
@@ -529,10 +529,12 @@ c.numero_telefono_principal,
                        ra.literal,
                        (SELECT COUNT(*)
                           FROM persona_estudiante ax
+                          INNER JOIN persona axp ON axp.id_persona = ax.id_persona
                          WHERE ax.id_estudiante = e.id_estudiante
                            AND ax.es_representante_legal = 0
                            AND ax.es_autorizado_retiro = 1
-                           AND ax.estado_relacion = 'ACTIVO') AS autorizados_adicionales
+                           AND ax.estado_relacion = 'ACTIVO'
+                           AND axp.es_fallecido = 0) AS autorizados_adicionales
                   FROM matricula m
                   INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                   INNER JOIN persona p ON p.id_persona = e.id_persona
@@ -540,6 +542,10 @@ c.numero_telefono_principal,
                          ON pe.id_estudiante = e.id_estudiante
                         AND pe.es_representante_legal = 1
                         AND pe.estado_relacion = 'ACTIVO'
+                        AND EXISTS (
+                            SELECT 1 FROM persona pr
+                             WHERE pr.id_persona = pe.id_persona
+                               AND pr.es_fallecido = 0)
                   LEFT JOIN persona rep ON rep.id_persona = pe.id_persona
                   LEFT JOIN parentesco par ON par.id_parentesco = pe.id_parentesco
                   LEFT JOIN contacto c ON c.id_persona = pe.id_persona
@@ -556,8 +562,8 @@ c.numero_telefono_principal,
     }
 
     /**
-     * Nómina de solo lectura de la sección del docente (vistas nomina, contacto,
-     * acta y cumpleaneros). La pantalla y el PDF usan ESTA misma consulta.
+     * Nómina de solo lectura de la sección del docente (vistas nomina, contacto
+     * y cumpleaneros). La pantalla y el PDF usan ESTA misma consulta.
      *
      * Los filtros llegan ya validados por el Controller (lista blanca); aquí se
      * vuelven a acotar por tipo para que el método no dependa de quien lo llame.
@@ -584,7 +590,7 @@ c.numero_telefono_principal,
 
         /* BÚSQUEDA: un solo campo para todas las vistas, y busca por nombre,
            apellido Y representante legal. Antes solo lo buscaban el representante
-           en las vistas de acta y contacto, así que en Nómina y Cumpleañeros
+           en la vista de contacto, así que en Nómina y Cumpleañeros
            escribir el nombre del representante no encontraba a nadie. Cada
            parámetro nombrado se declara por separado porque con prepares nativos
            un mismo marcador no puede repetirse en la sentencia. Se compara el
@@ -622,16 +628,12 @@ c.numero_telefono_principal,
              - nombre:    1er nombre, 1er apellido
              - edad:      por fecha de nacimiento. Ascendente = del más joven al
                           mayor, o sea fecha de nacimiento DESC.
-           Cumpleañeros y Acta no son ordenables: el primero va siempre por día
-           del mes y el segundo por apellido, fijo. */
+           Cumpleañeros no es ordenable: va siempre por día del mes. */
         $sentido = strtolower(trim((string) ($filtros['sentido'] ?? 'asc'))) === 'desc' ? 'DESC' : 'ASC';
         $clave   = strtolower(trim((string) ($filtros['orden'] ?? 'apellido')));
 
         if ($vista === 'cumpleaneros') {
             $orderBy = 'DAY(p.fecha_nacimiento), p.primer_apellido, p.segundo_apellido, p.primer_nombre';
-        } elseif ($vista === 'acta') {
-            /* Fijo por apellido, sin opción de invertirlo. */
-            $orderBy = 'p.primer_apellido, p.segundo_apellido, p.primer_nombre, p.segundo_nombre';
         } else {
             $dir     = $sentido === 'DESC' ? 'DESC' : 'ASC';
             $desempate = ', p.primer_apellido, p.primer_nombre, e.id_estudiante';
@@ -672,17 +674,25 @@ c.numero_telefono_principal,
                        d.punto_referencia    AS rep_referencia,
                        parq.nombre           AS rep_parroquia,
                        mun.nombre            AS rep_municipio,
-                       est.nombre            AS rep_estado
+                       est.nombre            AS rep_estado,
+                       ra.literal,
+                       ra.estado_resultado,
+                       ra.id_resultado
                   FROM matricula m
                   INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                   INNER JOIN persona p ON p.id_persona = e.id_persona
+                  LEFT JOIN resultado_academico ra ON ra.id_matricula = m.id_matricula
                   LEFT JOIN persona_estudiante pe
                          ON pe.id_persona_estudiante = (
                               SELECT MIN(px.id_persona_estudiante)
                                 FROM persona_estudiante px
                                WHERE px.id_estudiante = e.id_estudiante
                                  AND px.es_representante_legal = 1
-                                 AND px.estado_relacion = 'ACTIVO')
+                                 AND px.estado_relacion = 'ACTIVO'
+                                 AND EXISTS (
+                                     SELECT 1 FROM persona pr
+                                      WHERE pr.id_persona = px.id_persona
+                                        AND pr.es_fallecido = 0))
                   LEFT JOIN persona rep ON rep.id_persona = pe.id_persona
                   LEFT JOIN parentesco par ON par.id_parentesco = pe.id_parentesco
                   LEFT JOIN contacto c ON c.id_persona = pe.id_persona
@@ -719,6 +729,10 @@ c.numero_telefono_principal,
                 $f['rep_estado']    ?? null,
                 $f['rep_referencia'] ?? null
             );
+
+            $f['literal']          = $f['literal'] ?? null;
+            $f['estado_resultado'] = $f['estado_resultado'] ?? 'PENDIENTE';
+            $f['id_resultado']     = $f['id_resultado'] !== null ? (int) $f['id_resultado'] : null;
         }
         unset($f);
 
@@ -791,6 +805,28 @@ c.numero_telefono_principal,
     }
 
     /**
+     * Retorna los sectores/urbanizaciones únicos de los estudiantes cursando en la sección.
+     *
+     * @return array<int,string>
+     */
+    public function sectoresSeccion(int $seccionId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT DISTINCT d.sector_urbanizacion
+             FROM matricula m
+             INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
+             INNER JOIN direccion d ON d.id_persona = e.id_persona
+             WHERE m.id_estructura_academica = :id
+               AND " . Matriculas::condicionCursando('m') . "
+               AND d.sector_urbanizacion IS NOT NULL
+               AND TRIM(d.sector_urbanizacion) != ''
+             ORDER BY d.sector_urbanizacion ASC"
+        );
+        $stmt->execute(['id' => $seccionId]);
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+    }
+
+    /**
      * Personas autorizadas para retirar a cada estudiante (sin el representante
      * legal, que ya sale en su propia columna), con su parentesco y sus teléfonos.
      *
@@ -820,6 +856,7 @@ c.numero_telefono_principal,
                 AND ax.es_autorizado_retiro = 1
                 AND ax.es_representante_legal = 0
                 AND ax.estado_relacion = 'ACTIVO'
+                AND pa.es_fallecido = 0
               ORDER BY ax.id_estudiante, pa.primer_apellido, pa.segundo_apellido, pa.primer_nombre"
         );
         $stmt->execute($idsEstudiantes);
@@ -900,7 +937,7 @@ c.numero_telefono_principal,
             $sexo = strtoupper((string) ($f['sexo'] ?? ''));
             if ($sexo === 'M') {
                 $varones++;
-            } else {
+            } elseif ($sexo === 'F') {
                 $hembras++;
             }
             $edad = (int) ($f['edad'] ?? 0);
@@ -909,19 +946,23 @@ c.numero_telefono_principal,
             $edadMax = $edadMax === null ? $edad : max($edadMax, $edad);
         }
 
+        $sinEspecificar = max(0, $total - ($varones + $hembras));
         $pctVarones = $total > 0 ? round(($varones / $total) * 100, 1) : 0.0;
         $pctHembras = $total > 0 ? round(($hembras / $total) * 100, 1) : 0.0;
+        $pctSinEspecificar = $total > 0 ? round(($sinEspecificar / $total) * 100, 1) : 0.0;
         $promedio   = $total > 0 ? round($sumaEdades / $total, 1) : 0.0;
 
         return [
-            'total'         => $total,
-            'varones'       => $varones,
-            'pct_varones'   => $pctVarones,
-            'hembras'       => $hembras,
-            'pct_hembras'   => $pctHembras,
-            'edad_promedio' => $promedio,
-            'edad_min'      => $edadMin,
-            'edad_max'      => $edadMax,
+            'total'               => $total,
+            'varones'             => $varones,
+            'pct_varones'         => $pctVarones,
+            'hembras'             => $hembras,
+            'pct_hembras'         => $pctHembras,
+            'sin_especificar'     => $sinEspecificar,
+            'pct_sin_especificar' => $pctSinEspecificar,
+            'edad_promedio'       => $promedio,
+            'edad_min'            => $edadMin,
+            'edad_max'            => $edadMax,
         ];
     }
 
@@ -945,7 +986,7 @@ c.numero_telefono_principal,
             $sexo = strtoupper((string) ($f['sexo'] ?? ''));
             if ($sexo === 'M') {
                 $varones++;
-            } else {
+            } elseif ($sexo === 'F') {
                 $hembras++;
             }
             $edad = (int) ($f['edad'] ?? 0);
@@ -977,13 +1018,17 @@ c.numero_telefono_principal,
             ];
         }
 
+        $sinEspecificar = max(0, $total - ($varones + $hembras));
+
         return [
             'total' => $total,
             'sexo'  => [
-                'varones'     => $varones,
-                'pct_varones' => $total > 0 ? round(($varones / $total) * 100, 1) : 0.0,
-                'hembras'     => $hembras,
-                'pct_hembras' => $total > 0 ? round(($hembras / $total) * 100, 1) : 0.0,
+                'varones'             => $varones,
+                'pct_varones'         => $total > 0 ? round(($varones / $total) * 100, 1) : 0.0,
+                'hembras'             => $hembras,
+                'pct_hembras'         => $total > 0 ? round(($hembras / $total) * 100, 1) : 0.0,
+                'sin_especificar'     => $sinEspecificar,
+                'pct_sin_especificar' => $total > 0 ? round(($sinEspecificar / $total) * 100, 1) : 0.0,
             ],
             'edades' => $edades,
         ];
@@ -1034,6 +1079,7 @@ c.numero_telefono_principal,
                INNER JOIN persona p ON p.id_persona = e.id_persona
               WHERE m.id_estructura_academica = :estructura
                 AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                AND " . Matriculas::condicionCursando('m') . "
                 AND MONTH(p.fecha_nacimiento) = :mes
               ORDER BY dia_nac ASC, p.primer_nombre ASC, p.primer_apellido ASC"
         );
@@ -1181,10 +1227,13 @@ c.numero_telefono_principal,
         $params = array_merge($params, $paramsDocente);
 
         if (!empty($filters['q'])) {
-            foreach (['p.primer_nombre', 'p.primer_apellido', 'p.numero_documento'] as $i => $col) {
-                $params["q$i"] = '%' . $filters['q'] . '%';
-            }
-            $where[] = "(p.primer_nombre LIKE :q0 OR p.primer_apellido LIKE :q1 OR p.numero_documento LIKE :q2)";
+            $termino = '%' . trim((string) $filters['q']) . '%';
+            $params['q0'] = $termino;
+            $params['q1'] = $termino;
+            $params['q2'] = $termino;
+            $where[] = "(CONCAT_WS(' ', p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido) LIKE :q0"
+                . " OR CONCAT_WS(' ', p.primer_apellido, p.segundo_apellido, p.primer_nombre, p.segundo_nombre) LIKE :q1"
+                . " OR p.numero_documento LIKE :q2)";
         }
         if (!empty($filters['grado'])) {
             $where[] = 'g.nombre = :grado';
@@ -1195,15 +1244,11 @@ c.numero_telefono_principal,
             $params['seccion'] = $filters['seccion'];
         }
         /* El filtro trabaja sobre el estado del CICLO (la misma expresión que la columna), no
- sobre `persona.estado`: un egresado no tiene por qué estar inactivo como persona,
- y con el filtro anterior se podía filtrar "activos" y recibirlos como si lo
- fueran. Los tres valores son excluyentes, así que `inactivo` agrupa a los dos
- desenlaces finales para no romper los enlaces ya compartidos.*/
+ sobre `persona.estado`: los tres estados reales del estudiante en el plantel son
+ `activo`, `retirado` y `egresado`.*/
         if (!empty($filters['estado'])) {
             $estado = strtolower(trim((string) $filters['estado']));
-            if ($estado === 'inactivo') {
-                $where[] = "(" . self::EXPRESION_ESTADO . " IN ('retirado', 'egresado'))";
-            } elseif (in_array($estado, ['activo', 'retirado', 'egresado'], true)) {
+            if (in_array($estado, ['activo', 'retirado', 'egresado'], true)) {
                 $where[] = self::EXPRESION_ESTADO . " = :estado_ciclo";
                 $params['estado_ciclo'] = $estado;
             }

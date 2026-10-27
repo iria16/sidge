@@ -1,7 +1,7 @@
 <?php
 /**
  * Paso 5 - Historial académico.
- * La tabla se llena desde empleado-alta.js con los títulos agregados en el modal
+ * La tabla se llena desde empleado.js con los títulos agregados en el modal
  * modals/add-title-modal.php y se serializa en el hidden #titulosJson del wizard.
  */
 ?>

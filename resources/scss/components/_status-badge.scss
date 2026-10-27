@@ -22,6 +22,10 @@
     flex-shrink: 0;
   }
 
+  &--with-icon::before {
+    display: none;
+  }
+
   &--active {
     background: rgba($success, 0.12);
     color: shade-color($success, 5%);

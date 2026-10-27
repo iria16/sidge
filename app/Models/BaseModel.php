@@ -58,38 +58,101 @@ abstract class BaseModel extends Model
         return (int) $stmt->fetchColumn();
     }
 
+    /** @var array<string, array<string>> Cache de columnas por tabla */
+    private static array $columnCache = [];
+
+    /**
+     * Obtiene la lista de columnas reales de la tabla (con cache en memoria).
+     *
+     * @return array<string>
+     */
+    protected function getTableColumns(): array
+    {
+        if (!isset(self::$columnCache[$this->table])) {
+            $stmt = $this->pdo->query("SHOW COLUMNS FROM `{$this->table}`");
+            self::$columnCache[$this->table] = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        }
+
+        return self::$columnCache[$this->table];
+    }
+
+    /**
+     * Comprueba que todas las claves del arreglo correspondan a columnas reales de la tabla.
+     *
+     * @throws \InvalidArgumentException si se detecta una columna que no existe en el esquema.
+     */
+    protected function validarColumnas(array $data): void
+    {
+        $columnasReales = $this->getTableColumns();
+        foreach (array_keys($data) as $columna) {
+            if (!in_array($columna, $columnasReales, true)) {
+                throw new \InvalidArgumentException("La columna '{$columna}' no existe en la tabla '{$this->table}'.");
+            }
+        }
+    }
+
     /**
      * Busca un registro por su clave primaria; devuelve null si no existe.
      */
     public function getById(int $id): ?array
     {
-        $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE {$this->primaryKey} = :id");
-        $stmt->execute(['id' => $id]);
+        $stmt = $this->pdo->prepare("SELECT * FROM `{$this->table}` WHERE `{$this->primaryKey}` = :p_pk");
+        $stmt->execute([':p_pk' => $id]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
     /**
-     * Inserta un registro; las claves de $data deben ser nombres de columna reales.
-     * Los nombres de columna van directo al SQL, así que nunca deben venir del usuario.
+     * Inserta un registro validando que las columnas existan en la tabla
+     * y asociando parámetros con prefijo nombrado :p_columna.
+     *
+     * @throws \InvalidArgumentException si $data está vacío o contiene columnas inexistentes.
      */
     public function create(array $data): bool
     {
+        if (empty($data)) {
+            throw new \InvalidArgumentException("No se proporcionaron datos para insertar en la tabla '{$this->table}'.");
+        }
+
+        $this->validarColumnas($data);
+
         $cols = array_keys($data);
-        $ph   = array_map(fn($c) => ":$c", $cols);
-        $sql  = "INSERT INTO {$this->table} (" . implode(',', $cols) . ") VALUES (" . implode(',', $ph) . ")";
-        return $this->pdo->prepare($sql)->execute($data);
+        $ph   = array_map(fn($c) => ":p_$c", $cols);
+        $sql  = "INSERT INTO `{$this->table}` (`" . implode('`,`', $cols) . "`) VALUES (" . implode(',', $ph) . ")";
+
+        $params = [];
+        foreach ($data as $col => $val) {
+            $params[":p_$col"] = $val;
+        }
+
+        return $this->pdo->prepare($sql)->execute($params);
     }
 
     /**
      * Actualiza las columnas indicadas en $data del registro con ese id.
-     * Igual que create(), las claves de $data van directo al SQL.
+     * Excluye la clave primaria del SET antes de validar que queden datos por actualizar.
+     *
+     * @throws \InvalidArgumentException si no hay datos para actualizar tras excluir la PK
+     *                                   o si se especifican columnas ajenas a la tabla.
      */
     public function update(int $id, array $data): bool
     {
-        $sets = array_map(fn($c) => "$c = :$c", array_keys($data));
-        $sql  = "UPDATE {$this->table} SET " . implode(',', $sets) . " WHERE {$this->primaryKey} = :id";
-        $data['id'] = $id;
-        return $this->pdo->prepare($sql)->execute($data);
+        unset($data[$this->primaryKey]);
+
+        if (empty($data)) {
+            throw new \InvalidArgumentException("No hay datos para actualizar en la tabla '{$this->table}'.");
+        }
+
+        $this->validarColumnas($data);
+
+        $sets = array_map(fn($c) => "`$c` = :p_$c", array_keys($data));
+        $sql  = "UPDATE `{$this->table}` SET " . implode(',', $sets) . " WHERE `{$this->primaryKey}` = :p_pk";
+
+        $params = [':p_pk' => $id];
+        foreach ($data as $col => $val) {
+            $params[":p_$col"] = $val;
+        }
+
+        return $this->pdo->prepare($sql)->execute($params);
     }
 
     /**
@@ -97,8 +160,8 @@ abstract class BaseModel extends Model
      */
     public function delete(int $id): bool
     {
-        return $this->pdo->prepare("DELETE FROM {$this->table} WHERE {$this->primaryKey} = :id")
-                         ->execute(['id' => $id]);
+        return $this->pdo->prepare("DELETE FROM `{$this->table}` WHERE `{$this->primaryKey}` = :p_pk")
+                         ->execute([':p_pk' => $id]);
     }
 
     /**
@@ -107,11 +170,11 @@ abstract class BaseModel extends Model
      */
     public function toggleStatus(int $id, string $field = 'estado'): bool
     {
-        $sql = "UPDATE {$this->table} 
-                SET $field = CASE WHEN $field = 'ACTIVO' THEN 'INACTIVO' ELSE 'ACTIVO' END
-                WHERE {$this->primaryKey} = :id";
+        $sql = "UPDATE `{$this->table}` 
+                SET `$field` = CASE WHEN `$field` = 'ACTIVO' THEN 'INACTIVO' ELSE 'ACTIVO' END
+                WHERE `{$this->primaryKey}` = :p_pk";
         
-        return $this->pdo->prepare($sql)->execute(['id' => $id]);
+        return $this->pdo->prepare($sql)->execute([':p_pk' => $id]);
     }
 
     /**

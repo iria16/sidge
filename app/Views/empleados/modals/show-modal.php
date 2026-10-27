@@ -2,12 +2,12 @@
 /**
  * app/Views/empleados/modals/show-modal.php
  * Modal "Detalle del Empleado". Se puebla vía JS tras un GET a
- * empleados/show?id=...; el contrato con modules/empleados/empleado-listado.js son los atributos
+ * empleados/show?id=...; el contrato con empleado.js son los atributos
  * [data-campo] (y [data-campo-foto], [data-campo-iniciales]).
  * Usa components/modal.php + user-detail + wizard-summary.
  *
  * IMPORTANTE: usa los MISMOS data-campo del archivo original.
- * No requiere cambios en ese JS ni en el backend.
+ * No requiere cambios en empleado.js ni en el backend.
 */
 
 // Helper local: imprime un par label/valor dentro de un wizard-summary__grid.

@@ -35,7 +35,7 @@ class ListadoPdf
      * @param array  $config           Configuración institucional de Configuracion::getAll()
      * @param array  $seccion          Detalles de la sección y docente
      * @param array  $estudiantes      Lista de estudiantes con representantes y contactos
-     * @param string $tipoDocumento    'nomina' | 'contactos' | 'asistencia'
+     * @param string $tipoDocumento    'nomina' | 'contactos'
      * @param array  $opcionesColumnas Array asociativo con toggles ('mostrar_cedula_escolar', 'mostrar_telefono', 'mostrar_retiro')
      * @return string Binario PDF generado
      */
@@ -97,11 +97,6 @@ class ListadoPdf
                 $tituloDocumento = 'DIRECTORIO DE CONTACTOS Y DATOS FAMILIARES';
                 $subtituloDoc    = 'Ficha de Emergencias y Localización Inmediata';
                 $badgeDoc        = 'CON DATOS FAMILIARES';
-                break;
-            case 'asistencia':
-                $tituloDocumento = 'REGISTRO DE ASISTENCIA A ASAMBLEA / REUNIÓN';
-                $subtituloDoc    = 'Control de Firmas de Padres y Representantes';
-                $badgeDoc        = 'CONTROL DE ASISTENCIA';
                 break;
             case 'nomina':
             default:

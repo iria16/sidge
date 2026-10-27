@@ -590,18 +590,6 @@ window.SIGDEUI = (function () {
     return palabras.join(' ');
   }
 
-  /* Fechas. '2024-03-15' -> '15/03/2024'. Sin pasar por Date a propósito: Date interpretaría
-   '2024-03-15' como medianoche UTC y en una zona horaria negativa mostraría el día anterior.
-   Recorta a los 10 primeros caracteres porque un DATETIME ('2024-03-15 00:00:00') también debe
-   salir como fecha, no con la hora pegada. Vive aquí porque lo usan el módulo de empleados y el
-   de años escolares, que antes tenían cada uno su copia. NO es el formateador de fecha y hora de
-   cuentas.js, que sí usa toLocaleString a propósito. */
-  function formatearFechaCorta(valor) {
-    if (!valor) return '—';
-    var partes = String(valor).slice(0, 10).split('-');
-    return partes.length === 3 ? partes[2] + '/' + partes[1] + '/' + partes[0] : valor;
-  }
-
   /* ── Catálogos*/
 
   /**
@@ -656,6 +644,17 @@ window.SIGDEUI = (function () {
   /* ── Antirrebote*/
 
   /**
+   * Formatea una fecha ISO (YYYY-MM-DD o YYYY-MM-DD HH:mm:ss) a formato DD/MM/YYYY.
+   * Si el valor es nulo o vacío, devuelve '—'.
+   */
+  function formatearFechaCorta(iso) {
+    if (!iso) return '—';
+    var partes = String(iso).trim().split(' ')[0].split('-');
+    if (partes.length !== 3 || partes[0].length !== 4) return String(iso);
+    return partes[2] + '/' + partes[1] + '/' + partes[0];
+  }
+
+  /**
  * Envuelve una función para que solo corra tras 'ms' sin nuevas llamadas.
  * Reemplaza los setTimeout dispersos que cada módulo repite.
  *
@@ -690,11 +689,12 @@ window.SIGDEUI = (function () {
     rellenarSelect: rellenarSelect,
     filtrarOpciones: filtrarOpciones,
     guardarCatalogoRapido: guardarCatalogoRapido,
+    formatearFechaCorta: formatearFechaCorta,
+    formatearFecha: formatearFechaCorta,
     esDebounced: esDebounced,
-      escapeHtml: escapeHtml,
-      formatearFechaCorta: formatearFechaCorta,
-      mostrarErroresDeCampos: mostrarErroresDeCampos,
-      limpiarErroresDeCampos: limpiarErroresDeCampos,
+    escapeHtml: escapeHtml,
+    mostrarErroresDeCampos: mostrarErroresDeCampos,
+    limpiarErroresDeCampos: limpiarErroresDeCampos,
     normalizarNombre: normalizarNombre
   };
 })();

@@ -33,9 +33,10 @@ final class PdfRecursos
      * y no hay que concatenar nada en tiempo de ejecución.
      */
     private const HOJAS_POR_DOCUMENTO = [
-        'constancia' => 'constancia',
-        'ficha'      => 'ficha-estudiante',
-        'nomina'     => 'nomina-seccion',
+        'constancia'       => 'constancia',
+        'ficha'            => 'ficha-estudiante',
+        'nomina'           => 'nomina-seccion',
+        'reporte-personal' => 'reporte-personal',
     ];
 
     /**
@@ -46,7 +47,7 @@ final class PdfRecursos
      * con el sistema de archivos del servidor. Leer el archivo y embeberlo evita
      * depender de cómo esté montado public/.
      *
-     * @param string $documento 'constancia' o 'ficha'.
+     * @param string $documento Clave del documento ('constancia', 'ficha', 'nomina' o 'reporte-personal').
      * @throws RuntimeException Si el documento no existe o falta su archivo CSS.
      */
     public static function estilos(string $documento): string

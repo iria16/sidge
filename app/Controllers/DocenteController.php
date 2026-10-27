@@ -8,6 +8,7 @@ use App\Models\BitacoraModel;
 use App\Models\EstudianteModel;
 use App\Models\TeacherAssignmentModel;
 use App\Support\Configuracion;
+use App\Support\ConQuienVive;
 use App\Support\NominaPdf;
 use App\Traits\TextoTrait;
 use DateTimeImmutable;
@@ -108,94 +109,264 @@ class DocenteController extends BaseController
     }
 
     /* ======================================================================
+       /docente  ·  Inicio
+       ====================================================================== */
+
+    public function index(): void
+    {
+        $this->exigirDocente();
+        (new DocenteDashboardController())->index();
+    }
+
+    /* ======================================================================
+       /docente/seccion  ·  Nómina
+       ====================================================================== */
+
+    public function seccion(): void
+    {
+        $this->exigirDocente();
+        $base              = $this->datosComunes();
+        $seccion           = $base['seccion'];
+        $tieneSeccion      = $base['tieneSeccion'];
+        $idEstructura      = $base['idEstructura'];
+
+        $filtros = [
+            'q'           => trim((string) ($_GET['q'] ?? '')),
+            'sexo'        => trim((string) ($_GET['sexo'] ?? '')),
+            'vive_con'    => trim((string) ($_GET['vive_con'] ?? '')),
+            'contacto'    => trim((string) ($_GET['contacto'] ?? '')),
+            'autorizados' => trim((string) ($_GET['autorizados'] ?? '')),
+            'literal'     => trim((string) ($_GET['literal'] ?? '')),
+        ];
+
+        $nomina   = [];
+        $agrupado = [];
+
+        if ($tieneSeccion) {
+            try {
+$nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
+
+                /* Agrupar por representante es solo una forma de presentar las
+                   MISMAS filas ya filtradas: no cambia el conjunto de datos, así
+                   que el contador de arriba sigue siendo el de la tabla. */
+                $agrupado = $this->agruparPorRepresentante($nomina);
+            } catch (Throwable $e) {
+                error_log('DocenteController::seccion(): ' . $e->getMessage());
+            }
+        }
+
+        $tieneFiltros = (bool) array_filter($filtros, static fn($v) => $v !== '');
+
+        require_once __DIR__ . '/../Views/docente/seccion.php';
+    }
+
+    /**
+     * Reordena la nómina bajo cada representante.
+     *
+     * @param  array<int,array<string,mixed>> $nomina
+     * @return array<int,array<string,mixed>>
+     */
+    private function agruparPorRepresentante(array $nomina): array
+    {
+        $grupos = [];
+        foreach ($nomina as $f) {
+            /* Clave: el id del representante. Si el estudiante no tiene
+               representante se usa su propio id para que no se junte con nadie. */
+            $clave = $f['id_representante'] ? ('rep:' . $f['id_representante'])
+                                            : ('est:' . $f['id_estudiante']);
+
+            if (!isset($grupos[$clave])) {
+                $grupos[$clave] = [
+                    'id_representante' => $f['id_representante'],
+                    'representante'    => $f['representante'] ?: 'Sin representante',
+                    'parentesco'       => $f['parentesco'],
+                    'telefono'         => $f['numero_telefono_principal'] ?: '',
+                    'codigo_telefono'  => $f['codigo_telefono_principal'] ?: '',
+                    'estudiantes'      => [],
+                ];
+            }
+            $grupos[$clave]['estudiantes'][] = $f;
+        }
+
+        uasort($grupos, static function (array $a, array $b): int {
+            return strcasecmp($a['representante'], $b['representante']);
+        });
+
+        return $grupos;
+    }
+
+    /* ======================================================================
+       /docente/estudiante  ·  Ficha
+       ====================================================================== */
+
+    public function estudiante(): void
+    {
+        $this->exigirDocente();
+        $base              = $this->datosComunes();
+        $seccion           = $base['seccion'];
+        $tieneSeccion      = $base['tieneSeccion'];
+        $idEstructura      = $base['idEstructura'];
+
+        $idEstudiante = (int) ($_GET['id'] ?? 0);
+        if ($idEstudiante <= 0) {
+            header('Location: ' . BASE_URL . 'docente/seccion');
+            exit;
+        }
+
+        $ficha      = null;
+        $familiares = [];
+
+        /* El acotado está en getFichaDocente(): si el estudiante no está en la
+           sección del docente no devuelve fila, y aquí se responde 404. Cambiar
+           el id en la URL no da acceso a ninguna ficha ajena. */
+        if ($tieneSeccion) {
+            try {
+                $ficha = $this->getModel()->getFichaDocente($idEstructura, $idEstudiante);
+                if ($ficha !== null) {
+                    $familiares = $this->getModel()->getFamiliaresDocente($idEstudiante);
+                }
+            } catch (Throwable $e) {
+                error_log('DocenteController::estudiante(): ' . $e->getMessage());
+            }
+        }
+
+        if ($ficha === null) {
+            header('HTTP/1.1 404 Not Found');
+            echo '<!DOCTYPE html><meta charset="utf-8"><title>No encontrado</title>'
+               . '<p>No encontramos ese expediente.</p>';
+            exit;
+        }
+
+        /* El representante no se repite en la lista de autorizados: la vista
+           lo recibe una vez y lo marca como tal. */
+        $representante = null;
+        $autorizados   = [];
+        foreach ($familiares as $f) {
+            if ((int) $f['es_representante_legal'] === 1) {
+                $representante = $f;
+            } else {
+                $autorizados[] = $f;
+            }
+        }
+
+        $ficha['con_quien_vive_texto'] =
+            ConQuienVive::etiqueta($ficha['con_quien_vive'] ?? null);
+
+        require_once __DIR__ . '/../Views/docente/estudiante.php';
+    }
+
+    /* ======================================================================
+       /docente/buscar  ·  Búsqueda por AJAX de la nómina
+       ====================================================================== */
+
+    public function buscar(): void
+    {
+        $this->exigirDocente();
+        $base = $this->datosComunes();
+
+        if (!$base['tieneSeccion']) {
+            $this->jsonResponse(true, ['nomina' => [], 'total' => 0]);
+        }
+
+        $filtros = [
+            'q'           => trim((string) ($_GET['q'] ?? '')),
+            'sexo'        => trim((string) ($_GET['sexo'] ?? '')),
+            'vive_con'    => trim((string) ($_GET['vive_con'] ?? '')),
+            'contacto'    => trim((string) ($_GET['contacto'] ?? '')),
+            'autorizados' => trim((string) ($_GET['autorizados'] ?? '')),
+            'literal'     => trim((string) ($_GET['literal'] ?? '')),
+        ];
+
+        try {
+            $nomina = $this->getModel()->getNominaDocente($base['idEstructura'], $filtros);
+        } catch (Throwable $e) {
+            error_log('DocenteController::buscar(): ' . $e->getMessage());
+            $this->jsonResponse(false, null, 'No se pudo consultar la nómina.', 500);
+        }
+
+        $this->jsonResponse(true, ['nomina' => $nomina, 'total' => count($nomina)]);
+    }
+
+    /* ======================================================================
        /docente/nomina  ·  Listados de solo lectura (pantalla, impresión y PDF)
        ====================================================================== */
 
     /**
      * Vistas permitidas al docente y las columnas de cada una. Es la lista
-     * blanca: cualquier otro valor de ?vista= se rechaza con 422.
-     */
-    /**
-     * Pestañas de "Listados y Actas". El ORDEN del arreglo es el ORDEN de las
-     * pestañas en pantalla, así que va en el orden en que se leen:
-     * Nómina, Contacto, Direcciones, Cumpleañeros, Autorizados, Acta.
+     * blanca: cualquier otro valor de ?vista= se rechaza con 422. La vista de
+     * hermanos es del rol Directivo y por eso no está aquí.
      */
     private const VISTAS_NOMINA = [
         'nomina' => [
             'etiqueta' => 'Nómina',
             'titulo'   => 'Nómina de estudiantes',
             'columnas' => ['n', 'cedula', 'estudiante', 'sexo', 'fecha_nac', 'edad'],
-            'filtros'  => ['sexo', 'q'],
+            'filtros'  => ['sexo', 'orden', 'q'],
         ],
         'contacto' => [
-            'etiqueta' => 'Contacto',
+            'etiqueta' => 'Contactos',
             'titulo'   => 'Directorio de contactos',
             'columnas' => ['estudiante', 'representante', 'telefonos_rep'],
-            'filtros'  => ['q'],
-        ],
-        /* El domicilio del representante tiene su propia vista y no una columna fija
-           en el directorio. Es un dato que se consulta pocas veces y que ocupa
-           bastante ancho: dejarlo siempre visible empujaba las columnas útiles
-           fuera de la pantalla. Quien lo necesita entra por el chip. */
-        'direcciones' => [
-            'etiqueta' => 'Direcciones',
-            'titulo'   => 'Direcciones de los representantes',
-            'columnas' => ['estudiante', 'representante', 'direccion_rep'],
-            'filtros'  => ['q'],
+            'filtros'  => ['orden', 'q'],
         ],
         'cumpleaneros' => [
             'etiqueta' => 'Cumpleañeros',
             'titulo'   => 'Cumpleañeros del mes',
             'columnas' => ['dia', 'estudiante', 'edad_cumple'],
-            'filtros'  => ['mes', 'q'],
+            'filtros'  => ['mes', 'orden', 'q'],
         ],
-        /* Quién, además del representante legal, está autorizado a retirar al
-           alumno. Tiene su propia vista y no cuelga del directorio de contactos:
-           la mayoría de los alumnos no tiene a nadie, y una columna fija con eso
-           en casi todas las filas solo servía para empujar las demás.
-           No repite el representante legal: ya está en la pestaña Contacto, y
-           aquí solo es ruido al lado del nombre del alumno. */
-        'autorizados' => [
-            'etiqueta' => 'Autorizados para retiro',
-            'titulo'   => 'Personas autorizadas para retirar a cada alumno',
-            'columnas' => ['estudiante', 'autorizado', 'parentesco_aut', 'telefono_aut'],
-            'filtros'  => ['q'],
+        'boletas' => [
+            'etiqueta' => 'Certificados de Calificaciones',
+            'titulo'   => 'Certificados de Calificaciones',
+            'columnas' => ['n', 'cedula', 'estudiante', 'literal', 'promocion', 'boleta'],
+            'filtros'  => ['orden', 'q'],
         ],
-        'acta' => [
-            /* Sale como pestaña, igual que las demás. Antes vivía en un modal que
-               se abría desde el botón del encabezado; ahora es una vista más de
-               la lista: se abre en su propia pestaña y su contenido se ve de
-               entrada, sin un clic de más. El motivo y la fecha que pide el
-               documento se escriben al pie de esa misma pestaña.
+    ];
 
-               No tiene filtros a propósito: es un documento, no una lista que se
-               pueda filtrar, así que la barra se queda solo con el buscador
-               apagado y sin selectores. */
-            'etiqueta' => 'Acta de firma',
-            'titulo'   => 'Acta de asistencia de representantes',
-            'columnas' => ['n', 'estudiante', 'representante', 'firma'],
-            'filtros'  => [],
+    /** Opciones de ordenamiento permitidas por cada vista (pantalla y PDF). */
+    public const ORDENES_NOMINA = [
+        'nomina' => [
+            'apellidos_asc'  => 'Apellidos (A–Z)',
+            'apellidos_desc' => 'Apellidos (Z–A)',
+            'edad_asc'       => 'Edad (de menor a mayor)',
+            'edad_desc'      => 'Edad (de mayor a menor)',
+        ],
+        'contacto' => [
+            'apellidos_asc'  => 'Apellidos (A–Z)',
+            'apellidos_desc' => 'Apellidos (Z–A)',
+        ],
+        'cumpleaneros' => [
+            'dia_asc'        => 'Día del mes (1–31)',
+            'dia_desc'       => 'Día del mes (31–1)',
+            'edad_asc'       => 'Edad que cumple (menor a mayor)',
+            'edad_desc'      => 'Edad que cumple (mayor a menor)',
+            'apellidos_asc'  => 'Apellidos (A–Z)',
+        ],
+        'boletas' => [
+            'apellidos_asc'  => 'Apellidos (A–Z)',
+            'apellidos_desc' => 'Apellidos (Z–A)',
         ],
     ];
 
     /** Encabezado visible de cada columna (pantalla y PDF). */
     private const COLUMNAS_NOMINA = [
-        'n'               => 'N°',
-        'cedula'          => 'Cédula escolar',
-        'estudiante'      => 'Apellidos y nombres',
-        'sexo'            => 'Sexo',
-        'fecha_nac'       => 'Fecha de nacimiento',
-        'edad'            => 'Edad',
-        'representante'   => 'Representante legal',
-        'cedula_rep'      => 'C.I. representante',
-        'firma'           => 'Firma',
-        'telefonos_rep'   => 'Teléfonos',
-        'direccion_rep'   => 'Dirección',
-        'autorizado'      => 'Persona autorizada',
-        'parentesco_aut'  => 'Parentesco',
-        'telefono_aut'    => 'Teléfono',
-        'dia'             => 'Día',
-        'edad_cumple'     => 'Cumple',
+        'n'             => 'N°',
+        'cedula'        => 'Cédula escolar',
+        'estudiante'    => 'Apellidos y nombres',
+        'sexo'          => 'Sexo',
+        'fecha_nac'     => 'Fecha de nacimiento',
+        'edad'          => 'Edad',
+        'representante' => 'Representante legal',
+        'cedula_rep'    => 'C.I. representante',
+        'firma'         => 'Firma',
+        'telefonos_rep' => 'Teléfonos del representante',
+        'direccion'     => 'Dirección de habitación',
+        'autorizados'   => 'Autorizados para retiro',
+        'dia'           => 'Día',
+        'edad_cumple'   => 'Cumple',
+        'literal'       => 'Literal',
+        'promocion'     => 'Decisión / Estado',
+        'boleta'        => 'Certificado / Boleta',
     ];
 
     private const FORMATOS_NOMINA = ['html', 'pdf'];
@@ -211,11 +382,6 @@ class DocenteController extends BaseController
 
         $vista   = $this->parametroLista('vista', array_keys(self::VISTAS_NOMINA), 'nomina');
         $formato = $this->parametroLista('formato', self::FORMATOS_NOMINA, 'html');
-
-        /* El acta es una vista más de la lista: llega por ?vista=acta y se pinta
-           en su propia pestaña, con el motivo y la fecha al pie. Antes la
-           devolvíamos a la Nómina y la abríamos en un modal; ahora se ve de
-           entrada. El PDF sigue saliendo por la misma ruta, con ?formato=pdf. */
         $filtros = $this->filtrosNomina($vista);
 
         /* La sección sale de la sesión (asignación vigente del año activo).
@@ -230,16 +396,21 @@ class DocenteController extends BaseController
             $columnas[$clave] = self::COLUMNAS_NOMINA[$clave];
         }
 
-        $filas = [];
+        $filas    = [];
+        $sectores = [];
         if ($tieneSeccion) {
             try {
                 $filas = $this->getModel()->nominaSeccion(
                     $base['idEstructura'],
                     $filtros + ['vista' => $vista]
                 );
+                if ($vista === 'contacto') {
+                    $sectores = $this->getModel()->sectoresSeccion($base['idEstructura']);
+                }
             } catch (Throwable $e) {
                 error_log('DocenteController::nomina(): ' . $e->getMessage());
-                $filas = [];
+                $filas    = [];
+                $sectores = [];
             }
         }
 
@@ -247,31 +418,16 @@ class DocenteController extends BaseController
         $ahoraCaracas = new DateTimeImmutable('now', new DateTimeZone('America/Caracas'));
         $fechaHoyIso = $ahoraCaracas->format('Y-m-d');
         $horaActual  = (int) $ahoraCaracas->format('G');
-
-        /* Motivo y fecha con los que se pinta el formulario de la pestaña del
-           acta. Se leen de la URL solo para que al recargar con ?motivo= y
-           ?fecha= no se pierda lo que el docente ya escribió; si no vienen o
-           no tienen forma de fecha, la fecha cae en el día de hoy. El motivo
-           NO se sanea aquí a propósito: la validación fuerte vive en el PDF
-           (datosActaPdf) y docente.js avisa antes de generar. Prefijarlo solo
-           cuando el motivo se ve entero evita que un texto a medias acabe
-           guardado. */
-        $motivoActa = '';
-        if (isset($_GET['motivo']) && is_string($_GET['motivo'])) {
-            $motivoCrudo = trim($_GET['motivo']);
-            if (mb_strlen($motivoCrudo, 'UTF-8') <= 120 && !preg_match('/[<>{}\[\]]/', $motivoCrudo)) {
-                $motivoActa = $motivoCrudo;
-            }
-        }
-        $fechaActa = $fechaHoyIso;
-        if (isset($_GET['fecha']) && is_string($_GET['fecha']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha'])) {
-            $fechaActa = $_GET['fecha'];
-        }
         $saludoWa    = match (true) {
             $horaActual < 12 => 'Buen día',
             $horaActual < 19 => 'Buenas tardes',
             default          => 'Buenas noches',
         };
+
+        $ordenesVista = self::ORDENES_NOMINA[$vista] ?? [];
+        if (!empty($filtros['orden']) && isset($ordenesVista[$filtros['orden']])) {
+            $filtros['orden_etiqueta'] = $ordenesVista[$filtros['orden']];
+        }
 
         if ($formato === 'pdf') {
             if (!$tieneSeccion) {
@@ -282,8 +438,9 @@ class DocenteController extends BaseController
                 exit;
             }
 
-            if ($vista === 'acta') {
-                $filtros += $this->datosActaPdf($fechaHoyIso);
+            if ($vista === 'boletas') {
+                header('Location: ' . BASE_URL . 'certificadoCalificaciones/generarPorSeccion?id_estructura=' . (int) $base['idEstructura']);
+                exit;
             }
 
             try {
@@ -293,15 +450,9 @@ class DocenteController extends BaseController
             }
 
             $nombre = $this->nombreArchivoNomina($vista, $seccion);
-            /* Lo que decide si el navegador lo muestra o lo baja es la petición,
-               no la vista. El botón «Visualizar documento» pide este mismo PDF
-               sin `descargar` para meterlo en el iframe del modal, y ese caso
-               tiene que llegar en línea: con `attachment` el navegador se lo
-               descarga por su cuenta y el docente nunca alcanza a verlo. Solo
-               el enlace «Descargar PDF», que es la misma ruta con descargar=1,
-               baja el archivo. Antes era al revés —solo el acta viajaba en línea
-               y las otras cinco se bajaban solas—, que era el fallo. */
-            $disposicion = (($_GET['descargar'] ?? '') === '1') ? 'attachment' : 'inline';
+            $disposicion = (($_GET['descargar'] ?? '') !== '1')
+                ? 'inline'
+                : 'attachment';
 
             header_remove('X-Frame-Options');
             header('X-Frame-Options: SAMEORIGIN');
@@ -313,15 +464,10 @@ class DocenteController extends BaseController
             exit;
         }
 
-        /* Todas las vistas, el acta incluida, van a la barra de pestañas. Se
-           pasan tal cual porque el chip del acta ya no es un caso especial:
-           usa el mismo bucle que Nómina, Contacto, Direcciones, Cumpleañeros y
-           Autorizados. */
-        $vistas           = self::VISTAS_NOMINA;
-        $meses            = self::MESES;
-        $nombreEscuela    = trim((string) ($config['plantel_nombre'] ?? '')) ?: 'E.B. Isidro Ramírez';
-        $nombreEscuelaWa  = $this->capitalizarTitulo($nombreEscuela);
-        $nombreDocente    = trim((string) ($seccion['docente_nombre'] ?? ($_SESSION['nombre'] ?? '')));
+        $vistas          = self::VISTAS_NOMINA;
+        $meses           = self::MESES;
+        $nombreEscuela   = trim((string) ($config['plantel_nombre'] ?? '')) ?: 'E.B. Isidro Ramírez';
+        $nombreEscuelaWa = $this->capitalizarTitulo($nombreEscuela);
 
         require __DIR__ . '/../Views/docente/nomina.php';
     }
@@ -394,74 +540,6 @@ class DocenteController extends BaseController
         $this->jsonResponse(true, ['tiene_enlace' => $enlaceNuevo !== null], $mensaje);
     }
 
-    /**
-     * Valida y sanitiza los datos exclusivos del Acta de firmas (motivo
-     * obligatorio de 3 a 120 caracteres y fecha válida YYYY-MM-DD, por defecto hoy).
-     *
-     * @return array{motivo:string,fecha_acta:string}
-     */
-    private function datosActaPdf(string $fechaHoyIso): array
-    {
-        if (isset($_GET['motivo']) && !is_string($_GET['motivo'])) {
-            $this->rechazarSolicitud('El motivo del acta no es válido.');
-        }
-
-        $motivo = $this->formatearMotivoActa((string) ($_GET['motivo'] ?? ''));
-        if ($motivo === '') {
-            $this->rechazarSolicitud('El motivo del acta es obligatorio.');
-        }
-
-        $longitud = mb_strlen($motivo, 'UTF-8');
-        if ($longitud < 3) {
-            $this->rechazarSolicitud('El motivo del acta debe tener al menos 3 caracteres.');
-        }
-        if ($longitud > 120) {
-            $this->rechazarSolicitud('El motivo del acta admite hasta 120 caracteres.');
-        }
-        if (!preg_match('/^[\p{L}\p{M}\p{N}\s.,;:()°ºª\-\/\'"]+$/u', $motivo)) {
-            $this->rechazarSolicitud('El motivo del acta contiene caracteres no permitidos.');
-        }
-
-        if (isset($_GET['fecha']) && !is_string($_GET['fecha'])) {
-            $this->rechazarSolicitud('La fecha del acta no es válida.');
-        }
-        $fechaTexto = trim((string) ($_GET['fecha'] ?? ''));
-        if ($fechaTexto === '') {
-            $fechaTexto = $fechaHoyIso;
-        }
-        $fechaObj = DateTimeImmutable::createFromFormat('!Y-m-d', $fechaTexto);
-        if (!$fechaObj || $fechaObj->format('Y-m-d') !== $fechaTexto) {
-            $this->rechazarSolicitud('La fecha del acta no es válida.');
-        }
-
-        return [
-            'motivo'     => $motivo,
-            'fecha_acta' => $fechaObj->format('d/m/Y'),
-        ];
-    }
-
-    /**
-     * Limpia etiquetas HTML y espacios del motivo del acta, poniendo en mayúscula
-     * solo la primera letra y respetando siglas o nombres propios ("Consejo Educativo",
-     * "UNEFA"). Si TODO el texto viene en mayúsculas, lo convierte a formato oración.
-     */
-    private function formatearMotivoActa(string $texto): string
-    {
-        $limpio = $this->normalizarEspacios($texto);
-        if ($limpio === '') {
-            return '';
-        }
-
-        $tieneLetras    = (bool) preg_match('/\p{L}/u', $limpio);
-        $tieneMinuscula = (bool) preg_match('/\p{Ll}/u', $limpio);
-
-        if ($tieneLetras && !$tieneMinuscula) {
-            return $this->capitalizarOracion($limpio);
-        }
-
-        return mb_strtoupper(mb_substr($limpio, 0, 1, 'UTF-8'), 'UTF-8')
-             . mb_substr($limpio, 1, null, 'UTF-8');
-    }
 
     /**
      * Lee un parámetro GET de lista cerrada. Ausente o vacío: valor por defecto.
@@ -487,13 +565,7 @@ class DocenteController extends BaseController
      * cada vista (`VISTAS_NOMINA[$vista]['filtros']`). Cualquier parámetro que
      * no pertenezca a la vista activa se ignora.
      *
-     * `orden` y `sentido` no son filtros de la vista: se aceptan siempre, porque
-     * la barra de orden acompaña a cualquier vista y el orden elegido tiene que
-     * sobrevivir al cambio de pestaña. Se ignoran (vuelven a su valor por
-     * defecto) en las vistas de orden fijo, y no llegan al modelo porque
-     * nominaSeccion() tiene su propio orden para esas dos.
-     *
-     * @return array{q:string,sexo:string,mes:int|null,orden:string,sentido:string}
+     * @return array{q:string,sexo:string,mes:int|null,sector:string,orden:string}
      */
     private function filtrosNomina(string $vista): array
     {
@@ -530,17 +602,34 @@ class DocenteController extends BaseController
                 }
                 $mes = (int) $mesTexto;
             } else {
-                /* Sin ?mes= se muestra el mes en curso: es el que se consulta casi
-                   siempre, y preguntar por los doce sería un paso extra. */
                 $mes = (int) (new DateTimeImmutable('now', new DateTimeZone('America/Caracas')))->format('n');
             }
         }
 
-        /* El orden no viaja en los filtros: es fijo en todos los listados y lo
-           aplica el modelo (alfabético por apellido, y por día en cumpleañeros).
-           `orden` y `sentido` siguen siendo filtros que el modelo entiende, con
-           ese mismo valor por defecto, por si otra pantalla los usa. */
-        return ['q' => $q, 'sexo' => $sexo, 'mes' => $mes];
+        $sector = '';
+        if (in_array('sector', $permitidosVista, true)) {
+            $sector = $this->normalizarEspacios((string) ($_GET['sector'] ?? ''));
+            if (mb_strlen($sector, 'UTF-8') > 100) {
+                $this->rechazarSolicitud('El filtro de sector admite hasta 100 caracteres.');
+            }
+        }
+
+        $orden = '';
+        if (in_array('orden', $permitidosVista, true)) {
+            $orden = trim((string) ($_GET['orden'] ?? ''));
+            $ordenesPermitidos = array_keys(self::ORDENES_NOMINA[$vista] ?? []);
+            if ($orden !== '' && !in_array($orden, $ordenesPermitidos, true)) {
+                $this->rechazarSolicitud('El criterio de ordenamiento no es válido.');
+            }
+        }
+
+        return [
+            'q'      => $q,
+            'sexo'   => $sexo,
+            'mes'    => $mes,
+            'sector' => $sector,
+            'orden'  => $orden,
+        ];
     }
 
     /** Responde 422 y corta la ejecución. */

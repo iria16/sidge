@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\CatalogoModel;
+use App\Models\InstitucionModel;
+use App\Support\Instituciones;
+use App\Support\Validator;
+use App\Traits\UbicacionTrait;
+use App\Interfaces\Findable;
 use App\Interfaces\Listable;
 use App\Interfaces\Updatable;
 use PDO;
@@ -20,6 +25,10 @@ use Throwable;
  */
 class CatalogoController extends CrudController
 {
+    /* Aporta getUbicacion(), el endpoint que devuelve estado, municipio y
+       parroquia para la cascada. Lo usan los formularios de institución. */
+    use UbicacionTrait;
+
     /** Carpeta de vistas del módulo (Views/configuracion/catalogo). */
     protected string $viewPath  = 'configuracion/catalogo';
 
@@ -32,9 +41,9 @@ class CatalogoController extends CrudController
      * 'oracion', esta última para frases largas). También hace de whitelist.
      */
     private const CATALOGOS = [
-        'grado'             => ['nombre' => 'Grado',              'icono'   => 'bi-mortarboard',       'modelClass' => 'GradoModel',          'formato' => 'titulo'],
-        'seccion'           => ['nombre' => 'Sección',            'icono'   => 'bi-diagram-3',          'modelClass' => 'SeccionModel',        'formato' => 'titulo'],
-        'turno'             => ['nombre' => 'Turno',              'icono'   => 'bi-clock',              'modelClass' => 'TurnoModel',          'formato' => 'titulo'],
+        'grado'             => ['nombre' => 'Grado',              'icono'   => 'bi-mortarboard',       'modelClass' => 'GradoModel',          'formato' => 'titulo',  'maxLength' => 30],
+        'seccion'           => ['nombre' => 'Sección',            'icono'   => 'bi-diagram-3',          'modelClass' => 'SeccionModel',        'formato' => 'titulo',  'maxLength' => 10],
+        'turno'             => ['nombre' => 'Turno',              'icono'   => 'bi-clock',              'modelClass' => 'TurnoModel',          'formato' => 'titulo',  'maxLength' => 30],
         'tipo_documento'    => ['nombre' => 'Tipo de Documento',  'icono'   => 'bi-file-earmark-text',  'modelClass' => 'TipoDocumentoModel',  'formato' => 'oracion'],
         'grado_academico'   => ['nombre' => 'Grado Académico',    'icono'   => 'bi-award',              'modelClass' => 'GradoAcademicoModel', 'formato' => 'titulo'],
         'tipo_asignacion'   => ['nombre' => 'Tipo de Asignación', 'icono'   => 'bi-briefcase',          'modelClass' => 'TipoAsignacionModel', 'formato' => 'titulo'],
@@ -42,9 +51,23 @@ class CatalogoController extends CrudController
         'parentesco'        => ['nombre' => 'Parentesco',         'icono'   => 'bi-people',              'modelClass' => 'ParentescoModel',     'formato' => 'titulo'],
         'motivo_retiro'     => ['nombre' => 'Motivo de Retiro',   'icono'   => 'bi-box-arrow-right',    'modelClass' => 'MotivoRetiroModel',   'formato' => 'oracion'],
         // Los pide el sub-modal de familiares para el representante legal.
-        'ocupacion'         => ['nombre' => 'Ocupación',           'icono'  => 'bi-briefcase',          'modelClass' => 'OcupacionModel',        'formato' => 'titulo'],
+        'ocupacion'         => ['nombre' => 'Profesión',           'icono'  => 'bi-briefcase',          'modelClass' => 'OcupacionModel',        'formato' => 'titulo'],
         'nacionalidad'      => ['nombre' => 'Nacionalidad',         'icono' => 'bi-globe-americas',     'modelClass' => 'NacionalidadModel',    'formato' => 'titulo'],
+        // Único catálogo con un campo propio además del nombre: el tipo. No es
+        // opcional ni decorativo: institucion.id_tipo_institucion es NOT NULL
+        // sin valor por defecto, así que sin tipo el INSERT no entra.
+        // 'maxLength' sube a 100, lo que admite la columna, porque los nombres
+        // de institución son largos. Los otros once catálogos siguen en 50.
+        // 'respetaSiglas': los nombres de institución traen siglas (UNEFA, UCV).
+        //   Sin esto "Universidad ... (UNEFA)" se guardaba como "(Unefa)".
+        // Catálogo de países, para las instituciones extranjeras. Se administra
+        // desde aquí mismo; el formulario de institución solo lo consulta.
+        'pais'              => ['nombre' => 'País',                'icono' => 'bi-globe2',             'modelClass' => 'PaisModel',            'formato' => 'titulo',  'maxLength' => 80],
+        'institucion'       => ['nombre' => 'Institución',          'icono' => 'bi-building',           'modelClass' => 'InstitucionModel',    'formato' => 'titulo', 'maxLength' => 100, 'pideTipo' => true, 'respetaSiglas' => true],
     ];
+
+    /** Largo máximo del nombre para los catálogos que no fijan el suyo. */
+    private const MAX_NOMBRE = 50;
 
     /** Clave del catálogo activo; se fija en createModel(). */
     private string $catalogoActivo;
@@ -79,6 +102,10 @@ class CatalogoController extends CrudController
     private function resolveTipoActivo(): string
     {
         $tipo = $_GET['tipo'] ?? $_POST['tipo'] ?? '';
+        if ($tipo === 'profesion' || $tipo === 'profesión') {
+            $tipo = 'ocupacion';
+        }
+
         return array_key_exists($tipo, self::CATALOGOS) ? $tipo : array_key_first(self::CATALOGOS);
     }
 
@@ -115,6 +142,20 @@ class CatalogoController extends CrudController
             $catalogoActivo = $this->catalogoActivo;
             $tiposCatalogo  = $this->buildTiposCatalogo();
 
+            // Datos que los modales necesitan y que solo el controlador puede
+            // resolver: el largo máximo del catálogo activo y, cuando el
+            // catálogo pide tipo, la lista de categorías de institución.
+            $catalogoMaxLength = self::CATALOGOS[$this->catalogoActivo]['maxLength'] ?? self::MAX_NOMBRE;
+            $pideTipo           = self::CATALOGOS[$this->catalogoActivo]['pideTipo'] ?? false;
+            $tiposInstitucion  = $pideTipo
+                ? (new InstitucionModel($this->conexion()))->tiposFormulario(Instituciones::TIPOS)
+                : [];
+            // Ubicación: el <select> de estados solo lo necesitan institución y
+            // los dos modales de alta que comparten sus reglas.
+            $estadosGeo        = $pideTipo ? (new InstitucionModel($this->conexion()))->getEstadosGeo() : [];
+            // Países: solo los necesita institución, para el camino extranjera.
+            $paises            = $pideTipo ? (new InstitucionModel($this->conexion()))->getPaises() : [];
+
             require __DIR__ . "/../Views/{$this->viewPath}/index.php";
         } catch (Throwable $e) {
             $this->handleError($e, static::class);
@@ -131,7 +172,7 @@ class CatalogoController extends CrudController
         try {
             $model = $this->modelo();
             $id    = (int)($_GET['id'] ?? 0);
-            $item  = ($id > 0 && method_exists($model, 'getById')) ? $model->getById($id) : null;
+            $item  = ($id > 0 && $model instanceof Findable) ? $model->getById($id) : null;
 
             if (!$item) {
                 $this->setFlash('error', 'El registro solicitado no existe.');
@@ -164,6 +205,16 @@ class CatalogoController extends CrudController
         unset($el);
 
         return $elementos;
+    }
+
+    /**
+     * Endpoint de la cascada estado -> municipio -> parroquia.
+     * Ruta: catalogo/getUbicacion (GET, JSON). Lo consume
+     * SIGDEWizardUI.initCascadaUbicacion() desde el formulario de institución.
+     */
+    public function getUbicacion(): void
+    {
+        $this->getUbicacionComun('Catálogos');
     }
 
     /**
@@ -217,11 +268,33 @@ class CatalogoController extends CrudController
         $nombre  = trim($source['nombre'] ?? '');
         $formato = self::CATALOGOS[$this->catalogoActivo]['formato'] ?? 'titulo';
 
-        return [
-            'nombre' => $formato === 'oracion'
-                ? $this->capitalizarOracion($nombre)
-                : $this->capitalizarTitulo($nombre),
+        $respetaSiglas = self::CATALOGOS[$this->catalogoActivo]['respetaSiglas'] ?? false;
+
+        $data = [
+            'nombre' => $respetaSiglas
+                ? $this->capitalizarTituloConSiglas($nombre)
+                : ($formato === 'oracion'
+                    ? $this->capitalizarOracion($nombre)
+                    : $this->capitalizarTitulo($nombre)),
         ];
+
+        // Solo institución lleva tipo. Se lee de 'tipo_institucion' y NO de
+        // 'tipo': ese nombre lo usa el campo oculto del catálogo activo, y
+        // leerlo aquí haría que el catálogo se resolviera mal.
+        if (self::CATALOGOS[$this->catalogoActivo]['pideTipo'] ?? false) {
+            $data['tipo']          = trim((string) ($source['tipo_institucion'] ?? ''));
+            $data['es_extranjera'] = ((string) ($source['es_extranjera'] ?? '0')) === '1' ? 1 : 0;
+            $data['id_estado_geo']  = (int) ($source['id_estado_geo'] ?? 0);
+            $data['id_municipio']   = (int) ($source['id_municipio'] ?? 0);
+            $data['id_parroquia']   = (int) ($source['id_parroquia'] ?? 0);
+            $data['pais_id']        = (int) ($source['pais_id'] ?? 0);
+            $data['ciudad_extranjera']    = trim((string) ($source['ciudad_extranjera'] ?? ''));
+            $data['direccion_extranjera'] = trim((string) ($source['direccion_extranjera'] ?? ''));
+            $data['referencia_plantel']   = trim((string) ($source['referencia_plantel'] ?? ''));
+            $data['codigo_dea']     = mb_strtoupper(trim((string) ($source['codigo_dea'] ?? '')), 'UTF-8');
+        }
+
+        return $data;
     }
 
     /**
@@ -237,19 +310,160 @@ class CatalogoController extends CrudController
         $model  = $this->modelo();
 
         $minimo = $this->catalogoActivo === 'seccion' ? 1 : 2;
-        $maximo = 50;
+        $maximo = self::CATALOGOS[$this->catalogoActivo]['maxLength'] ?? self::MAX_NOMBRE;
 
-        if (empty($data['nombre'])) {
-            $errors['nombre'] = 'El nombre del elemento es obligatorio.';
-        } elseif (mb_strlen($data['nombre']) < $minimo) {
-            $errors['nombre'] = "El nombre debe tener al menos {$minimo} caracter" . ($minimo > 1 ? 'es' : '') . '.';
-        } elseif (mb_strlen($data['nombre']) > $maximo) {
-            $errors['nombre'] = "El nombre no puede superar los {$maximo} caracteres.";
-        } elseif ($model->existeNombre($data['nombre'], $excludeId)) {
+        $validator = Validator::make($data, [
+            'nombre' => "required|string|min_len:{$minimo}|max_len:{$maximo}",
+        ], [
+            'nombre.required' => 'El nombre del elemento es obligatorio.',
+            'nombre.min_len'  => "El nombre debe tener al menos {$minimo} caracter" . ($minimo > 1 ? 'es' : '') . '.',
+            'nombre.max_len'  => "El nombre no puede superar los {$maximo} caracteres.",
+        ]);
+
+        $errors = $validator->validate();
+
+        if (empty($errors['nombre']) && $model->existeNombre($data['nombre'], $excludeId)) {
             $errors['nombre'] = 'Ya existe un registro con este nombre en el catálogo activo.';
         }
 
+        if (self::CATALOGOS[$this->catalogoActivo]['pideTipo'] ?? false) {
+            $tipo = trim((string) ($data['tipo'] ?? ''));
+
+            if ($tipo === '') {
+                $errors['tipo'] = 'Selecciona el tipo de institución.';
+            } elseif (!Instituciones::esValido($tipo)) {
+                $errors['tipo'] = 'El tipo de institución seleccionado no existe.';
+            } elseif (Instituciones::idCatalogo($tipo) === null) {
+                $errors['tipo'] = 'El tipo de institución no tiene categoría asignada.';
+            }
+
+            // Reutiliza $model: pedir otro InstitucionModel por dentro
+            // volvería a pasar por conexion() y reiniciaría catalogoActivo.
+            $errores = $this->validarUbicacion($model, $data, $errors, $excludeId);
+
+            return $errores;
+        }
+
         return $errors;
+    }
+
+    /**
+     * Valida la procedencia geográfica y el código DEA de una institución.
+     *
+     * Son dos caminos distintos según el interruptor de institution extranjera,
+     * y NO se mezclan:
+     *
+     *   Nacional   estado, municipio y parroquia obligatorios (los tres, en ese
+     *              orden, comprobando que cada hijo pertenezca a su padre).
+     *              Código DEA obligatorio solo en preescolar y escuela.
+     *
+     *   Extranjera  se ignoran los datos nacionales aunque vengan. Se pide país,
+     *              ciudad y dirección. El código o referencia del plantel de
+     *              origen es opcional. El DEA se ignora siempre.
+     *
+     * Las universidades no usan DEA en ninguno de los dos caminos.
+     *
+     * @param CatalogoModel $model  Modelo del catálogo activo (InstitucionModel).
+     * @param array<string, string> $errors Errores ya acumulados.
+     * @return array<string, string>
+     */
+    private function validarUbicacion(CatalogoModel $model, array $data, array $errors, ?int $excludeId): array
+    {
+        /** @var InstitucionModel $model */
+        $tipo  = trim((string) ($data['tipo'] ?? ''));
+        $esExt = ((string) ($data['es_extranjera'] ?? '0')) === '1';
+
+        if ($esExt) {
+            return $this->validarExtranjera($model, $data, $errors);
+        }
+
+        // ---------- Nacional ----------
+        $estado = (int) ($data['id_estado_geo'] ?? 0);
+        if ($estado <= 0) {
+            $errors['id_estado_geo'] = 'Selecciona el estado donde está la institución.';
+        } elseif (!$model->existeEstadoGeo($estado)) {
+            $errors['id_estado_geo'] = 'El estado seleccionado no existe.';
+        }
+
+        $municipio = (int) ($data['id_municipio'] ?? 0);
+        if ($municipio <= 0) {
+            $errors['id_municipio'] = 'Selecciona el municipio.';
+        } elseif (!$model->municipioPerteneceAlEstado($municipio, $estado)) {
+            $errors['id_municipio'] = 'El municipio seleccionado no pertenece a ese estado.';
+        }
+
+        $parroquia = (int) ($data['id_parroquia'] ?? 0);
+        if ($parroquia <= 0) {
+            $errors['id_parroquia'] = 'Selecciona la parroquia.';
+        } elseif (!$model->parroquiaPerteneceAlMunicipio($parroquia, $municipio)) {
+            $errors['id_parroquia'] = 'La parroquia seleccionada no pertenece a ese municipio.';
+        }
+
+        // El DEA solo aplica a preescolar y escuela.
+        if (!Instituciones::esDeEstudiante($tipo)) {
+            return $errors;
+        }
+
+        $dea = mb_strtoupper(trim((string) ($data['codigo_dea'] ?? '')), 'UTF-8');
+
+        if ($dea === '') {
+            $errors['codigo_dea'] = 'Escribe el código DEA de la institución.';
+        } elseif (!preg_match('/^[A-Z0-9]{10}$/', $dea)) {
+            $errors['codigo_dea'] = 'El código DEA debe tener exactamente 10 caracteres alfanuméricos en mayúscula (ej. OD05281402).';
+        } elseif ($model->existeCodigoDea($dea, $excludeId)) {
+            $errors['codigo_dea'] = 'Ya existe una institución con ese código DEA.';
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Camino de institución extranjera: se ignoran los datos nacionales y se
+     * pide país (obligatorio), ciudad y dirección (opcionales).
+     * La referencia del plantel es opcional.
+     */
+    private function validarExtranjera(CatalogoModel $model, array $data, array $errors): array
+    {
+        /** @var InstitucionModel $model */
+
+        $pais = (int) ($data['pais_id'] ?? 0);
+        if ($pais <= 0) {
+            $errors['pais_id'] = 'Selecciona el país de la institución.';
+        } elseif (!$model->existePais($pais)) {
+            $errors['pais_id'] = 'El país seleccionado no existe.';
+        }
+
+        // Ciudad y dirección son opcionales para instituciones extranjeras
+        // según especificación del ajuste
+
+        // El código o referencia del plantel de origen es opcional: no se valida.
+        return $errors;
+    }
+
+    /**
+     * Protege los registros con código estable.
+     *
+     * Los documentos y parentescos que usan las reglas de matrícula no se
+     * pueden desactivar desde la interfaz: la regla dejaría de encontrar el
+     * registro. Sí se pueden reactivar si ya estaban inactivos, y el nombre se
+     * puede corregir porque el vínculo es el código, no el nombre.
+     */
+    protected function beforeToggleStatus(int $id): void
+    {
+        $item = $this->modelo()->getById($id);
+
+        if ($item === null || empty($item['codigo'])) {
+            return;
+        }
+
+        if (strtoupper((string) ($item['estado'] ?? '')) === 'ACTIVO') {
+            $this->jsonResponse(
+                false,
+                null,
+                'Este registro tiene un código obligatorio y no se puede desactivar.',
+                422
+            );
+        }
     }
 
     /**
@@ -284,6 +498,12 @@ class CatalogoController extends CrudController
             }
 
             $model->update($id, $data);
+        } catch (\PDOException $e) {
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(false, ['nombre' => 'Ya existe un registro con este nombre en el catálogo.'], 'Registro duplicado.', 422);
+            }
+            $this->jsonError($e, static::class);
         } catch (Throwable $e) {
             $this->jsonError($e, static::class);
         }

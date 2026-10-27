@@ -1,4 +1,4 @@
-/* ── Constancias oficiales de estudio e inscripción ─────────────────────────────
+/* ── Constancias oficiales de estudio, inscripción, retiro, prosecución y egreso ─
    Hoja de impresión de los documentos que emite la secretaría (Carta).
 
    No depende de Bootstrap ni de app.css: Dompdf resuelve solo un subconjunto
@@ -6,8 +6,7 @@
    pt, colores planos y cajas fijas. No hay flexbox, ni grid, ni variables CSS.
 
    Notación: el margen lateral de 2.5 cm se calcula como
-   (612 pt de Carta − 470 pt de caja) / 2 = 71 pt. El membrete se sangra 50 pt a
-   cada lado para ocupar el ancho de la hoja y dejar aire de impresión.        */
+   (612 pt de Carta − 470 pt de caja) / 2 = 71 pt.                             */
 
 @import 'base';
 
@@ -22,232 +21,106 @@ body {
   line-height: 1.5;
 }
 
-.page-container {
-  margin: 70.87pt auto 0; /* Margen superior de 2.5 cm */
-  width: 470pt; /* Márgenes laterales de 2.5 cm */
-}
-
 /* ── Membrete de tres columnas ────────────────────────────────────────────────
    Clases del componente compartido (app/Views/partials/pdf-membrete.php).
    Las columnas laterales miden lo mismo a propósito. Es lo que mantiene el
    bloque institucional en el centro exacto de la hoja: si un lado crece, el
    centro se desplaza y el membrete deja de estar centrado.                    */
-.pdf-membrete {
-  width: 570pt;
-  margin-left: -50pt;
-  margin-right: -50pt;
-  margin-bottom: 16pt;
-  border-collapse: collapse;
+.header-table {
+  margin-bottom: 24pt;
 }
 
-.pdf-membrete td {
-  vertical-align: middle;
+.col-min-logo {
+  width: 24%;
+}
+
+.col-min-logo img {
+  width: 100%;
+  max-width: 112pt;
+  height: auto;
+}
+
+.col-box-center {
+  width: 58%;
+  padding: 0 2pt;
+}
+
+.membrete-texto {
+  border: none;
   padding: 0;
+  font-size: 9pt;
 }
 
-.pdf-membrete__ministerio {
-  width: 141pt;
+.col-plantel-logo {
+  width: 18%;
+}
+
+.col-plantel-logo img {
+  height: 40pt;
+}
+
+.header-solo-ministerio {
+  margin-bottom: 24pt;
   text-align: left;
 }
 
-.pdf-membrete__logo--ministerio {
-  max-width: 138pt;
-  max-height: 46pt;
-  height: auto;
-  display: block;
-}
-
-.pdf-membrete__texto {
-  width: 288pt;
-  text-align: center;
-  padding: 0;
-}
-
-.pdf-membrete__plantel {
-  width: 141pt;
-  text-align: right;
-}
-
-.pdf-membrete__logo--plantel {
-  max-width: 50pt;
+.header-solo-ministerio img {
+  max-width: 195pt;
   max-height: 58pt;
   height: auto;
-  display: inline-block;
-}
-
-/* Membrete en recuadro completo o en una sola línea de códigos, según la
-   configuración institucional del plantel. */
-.recuadro-membrete,
-.recuadro-membrete-linea {
-  border: none;
-  padding: 0;
-  font-size: 10pt;
-  line-height: 1.25;
-  text-align: center;
-  font-weight: bold;
-  text-transform: uppercase;
-}
-
-.recuadro-membrete .pdf-membrete__linea,
-.recuadro-membrete-linea .pdf-membrete__linea {
   display: block;
 }
 
-/* ── Cuerpo del documento ─────────────────────────────────────────────────── */
+/* ── Título principal ─────────────────────────────────────────────────────── */
 .doc-title {
-  text-align: center;
-  font-size: 14pt;
-  font-weight: bold;
-  letter-spacing: 0.5px;
-  margin: 16pt 0 15pt 0;
-  text-transform: uppercase;
-}
-
-.doc-body {
-  text-align: justify;
-  font-size: 12pt;
-  line-height: 1.5; /* Interlineado 1.5 */
-  margin-bottom: 15pt;
-}
-
-.doc-body strong,
-.doc-closing strong {
-  font-weight: bold;
-}
-
-.doc-closing {
-  text-align: justify;
-  font-size: 12pt;
-  line-height: 1.5; /* Interlineado 1.5 */
-  margin-bottom: 20pt;
+  margin-bottom: 16pt;
+  line-height: 1.25;
 }
 
 /* ── Firma y sello ───────────────────────────────────────────────────────────
    Tres columnas iguales: el sello húmedo va a la izquierda, la firma al centro
    y la tercera queda libre. La tabla usa table-layout: fixed para que las tres
    midan lo mismo aunque el sello o la firma no existan.                        */
-.signature-table {
-  margin: 22pt auto 0 auto;
-  border-collapse: collapse;
-  width: 100%;
-  table-layout: fixed;
-}
-
-.signature-table td {
-  vertical-align: bottom;
-  padding: 0;
-}
-
-.seal-col {
-  width: 33.33%;
+.seccion-firmas {
+  margin-top: 48pt;
   text-align: center;
-}
-
-.seal-img {
-  max-height: 65pt;
-  max-width: 95pt;
-  display: inline-block;
-}
-
-.seal-empty {
-  height: 65pt;
-}
-
-.sign-col {
-  width: 33.34%;
-  text-align: center;
-}
-
-.empty-col {
-  width: 33.33%;
 }
 
 .sign-img-wrapper {
   height: 40pt;
   margin-bottom: -10pt;
-  text-align: center;
 }
 
 .sign-img {
   max-height: 45pt;
   max-width: 140pt;
-  display: inline-block;
 }
 
 .sign-placeholder {
   height: 40pt;
 }
 
-.signature-box {
-  border-top: 1px solid #000;
-  padding-top: 4pt;
-  width: 190pt;
-  margin: 0 auto;
-  text-align: center;
-  font-size: 9.5pt;
-  line-height: 1.35;
-  font-weight: bold;
-  text-transform: uppercase;
-  word-wrap: break-word;
+.firma-linea {
+  margin: 0 auto 6pt auto;
 }
 
-.signature-box .sign-name {
-  margin-bottom: 1pt;
-}
-
-.signature-box .sign-ci {
-  margin-bottom: 1pt;
-}
-
-.signature-box .sign-cargo {
+.firma-nombre {
+  font-size: 10pt;
   line-height: 1.25;
 }
 
-/* ── Franja tricolor de pie de página ────────────────────────────────────────
-   Va fija al fondo y a todo el ancho, con z-index negativo para que el texto
-   del documento pase por encima en lugar de quedar tapado.                   */
-.footer-banner {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  z-index: -1;
-  line-height: 0;
-  margin: 0;
-  padding: 0;
+.firma-cargo {
+  font-size: 10pt;
+  line-height: 1.25;
 }
 
-.footer-banner img {
-  width: 100%;
-  height: auto;
-  display: block;
-  margin: 0;
-  padding: 0;
+.firma-ci {
+  font-size: 10pt;
+  line-height: 1.25;
 }
 
-.nota-borrador {
-  font-size: 7.5pt;
-  color: #777;
-  font-style: italic;
-  margin-top: 10pt;
-  text-align: center;
-}
-
-/* Marca de agua de los PDF de prueba. La regla siempre está declarada; el
-   <div> que la usa solo se imprime cuando el documento va marcado como
-   prueba, así que la condición vive en la plantilla y no en el CSS. */
-.watermark-prueba {
-  position: fixed;
-  top: 38%;
-  left: 0;
-  width: 100%;
-  text-align: center;
-  font-size: 82pt;
-  font-family: 'Helvetica', 'Arial', sans-serif;
-  font-weight: bold;
-  color: #d6d6d6;
-  opacity: 0.30;
-  transform: rotate(-35deg);
-  z-index: 1000;
-  letter-spacing: 8px;
+.sello-img {
+  width: 90pt;
+  max-width: 95pt;
+  margin-top: -30pt;
 }

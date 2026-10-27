@@ -22,13 +22,15 @@ namespace App\Support;
  *                          primaria (no tiene grados 1-6).
  *
  *   TIPO_ESCUELA           Módulo de estudiantes: procedencia. El grado
- *                          anterior tiene que ser uno inferior al grado de
+ *                          anterior tiene que ser inferior o igual al grado de
  *                          inscripción, dentro del rango 1-6 (ver
- *                          validarGradoProcedencia()).
+ *                          validarGradoProcedencia()). Igual significa que el
+ *                          estudiante repite el grado.
  *
- * Estos códigos son lo que guarda la columna `institucion.tipo`, así que el
- * enum y la base no pueden desincronizarse: la tabla `tipo_institucion` quedó
- * como histórico y nada la lee (ver migraciones/0001_institucion_tipo_enum.sql).
+ * Estos códigos se traducen al id de la FK
+ * `institucion.id_tipo_institucion` con idCatalogo(). La columna histórica
+ * `institucion.tipo` no se lee ni se escribe desde el código; quedó congelada
+ * como respaldo y su retiro es una migración futura aparte.
  *
  * La misma clase resuelve las dos cosas que los módulos necesitan de este
  * dominio: qué tipos son válidos en cada contexto, y la regla del grado de
@@ -45,6 +47,22 @@ final class Instituciones
 
     /** Institución de procedencia del estudiante, primaria. */
     public const TIPO_ESCUELA = 'escuela';
+
+    /**
+     * Id que cada tipo tiene en el catálogo `tipo_institucion`. Es la traducción
+     * del código de texto que viaja en el formulario al id que quiere la FK
+     * `institucion.id_tipo_institucion`. El catálogo no cambia: es fijo, igual
+     * que este enum.
+     *
+     * La tabla se lee (EmpleadoModel la necesita para el <select>), pero los
+     * ids NO salen de ella: salen de aquí. Si mañana el catálogo cambiara, el
+     * código seguiría apuntando al id que se decidió en la migración.
+     */
+    private const ID_CATALOGO = [
+        self::TIPO_TITULO_ACADEMICO => 6,  // Universidad
+        self::TIPO_PREESCOLAR       => 1,  // Preescolar
+        self::TIPO_ESCUELA          => 8,  // Escuela
+    ];
 
     /** Todos los tipos del sistema, en el orden en que se ofrecen. */
     public const TIPOS = [
@@ -63,9 +81,16 @@ final class Instituciones
     public const GRADO_MENOR = 1;
     public const GRADO_MAYOR = 6;
 
-    /** Texto del <select> de tipo. "Escuela" es primaria. */
+    /**
+     * Texto del <select> de tipo. "Escuela" es primaria.
+     *
+     * El texto de TIPO_TITULO_ACADEMICO es "Universidad" y no "Título académico"
+     * porque es lo que dice el catálogo `tipo_institucion` (id 6). El <select>
+     * de empleados ofrece esa categoría y tiene que nombrarla como el
+     * catálogo, que es donde la persona va a buscarla después.
+     */
     private const ETIQUETAS = [
-        self::TIPO_TITULO_ACADEMICO => 'Título académico',
+        self::TIPO_TITULO_ACADEMICO => 'Universidad',
         self::TIPO_PREESCOLAR       => 'Preescolar',
         self::TIPO_ESCUELA          => 'Escuela',
     ];
@@ -93,10 +118,57 @@ final class Instituciones
         return trim($tipo) === self::TIPO_ESCUELA;
     }
 
+    /**
+     * Id de `tipo_institucion` que corresponde a un código de tipo.
+     * Devuelve null si el código no es del sistema, para que quien inserte
+     * pueda rechazar el alta en vez de meter un NULL en la columna.
+     */
+    public static function idCatalogo(string $tipo): ?int
+    {
+        return self::ID_CATALOGO[trim($tipo)] ?? null;
+    }
+
     /** Texto del <select> de tipo. */
     public static function etiqueta(string $tipo): string
     {
         return self::ETIQUETAS[trim($tipo)] ?? trim($tipo);
+    }
+
+    /**
+     * Texto del tipo a partir del id de `tipo_institucion`, el reves de
+     * idCatalogo().
+     *
+     * Se necesita cuando el listado trae solo el id de la FK y no la columna
+     * historica `tipo`, que el codigo ya no usa. Sin este metodo, el listado
+     * de Catalogos mostraria el tipo en blanco.
+     *
+     * Un id desconocido devuelve la cadena vacia: es preferible una celda
+     * vacia a inventar un nombre.
+     */
+    public static function etiquetaPorCatalogo(?int $id): string
+    {
+        if ($id === null) {
+            return '';
+        }
+
+        $codigo = array_search($id, self::ID_CATALOGO, true);
+
+        return $codigo === false ? '' : self::etiqueta((string) $codigo);
+    }
+
+    /**
+     * Ids de `tipo_institucion` de los tipos de estudiante, para filtrar en SQL
+     * con WHERE id_tipo_institucion IN (...). Es la traduccion de
+     * TIPOS_DE_ESTUDIANTE, que sigue siendo la lista de codigos.
+     *
+     * @return array<int, int>
+     */
+    public static function idsCatalogoDeEstudiante(): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (string $tipo): ?int => self::idCatalogo($tipo),
+            self::TIPOS_DE_ESTUDIANTE
+        )));
     }
 
     /**
@@ -136,6 +208,9 @@ final class Instituciones
      * (no hay nada que exigir), incluido el caso de que no haya institución
      * o de que el estudiante ingrese por primera vez y no tenga procedencia.
      *
+     * El grado anterior puede ser igual al grado a cursar: es un repitiente,
+     * no un error. Solo se rechaza cuando es superior.
+     *
      * @param string      $tipo         Tipo de la institución de procedencia.
      * @param string|null $ultimoGrado  Texto del grado que cursó antes.
      * @param int|null    $ordinalCursar Número del grado de inscripción; null
@@ -167,9 +242,9 @@ final class Instituciones
             return 'El grado de procedencia debe estar ' . $rango . '.';
         }
 
-        if ($ordinalCursar !== null && $ordinal >= $ordinalCursar) {
+        if ($ordinalCursar !== null && $ordinal > $ordinalCursar) {
             return 'El grado de procedencia (' . $ordinal . self::ordinalTexto($ordinal)
-                . ') debe ser inferior al grado que el estudiante va a cursar ('
+                . ') no puede ser superior al grado que el estudiante va a cursar ('
                 . $ordinalCursar . self::ordinalTexto($ordinalCursar) . ').';
         }
 

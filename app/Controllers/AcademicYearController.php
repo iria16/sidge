@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\AcademicYearModel;
-use DateTimeImmutable;
+use App\Support\Validator;
 use PDO;
+use Throwable;
 
 /**
  * Gestión de años escolares (configuracion_academica/anios_escolares), consumida por academic-years.js.
@@ -65,6 +66,37 @@ class AcademicYearController extends CrudController
         ];
     }
 
+    public function store(): void
+    {
+        $source = $_POST;
+        $data = $this->extractData($source);
+        $errores = $this->validate($data);
+
+        if (!empty($errores)) {
+            $this->jsonResponse(false, $errores, 'Corrige los errores antes de continuar.', 422);
+            return;
+        }
+
+        try {
+            $this->modelo()->create($data);
+            $this->jsonResponse(true, null, 'Año escolar creado correctamente.');
+        } catch (\PDOException $e) {
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(
+                    false,
+                    ['nombre' => 'Ya existe un año escolar con ese nombre.'],
+                    'Registro duplicado.',
+                    422
+                );
+                return;
+            }
+            $this->jsonError($e, static::class);
+        } catch (Throwable $e) {
+            $this->jsonError($e, static::class);
+        }
+    }
+
     public function update(): void
     {
         $id = (int) ($_POST['id'] ?? 0);
@@ -78,8 +110,22 @@ class AcademicYearController extends CrudController
             $this->jsonResponse(false, $errores, 'Hay errores en el formulario.', 422);
         }
 
-        if (!$this->modelo()->update($id, $data)) {
-            $this->jsonResponse(false, null, 'No se puede editar un año escolar cerrado o inexistente.', 422);
+        try {
+            if (!$this->modelo()->update($id, $data)) {
+                $this->jsonResponse(false, null, 'No se puede editar un año escolar cerrado o inexistente.', 422);
+            }
+        } catch (\PDOException $e) {
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(
+                    false,
+                    ['nombre' => 'Ya existe un año escolar con ese nombre.'],
+                    'Registro duplicado.',
+                    422
+                );
+                return;
+            }
+            $this->jsonError($e, static::class);
         }
 
         $this->jsonResponse(true, null, 'Año escolar actualizado correctamente.');
@@ -110,12 +156,12 @@ class AcademicYearController extends CrudController
     }
 
     /**
- * Reabre un año escolar cerrado (solo directiva).
- *
- * A diferencia de iniciar y cerrar, el motivo es OBLIGATORIO: reabrir cambia el
- * período de referencia de matrículas y estructuras, así que sin una razón escrita el
- * registro no dice por qué se deshizo un cierre ni quién lo hizo.
-*/
+     * Reabre un año escolar cerrado (solo directiva).
+     *
+     * A diferencia de iniciar y cerrar, el motivo es OBLIGATORIO: reabrir cambia el
+     * período de referencia de matrículas y estructuras, así que sin una razón escrita el
+     * registro no dice por qué se deshizo un cierre ni quién lo hizo.
+     */
     public function reabrir(): void
     {
         $id       = (int) ($_POST['id'] ?? 0);
@@ -125,14 +171,16 @@ class AcademicYearController extends CrudController
         if ($id <= 0 || $usuario === null) {
             $this->jsonResponse(false, null, 'No se pudo identificar el año escolar o el usuario.', 422);
         }
-        if ($motivo === '') {
-            $this->jsonResponse(false, ['motivo' => 'Indique el motivo de la reapertura.'], 'Falta el motivo.', 422);
-        }
-        if (mb_strlen($motivo, 'UTF-8') < 10) {
+
+        $v = Validator::make(['motivo' => $motivo], [
+            'motivo' => 'required|string|min_len:10|max_len:200',
+        ]);
+
+        if (!$v->passes()) {
             $this->jsonResponse(
                 false,
-                ['motivo' => 'Explique el motivo con al menos 10 caracteres: quedará registrado.'],
-                'Motivo demasiado corto.',
+                ['motivo' => $v->errors()['motivo'][0]],
+                'Motivo no válido.',
                 422
             );
         }
@@ -142,41 +190,23 @@ class AcademicYearController extends CrudController
     }
 
     /**
- * Devuelve los errores por campo.
- * El nombre repetido (UNIQUE nombre_periodo) se le pregunta al modelo, que conoce la restricción.
-*/
+     * Devuelve los errores por campo.
+     * El nombre repetido (UNIQUE nombre_periodo) se le pregunta al modelo, que conoce la restricción.
+     */
     protected function validate(array $data, ?int $id = null): array
     {
         $errores = [];
 
-        if ($data['nombre'] === '') {
-            $errores['nombre'] = 'Indique el nombre del período.';
-        } elseif (mb_strlen($data['nombre'], 'UTF-8') > 20) {
-            /* `nombre_periodo` es varchar(20). Sin esta comprobación el INSERT revienta
- con "Data too long" y la secretaria recibe un error 500 sin explicación,
- en vez de un mensaje que le diga qué hacer.*/
-            $errores['nombre'] = 'El nombre del período puede tener hasta 20 caracteres '
-                . '(por ejemplo, 2026-2027).';
-        }
-        $inicio = $data['fecha_inicio'] !== ''
-            ? DateTimeImmutable::createFromFormat('!Y-m-d', $data['fecha_inicio'])
-            : false;
-        $cierre = $data['fecha_cierre'] !== ''
-            ? DateTimeImmutable::createFromFormat('!Y-m-d', $data['fecha_cierre'])
-            : false;
+        $v = Validator::make($data, [
+            'nombre'       => 'required|string|max_len:20',
+            'fecha_inicio' => 'required|date',
+            'fecha_cierre' => 'required|date|date_after_or_equal:fecha_inicio',
+        ]);
 
-        if ($data['fecha_inicio'] === '') {
-            $errores['fecha_inicio'] = 'Indique la fecha de inicio.';
-        } elseif (!$inicio || $inicio->format('Y-m-d') !== $data['fecha_inicio']) {
-            $errores['fecha_inicio'] = 'Indique una fecha de inicio válida.';
-        }
-        if ($data['fecha_cierre'] === '') {
-            $errores['fecha_cierre'] = 'Indique la fecha de cierre.';
-        } elseif (!$cierre || $cierre->format('Y-m-d') !== $data['fecha_cierre']) {
-            $errores['fecha_cierre'] = 'Indique una fecha de cierre válida.';
-        }
-        if ($inicio && $cierre && $inicio > $cierre) {
-            $errores['fecha_cierre'] = 'La fecha de cierre no puede ser anterior al inicio.';
+        if (!$v->passes()) {
+            foreach ($v->errors() as $campo => $mensajes) {
+                $errores[$campo] = $mensajes[0];
+            }
         }
 
         // $id llega de update() y permite excluir la fila en edición de unicidad;

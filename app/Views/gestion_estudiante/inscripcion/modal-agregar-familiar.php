@@ -23,9 +23,9 @@ ob_start();
   $prefixName = 'familiar_';
   $showPhoto = true;
   $btnQuitarFotoId = 'btnQuitarFotoFamiliar';
-  $minDate = '';
-  $maxDate = date('Y-m-d');
-  $dateTitle = 'Indique la fecha de nacimiento.';
+  $minDate = date('Y-m-d', strtotime('-100 years'));
+  $maxDate = date('Y-m-d', strtotime('-18 years'));
+  $dateTitle = 'El familiar debe tener entre 18 y 100 años.';
   $docMinLength = '7';
   $docMaxLength = '20';
   // Un familiar solo tiene cédula V o E: la cédula escolar (CE) es únicamente del estudiante.
@@ -74,7 +74,10 @@ ob_start();
           <select class="form-select" id="familiarParentesco" name="familiar_parentesco" required>
             <option value="">Seleccione el parentesco</option>
             <?php foreach ($catFamiliares['parentescos'] ?? [] as $par): ?>
-              <option value="<?= htmlspecialchars($par) ?>"><?= htmlspecialchars($par) ?></option>
+              <option value="<?= htmlspecialchars((string) ($par['nombre'] ?? '')) ?>"
+                      data-codigo="<?= htmlspecialchars((string) ($par['codigo'] ?? '')) ?>">
+                <?= htmlspecialchars((string) ($par['nombre'] ?? '')) ?>
+              </option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -90,6 +93,17 @@ ob_start();
             </label>
           </div>
         </div>
+      </div>
+
+      <div class="wizard-toggle-card wizard-toggle-card--compact mt-2">
+        <div class="wizard-toggle-card__text">
+          <strong>Fallecido(a)</strong>
+          <span>No se pedirán teléfono, correo, dirección ni ocupación.</span>
+        </div>
+        <label class="wizard-switch">
+          <input type="checkbox" id="familiarEsFallecido" name="familiar_es_fallecido">
+          <span class="wizard-switch__slider"></span>
+        </label>
       </div>
 
       <div class="row g-2" id="bloqueDatosRepresentante">

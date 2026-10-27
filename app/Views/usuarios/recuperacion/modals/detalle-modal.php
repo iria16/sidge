@@ -11,6 +11,7 @@
 ob_start();
 ?>
 <div class="text-center mb-3">
+  <div class="avatar avatar--lg avatar--primary mb-2" id="detalleAvatar" aria-hidden="true"></div>
   <p class="fw-bold fs-4 mb-1" id="detalleNombre" aria-live="polite">—</p>
   <p class="text-support small mb-0" id="detalleUsuario" aria-live="polite">—</p>
 </div>

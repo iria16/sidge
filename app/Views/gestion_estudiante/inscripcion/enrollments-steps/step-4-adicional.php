@@ -40,43 +40,30 @@
     <div class="row g-2">
       <div class="col-4">
         <label class="label-sigde" for="tallaCamisa">Talla de camisa</label>
-        <input type="text" class="form-control" id="tallaCamisa" name="talla_camisa"
-               list="sigdeTallasCamisa" maxlength="10" placeholder="Ej: M">
-        <datalist id="sigdeTallasCamisa">
-          <option value="S"></option>
-          <option value="M"></option>
-          <option value="L"></option>
-          <option value="XL"></option>
-          <option value="XXL"></option>
-        </datalist>
+        <select class="form-select" id="tallaCamisa" name="talla_camisa">
+          <option value=""><?= \App\Support\Tallas::PLACEHOLDER ?></option>
+          <?php foreach (\App\Support\Tallas::CAMISA as $talla): ?>
+            <option value="<?= htmlspecialchars($talla) ?>"><?= htmlspecialchars($talla) ?></option>
+          <?php endforeach; ?>
+        </select>
       </div>
       <div class="col-4">
         <label class="label-sigde" for="tallaPantalon">Talla de pantalón</label>
-        <input type="text" class="form-control" id="tallaPantalon" name="talla_pantalon"
-               list="sigdeTallasPantalon" maxlength="10" placeholder="Ej: 32">
-        <datalist id="sigdeTallasPantalon">
-          <option value="4"></option><option value="6"></option><option value="8"></option>
-          <option value="10"></option><option value="12"></option><option value="14"></option>
-          <option value="16"></option><option value="18"></option><option value="20"></option>
-          <option value="22"></option><option value="24"></option><option value="26"></option>
-          <option value="28"></option><option value="30"></option><option value="32"></option>
-          <option value="34"></option><option value="36"></option><option value="38"></option>
-          <option value="40"></option>
-        </datalist>
+        <select class="form-select" id="tallaPantalon" name="talla_pantalon">
+          <option value=""><?= \App\Support\Tallas::PLACEHOLDER ?></option>
+          <?php foreach (\App\Support\Tallas::PANTALON as $talla): ?>
+            <option value="<?= htmlspecialchars($talla) ?>"><?= htmlspecialchars($talla) ?></option>
+          <?php endforeach; ?>
+        </select>
       </div>
       <div class="col-4">
         <label class="label-sigde" for="tallaZapato">Talla de calzado</label>
-        <input type="text" class="form-control" id="tallaZapato" name="talla_zapato"
-               list="sigdeTallasZapato" maxlength="10" placeholder="Ej: 38">
-        <datalist id="sigdeTallasZapato">
-          <option value="16"></option><option value="17"></option><option value="18"></option>
-          <option value="19"></option><option value="20"></option><option value="21"></option>
-          <option value="22"></option><option value="23"></option><option value="24"></option>
-          <option value="25"></option><option value="26"></option><option value="27"></option>
-          <option value="28"></option><option value="29"></option><option value="30"></option>
-          <option value="32"></option><option value="34"></option><option value="36"></option>
-          <option value="38"></option><option value="40"></option><option value="42"></option>
-        </datalist>
+        <select class="form-select" id="tallaZapato" name="talla_zapato">
+          <option value=""><?= \App\Support\Tallas::PLACEHOLDER ?></option>
+          <?php foreach (\App\Support\Tallas::zapato() as $talla): ?>
+            <option value="<?= htmlspecialchars($talla) ?>"><?= htmlspecialchars($talla) ?></option>
+          <?php endforeach; ?>
+        </select>
       </div>
       <div class="col-12">
         <label class="label-sigde" for="tallaObservaciones">Observaciones de la talla</label>

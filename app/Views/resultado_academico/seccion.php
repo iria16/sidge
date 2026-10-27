@@ -13,15 +13,16 @@
  * @var array  $detalle
  * @var string $rolUsuario
  * @var bool   $esDirectivo
- * @var bool   $esDocente   solo el docente escribe; el resto mira en lectura
  * @var bool   $esConsulta
  * @var array  $literales
+ * @var bool   $esDocenteAsignada
  * @var string|null $flash_error
  * @var string|null $flash_success
  * @var string|null $flash_info
  */
 
-$esDocente     = ($rolUsuario === 'docente');
+$esDocente         = ($rolUsuario === 'docente');
+$esDocenteAsignada = $esDocenteAsignada ?? false;
 $gradoNombre   = htmlspecialchars($detalle['grado'] ?? '');
 $seccionNombre = htmlspecialchars($detalle['seccion'] ?? '');
 $turnoNombre   = htmlspecialchars($detalle['turno'] ?? '');
@@ -29,6 +30,7 @@ $anioNombre    = htmlspecialchars($detalle['anio_escolar'] ?? '');
 $docenteNombre = htmlspecialchars($detalle['docente_nombre'] ?? 'Sin asignar');
 $idEstructura  = (int) $detalle['id'];
 $idGradoActual = (int) $detalle['id_grado'];
+$esSexto       = (bool) preg_match('/^6|sexto/i', (string) ($detalle['grado'] ?? ''));
 
 $pageTitle       = "Literales Finales - {$gradoNombre} \"{$seccionNombre}\"";
 $pageDescription = "Turno {$turnoNombre} · Carga oficial de calificaciones cualitativas · Docente: {$docenteNombre}";
@@ -36,7 +38,8 @@ $currentNav      = $esDocente ? 'mi-seccion-promocion' : 'promocion';
 
 $breadcrumbs = $esDocente
     ? [
-        ['label' => 'Mi sección', 'href' => BASE_URL . 'resultadoAcademico/index'],
+        ['label' => 'Mi sección', 'href' => null],
+        ['label' => 'Resultados y Promoción', 'href' => BASE_URL . 'resultadoAcademico/index'],
         ['label' => "{$gradoNombre} \"{$seccionNombre}\"", 'href' => null],
     ]
     : [
@@ -75,7 +78,7 @@ $pendientes      = 0;
 foreach ($estudiantes as $est) {
     $lit    = strtoupper(trim($est['literal'] ?? ''));
     $st     = $est['estado_resultado'] ?? 'PENDIENTE';
-    $esConf = !empty($est['fecha_confirmacion']) || in_array($st, ['PROMOVIDO', 'NO_PROMOVIDO'], true);
+    $esConf = !empty($est['fecha_confirmacion']) || !empty($est['confirmado_por']);
 
     if ($lit !== '') {
         $totalConLiteral++;
@@ -87,9 +90,9 @@ foreach ($estudiantes as $est) {
         $confirmados++;
     }
 
-    if ($st === 'PROMOVIDO') {
+    if ($st === 'PROMOVIDO' || in_array($lit, ['A', 'B', 'C', 'D'], true)) {
         $promovidos++;
-    } elseif ($st === 'NO_PROMOVIDO') {
+    } elseif ($st === 'NO_PROMOVIDO' || $lit === 'E') {
         $noPromovidos++;
     } else {
         $pendientes++;
@@ -130,13 +133,6 @@ include __DIR__ . '/../components/page-header.php';
 <style>
 /* Selector de Literal en forma de pastilla sólida (Pill) */
 .select-literal-pill {
-  /* -webkit-appearance: none va explícito porque esta pastilla pinta su propia
-     flecha: sin el prefijo, Safari deja la nativa del navegador encima y se
-     ven dos superpuestas. El CSS global (base/selects) ya lo resuelve para
-     todos los selects, pero aquí se repite para que la pastilla no dependa de
-     que ese archivo esté cargado. */
-  -webkit-appearance: none;
-  appearance: none;
   width: 72px;
   height: 38px;
   border-radius: 8px;
@@ -313,63 +309,6 @@ include __DIR__ . '/../components/page-header.php';
 }
 </style>
 
-<!-- ---------- Resumen Estadístico (components/stat-card.php) ----------
-     Las cuatro tarjetas (Progreso de Carga, Por Asignar, Confirmados Oficial y
-     Promovidos) no se le pintan al docente. Son un resumen para quien administra
-     el resultado del turno —dirección y coordinación—, y a un docente de aula
-     única le repiten lo que ya tiene delante en la tabla: cuántos faltan, cuántos
-     van y cuántos hay. Se le queda el trabajo (la tabla y sus decisiones) y se le
-     quitan los contadores. Para los demás roles siguen igual. -->
-<?php if (!$esDocente): ?>
-<div class="row g-3 mb-4">
-  <div class="col-6 col-lg-3">
-    <?php
-      $statLabel     = 'Progreso de Carga';
-      $statValue     = "{$totalConLiteral} de {$totalEst} ({$porcentajeCarga}%)";
-      $statIcon      = 'bi-check2-circle';
-      $statTone      = 'primary';
-      $statProgress  = $porcentajeCarga;
-      $statMeta      = 'Literales asignados';
-      include __DIR__ . '/../components/stat-card.php';
-    ?>
-  </div>
-  <div class="col-6 col-lg-3">
-    <?php
-      $statLabel     = 'Por Asignar';
-      $statValue     = "{$totalSinLiteral} estudiantes";
-      $statIcon      = 'bi-pencil-square';
-      $statTone      = 'warning';
-      $statProgress  = null;
-      $statMeta      = 'Pendientes de calificación';
-      include __DIR__ . '/../components/stat-card.php';
-    ?>
-  </div>
-  <div class="col-6 col-lg-3">
-    <?php
-      $statLabel     = 'Confirmados Oficial';
-      $statValue     = "{$confirmados} de {$totalEst}";
-      $statIcon      = 'bi-shield-check';
-      $statTone      = 'success';
-      $statProgress  = null;
-      $statMeta      = 'Validados por Dirección';
-      include __DIR__ . '/../components/stat-card.php';
-    ?>
-  </div>
-  <div class="col-6 col-lg-3">
-    <?php
-      $statLabel     = 'Promovidos';
-      $statValue     = "{$promovidos} estudiantes";
-      $statIcon      = 'bi-mortarboard-fill';
-      $statTone      = ($noPromovidos > 0) ? 'danger' : 'info';
-      $statProgress  = null;
-      $statMeta      = ($noPromovidos > 0) ? "{$noPromovidos} no promovido(s)" : 'Prosecución regular';
-      include __DIR__ . '/../components/stat-card.php';
-    ?>
-  </div>
-</div>
-
-<?php endif; ?>
-
 <!-- ---------- Tarjeta de Normativa Oficial (Resolución N° 266) ---------- -->
 <div class="normativa-card shadow-sm mb-4">
   <div class="p-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -441,12 +380,7 @@ include __DIR__ . '/../components/page-header.php';
 
 <!-- ---------- Formulario y Nómina de Evaluación (data-panel) ---------- -->
 <form id="formResultados" method="POST" action="<?= BASE_URL ?>resultadoAcademico/guardarPropuesta">
-  <?php /* Token de seguridad. Este formulario es un POST nativo, no pasa por fetch(),
-           así que el token no se inyecta solo: el front controller rechaza con 403
-           cualquier POST privado que llegue sin él. El mismo form sirve para la
-           confirmación (el JS solo le cambia el action), de modo que este campo
-           cubre las dos acciones. */ ?>
-  <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrfToken()) ?>">
+  <input type="hidden" name="csrf" value="<?= htmlspecialchars($_SESSION['csrf'] ?? '') ?>">
   <input type="hidden" name="id_estructura_academica" value="<?= $idEstructura ?>">
 
   <div class="data-panel mb-5">
@@ -455,52 +389,29 @@ include __DIR__ . '/../components/page-header.php';
     <div class="data-panel__toolbar d-flex align-items-center justify-content-between flex-wrap gap-3 p-3">
       
       <!-- Filtros de Pestañas estilo mockup -->
-      <?php /* Si se pidió por la URL un filtro que no tiene nada que mostrar —por ejemplo
-         ?estado=confirmados en una sección donde aún no se confirmó nada—, se cae a
-         «todos». Una tabla vacía sin ningún botón activo parece una pantalla rota,
-         y el enlace del panel solo usa «pendiente», así que esto es por si alguien
-         guarda la URL a mano. */
-if ($filtroEstadoInicial === 'CONFIRMADOS' && (int) ($confirmados ?? 0) <= 0) {
-    $filtroEstadoInicial = 'todos';
-}
-if ($filtroEstadoInicial === 'PENDIENTE' && (int) ($totalSinLiteral ?? 0) <= 0) {
-    $filtroEstadoInicial = 'todos';
-}
-if ($filtroEstadoInicial === 'CARGADOS' && (int) ($totalConLiteral ?? 0) <= 0) {
-    $filtroEstadoInicial = 'todos';
-}
-?>
-<div class="filter-pills-nav" role="group" aria-label="Filtro de estado">
-        <?php /* El botón activo lo marca el servidor: si se entró con ?estado=pendiente,
-                 la tabla tiene que verse filtrada desde el primer momento y no solo
-                 con el botón pintado. */ ?>
-        <button type="button" class="btn-filter-tab<?= ($filtroEstadoInicial ?? 'todos') === 'todos' ? ' active' : '' ?>" data-filter="todos">
+      <div class="filter-pills-nav" role="group" aria-label="Filtro de estado">
+        <button type="button" class="btn-filter-tab active" data-filter="todos">
           Todos (<?= $totalEst ?>)
         </button>
-        <button type="button" class="btn-filter-tab<?= ($filtroEstadoInicial ?? 'todos') === 'PENDIENTE' ? ' active' : '' ?>" data-filter="PENDIENTE">
+        <button type="button" class="btn-filter-tab" data-filter="PENDIENTE">
           Pendientes (<span id="filterCountPendientes"><?= $totalSinLiteral ?></span>)
         </button>
-        <button type="button" class="btn-filter-tab<?= ($filtroEstadoInicial ?? 'todos') === 'CARGADOS' ? ' active' : '' ?>" data-filter="CARGADOS">
+        <button type="button" class="btn-filter-tab" data-filter="CARGADOS">
           Cargados (<span id="filterCountCargados"><?= $totalConLiteral ?></span>)
         </button>
-        <?php if ($confirmados > 0): ?>
-          <button type="button" class="btn-filter-tab<?= ($filtroEstadoInicial ?? 'todos') === 'CONFIRMADOS' ? ' active' : '' ?>" data-filter="CONFIRMADOS">
-            Confirmados (<span id="filterCountConfirmados"><?= $confirmados ?></span>)
-          </button>
-        <?php endif; ?>
       </div>
 
       <!-- Buscador y Acciones -->
       <div class="d-flex align-items-center gap-2 flex-grow-1 flex-md-grow-0 justify-content-end" style="min-width: 280px;">
         
         <!-- Buscador en tiempo real -->
-        <div class="position-relative flex-grow-1" style="max-width: 300px;">
+        <div class="position-relative flex-grow-1" style="min-width: 200px; max-width: 280px;">
           <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-secondary" style="font-size: 0.85rem;" aria-hidden="true"></i>
           <input type="search" id="filtroBuscador" class="form-control form-control-sm ps-5 rounded-pill border-light-subtle shadow-none" 
-                 placeholder="Buscar por Cédula o Nombre..." autocomplete="off">
+                 placeholder="Buscar estudiante..." autocomplete="off">
         </div>
 
-        <?php if ($esDocente): ?>
+        <?php if ($esDocente && !$esConsulta): ?>
           <button type="submit" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm" id="btnGuardarPropuesta">
             <i class="bi bi-floppy-fill" aria-hidden="true"></i>
             <span>Guardar Cambios</span>
@@ -520,13 +431,13 @@ if ($filtroEstadoInicial === 'CARGADOS' && (int) ($totalConLiteral ?? 0) <= 0) {
 
     <!-- Tabla de Nómina (data-panel__body) -->
     <div class="data-panel__body table-responsive">
-      <table class="table data-panel__table align-middle mb-0" id="tablaResultados">
+      <table class="table data-panel__table align-middle mb-0" id="tablaResultados" style="min-width: 860px;">
         <thead>
           <tr class="text-secondary small">
-            <th scope="col" style="width: 4%;" class="text-center">N°</th>
+            <th scope="col" style="width: 50px; min-width: 50px;" class="text-center text-nowrap">N°</th>
             <th scope="col" style="width: 30%;">ESTUDIANTE</th>
-            <th scope="col" style="width: 14%;" class="text-center">LITERAL</th>
-            <th scope="col" style="width: 22%;">DECISIÓN OFICIAL</th>
+            <th scope="col" style="width: 15%;" class="text-center">LITERAL</th>
+            <th scope="col" style="width: 20%;">DECISIÓN OFICIAL</th>
             <th scope="col" style="width: 30%;">OBSERVACIÓN PEDAGÓGICA</th>
           </tr>
         </thead>
@@ -548,21 +459,22 @@ if ($filtroEstadoInicial === 'CARGADOS' && (int) ($totalConLiteral ?? 0) <= 0) {
                 $idGradoDest = (int) ($est['id_grado_destino'] ?? 0);
                 $obs         = htmlspecialchars($est['observaciones'] ?? '');
                 $nombreEst   = htmlspecialchars($est['nombre_completo'] ?? '');
-                $docTipo     = htmlspecialchars($est['tipo_documento'] ?? '');
-                $docNum      = htmlspecialchars($est['numero_documento'] ?? '');
+                $docTipo     = strtoupper(trim((string) ($est['tipo_documento'] ?? '')));
+                $docNum      = trim((string) ($est['numero_documento'] ?? ''));
+                $docEtiqueta = $docNum !== '' ? (($docTipo !== '' ? $docTipo . '-' : '') . $docNum) : 'Sin documento';
 
-                $partesNombre   = explode(' ', trim($nombreEst));
-                $avatarInitials = strtoupper(substr($partesNombre[0] ?? 'E', 0, 1) . substr($partesNombre[1] ?? 'S', 0, 1));
+                $partesApellidos = explode(' ', trim((string) ($est['primer_apellido'] ?? '')));
+                $partesNombres   = explode(' ', trim((string) ($est['primer_nombre'] ?? '')));
+                $avatarInitials  = strtoupper(substr($partesApellidos[0] ?? 'E', 0, 1) . substr($partesNombres[0] ?? 'S', 0, 1));
 
                 $propuestoPor  = htmlspecialchars($est['propuesto_por_nombre'] ?? '');
-                $fechaProp     = !empty($est['fecha_propuesta']) ? date('d/m/Y', strtotime($est['fecha_propuesta'])) : '';
-                $confirmadoPor = htmlspecialchars($est['confirmado_por_nombre'] ?? '');
-                $fechaConf     = !empty($est['fecha_confirmacion']) ? date('d/m/Y', strtotime($est['fecha_confirmacion'])) : '';
+                $fechaCarga    = !empty($est['fecha_propuesta']) ? date('d/m/Y', strtotime($est['fecha_propuesta'])) : '';
+                $cargadoPor    = !empty($propuestoPor) ? $propuestoPor : 'Docente';
 
-                $estaConfirmado = !empty($est['fecha_confirmacion']) || in_array($estado, ['PROMOVIDO', 'NO_PROMOVIDO'], true);
+                $estaConfirmado = !empty($est['fecha_confirmacion']) || !empty($est['confirmado_por']);
                 /* Una fila se bloquea si ya la confirmó la dirección o si quien mira
                    no es el docente de la sección: solo el docente propone, así que
-                   el resto de roles —incluido el admin— la ven en lectura. */
+                   el resto de roles la ven en lectura. */
                 $bloquearFila   = $estaConfirmado || !$esDocente;
               ?>
               <tr data-student-row="<?= $idEst ?>" 
@@ -571,29 +483,29 @@ if ($filtroEstadoInicial === 'CARGADOS' && (int) ($totalConLiteral ?? 0) <= 0) {
                   data-esta-confirmado="<?= $estaConfirmado ? '1' : '0' ?>"
                   class="fila-estudiante <?= $estaConfirmado ? 'fila-confirmada' : '' ?>">
                 
-                <td class="text-center text-muted fw-semibold small">
+                <td class="text-center text-muted fw-semibold small text-nowrap" style="min-width: 50px;">
                   <?= sprintf('%02d', $idx + 1) ?>
                   <!-- id_matricula se envía para auditoría y conteo exacto de omisiones en el backend -->
                   <input type="hidden" name="estudiantes[<?= $idEst ?>][id_matricula]" value="<?= $idMat ?>">
                 </td>
 
-                <td>
+                <td class="celda-wrap">
                   <div class="d-flex align-items-center gap-2">
                     <?php
                       $avatarSize = 'sm';
                       $avatarTone = 'primary';
                       include __DIR__ . '/../components/avatar.php';
                     ?>
-                    <div>
+                    <div style="min-width: 0; overflow-wrap: break-word;">
                       <strong class="nombre-estudiante d-block text-dark" style="font-size: 0.88rem;"><?= $nombreEst ?></strong>
                       <span class="documento-estudiante text-secondary small">
-                        <?= !empty($docTipo) ? "{$docTipo}: {$docNum}" : ($docNum ?: 'Sin documento') ?>
+                        <?= htmlspecialchars($docEtiqueta) ?>
                       </span>
                     </div>
                   </div>
                 </td>
 
-                <td class="text-center">
+                <td class="text-center text-nowrap">
                   <div class="d-inline-flex align-items-center gap-1 position-relative">
                     <select name="estudiantes[<?= $idEst ?>][literal]"
                             class="select-literal-pill"
@@ -608,15 +520,15 @@ if ($filtroEstadoInicial === 'CARGADOS' && (int) ($totalConLiteral ?? 0) <= 0) {
                       <option value="D" <?= ($literal === 'D') ? 'selected' : '' ?>>D</option>
                       <option value="E" <?= ($literal === 'E') ? 'selected' : '' ?>>E</option>
                     </select>
-                    <?php if ($estaConfirmado): ?>
-                      <span class="badge bg-light text-secondary border px-1 py-1" title="Confirmado por <?= $confirmadoPor ?> el <?= $fechaConf ?>">
-                        <i class="bi bi-lock-fill text-muted" aria-hidden="true"></i>
+                    <?php if ($literal !== ''): ?>
+                      <span class="badge bg-light text-secondary border px-1 py-1" title="Cargado por <?= $cargadoPor ?> el <?= $fechaCarga ?>">
+                        <i class="bi bi-check2 text-success" aria-hidden="true"></i>
                       </span>
                     <?php endif; ?>
                   </div>
                 </td>
 
-                <td>
+                <td class="celda-wrap">
                   <input type="hidden" name="estudiantes[<?= $idEst ?>][estado_resultado]"
                          id="input_estado_<?= $idEst ?>" value="<?= $estado ?>">
                   <input type="hidden" name="estudiantes[<?= $idEst ?>][id_grado_destino]"
@@ -638,24 +550,24 @@ if ($filtroEstadoInicial === 'CARGADOS' && (int) ($totalConLiteral ?? 0) <= 0) {
                     <?php endif; ?>
                   </div>
 
-                  <div id="proyeccion_grado_<?= $idEst ?>" class="text-secondary small" style="font-size: 0.76rem;">
+                  <div id="proyeccion_grado_<?= $idEst ?>" class="text-secondary small celda-wrap" style="font-size: 0.76rem; line-height: 1.35;">
                     <?php if ($estado === 'PROMOVIDO'): ?>
-                      <span class="text-primary"><i class="bi bi-arrow-right me-1"></i>Avanza: <strong><?= $textoGradoAvanza ?></strong></span>
+                      <div class="text-primary"><i class="bi bi-arrow-right me-1"></i>Avanza: <strong><?= $textoGradoAvanza ?></strong></div>
                     <?php elseif ($estado === 'NO_PROMOVIDO'): ?>
-                      <span class="text-danger"><i class="bi bi-arrow-repeat me-1"></i>Permanece: <strong><?= $gradoNombre ?></strong></span>
+                      <div class="text-danger"><i class="bi bi-arrow-repeat me-1"></i>Permanece: <strong><?= $gradoNombre ?></strong></div>
                     <?php else: ?>
-                      <span class="text-muted"><i class="bi bi-dash-circle me-1"></i>Por evaluar</span>
+                      <div class="text-muted"><i class="bi bi-dash-circle me-1"></i>Por evaluar</div>
                     <?php endif; ?>
                     
-                    <?php if ($estaConfirmado && !empty($fechaConf)): ?>
-                      <span class="text-success ms-1" title="Confirmado oficialmente por <?= $confirmadoPor ?>">
-                        · <i class="bi bi-shield-check"></i> <?= $fechaConf ?>
-                      </span>
+                    <?php if ($literal !== '' && !empty($fechaCarga)): ?>
+                      <div class="text-success small mt-1" title="Literal cargado por <?= $cargadoPor ?>">
+                        <i class="bi bi-calendar-check me-1"></i><?= $fechaCarga ?>
+                      </div>
                     <?php endif; ?>
                   </div>
                 </td>
 
-                <td>
+                <td class="celda-wrap">
                   <input type="text" name="estudiantes[<?= $idEst ?>][observaciones]"
                          class="form-control form-control-sm input-obs-pedagogica"
                          value="<?= $obs ?>"
@@ -663,7 +575,6 @@ if ($filtroEstadoInicial === 'CARGADOS' && (int) ($totalConLiteral ?? 0) <= 0) {
                          maxlength="255"
                          <?= $bloquearFila ? 'readonly disabled' : '' ?>>
                 </td>
-
               </tr>
             <?php endforeach; ?>
           <?php endif; ?>
@@ -674,15 +585,9 @@ if ($filtroEstadoInicial === 'CARGADOS' && (int) ($totalConLiteral ?? 0) <= 0) {
     <!-- Footer de la Tabla (data-panel__footer) -->
     <div class="data-panel__footer d-flex justify-content-between align-items-center flex-wrap gap-2 p-3">
       <span class="text-secondary small">
-        <i class="bi bi-shield-lock me-1"></i> Seguridad institucional: los registros confirmados por Dirección quedan blindados contra modificaciones.
+        Mostrando <?= $totalEst ?> estudiante<?= $totalEst === 1 ? '' : 's' ?> en la nómina de la sección.
       </span>
       <div class="d-flex gap-2">
-        <?php /* El guardar del docente vive arriba, en la barra de la tabla, junto a
-               los contadores que van cambiando según carga. Antes había un segundo
-               «Guardar Cambios» aquí abajo que hacía la misma cosa: dos botones para
-               la misma acción, y el de abajo solo se alcanzaba al final de una tabla
-               larga. Este pie queda para la confirmación, que es otro acto y es del
-               directivo. */ ?>
         <?php if ($esDirectivo): ?>
           <button type="button" class="btn btn-success btn-sm d-inline-flex align-items-center gap-1 shadow-sm btn-abrir-confirmar">
             <i class="bi bi-check2-circle" aria-hidden="true"></i>
@@ -702,121 +607,8 @@ $pageContent = ob_get_clean();
 // Modales de la vista (Normativa y Confirmación Directiva)
 // ---------------------------------------------------------
 ob_start();
+include __DIR__ . '/modals/guia-modal.php';
 ?>
-
-<!-- Modal: Criterios Normativos -->
-<div class="modal fade app-modal" id="modalGuiaNormativa" tabindex="-1" aria-labelledby="modalGuiaNormativaLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      
-      <div class="modal-header">
-        <div>
-          <h5 class="modal-title" id="modalGuiaNormativaLabel">
-            <i class="bi bi-book-half me-2 text-primary"></i>Criterios de Evaluación y Promoción Anual
-          </h5>
-          <p class="modal-header__subtitle">Escala cualitativa de literales y efectos de promoción en Educación Primaria</p>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-
-      <div class="modal-body">
-        
-        <div class="info-alert mb-3">
-          <div class="info-alert__icon"><i class="bi bi-info-circle-fill" aria-hidden="true"></i></div>
-          <div>
-            <div class="info-alert__title">Marco Institucional y Pedagógico (Normativa MPPE)</div>
-            <div class="info-alert__text">
-              La promoción al grado inmediato superior es el resultado pedagógico oficial correspondiente al grado cursado. Los resultados deben registrarse con estricta veracidad y trazabilidad antes del cierre del año escolar.
-            </div>
-          </div>
-        </div>
-
-        <h6 class="fw-bold mb-2 text-primary" style="font-size: 0.9rem;">
-          <i class="bi bi-card-checklist me-1 text-primary"></i> Escala Cualitativa de Literales
-        </h6>
-
-        <div class="d-flex flex-column gap-2 mb-3">
-          
-          <!-- Literal A -->
-          <div class="p-2 px-3 rounded border d-flex flex-wrap align-items-center justify-content-between gap-2" style="background-color: #f8f9fb; border-color: #e3e7f0 !important;">
-            <div class="d-flex align-items-center gap-3">
-              <span class="badge text-white px-2 py-1" style="background-color: #16a34a; font-weight: 700;">Literal A</span>
-              <div>
-                <strong class="text-primary" style="font-size: 0.85rem;">Alcanzó todas las competencias del grado de manera sobresaliente</strong>
-                <span class="text-secondary small d-block">Avanza al grado inmediato superior</span>
-              </div>
-            </div>
-            <span class="status-badge status-badge--active">PROMOVIDO</span>
-          </div>
-
-          <!-- Literal B -->
-          <div class="p-2 px-3 rounded border d-flex flex-wrap align-items-center justify-content-between gap-2" style="background-color: #f8f9fb; border-color: #e3e7f0 !important;">
-            <div class="d-flex align-items-center gap-3">
-              <span class="badge text-white px-2 py-1" style="background-color: #2563eb; font-weight: 700;">Literal B</span>
-              <div>
-                <strong class="text-primary" style="font-size: 0.85rem;">Alcanzó todas las competencias con un desempeño muy satisfactorio</strong>
-                <span class="text-secondary small d-block">Avanza al grado inmediato superior</span>
-              </div>
-            </div>
-            <span class="status-badge status-badge--active">PROMOVIDO</span>
-          </div>
-
-          <!-- Literal C -->
-          <div class="p-2 px-3 rounded border d-flex flex-wrap align-items-center justify-content-between gap-2" style="background-color: #f8f9fb; border-color: #e3e7f0 !important;">
-            <div class="d-flex align-items-center gap-3">
-              <span class="badge text-white px-2 py-1" style="background-color: #0284c7; font-weight: 700;">Literal C</span>
-              <div>
-                <strong class="text-primary" style="font-size: 0.85rem;">Alcanzó la mayoría de las competencias esenciales del grado</strong>
-                <span class="text-secondary small d-block">Avanza al grado inmediato superior</span>
-              </div>
-            </div>
-            <span class="status-badge status-badge--active">PROMOVIDO</span>
-          </div>
-
-          <!-- Literal D -->
-          <div class="p-2 px-3 rounded border d-flex flex-wrap align-items-center justify-content-between gap-2" style="background-color: #f8f9fb; border-color: #e3e7f0 !important;">
-            <div class="d-flex align-items-center gap-3">
-              <span class="badge text-white px-2 py-1" style="background-color: #d97706; font-weight: 700;">Literal D</span>
-              <div>
-                <strong class="text-primary" style="font-size: 0.85rem;">Alcanzó algunas competencias mínimas; requiere acompañamiento</strong>
-                <span class="text-secondary small d-block">Avanza al grado inmediato superior</span>
-              </div>
-            </div>
-            <span class="status-badge status-badge--active">PROMOVIDO</span>
-          </div>
-
-          <!-- Literal E -->
-          <div class="p-2 px-3 rounded border d-flex flex-wrap align-items-center justify-content-between gap-2" style="background-color: rgba(220, 38, 38, 0.04); border-color: rgba(220, 38, 38, 0.2) !important;">
-            <div class="d-flex align-items-center gap-3">
-              <span class="badge text-white px-2 py-1" style="background-color: #dc2626; font-weight: 700;">Literal E</span>
-              <div>
-                <strong class="text-danger" style="font-size: 0.85rem;">No alcanzó las competencias esenciales requeridas para avanzar</strong>
-                <span class="text-danger small d-block">Permanece en el mismo grado cursado</span>
-              </div>
-            </div>
-            <span class="status-badge status-badge--inactive">NO PROMOVIDO</span>
-          </div>
-
-        </div>
-
-        <h6 class="fw-bold mb-2 mt-3 text-primary" style="font-size: 0.9rem;">
-          <i class="bi bi-shield-check me-1 text-primary"></i> Reglas de Integridad y Trazabilidad
-        </h6>
-        <ul class="text-secondary small mb-0 ps-3">
-          <li class="mb-1"><strong>Independencia del retiro:</strong> El retiro de un estudiante mantiene su resultado como pendiente; no se presume promovido ni no promovido.</li>
-          <li class="mb-1"><strong>Egreso de 6to Grado:</strong> Solo los estudiantes con resultado <em>Promovido</em> formalmente confirmado por Dirección pueden ser graduados.</li>
-          <li><strong>Cierre de Año Escolar:</strong> La Dirección no podrá cerrar el año escolar si existen estudiantes cursando con resultado pendiente de confirmar.</li>
-        </ul>
-
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Entendido</button>
-      </div>
-
-    </div>
-  </div>
-</div>
 
 <?php if ($esDirectivo): ?>
 <!-- Modal: Confirmación Oficial Directiva -->
@@ -932,7 +724,7 @@ document.addEventListener('DOMContentLoaded', function() {
         badgeEstado.innerHTML = '<span class="decision-badge decision-badge--promovido"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> PROMOVIDO</span>';
       }
       if (proyGrado) {
-        proyGrado.innerHTML = '<span class="text-primary"><i class="bi bi-arrow-right me-1"></i>Avanza: <strong>' + textoGradoAvanza + '</strong></span>';
+        proyGrado.innerHTML = '<div class="text-primary"><i class="bi bi-arrow-right me-1"></i>Avanza: <strong>' + textoGradoAvanza + '</strong></div>';
       }
       if (inputGrado && idGradoSiguiente) {
         inputGrado.value = idGradoSiguiente;
@@ -947,7 +739,7 @@ document.addEventListener('DOMContentLoaded', function() {
         badgeEstado.innerHTML = '<span class="decision-badge decision-badge--no-promovido"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> NO PROMOVIDO</span>';
       }
       if (proyGrado) {
-        proyGrado.innerHTML = '<span class="text-danger"><i class="bi bi-arrow-repeat me-1"></i>Permanece: <strong>' + gradoNombre + '</strong></span>';
+        proyGrado.innerHTML = '<div class="text-danger"><i class="bi bi-arrow-repeat me-1"></i>Permanece: <strong>' + gradoNombre + '</strong></div>';
       }
       if (inputGrado) {
         inputGrado.value = idGradoActual;
@@ -962,7 +754,7 @@ document.addEventListener('DOMContentLoaded', function() {
         badgeEstado.innerHTML = '<span class="decision-badge decision-badge--pendiente"><i class="bi bi-clock-fill" aria-hidden="true"></i> PENDIENTE</span>';
       }
       if (proyGrado) {
-        proyGrado.innerHTML = '<span class="text-muted"><i class="bi bi-dash-circle me-1"></i>Por evaluar</span>';
+        proyGrado.innerHTML = '<div class="text-muted"><i class="bi bi-dash-circle me-1"></i>Por evaluar</div>';
       }
       if (inputGrado) {
         inputGrado.value = '';
@@ -972,49 +764,17 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function actualizarContadores() {
-    let conLiteral = 0, sinLiteral = 0, prom = 0, noProm = 0;
-    
+    let conLiteral = 0, sinLiteral = 0;
+
     document.querySelectorAll('.fila-estudiante').forEach(function(fila) {
       const select = fila.querySelector('.select-literal-pill');
       const val = select ? select.value.toUpperCase().trim() : '';
       if (val !== '') {
         conLiteral++;
-        if (['A', 'B', 'C', 'D'].includes(val)) {
-          prom++;
-        } else if (val === 'E') {
-          noProm++;
-        }
       } else {
         sinLiteral++;
       }
     });
-
-    const pct = totalEstudiantes > 0 ? Math.round((conLiteral / totalEstudiantes) * 100) : 0;
-
-    // Actualizar Stat Card de Progreso
-    const cardProgreso = document.querySelector('.stat-card__icon--primary')?.closest('.stat-card');
-    if (cardProgreso) {
-      const valEl = cardProgreso.querySelector('.stat-card__value');
-      if (valEl) valEl.textContent = conLiteral + ' de ' + totalEstudiantes + ' (' + pct + '%)';
-      const barEl = cardProgreso.querySelector('.stat-card__bar span');
-      if (barEl) barEl.style.width = pct + '%';
-    }
-
-    // Actualizar Stat Card Por Asignar
-    const cardPorAsignar = document.querySelector('.stat-card__icon--warning')?.closest('.stat-card');
-    if (cardPorAsignar) {
-      const valEl = cardPorAsignar.querySelector('.stat-card__value');
-      if (valEl) valEl.textContent = sinLiteral + ' estudiantes';
-    }
-
-    // Actualizar Stat Card Promovidos
-    const cardProm = document.querySelector('.stat-card__icon--info, .stat-card__icon--danger')?.closest('.stat-card');
-    if (cardProm) {
-      const valEl = cardProm.querySelector('.stat-card__value');
-      if (valEl) valEl.textContent = prom + ' estudiantes';
-      const metaEl = cardProm.querySelector('.stat-card__meta');
-      if (metaEl) metaEl.textContent = noProm > 0 ? (noProm + ' no promovido(s)') : 'Prosecución regular';
-    }
 
     // Actualizar contadores en las pestañas de filtros
     const fPend = document.getElementById('filterCountPendientes');
@@ -1034,10 +794,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Buscador y Filtros por Pestaña
   // -------------------------------------------------------------
   const inputBuscador = document.getElementById('filtroBuscador');
-  /* Nace con el filtro que pidió la URL (?estado=pendiente desde el panel del
-     docente), no siempre en «todos». Abajo se llama a filtrarTabla() para que las
-     filas queden ocultas desde el primer momento y no solo con el botón pintado. */
-  let filtroTabActual = <?= json_encode($filtroEstadoInicial ?? 'todos', JSON_UNESCAPED_UNICODE) ?>;
+  let filtroTabActual = 'todos';
 
   function filtrarTabla() {
     const texto = inputBuscador ? inputBuscador.value.toLowerCase().trim() : '';
@@ -1082,10 +839,42 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  /* Si se entró con ?estado=..., se aplica el filtro desde el primer momento:
-     el botón llega activo desde el servidor, pero sin esto las filas seguirían
-     todas visibles hasta que el usuario tocara algo. */
-  filtrarTabla();
+  // -------------------------------------------------------------
+  // Guardado vía AJAX de literales (Docente)
+  // -------------------------------------------------------------
+  const btnGuardarPropuesta = document.getElementById('btnGuardarPropuesta');
+  if (formResultados && btnGuardarPropuesta && window.SIGDEUI) {
+    formResultados.addEventListener('submit', function(e) {
+      if (!formResultados.action || !formResultados.action.includes('guardarPropuesta')) {
+        return;
+      }
+      e.preventDefault();
+
+      const textoOriginal = btnGuardarPropuesta.innerHTML;
+      btnGuardarPropuesta.disabled = true;
+      btnGuardarPropuesta.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span><span>Guardando...</span>';
+
+      SIGDEUI.enviar(formResultados.action, {
+        metodo: 'POST',
+        cuerpo: new FormData(formResultados)
+      }).then(function(r) {
+        btnGuardarPropuesta.disabled = false;
+        btnGuardarPropuesta.innerHTML = textoOriginal;
+
+        if (!r.ok || !r.data || !r.data.ok) {
+          const msg = (r.data && r.data.mensaje) || 'No se pudieron guardar los literales.';
+          SIGDEUI.mostrarError(msg);
+          return;
+        }
+
+        SIGDEUI.exito(r.data.mensaje || 'Literales guardados correctamente.', '¡Listo!');
+      }).catch(function() {
+        btnGuardarPropuesta.disabled = false;
+        btnGuardarPropuesta.innerHTML = textoOriginal;
+        SIGDEUI.mostrarError('No se pudo conectar con el servidor.');
+      });
+    });
+  }
 
   // -------------------------------------------------------------
   // Modal de confirmación para directivos

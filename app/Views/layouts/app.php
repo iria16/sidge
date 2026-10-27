@@ -61,6 +61,8 @@ $tieneNotificaciones = in_array($rolSesion, ['admin', 'secretaria', 'directivo']
 
   <?php echo $pageModals; ?>
 
+  <?php if (file_exists(__DIR__ . '/../partials/swal-data.php')) { include __DIR__ . '/../partials/swal-data.php'; } ?>
+
   <?php include __DIR__ . '/../partials/scripts.php'; ?>
 
 </body>

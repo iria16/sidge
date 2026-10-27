@@ -38,15 +38,18 @@ class EgresoModel extends BaseModel implements Listable
     {
         return "INNER JOIN (
                     SELECT id_estudiante, MAX(id_anio_escolar) AS anio_actual
-                    FROM matricula GROUP BY id_estudiante
+                    FROM matricula WHERE tipo IN ('INSCRIPCION', 'RATIFICACION') GROUP BY id_estudiante
                 ) ult ON ult.id_estudiante = est.id_estudiante
                 LEFT JOIN matricula m ON m.id_estudiante = est.id_estudiante
                                     AND m.id_anio_escolar = ult.anio_actual
+                                    AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
                 LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
                 LEFT JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar
                 LEFT JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                LEFT JOIN egreso eg ON eg.id_matricula = m.id_matricula";
+                LEFT JOIN egreso eg ON (eg.id_matricula = m.id_matricula 
+                    OR eg.id_matricula IN (SELECT m2.id_matricula FROM matricula m2 WHERE m2.id_estudiante = est.id_estudiante AND m2.id_anio_escolar = ult.anio_actual AND m2.tipo = 'EGRESO'))
+                LEFT JOIN resultado_academico ra ON (ra.id_matricula = m.id_matricula OR (ra.id_estudiante = est.id_estudiante AND ra.id_anio_escolar = ult.anio_actual))";
     }
 
     public function getAll(array $filters = [], int $page = 1, int $perPage = 10): array
@@ -60,7 +63,10 @@ class EgresoModel extends BaseModel implements Listable
                        UPPER(CONCAT(LEFT(p.primer_nombre, 1), COALESCE(LEFT(p.primer_apellido, 1), ''))) AS iniciales,
                        COALESCE(g.nombre, 'Sin grado') AS grado,
                        COALESCE(s.nombre, 'Sin sección') AS seccion,
-                       CASE WHEN eg.id_egreso IS NOT NULL THEN 'graduado' ELSE 'pendiente' END AS estado
+                       CASE WHEN eg.id_egreso IS NOT NULL THEN 1 ELSE 0 END AS es_graduado,
+                       eg.id_egreso AS id_egreso,
+                       ra.literal AS literal,
+                       ra.estado_resultado AS estado_resultado
                 FROM estudiante est
                 INNER JOIN persona p ON p.id_persona = est.id_persona
                 " . $this->joinActual();
@@ -80,8 +86,34 @@ class EgresoModel extends BaseModel implements Listable
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         foreach ($rows as &$row) {
             $row['id']          = (int) $row['id'];
+            $row['id_egreso']   = !empty($row['id_egreso']) ? (int) $row['id_egreso'] : null;
             $row['avatar_color'] = 'primary';
             $row['iniciales']   = $row['iniciales'] ?: 'ES';
+
+            $literal = $row['literal'] ?? null;
+            $esGraduado = !empty($row['es_graduado']);
+
+            if ($esGraduado) {
+                $row['estado']          = 'graduado';
+                $row['estado_etiqueta'] = 'Graduado';
+                $row['estado_badge']    = 'active';
+                $row['puede_egresar']   = false;
+            } elseif ($literal !== null && in_array($literal, ['A', 'B', 'C', 'D'], true)) {
+                $row['estado']          = 'pendiente';
+                $row['estado_etiqueta'] = 'Pendiente de egreso';
+                $row['estado_badge']    = 'pending';
+                $row['puede_egresar']   = true;
+            } elseif ($literal === 'E' || ($row['estado_resultado'] ?? '') === 'NO_PROMOVIDO') {
+                $row['estado']          = 'no_promovido';
+                $row['estado_etiqueta'] = 'Repite 6.º';
+                $row['estado_badge']    = 'inactive';
+                $row['puede_egresar']   = false;
+            } else {
+                $row['estado']          = 'sin_literal';
+                $row['estado_etiqueta'] = 'Esperando literal';
+                $row['estado_badge']    = 'pending';
+                $row['puede_egresar']   = false;
+            }
         }
         return $rows;
     }
@@ -99,6 +131,44 @@ class EgresoModel extends BaseModel implements Listable
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Retorna todos los estudiantes de 6to grado candidatos a certificado bajo los filtros dados.
+     * Incluye a quienes ya están graduados y a quienes tienen literal aprobatorio A, B, C o D.
+     * Sin límite de paginación para emisión por lote, ordenados por sección y alfabéticamente.
+     */
+    public function getCandidatosParaCertificados(array $filters = []): array
+    {
+        [$where, $params] = $this->filters($filters);
+
+        // Solo estudiantes que o bien ya están egresados, o bien tienen literal aprobatorio A, B, C o D
+        $where[] = "(eg.id_egreso IS NOT NULL OR ra.literal IN ('A', 'B', 'C', 'D'))";
+
+        $sql = "SELECT est.id_estudiante AS id,
+                       CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS nombre,
+                       CONCAT(p.tipo_documento, '-', p.numero_documento) AS cedula,
+                       COALESCE(g.nombre, 'Sin grado') AS grado,
+                       COALESCE(s.nombre, 'Sin sección') AS seccion,
+                       CASE WHEN eg.id_egreso IS NOT NULL THEN 1 ELSE 0 END AS es_graduado,
+                       eg.id_egreso AS id_egreso,
+                       ra.literal AS literal,
+                       ra.estado_resultado AS estado_resultado
+                FROM estudiante est
+                INNER JOIN persona p ON p.id_persona = est.id_persona
+                " . $this->joinActual();
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $sql .= ' ORDER BY s.nombre, p.primer_apellido, p.primer_nombre';
+
+        $stmt = $this->pdo->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     public function getStats(?int $idTurno = null): array
@@ -178,9 +248,9 @@ class EgresoModel extends BaseModel implements Listable
                 . 'culminar el periodo, corresponde un retiro, no un egreso.'];
         }
 
-        // Validación estricta de resultado académico: solo se puede egresar a un estudiante con resultado PROMOVIDO confirmado por la Dirección
+        // Validación estricta de resultado académico: solo se puede egresar a un estudiante con literal aprobatorio (A, B, C o D)
         $stmtRes = $this->pdo->prepare(
-            "SELECT literal, estado_resultado
+            "SELECT id_resultado, literal, estado_resultado
              FROM resultado_academico
              WHERE (id_matricula = :id_matricula OR (id_estudiante = :id_estudiante AND id_anio_escolar = :id_anio))
              ORDER BY id_resultado DESC LIMIT 1"
@@ -192,12 +262,18 @@ class EgresoModel extends BaseModel implements Listable
         ]);
         $resAcad = $stmtRes->fetch(\PDO::FETCH_ASSOC);
 
-        if (!$resAcad || $resAcad['estado_resultado'] !== ResultadoAcademicoModel::ESTADO_PROMOVIDO) {
-            $estadoTexto = $resAcad ? strtolower((string)$resAcad['estado_resultado']) : 'sin registrar';
+        $literalCargado = strtoupper(trim((string) ($resAcad['literal'] ?? '')));
+        $esLiteralAprobatorio = in_array($literalCargado, ['A', 'B', 'C', 'D'], true);
+        $esNoPromovido = (($resAcad['estado_resultado'] ?? '') === ResultadoAcademicoModel::ESTADO_NO_PROMOVIDO);
+
+        if (!$resAcad || !$esLiteralAprobatorio || $esNoPromovido) {
+            $estadoTexto = ($resAcad && $literalCargado !== '')
+                ? "literal {$literalCargado} (no promovido)"
+                : 'sin literal cargado';
             return [
                 'ok' => false,
-                'mensaje' => 'No se puede registrar el egreso: el resultado académico del estudiante en 6to grado está '
-                    . "{$estadoTexto}. Debe estar oficialmente PROMOVIDO por la Dirección para culminar el nivel.",
+                'mensaje' => 'No se puede registrar el egreso: el estudiante en 6to grado está '
+                    . "{$estadoTexto}. Debe tener un literal aprobatorio (A, B, C o D) cargado por la docente para culminar el nivel.",
             ];
         }
 
@@ -206,6 +282,14 @@ class EgresoModel extends BaseModel implements Listable
             if (!$this->pdo->inTransaction()) {
                 $this->pdo->beginTransaction();
                 $abrioTransaccion = true;
+            }
+
+            if (($resAcad['estado_resultado'] ?? '') !== ResultadoAcademicoModel::ESTADO_PROMOVIDO && !empty($resAcad['id_resultado'])) {
+                $this->pdo->prepare(
+                    "UPDATE resultado_academico
+                        SET estado_resultado = 'PROMOVIDO'
+                      WHERE id_resultado = :id_res"
+                )->execute(['id_res' => (int) $resAcad['id_resultado']]);
             }
 
             // El motivo va en la inscripción del alumno, donde dice por qué terminó.

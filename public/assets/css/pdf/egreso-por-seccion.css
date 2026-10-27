@@ -1,0 +1,411 @@
+@charset "UTF-8";
+/* ── Cuadernillo de Certificados de Educación Primaria por sección ────────────
+   Repite el certificado de egreso en hojas Carta verticales, una por estudiante.
+   Comparte el cuerpo, el membrete con escudo y la doble firma con las
+   constancias; aquí solo se declara el lienzo y el salto entre estudiantes.   */
+/* ── Reinicio común a todos los documentos PDF ──────────────────────────────────
+   Los PDF de Dompdf no se maquetan con el navegador: no hay flexbox, ni grid,
+   ni variables CSS, ni fuentes del sistema. Este archivo fija el comportamiento
+   base que antes venía implícito dentro de app.css (el bundle de Bootstrap).
+
+   Bootstrap pesa 300 KB y define utilidades de rejilla, media queries y
+   componentes que Dompdf nunca resuelve. Injectarlo entero en el documento solo
+   para heredar su "reboot" hace que el PDF dependa de una hoja que no le
+   pertenece: un cambio en la interfaz web movía el PDF. Estas son exactamente
+   las reglas del reboot que el documento de ficha sí usa, copiadas aquí para que
+   el resultado sea idéntico sin arrastrar Bootstrap.
+
+   Dompdf es un motor de PDF, no un navegador: aquí "reiniciar" significa dejar
+   el lienzo en blanco y sin sangrado, que es lo que espera un documento
+   impreso. NO es el mismo reinicio que el de una pantalla.                      */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: #ffffff;
+}
+
+/* El margen y el padding a cero van SÓLO en body. Declararlos también en html
+   hace que Dompdf descarte el margen de @page y el documento imprima de borde
+   a borde, por muy correcta que parezca la regla. */
+body {
+  margin: 0;
+  padding: 0;
+  color: #000000;
+}
+
+/* Dompdf no implementa box-shadow ni flex/grid, así que nada de eso se
+   declara aquí: una regla que el motor no entiende se descarta en silencio y
+   deja una declaración que parece funcionar pero no maqueta nada. */
+table {
+  border-collapse: collapse;
+}
+
+th {
+  text-align: inherit;
+}
+
+img {
+  vertical-align: middle;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+strong,
+b {
+  font-weight: bolder;
+}
+
+/* ── Tipografía y colores base de los documentos oficiales ────────────────────
+   Se declaran como variables Sass locales (Dompdf no entiende custom properties)
+   para no repetir literales en los entrypoints que comparten estas piezas.     */
+/* ── Membrete institucional de tres columnas ───────────────────────────────────
+   Sólo la estructura común. Los anchos, márgenes y tamaños de logo cambian
+   según el documento y se declaran en cada entrypoint.                        */
+.header-table {
+  width: 100%;
+}
+
+.header-table td {
+  vertical-align: middle;
+  padding: 0;
+}
+
+.col-min-logo {
+  text-align: left;
+  vertical-align: middle;
+}
+
+.col-min-logo img {
+  width: auto;
+  display: block;
+}
+
+.col-box-center {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.membrete-texto {
+  font-family: "Times New Roman", "Times-Roman", Times, serif;
+  line-height: 1.25;
+  text-align: center;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #000000;
+}
+
+.col-plantel-logo {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.col-plantel-logo img {
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ── Membrete de los listados (partial pdf-membrete.php) ──────────────────────
+   La estructura de la tabla es la misma para nómina y reportes; el ancho y el
+   margen se ajustan en cada hoja.                                             */
+.pdf-membrete td {
+  vertical-align: middle;
+  padding: 0;
+}
+
+/* ── Título principal ─────────────────────────────────────────────────────────
+   Tipografía compartida. El margen y el interlineado varían por documento.    */
+.doc-title {
+  font-family: "Times New Roman", "Times-Roman", Times, serif;
+  font-size: 15pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: center;
+  color: #000000;
+  letter-spacing: 0.5pt;
+}
+
+/* ── Firma y sello (bloque centrado) ─────────────────────────────────────────
+   La ficha y las constancias comparten la caja de 220pt. Los tamaños de las
+   imágenes y los márgenes finos se ajustan en cada entrypoint.                */
+.firma-box {
+  width: 220pt;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+}
+
+.sello-wrap {
+  position: relative;
+  width: 100%;
+  height: 0;
+  line-height: 0;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.sello-img {
+  height: auto;
+  display: inline-block;
+}
+
+.sign-img-wrapper {
+  text-align: center;
+}
+
+.sign-img {
+  display: inline-block;
+}
+
+.firma-linea {
+  width: 160pt;
+  border-top: 1px solid #000000;
+  margin: 0 auto;
+}
+
+.firma-nombre {
+  font-weight: bold;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #000000;
+}
+
+.firma-cargo {
+  font-weight: normal;
+  margin-top: 2pt;
+  color: #000000;
+}
+
+.firma-ci {
+  font-weight: normal;
+  margin-top: 2pt;
+  color: #000000;
+}
+
+/* ── Franja tricolor de pie de página ────────────────────────────────────────
+   Fija al fondo y a todo el ancho, con z-index negativo para que el texto del
+   documento pase por encima en lugar de quedar tapado.                        */
+.footer-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: -1;
+  line-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.footer-banner img {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.nota-borrador {
+  font-size: 7.5pt;
+  color: #777777;
+  font-style: italic;
+  margin-top: 10pt;
+  text-align: center;
+}
+
+/* Marca de agua de los documentos en prueba. El bloque sólo se imprime cuando
+   la plantilla lo decide; la regla queda declarada aquí para todas las hojas. */
+.watermark-prueba {
+  position: fixed;
+  top: 38%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 80pt;
+  font-family: "Helvetica", "Arial", sans-serif;
+  font-weight: bold;
+  color: #d6d6d6;
+  opacity: 0.28;
+  transform: rotate(-35deg);
+  z-index: 1000;
+  letter-spacing: 8px;
+}
+
+.page-break {
+  page-break-after: always;
+}
+
+/* ── Cuerpo y cabecera de constancias y certificados de egreso ────────────────
+   Estas piezas se comparten entre las constancias oficiales y el cuadernillo
+   de egreso por sección. Los anchos del membrete de tres columnas quedan en
+   cada entrypoint porque el certificado de calificaciones usa otros.          */
+.page-container {
+  margin: 71pt auto 0 auto;
+  width: 470pt;
+}
+
+.header-ministerio-escudo {
+  width: 100%;
+  margin-bottom: 10pt;
+}
+
+.header-min-top {
+  text-align: left;
+  margin-bottom: 6pt;
+}
+
+.header-min-top img {
+  max-width: 175pt;
+  max-height: 48pt;
+  height: auto;
+  display: block;
+}
+
+.header-escudo-below {
+  text-align: center;
+  margin-top: 2pt;
+  margin-bottom: 6pt;
+}
+
+.header-escudo-below img {
+  max-height: 56pt;
+  width: auto;
+  display: inline-block;
+}
+
+.doc-title-sub {
+  font-size: 14pt;
+  font-weight: bold;
+  margin-top: 2pt;
+}
+
+.doc-body {
+  text-align: justify;
+  font-size: 12pt;
+  line-height: 1.5;
+  text-indent: 1.25cm;
+  margin-bottom: 18pt;
+}
+
+.doc-body strong {
+  font-weight: bold;
+}
+
+.doc-closing {
+  text-align: justify;
+  font-size: 12pt;
+  line-height: 1.5;
+  text-indent: 1.25cm;
+  margin-bottom: 0;
+}
+
+.doc-closing strong {
+  font-weight: bold;
+}
+
+.tabla-doble-firma {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16pt;
+}
+
+.tabla-doble-firma th,
+.tabla-doble-firma td {
+  border: 1px solid #000000;
+  padding: 4pt 6pt;
+  font-size: 9.5pt;
+  line-height: 1.25;
+  width: 50%;
+}
+
+.tabla-doble-firma th {
+  text-align: center;
+  font-weight: bold;
+  text-transform: uppercase;
+  vertical-align: middle;
+  height: 24pt;
+}
+
+.tabla-doble-firma .fila-cargo td {
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.tabla-doble-firma .celda-firma-sello {
+  height: 82pt;
+  vertical-align: top;
+  position: relative;
+}
+
+.doble-firma-area {
+  text-align: center;
+  margin-top: 6pt;
+  position: relative;
+  height: 60pt;
+}
+
+.doble-firma-area .sign-img {
+  max-height: 44pt;
+  max-width: 120pt;
+  vertical-align: middle;
+}
+
+.doble-firma-area .sello-img-inline {
+  max-height: 62pt;
+  max-width: 68pt;
+  vertical-align: middle;
+  margin-left: 6pt;
+}
+
+.footer-validity {
+  margin-top: 10pt;
+  font-size: 10pt;
+  font-weight: bold;
+  text-align: left;
+}
+
+.footer-epigrafe {
+  margin-top: 8pt;
+  font-size: 9.5pt;
+  font-weight: bold;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@page {
+  size: letter portrait;
+  margin: 0;
+}
+body {
+  font-family: "Times New Roman", "Times-Roman", Times, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+}
+
+.page-container {
+  position: relative;
+}
+
+.doc-title {
+  margin-bottom: 16pt;
+  line-height: 1.25;
+}

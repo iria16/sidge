@@ -26,20 +26,16 @@
 
 .data-panel__filters {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
-
-  @include media-breakpoint-down(sm) {
-    flex-wrap: wrap;
-  }
 }
 
 .data-panel__search {
   position: relative;
   min-width: 200px;
-  flex: 1;
+  flex: 1 1 200px;
 
   @include media-breakpoint-down(sm) {
     min-width: 100%;
@@ -61,13 +57,44 @@
 .data-panel__filters .form-select {
   flex: 0 0 auto;   // anula el flex-basis:auto heredado de width:100%
   width: auto;      // anula el width:100% de Bootstrap
-  min-width: 160px;
+  min-width: 130px;
   height: 42px;
   font-size: 0.85rem;
 
   @include media-breakpoint-down(sm) {
     flex: 1 1 0;
     min-width: 0;
+  }
+}
+
+.data-panel__date-range {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+
+  .form-control {
+    width: 140px;
+    height: 42px;
+    font-size: 0.85rem;
+    padding: 0.375rem 0.65rem;
+    flex: 0 0 auto;
+  }
+
+  .data-panel__date-sep {
+    color: $secondary;
+    font-size: 0.85rem;
+    padding: 0 0.15rem;
+  }
+
+  @include media-breakpoint-down(sm) {
+    width: 100%;
+
+    .form-control {
+      flex: 1 1 0;
+      width: auto;
+      min-width: 0;
+    }
   }
 }
 
@@ -105,8 +132,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  flex: 0 0 160px;
-  width: 160px;
+  flex: 0 0 135px;
+  width: 135px;
   height: 42px;
 
   > i {
@@ -139,21 +166,6 @@
   font-size: 0.85rem;
 }
 
-/* Año escolar que no se elige, sino que se informa: el caso del docente, que solo
-   consulta el año activo. Mismo ancho y mismo alto que el select para que la barra
-   de filtros no cambie de alto al cambiar de rol, con el icono del calendario. */
-.data-panel__year-fixed {
-  display: flex;
-  align-items: center;
-  flex: 1 1 auto;
-  width: 100%;
-  height: 100%;
-  padding-left: 2rem;
-  font-size: 0.85rem;
-  color: $body-color;
-  white-space: nowrap;
-}
-
 .data-panel__body {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -162,27 +174,33 @@
 .data-panel__table {
   width: 100%;
   margin-bottom: 0;
-  font-size: 0.88rem;
+  font-size: $sigde-table-font-size;
   table-layout: fixed;
 
   thead th {
-    font-size: 0.65rem;
-    font-weight: 600;
+    font-size: $sigde-table-head-font-size;
+    font-weight: $sigde-table-head-font-weight;
     color: $secondary;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: $sigde-table-head-letter-spacing;
     white-space: nowrap;
-    padding: 0.85rem 1.15rem;
-    border-bottom: 1px solid $primary-tint;
-    background: rgba($light, 0.5);
+    padding: $sigde-table-head-padding-y $sigde-table-head-padding-x;
+    border-bottom: 1px solid $sigde-table-border;
+    background: $sigde-table-head-bg;
   }
 
 
   tbody td {
-    padding: 0.85rem 1.15rem;
+    padding: $sigde-table-cell-padding-y $sigde-table-cell-padding-x;
     vertical-align: middle;
-    border-bottom: 1px solid rgba($primary, 0.04);
-    color: shade-color($dark, 5%);
+    border-bottom: 1px solid $sigde-table-cell-border;
+    color: $sigde-table-cell-color;
+    white-space: normal;
+    overflow-wrap: break-word;
+
+    &.text-nowrap {
+      white-space: nowrap;
+    }
   }
 
   tbody tr:last-child td {
@@ -192,8 +210,8 @@
   @include media-breakpoint-down(sm) {
     thead th,
     tbody td {
-      padding-left: 0.85rem;
-      padding-right: 0.85rem;
+      padding-left: $sigde-table-mobile-padding-x;
+      padding-right: $sigde-table-mobile-padding-x;
     }
   }
 
@@ -201,11 +219,13 @@
     transition: background-color 0.15s ease;
 
     &:hover {
-      background: rgba($primary, 0.02);
+      background: $sigde-table-row-hover-bg;
     }
 
     &.is-muted {
-      opacity: 0.55;
+      td:not(:last-child) {
+        opacity: 0.55;
+      }
     }
   }
 }
@@ -214,57 +234,6 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-}
-
-/* Columna de acciones de las tablas con `table-layout: fixed`: sin un ancho propio
-   el navegador reparte el ancho a partes iguales entre todas las columnas, y un
-   botón con texto no cabe en la suya —se sale de la celda y pisa el borde de la
-   tabla—. Aquí se le reserva lo que el botón necesita y las demás columnas se
-   reparten lo que sobra. Es opt-in: la aplica cada vista que lo necesita.
-
-   La tabla sigue midiendo lo que el contenedor (table-layout: fixed lo garantiza):
-   no hay ancho mínimo, así que nunca aparece barra horizontal; en pantallas
-   angostas lo que se estrecha son las columnas de datos, que envuelven su texto.
-
-   El ancho va en rem y no en píxeles porque el botón escala con el tamaño de letra
-   que haya elegido el usuario: agranda la letra, agranda el botón, y 12rem
-   siguen siendo suficientes. */
-.data-panel__col-acciones {
-  width: 12rem;
-  white-space: nowrap;
-}
-
-/* ── Columnas dimensionadas por su contenido ────────────────────────────────
-   Las tablas de data-panel usan `table-layout: fixed`, que reparte el ancho a
-   partes iguales sin mirar qué hay dentro: una columna corta como «Estado» se
-   queda con el mismo espacio que el nombre del alumno.
-
-   Con `auto` cada columna toma lo que su contenido necesita y el ancho lo guide
-   la vista en el <colgroup>. El botón de la última deja de llevar un ancho fijo
-   y queda pegado a su propio texto, que es lo que hay que garantizar.
-
-   El nombre ocupa el ancho que le toca, sin tope en rem: un tope fijo lo deja
-   corto en pantallas anchas y empuja el sobrante a la derecha, que es justo el
-   hueco que se estaba quejando. Es opt-in, como los demás de este archivo. */
-.data-panel__table--contenido {
-  table-layout: auto;
-
-  .data-panel__col-acciones {
-    width: auto;
-  }
-
-  /* La acción se mantiene centrada en su columna, que es como se veía antes. */
-  .data-panel__col-acciones .data-panel__actions {
-    display: flex;
-    justify-content: center;
-  }
-
-  /* Un nombre más largo que su columna se parte en dos líneas en vez de estirar
-     la tabla y obligar a deslizar el dedo de lado. */
-  .avatar-group__name {
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
 }
 
 /* Una fila desactivada se ve tachada y atenuada. Es la fila de un familiar que

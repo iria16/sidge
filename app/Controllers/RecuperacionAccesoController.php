@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\RecuperacionAccesoModel;
+use App\Support\Validator;
 use App\Traits\DetalleJsonTrait;
+use App\Traits\ListableIndexTrait;
 use PDO;
 use Throwable;
 
@@ -14,9 +16,9 @@ use Throwable;
  * Al aprobar genera una clave provisional; también permite restablecer la clave de cualquier usuario sin solicitud.
  * Vistas en Views/usuarios/recuperacion; updateEstado, getDetalle y resetPassword deben estar en el whitelist de public/index.php.
  */
-class RecuperacionAccesoController extends CrudController
+class RecuperacionAccesoController extends BaseController
 {
-    use DetalleJsonTrait;
+    use DetalleJsonTrait, ListableIndexTrait;
 
     /** Carpeta de vistas del módulo (Views/usuarios/recuperacion). */
     protected string $viewPath    = 'usuarios/recuperacion';
@@ -81,40 +83,28 @@ class RecuperacionAccesoController extends CrudController
     }
 
     /**
-     * No admite creación manual: la solicitud la genera el usuario final desde el flujo de recuperación.
-     */
-    public function create(): void
-    {
-        $this->setFlash('error', 'Esta sección no admite creación manual de solicitudes.');
-        $this->redirect('index');
-    }
-
-    /**
-     * No admite edición directa: las únicas transiciones válidas son aprobar/rechazar, en updateEstado().
-     */
-    public function edit(): void
-    {
-        $this->setFlash('error', 'Esta sección no admite edición directa de solicitudes.');
-        $this->redirect('index');
-    }
-
-    // store(), update(), delete() y toggleStatus() no se sobrescriben:
-    // el modelo no implementa Creatable/Updatable/Deletable/Toggleable,
-    // así que heredan el 405 de CrudController.
-
-    /**
      * Aprueba o rechaza una solicitud pendiente (recuperacionAcceso/updateEstado, POST, JSON).
      * Recibe `id` y `accion` ('aprobar' o 'rechazar'); aprobar devuelve la clave provisional en `data`.
      * Si el modelo devuelve null/false la solicitud ya fue atendida o no existe (409), evitando doble proceso.
      */
     public function updateEstado(): void
     {
-        $id     = (int) ($_POST['id'] ?? 0);
-        $accion = $_POST['accion'] ?? '';
+        $validator = Validator::make($_POST, [
+            'id'     => 'required|integer|min_value:1',
+            'accion' => 'required|string|in:aprobar,rechazar',
+        ], [
+            'id.required'     => 'ID de solicitud requerido.',
+            'id.min_value'    => 'ID de solicitud inválido.',
+            'accion.required' => 'Acción requerida.',
+            'accion.in'       => 'Acción inválida.',
+        ]);
 
-        if ($id <= 0 || !in_array($accion, ['aprobar', 'rechazar'], true)) {
-            $this->jsonResponse(false, null, 'Solicitud inválida.', 400);
+        if (!$validator->passes()) {
+            $this->jsonResponse(false, $validator->errors(), implode(' ', $validator->errors()), 422);
         }
+
+        $id     = (int) $_POST['id'];
+        $accion = (string) $_POST['accion'];
 
         $model = $this->modelo();
 
@@ -162,11 +152,18 @@ class RecuperacionAccesoController extends CrudController
      */
     public function resetPassword(): void
     {
-        $usuarioId = (int) ($_POST['usuario_id'] ?? 0);
+        $validator = Validator::make($_POST, [
+            'usuario_id' => 'required|integer|min_value:1',
+        ], [
+            'usuario_id.required'  => 'Debes seleccionar un usuario.',
+            'usuario_id.min_value' => 'Debes seleccionar un usuario.',
+        ]);
 
-        if ($usuarioId <= 0) {
-            $this->jsonResponse(false, null, 'Debes seleccionar un usuario.', 400);
+        if (!$validator->passes()) {
+            $this->jsonResponse(false, $validator->errors(), implode(' ', $validator->errors()), 422);
         }
+
+        $usuarioId = (int) $_POST['usuario_id'];
 
         $model = $this->modelo();
 

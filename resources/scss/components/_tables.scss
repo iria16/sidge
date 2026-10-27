@@ -6,5 +6,65 @@
   th,
   td {
     white-space: nowrap;
+
+    &.celda-texto-largo,
+    &.celda-wrap {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
   }
+}
+
+// Variante opt-in para tablas que necesitan más ancho que el mínimo global y
+// permiten que el texto fluya. No cambia el comportamiento de `.table`.
+.table.table--wide {
+  min-width: $sigde-table-wide-min-width;
+  table-layout: auto;
+
+  th,
+  td {
+    white-space: normal;
+  }
+}
+
+// Variante opt-in para tablas que deben ajustarse al panel. En teléfonos
+// conserva un ancho mínimo legible y desplaza solo dentro del data-panel.
+.table.table--responsive {
+  min-width: 0;
+
+  @include media-breakpoint-down(md) {
+    min-width: 640px;
+  }
+}
+
+// Variante opt-in para tablas de detalle: reparte el ancho según el contenido
+// y permite saltos de línea para evitar que las celdas se pisen.
+.table.table--auto {
+  table-layout: auto;
+
+  th,
+  td {
+    white-space: normal;
+  }
+
+  td {
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+}
+
+/*
+ * Celdas con texto largo y saltos de línea (wrap).
+ *
+ * `.table td` por defecto no permite saltos de línea (white-space: nowrap).
+ * Para celdas que contienen nombres, descripciones, proyecciones o notas,
+ * `.celda-wrap` o `.celda-texto-largo` permite que el texto baje a la
+ * siguiente línea en lugar de desbordarse sobre la columna contigua.
+ */
+.celda-texto-largo,
+.celda-wrap {
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-break: normal;
 }

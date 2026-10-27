@@ -7,7 +7,7 @@ declare(strict_types=1);
  * Gestión de Cuentas de Usuario — listado, filtros y accesos rápidos.
  *
  * Espera del controlador:
- * - array $stats                 ['total','activas','inactivas','tendencia','porcentaje_activas','porcentaje_inactivas']
+ * - array $stats                 ['total','activas','inactivas','porcentaje_activas','porcentaje_inactivas','creadas_mes']
  * - array $usuarios              cada uno: ['id','id_rol','nombre','nombre_usuario','iniciales',
  *                                 'avatar_color','avatar_tipo','avatar_foto','empleado','rol','estado']
  *                                 ('rol' ya viene formateado — ej. "Admin" — desde
@@ -58,20 +58,24 @@ ob_start();
   // Los porcentajes vienen ya calculados del controlador (ver docblock de $stats),
   // no se recalculan aquí para evitar divergencias entre backend y vista.
   //
-  // statTrendType solo se usa para la tarjeta de "tendencia" real (variación en el
-  // tiempo). Para "activas"/"inactivas" el dato es una proporción del total, no una
-  // tendencia temporal, así que no se pinta una flecha de subida/bajada que
-  // implicaría algo que no se está midiendo. Si stat-card.php no soporta un tercer
-  // estado, ajustar aquí a 'neutral' (o el nombre que use el componente) en vez de
-  // forzar 'up'/'down'.
+  // Las tres tarjetas son indicadores GLOBALES: getStats() cuenta toda la tabla
+  // usuario y no aplica los filtros del listado. Por eso "Total usuarios" ya no
+  // muestra un porcentaje fijo de tendencia, sino la cantidad real de cuentas
+  // creadas en el mes en curso.
+  //
+  // statTrendType se queda en 'neutral' en las tres: un total no es una
+  // variación medida en el tiempo, así que no se pinta flecha de subida o
+  // bajada que implicaría algo que no se está midiendo.
   $statsConfig = [
       [
           'label' => 'Total usuarios',
           'value' => (int) $stats['total'],
           'icon'  => 'bi-people-fill',
           'tone'  => 'primary',
-          'trend' => $stats['tendencia'],
-          'trendType' => 'up',
+          'trend' => (int) $stats['creadas_mes'] . ' creada'
+                     . ((int) $stats['creadas_mes'] === 1 ? '' : 's')
+                     . ' este mes',
+          'trendType' => 'neutral',
       ],
       [
           'label' => 'Cuentas activas',
@@ -91,6 +95,8 @@ ob_start();
       ],
   ];
 ?>
+<!-- mb-3 en la fila: cuentas.js selecciona las tarjetas con '.row.g-3.mb-3 .col-sm-6:nth-child(n)'
+     para recalcular activas/inactivas al cambiar el estado. No renombrar esta clase. -->
 <div class="row g-3 mb-3">
   <?php foreach ($statsConfig as $cfg): ?>
     <div class="col-sm-6 col-lg-4">

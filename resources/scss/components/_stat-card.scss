@@ -91,11 +91,11 @@
 }
 
 .stat-card__label {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: $secondary;
+  font-size: $sigde-label-kpi-font-size;
+  font-weight: $sigde-label-font-weight;
+  color: $sigde-label-color;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: $sigde-label-letter-spacing;
   margin-bottom: 0.25rem;
 }
 

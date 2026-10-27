@@ -1,0 +1,204 @@
+/* ── Certificado de Calificaciones (individual y por sección) ──────────────────
+   Documento oficial del Art. 108 RGLOE en Carta vertical. Sirve a la emisión
+   individual y al cuadernillo por sección: el único cambio es el salto de
+   página entre estudiantes, ya resuelto por la clase .page-break de la base.  */
+
+@import 'base';
+
+@page {
+  size: letter portrait;
+  margin: 2.5cm;
+}
+
+body {
+  font-family: 'Times New Roman', 'Times-Roman', Times, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+}
+
+/* ── Membrete institucional ───────────────────────────────────────────────── */
+.header-table {
+  margin-bottom: 24pt;
+}
+
+.col-min-logo {
+  width: 24%;
+}
+
+.col-min-logo img {
+  width: 100%;
+  max-width: 112pt;
+  height: auto;
+}
+
+.col-box-center {
+  width: 58%;
+  padding: 0 2pt;
+}
+
+.membrete-texto {
+  border: none;
+  padding: 0;
+  font-size: 9pt;
+}
+
+.col-plantel-logo {
+  width: 18%;
+}
+
+.col-plantel-logo img {
+  height: 40pt;
+}
+
+/* ── Título y período ─────────────────────────────────────────────────────── */
+.doc-title {
+  margin-bottom: 6pt;
+}
+
+.doc-periodo {
+  text-align: center;
+  font-size: 12pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 30pt;
+}
+
+/* ── Cuerpo legal y promoción ─────────────────────────────────────────────── */
+.cuerpo-legal {
+  text-align: justify;
+  font-size: 12pt;
+  line-height: 1.5;
+  text-indent: 1.25cm;
+  margin-top: 18pt;
+  margin-bottom: 12pt;
+}
+
+.cuerpo-legal strong {
+  font-weight: bold;
+}
+
+.cuerpo-promocion {
+  text-align: justify;
+  font-size: 12pt;
+  line-height: 1.5;
+  text-indent: 1.25cm;
+  margin-top: 0;
+  margin-bottom: 18pt;
+}
+
+.cuerpo-promocion strong {
+  font-weight: bold;
+}
+
+/* ── Recuadro de escala de calificaciones ────────────────────────────────── */
+.recuadro-escala {
+  border: none;
+  padding: 0;
+  margin-top: 18pt;
+  margin-bottom: 18pt;
+  font-size: 9pt;
+  line-height: 1.35;
+}
+
+.recuadro-escala__titulo {
+  font-weight: bold;
+  text-align: center;
+  font-size: 9.5pt;
+  margin-bottom: 4pt;
+}
+
+.recuadro-escala__intro {
+  text-align: justify;
+  margin-bottom: 6pt;
+  font-size: 8.5pt;
+  line-height: 1.3;
+}
+
+.recuadro-escala table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.recuadro-escala td {
+  vertical-align: top;
+  padding: 1.5pt 0;
+}
+
+.escala-letra {
+  width: 16pt;
+  font-weight: bold;
+  font-size: 9pt;
+  line-height: 1.35;
+}
+
+.escala-desc {
+  text-align: justify;
+  font-size: 8.5pt;
+  line-height: 1.35;
+}
+
+.fecha-expedicion {
+  font-size: 12pt;
+  line-height: 1.5;
+  text-align: justify;
+  text-indent: 1.25cm;
+  margin-top: 18pt;
+  margin-bottom: 0;
+}
+
+.fecha-expedicion strong {
+  font-weight: bold;
+}
+
+/* ── Firmas ──────────────────────────────────────────────────────────────── */
+.seccion-firmas {
+  margin-top: 84pt;
+}
+
+.signature-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.signature-table td {
+  vertical-align: top;
+  padding: 0;
+}
+
+.firm-col {
+  width: 40%;
+  text-align: center;
+}
+
+.seal-col {
+  width: 20%;
+  text-align: center;
+  vertical-align: top;
+  position: relative;
+}
+
+.firma-linea {
+  margin: 0 auto 6pt auto;
+}
+
+.firma-nombre {
+  font-size: 10pt;
+  line-height: 1.25;
+}
+
+.firma-cargo {
+  font-size: 10pt;
+  line-height: 1.25;
+}
+
+.firma-ci {
+  font-size: 10pt;
+  line-height: 1.25;
+}
+
+.sello-img {
+  width: 90pt;
+  max-width: 95pt;
+  margin-top: -30pt;
+}

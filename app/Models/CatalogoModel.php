@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Interfaces\Creatable;
-use App\Interfaces\Updatable;
-use App\Interfaces\Toggleable;
+use App\Interfaces\Findable;
 use App\Interfaces\Listable;
+use App\Interfaces\Toggleable;
+use App\Interfaces\Updatable;
 
 /**
  * Base abstracta de los catálogos (grado, sección, turno, tipo_documento, rol, parentesco, etc.), con esquema <pk>, nombre y estado ACTIVO/INACTIVO.
- * Implementa Creatable, Updatable, Toggleable y Listable aquí para que todos los hijos pasen el instanceof sin declararlo cada uno.
+ * Implementa Creatable, Updatable, Toggleable, Listable y Findable aquí para que todos los hijos pasen el instanceof sin declararlo cada uno.
  * No implementa Deletable a propósito: los catálogos solo se crean, editan y activan/desactivan.
  */
-abstract class CatalogoModel extends BaseModel implements Creatable, Updatable, Toggleable, Listable
+abstract class CatalogoModel extends BaseModel implements Creatable, Updatable, Toggleable, Listable, Findable
 {
     /** Nombre de la PK por defecto; los hijos (ej. TurnoModel) la sobrescriben si difiere. */
     protected string $primaryKey = 'id';

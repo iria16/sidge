@@ -115,9 +115,14 @@ ob_start();
   ob_start();
   ?>
   <colgroup>
-    <col style="width: 380px;">
-    <col class="ancho-170px">
-    <col class="ancho-170px">
+    <?php if (empty($tiposInstitucion)): ?>
+      <col style="width: 55%; min-width: 280px;">
+    <?php else: ?>
+      <col style="width: 45%; min-width: 280px;">
+      <col style="width: 25%; min-width: 140px;">
+    <?php endif; ?>
+    <col style="width: 15%; min-width: 120px;">
+    <col style="width: 15%; min-width: 120px;">
   </colgroup>
   <?php
   $panelColgroup = ob_get_clean();
@@ -127,6 +132,7 @@ ob_start();
   ?>
   <tr>
     <th scope="col">Nombre</th>
+    <?php if (!empty($tiposInstitucion)): ?><th scope="col">Tipo</th><?php endif; ?>
     <th scope="col" class="text-center">Estado</th>
     <th scope="col" class="text-center">Acciones</th>
   </tr>
@@ -147,7 +153,34 @@ ob_start();
     $esInactivo = strtoupper($el['estado']) !== 'ACTIVO';
   ?>
     <tr class="<?= $esInactivo ? 'is-muted' : '' ?>">
-      <td class="fw-semibold"><?= htmlspecialchars($el['nombre']) ?></td>
+      <td class="fw-semibold celda-texto-largo" style="white-space: normal !important; overflow-wrap: break-word; word-break: normal;">
+        <?= htmlspecialchars($el['nombre']) ?>
+        <?php if (!empty($estadosGeo)): ?>
+          <!-- Ubicacion y codigo DEA van bajo el nombre, en letra pequena, y no
+               como columnas: con cuatro columnas de datos mas acciones la
+               tabla se aprieta en pantalla de portatil. -->
+          <div class="text-support" style="font-size: 0.75rem">
+            <?php
+              $estadoNombre = '';
+              foreach ($estadosGeo as $opcionEstado) {
+                  if ((int) $opcionEstado['id_estado'] === (int) ($el['id_estado_geo'] ?? 0)) {
+                      $estadoNombre = $opcionEstado['nombre'];
+                      break;
+                  }
+              }
+              echo htmlspecialchars($estadoNombre !== '' ? $estadoNombre : 'Sin ubicación');
+              if (!empty($el['codigo_dea'])) {
+                  echo ' · DEA ' . htmlspecialchars((string) $el['codigo_dea']);
+              }
+            ?>
+          </div>
+        <?php endif; ?>
+      </td>
+      <?php if (!empty($tiposInstitucion)): ?>
+        <td style="white-space: nowrap;"><?= htmlspecialchars(\App\Support\Instituciones::etiquetaPorCatalogo(
+                isset($el['id_tipo_institucion']) ? (int) $el['id_tipo_institucion'] : null
+            )) ?></td>
+      <?php endif; ?>
       <td class="text-center">
         <?php
           $badgeLabel  = $esInactivo ? 'Inactivo' : 'Activo';
@@ -161,6 +194,15 @@ ob_start();
                   class="action-btn action-btn--edit editar-elemento"
                   data-elemento-id="<?= (int) $el['id'] ?>"
                   data-elemento-nombre="<?= htmlspecialchars($el['nombre']) ?>"
+                  <?php if (!empty($tiposInstitucion)): ?>data-elemento-tipo="<?= htmlspecialchars(
+                        isset($el['id_tipo_institucion']) ? (string) $el['id_tipo_institucion'] : ''
+                      ) ?>"
+                  data-elemento-estado="<?= (int) ($el['id_estado_geo'] ?? 0) ?>"
+                  data-elemento-municipio="<?= (int) ($el['id_municipio'] ?? 0) ?>"
+                  data-elemento-parroquia="<?= (int) ($el['id_parroquia'] ?? 0) ?>"
+                  data-elemento-dea="<?= htmlspecialchars((string) ($el['codigo_dea'] ?? '')) ?>"
+                  data-elemento-pais="<?= (int) ($el['pais_id'] ?? 0) ?>"
+                  data-elemento-extranjera="<?= !empty($el['es_extranjera']) ? '1' : '0' ?>"<?php endif; ?>
                   title="<?= $esInactivo ? 'No se puede editar un elemento inactivo' : 'Editar elemento' ?>"
                   <?= $esInactivo ? 'disabled' : '' ?>>
             <i class="bi bi-pencil" aria-hidden="true"></i>

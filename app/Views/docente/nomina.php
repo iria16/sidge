@@ -9,7 +9,7 @@
  *
  * @var array|null $seccion        Sección resuelta en el servidor (sesión).
  * @var bool       $tieneSeccion
- * @var string     $vista          nomina | acta | contacto | cumpleaneros
+ * @var string     $vista          nomina | contacto | cumpleaneros
  * @var array      $vistas         Definición de las vistas permitidas.
  * @var array      $columnas       clave => encabezado, en orden.
  * @var array      $filas          Resultado de EstudianteModel::nominaSeccion().
@@ -127,21 +127,30 @@ $telefonoAutConWa = static function (string $tel) use ($e, $mensajeWa): string {
 ob_start();
 $pageTitle        = 'Listados de la sección';
 $currentNav       = 'mi-seccion-listados';
+$breadcrumbs      = [
+    ['label' => 'Mi sección', 'href' => null],
+    ['label' => 'Listados', 'href' => null],
+];
 $pageHeading      = 'Listados de la sección';
 $pageSubheading   = $seccion
     ? $seccion['grado'] . ' · Sección ' . $seccion['seccion'] . ' · ' . $seccion['turno'] . ' · ' . $seccion['anio_escolar']
     : 'Sin sección asignada';
+$idEstructura     = (int) ($seccion['id_estructura_academica'] ?? 0);
+
 if (!$tieneSeccion) {
     $pageHeaderActions = '';
 } else {
     /* Un solo botón para todas las pestañas, y hace lo mismo en todas: no
        descarga nada, muestra el documento en el modal para que el docente lo
-       revise y solo entonces aparezca el enlace de descarga. El PDF sale por
-       la ruta de esta misma vista con sus filtros puestos, así que lo que se ve
-       es exactamente lo que se baja. El acta además pide motivo y fecha; las
-       demás no, y data-filtros le dice a docente.js qué filtros son válidos. */
+       revise y solo entonces aparezca el enlace de descarga. En «Boletas» el
+       PDF lo arma el módulo de certificados, así que su URL no lleva filtros;
+       en el resto sale por esta misma vista con sus filtros puestos, y
+       data-filtros le dice a docente.js qué filtros son válidos. */
+    $urlBaseDocumento = $vista === 'boletas'
+        ? BASE_URL . 'certificadoCalificaciones/generarPorSeccion?id_estructura=' . $idEstructura
+        : $urlNomina(['formato' => 'pdf']);
     $pageHeaderActions = '<button type="button" class="btn btn-primary" id="btnVistaPreviaDocumento"'
-        . ' data-base-pdf="' . $e($urlNomina(['formato' => 'pdf'])) . '"'
+        . ' data-base-pdf="' . $e($urlBaseDocumento) . '"'
         . ' data-filtros="' . $e(implode(',', $filtrosVista)) . '">'
         . '<i class="bi bi-eye me-1" aria-hidden="true"></i>Visualizar documento</button>';
 }
@@ -190,7 +199,7 @@ include __DIR__ . '/../components/page-header.php';
                target="_blank" rel="noopener noreferrer">
               <i class="bi bi-whatsapp me-1" aria-hidden="true"></i>Abrir grupo
             </a>
-            <button type="button" class="btn btn-sm btn-outline-secondary"
+            <button type="button" class="btn btn-sm btn-outline-primary"
                     data-bs-toggle="modal" data-bs-target="#modalEnlaceWhatsapp">
               <i class="bi bi-pencil me-1" aria-hidden="true"></i>Editar enlace
             </button>
@@ -263,15 +272,10 @@ include __DIR__ . '/../components/page-header.php';
            que la pantalla los muestra y en la que el PDF los muestra. Aplanar
            aquí era lo que obligaba a repetir el nombre del alumno y del
            representante en cada fila. */ ?>
-<?php /* El acta no pinta la hoja con el alumnado. Lo que el docente necesita es
-         el motivo y la fecha; el documento con los alumnos y sus líneas de
-         firma es el PDF, que se arma con esas columnas. Una tabla aquí solo
-         obligaba a leer dos veces lo mismo. */ ?>
-<?php if ($vista !== 'acta'): ?>
   <section class="card border-0 shadow-sm nomina-hoja nomina-hoja--<?= $e($vista) ?> data-panel">
     <div class="data-panel__body">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h2 class="h6 mb-0">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 px-4 border-bottom">
+        <h2 class="h6 mb-0 fw-bold">
           <?= $e($tituloVista) ?>
           <?php if ($vista === 'cumpleaneros' && $filtros['mes'] !== null): ?>
             · <?= $e($meses[$filtros['mes']]) ?>
@@ -280,8 +284,8 @@ include __DIR__ . '/../components/page-header.php';
         <span class="small text-muted"><?= count($filas) ?> estudiante<?= count($filas) === 1 ? '' : 's' ?></span>
       </div>
       <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0 nomina-tabla" id="nominaTabla">
-        <thead class="table-light">
+        <table class="table align-middle mb-0 data-panel__table nomina-tabla" id="nominaTabla">
+        <thead>
           <tr>
             <?php /* Encabezados de texto. El orden de los listados es fijo y lo
                     aplica el servidor: alfabético por apellido, que es como se
@@ -368,18 +372,39 @@ include __DIR__ . '/../components/page-header.php';
                         <?php endforeach; ?>
                       <?php endif; ?>
                       <?php break;
+                    case 'direccion':
                     case 'direccion_rep': ?>
                       <?php if (($f['rep_direccion'] ?? '') === ''): ?>
                         <span class="text-muted">Sin dirección</span>
                       <?php else: ?>
-                        <?= $e($f['rep_direccion']) ?>
+                        <div class="celda-wrap"><?= $e($f['rep_direccion']) ?></div>
                       <?php endif; ?>
                       <?php break;
+                    case 'autorizados':
                     case 'autorizado': ?>
-                      <?php if ($aut === null): ?>
-                        <span class="text-muted">Solo el representante</span>
+                      <?php
+                      $auts = $f['autorizados'] ?? [];
+                      if ($aut !== null) {
+                          $auts = [$aut];
+                      }
+                      if ($auts === []): ?>
+                        <span class="text-muted small">Solo el representante</span>
                       <?php else: ?>
-                        <?= $e($aut['nombre']) ?>
+                        <div class="d-flex flex-column gap-1 celda-wrap">
+                          <?php foreach ($auts as $a): ?>
+                            <div class="small">
+                              <strong><?= $e($a['nombre']) ?></strong>
+                              <?php if (!empty($a['parentesco'])): ?>
+                                <span class="text-muted">(<?= $e($a['parentesco']) ?>)</span>
+                              <?php endif; ?>
+                              <?php if (!empty($a['telefonos'])): ?>
+                                <div class="text-secondary small">
+                                  <?= $e(implode(' · ', $a['telefonos'])) ?>
+                                </div>
+                              <?php endif; ?>
+                            </div>
+                          <?php endforeach; ?>
+                        </div>
                       <?php endif; ?>
                       <?php break;
                     case 'parentesco_aut': ?>
@@ -414,6 +439,54 @@ include __DIR__ . '/../components/page-header.php';
                         <span class="nomina-cumple-ok">Ya cumplió</span>
                       <?php endif; ?>
                       <?php break;
+                    case 'literal': ?>
+                      <?php if (!empty($f['literal'])):
+                        $lit = strtoupper((string) $f['literal']);
+                        $badgeClass = match ($lit) {
+                            'A' => 'bg-success',
+                            'B' => 'bg-primary',
+                            'C' => 'bg-info text-dark',
+                            'D' => 'bg-warning text-dark',
+                            'E' => 'bg-danger',
+                            default => 'bg-secondary',
+                        };
+                      ?>
+                        <span class="badge <?= $badgeClass ?> px-2 py-1 fw-bold fs-6">
+                          <?= $e($lit) ?>
+                        </span>
+                      <?php else: ?>
+                        <span class="badge bg-light text-muted border py-1 px-2">Sin registrar</span>
+                      <?php endif; ?>
+                      <?php break;
+                    case 'promocion': ?>
+                      <?php
+                      $st = (string) ($f['estado_resultado'] ?? 'PENDIENTE');
+                      if ($st === 'PROMOVIDO'): ?>
+                        <span class="status-badge status-badge--active">Promovido</span>
+                      <?php elseif ($st === 'NO_PROMOVIDO'): ?>
+                        <span class="status-badge status-badge--inactive">No promovido</span>
+                      <?php else: ?>
+                        <span class="status-badge status-badge--pending">Pendiente</span>
+                      <?php endif; ?>
+                      <?php break;
+                    case 'boleta': ?>
+                      <?php if (!empty($f['literal'])): ?>
+                        <?php
+                        $urlBoletaInd = BASE_URL . 'certificadoCalificaciones/generarIndividual?id_estudiante=' . (int) $f['id_estudiante'] . '&id_estructura=' . $idEstructura;
+                        $nomEstudiante = trim(($f['primer_apellido'] ?? '') . ' ' . ($f['segundo_apellido'] ?? '') . ', ' . ($f['primer_nombre'] ?? '') . ' ' . ($f['segundo_nombre'] ?? ''));
+                        ?>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-preview-boleta-individual"
+                                data-url-pdf="<?= $e($urlBoletaInd) ?>"
+                                data-estudiante="<?= $e($nomEstudiante) ?>"
+                                title="Visualizar Certificado de Calificaciones">
+                          <i class="bi bi-eye" aria-hidden="true"></i>
+                          <span>Visualizar certificado</span>
+                        </button>
+                      <?php else: ?>
+                        <span class="text-muted small">Requiere literal</span>
+                      <?php endif; ?>
+                      <?php break;
                   endswitch; ?>
                 </td>
               <?php endforeach; ?>
@@ -426,46 +499,6 @@ include __DIR__ . '/../components/page-header.php';
       </div>
     </div>
   </section>
-<?php endif; ?>
-
-<?php /* Motivo y fecha del acta. Antes iban dentro de un modal que se abría
-       desde el botón del encabezado y que, además, salía en todas las pestañas.
-       Ahora viven dentro de la propia pestaña del acta, que es donde se
-       necesitan: el documento se arma con ellos y no con los de otra vista. Los
-       ids se conservan porque docente.js los lee por nombre. */ ?>
-<?php if ($vista === 'acta'): ?>
-  <section class="card border-0 shadow-sm mt-3" id="panelActa">
-    <div class="card-body">
-      <div class="row g-3 align-items-start">
-        <div class="col-12 col-md-8 col-lg-8">
-          <label for="actaMotivo" class="form-label small fw-semibold">
-            Motivo del acta <span class="text-danger">*</span>
-          </label>
-          <input type="text" class="form-control" id="actaMotivo" minlength="3" maxlength="120" required
-                 value="<?= $e($motivoActa ?? '') ?>"
-                 placeholder="Ej.: Entrega de boletines del primer momento pedagógico">
-          <div class="invalid-feedback" id="actaMotivoError">
-            Indica un motivo válido (de 3 a 120 caracteres, sin etiquetas HTML ni símbolos especiales).
-          </div>
-        </div>
-        <div class="col-12 col-md-4 col-lg-4">
-          <label for="actaFecha" class="form-label small fw-semibold">
-            Fecha <span class="text-danger">*</span>
-          </label>
-          <input type="date" class="form-control" id="actaFecha"
-                 value="<?= $e($fechaActa ?? ($fechaHoyIso ?? date('Y-m-d'))) ?>" required>
-          <div class="invalid-feedback" id="actaFechaError">
-            Indica una fecha válida.
-          </div>
-        </div>
-      </div>
-      <?php /* El botón que dispara la vista previa es «Exportar PDF», en el
-             encabezado. Este bloque se queda solo con los dos datos: el acta
-             como tal se muestra en el modal, no aquí. */ ?>
-    </div>
-  </section>
-<?php endif; ?>
-
 <?php endif; ?>
 <?php
 $pageContent = ob_get_clean();

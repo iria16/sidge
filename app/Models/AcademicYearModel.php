@@ -213,6 +213,10 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
                     $this->pdo->rollBack();
                     return ['ok' => false, 'mensaje' => implode(' ', $pendientes)];
                 }
+
+                // Al cerrar el año escolar, todos los estudiantes de 6.° grado con literal
+                // aprobatorio (A, B, C o D) pasan automáticamente a estado EGRESADO.
+                $this->egresarPromovidosSextoGrado((int) $id, $idUsuario);
             }
 
             $update = $this->pdo->prepare(
@@ -280,37 +284,45 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
                 . '(pendientes de aprobar o rechazar).';
         }
 
-        /* Alias distintos porque `grado.nombre` y `seccion.nombre` se llaman igual: sin
- alias, el segundo pisa al primero en el resultado y el mensaje acababa
- diciendo "alumnos de a sección".*/
-        $stmt = $this->pdo->prepare(
-            'SELECT g.nombre AS grado, s.nombre AS seccion
-               FROM matricula m
-               INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
-               INNER JOIN grado g   ON g.id_grado   = ea.id_grado
-               LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-              WHERE m.id_anio_escolar = :anio
-                AND ' . Matriculas::condicionCursando('m') . '
-                AND CAST(REGEXP_SUBSTR(g.nombre, \'^[0-9]+\') AS UNSIGNED) = ' . Instituciones::GRADO_MAYOR
-            . ' LIMIT 1'
-        );
-        $stmt->execute(['anio' => $idAnioEscolar]);
-        $ultimo = $stmt->fetch(\PDO::FETCH_ASSOC);
-        if ($ultimo) {
-            $seccion = trim((string) ($ultimo['seccion'] ?? ''));
-            $motivos[] = 'No se puede cerrar: quedan alumnos de '
-                . strtolower((string) $ultimo['grado'])
-                . ' sección ' . ($seccion !== '' ? $seccion : '—')
-                . ' sin egresar ni retirar. Egréselos o regístreles el retiro antes de cerrar.';
-        }
-
         $pendientesResultado = (new ResultadoAcademicoModel($this->pdo))->contarPendientesDeCierre($idAnioEscolar);
         if ($pendientesResultado > 0) {
-            $motivos[] = "No se puede cerrar: quedan {$pendientesResultado} estudiante(s) activo(s) sin resultado académico confirmado (pendientes de confirmación). "
-                . 'Valide y confirme la promoción de todas las secciones antes de cerrar el período.';
+            $motivos[] = "No se puede cerrar: quedan {$pendientesResultado} estudiante(s) activo(s) sin literal de promoción. "
+                . 'La docente debe registrar el literal de todas las secciones antes de cerrar el período.';
         }
 
         return $motivos;
+    }
+
+    /**
+     * Registra automáticamente el egreso formal (tabla `egreso` + fila `EGRESO` en `matricula`)
+     * de todos los alumnos cursando 6.° grado en el año escolar que tengan literal aprobatorio (A–D).
+     */
+    private function egresarPromovidosSextoGrado(int $idAnioEscolar, int $idUsuario): void
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT DISTINCT m.id_estudiante
+               FROM matricula m
+              INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
+              INNER JOIN grado g ON g.id_grado = ea.id_grado
+              INNER JOIN resultado_academico ra ON ra.id_estudiante = m.id_estudiante
+                                               AND ra.id_anio_escolar = m.id_anio_escolar
+              WHERE m.id_anio_escolar = :anio
+                AND " . Matriculas::condicionCursando('m') . "
+                AND CAST(REGEXP_SUBSTR(g.nombre, '^[0-9]+') AS UNSIGNED) = " . Instituciones::GRADO_MAYOR . "
+                AND ra.literal IN ('A', 'B', 'C', 'D')
+                AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'"
+        );
+        $stmt->execute(['anio' => $idAnioEscolar]);
+        $ids = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        if ($ids === []) {
+            return;
+        }
+
+        $egresoModel = new EgresoModel($this->pdo);
+        foreach ($ids as $idEst) {
+            $egresoModel->graduar((int) $idEst, null, $idUsuario);
+        }
     }
 
     /**

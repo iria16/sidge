@@ -1,53 +1,26 @@
-/* SIGDE - comportamiento de Egresos / Graduación */
+/* SIGDE - Comportamiento de Egresos / Certificados de Primaria */
 document.addEventListener('DOMContentLoaded', function () {
-  var checkAll  = document.getElementById('checkAllEgresos');
-  var checks    = document.querySelectorAll('.check-egreso:not(:disabled)');
-  var btnMasivo = document.getElementById('btnGraduacionMasiva');
+  var btnLote = document.getElementById('btnCertificadosLote');
+  var formFiltros = document.querySelector('form.data-panel__filters');
+  var filtroSeccion = document.getElementById('filtroSeccion');
 
-  if (!checkAll || !btnMasivo) return;
-
-  function actualizarBotonMasivo() {
-    var seleccionados = document.querySelectorAll('.check-egreso:checked').length;
-    btnMasivo.disabled = seleccionados === 0;
+  function actualizarEnlaceLote() {
+    if (!btnLote) return;
+    var params = new URLSearchParams();
+    if (filtroSeccion && filtroSeccion.value) {
+      params.set('seccion', filtroSeccion.value);
+    }
+    var qInput = formFiltros ? formFiltros.querySelector('input[name="q"]') : null;
+    if (qInput && qInput.value.trim()) {
+      params.set('q', qInput.value.trim());
+    }
+    var qs = params.toString();
+    var base = (window.BASE_URL || '/');
+    btnLote.href = base + 'egresos/certificadosLote' + (qs ? ('?' + qs) : '');
   }
 
-  checkAll.addEventListener('change', function () {
-    checks.forEach(function (c) { c.checked = checkAll.checked; });
-    actualizarBotonMasivo();
-  });
-
-  checks.forEach(function (c) {
-    c.addEventListener('change', actualizarBotonMasivo);
-  });
-
-  btnMasivo.addEventListener('click', function () {
-    var ids = Array.from(document.querySelectorAll('.check-egreso:checked')).map(function (c) {
-      return c.value;
-    });
-    if (ids.length === 0) return;
-
-    SIGDEUI.confirmar({
-      icono: 'warning',
-      titulo: '¿Registrar graduación masiva?',
-      texto: 'Se registrará el egreso de ' + ids.length + ' estudiante(s). Esta acción no se puede deshacer.',
-      confirmar: 'Sí, graduar'
-    }).then(function (confirmado) {
-      if (!confirmado) return;
-
-      var form = document.createElement('form');
-      form.method = 'POST';
-      form.action = (window.BASE_URL || '') + 'egresos/graduarMasivo';
-
-      ids.forEach(function (id) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'ids[]';
-        input.value = id;
-        form.appendChild(input);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
-    });
-  });
+  if (formFiltros) {
+    formFiltros.addEventListener('change', actualizarEnlaceLote);
+    formFiltros.addEventListener('input', actualizarEnlaceLote);
+  }
 });

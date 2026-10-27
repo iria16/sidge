@@ -98,31 +98,11 @@ $panelFormAction = BASE_URL . 'academicStructure/index';
 
 ob_start();
 ?>
-<?php /* El año se consulta y se elige. Antes era un texto fijo y además el controlador ignoraba
- cualquier ?anio= de la URL, así que la estructura de un período cerrado no se podía ver sin
- entrar a la base de datos. El select va DENTRO del form del data-panel para que lo recoja.*/ ?>
-<label for="filtroAnio" class="visually-hidden">Año escolar</label>
-<select id="filtroAnio" name="anio" class="form-select" style="width:auto" data-carga-completa
-        aria-label="Año escolar a consultar"
-        title="<?= $anioEsLectura ? 'Año cerrado: solo consulta.' : 'Año escolar a configurar.' ?>"
-        onchange="this.form.submit()">
-  <?php foreach ($anios as $anio): ?>
-    <option value="<?= (int) $anio['id'] ?>"
-            <?= (int) $anio['id'] === $anioConsultado ? 'selected' : '' ?>>
-      <?= htmlspecialchars($anio['nombre'] . $anio['sufijo_estado']) ?>
-    </option>
-  <?php endforeach; ?>
-</select>
-
-<?php if ($anioEsLectura): ?>
-  <?php /* Distintivo de solo lectura. Sin él, alguien puede creer que el pencil de
- una fila le va a dejar guardar, y se encuentra con un 409 al intentarlo.*/ ?>
-  <div class="data-panel__active-year" role="status"
-       aria-label="Año en solo consulta: <?= htmlspecialchars($anioActivo) ?>">
-    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+  <div class="data-panel__active-year" role="status" aria-label="Año escolar activo: <?= htmlspecialchars($anioActivo) ?>">
+    <i class="bi bi-calendar3" aria-hidden="true"></i>
     <strong><?= htmlspecialchars($anioActivo) ?></strong>
   </div>
-<?php endif; ?>
+  <input type="hidden" name="anio" value="<?= (int) $anioConsultado ?>">
 
 <label for="filtroGrado" class="visually-hidden">Grado</label>
 <select id="filtroGrado" name="grado" class="form-select" aria-label="Filtrar por grado">
@@ -160,17 +140,16 @@ $panelSearchValue       = $filters['q'] ?? '';
 $panelSearchPlaceholder = 'Buscar por grado o sección...';
 
 // ---------- Data panel: colgroup ----------
-// Anchos fijos: Grado / Sección / Turno / Año escolar / Matriculados / Capacidad / Acciones.
+// Anchos fijos: Grado / Sección / Turno / Matriculados / Capacidad / Acciones.
 ob_start();
 ?>
 <colgroup>
+  <col style="width: 24%;">
+  <col style="width: 14%;">
+  <col style="width: 16%;">
   <col style="width: 16%;">
   <col style="width: 14%;">
-  <col style="width: 14%;">
-  <col style="width: 18%;">
-  <col style="width: 14%;">
-  <col style="width: 10%;">
-  <col style="width: 14%;">
+  <col style="width: 16%;">
 </colgroup>
 <?php
 $panelColgroup = ob_get_clean();
@@ -182,7 +161,6 @@ ob_start();
   <th scope="col">Grado</th>
   <th scope="col">Sección</th>
   <th scope="col">Turno</th>
-  <th scope="col">Año escolar</th>
   <th scope="col" class="text-center">Matriculados</th>
   <th scope="col" class="text-center">Capacidad</th>
   <th scope="col" class="text-center">Acciones</th>
@@ -198,7 +176,6 @@ foreach ($estructuras as $estructura):
     <td class="fw-semibold"><?= htmlspecialchars($estructura['grado']) ?></td>
     <td><?= htmlspecialchars($estructura['seccion']) ?></td>
     <td><?= htmlspecialchars($estructura['turno']) ?></td>
-    <td><?= htmlspecialchars($estructura['anio']) ?></td>
     <?php
     /* Matriculados y capacidad van juntos porque la comparación es el dato: una sección
  con más alumnos que cupos es el error que hay que ver, y antes solo se mostraba la
@@ -248,7 +225,7 @@ foreach ($estructuras as $estructura):
 <?php endforeach; ?>
 <?php if (!$estructuras): ?>
   <tr>
-    <td colspan="7" class="text-center text-support py-4">
+    <td colspan="6" class="text-center text-support py-4">
       No se encontraron estructuras académicas.
     </td>
   </tr>

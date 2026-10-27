@@ -1,15 +1,16 @@
 <?php
 /**
  * Modal: Editar Elemento
- * Se llena desde JS (catalogo.js) con los data-elemento-id /
- * data-elemento-nombre del botón "editar" presionado.
- * Espera del index.php: $catalogoActivo, $catalogoInfo
+ * Se llena desde JS (catalogo.js) con los data-elemento-* del botón "editar"
+ * presionado.
+ * Espera del index.php: $catalogoActivo, $catalogoInfo, $catalogoMaxLength,
+ * $tiposInstitucion, $estadosGeo, $paises
  */
 
 // ---------- Cuerpo del Modal ----------
 ob_start();
 ?>
-<form id="formEditarElemento" novalidate>
+<form id="formEditarElemento" novalidate data-max-length="<?= (int) ($catalogoMaxLength ?? 50) ?>"<?= !empty($tiposInstitucion) ? ' data-pide-tipo="1"' : '' ?>>
   <div class="alert alert-danger d-none" data-form-error></div>
 
   <!-- Campos ocultos requeridos para la actualización -->
@@ -28,11 +29,50 @@ ob_start();
           name="nombre"
           class="form-control"
           required
-          maxlength="50"
+          maxlength="<?= (int) ($catalogoMaxLength ?? 50) ?>"
           autocomplete="off"
         >
-        <div class="invalid-feedback">El nombre es obligatorio (máximo 100 caracteres).</div>
+        <div class="invalid-feedback">El nombre es obligatorio (máximo <?= (int) ($catalogoMaxLength ?? 50) ?> caracteres).</div>
       </div>
+
+      <?php if (!empty($tiposInstitucion)): ?>
+        <!-- El tipo sí se puede corregir: si al crear se eligió la categoría
+             equivocada, se arregla aquí en vez de tener que dar de baja la
+             institución y crearla de nuevo. -->
+        <div class="mb-3">
+          <label for="editarElementoTipo" class="form-label">
+            Tipo de institución <span class="text-danger">*</span>
+          </label>
+          <!-- Mismo nombre que en el alta: "tipo" está ocupado por el campo oculto
+             del catálogo activo. -->
+          <select id="editarElementoTipo" name="tipo_institucion" class="form-select" required>
+            <option value="">Seleccione el tipo...</option>
+            <?php foreach ($tiposInstitucion as $tipoOpcion): ?>
+              <!-- data-id es el id de tipo_institucion. El value sigue siendo el
+                   codigo de texto, que es lo que viaja al servidor, pero el boton
+                   de la fila solo conoce el id (la columna de texto ya no existe),
+                   asi que sin esto el select no se podria preseleccionar. -->
+              <option value="<?= htmlspecialchars($tipoOpcion['tipo']) ?>"
+                      data-id="<?= (int) \App\Support\Instituciones::idCatalogo($tipoOpcion['tipo']) ?>"><?= htmlspecialchars($tipoOpcion['nombre']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="invalid-feedback">Selecciona el tipo de institución.</div>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($estadosGeo)): ?>
+        <?php
+        $prefijo         = 'editarElemento';
+        $urlCascada      = BASE_URL . 'catalogo/getUbicacion';
+        $elExtranjera    = !empty($el['es_extranjera']);
+        $selEstado       = (int) ($el['id_estado_geo'] ?? 0);
+        $selMunicipio    = (int) ($el['id_municipio'] ?? 0);
+        $selParroquia    = (int) ($el['id_parroquia'] ?? 0);
+        $selPais         = (int) ($el['pais_id'] ?? 0);
+        $selDea          = (string) ($el['codigo_dea'] ?? '');
+        include __DIR__ . '/../../../components/institucion-procedencia-form.php';
+        ?>
+      <?php endif; ?>
     </div>
   </section>
 </form>

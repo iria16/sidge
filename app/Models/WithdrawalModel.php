@@ -496,6 +496,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
         $inicioEnCurso = AniosEscolares::inicioEnCurso($this->pdo);
 
         $sql = "        SELECT m.id_matricula AS id_matricula,
+               e.id_estudiante AS id_estudiante,
                CONCAT_WS(' ', p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido) AS nombre,
                CONCAT(p.tipo_documento, '-', p.numero_documento) AS cedula,
                COALESCE(g.nombre, 'Sin grado') AS grado,
@@ -560,15 +561,22 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
             $motivo = Matriculas::motivoBloqueo($tipo, Matriculas::RETIRO);
         }
 
+        $idEstudiante = $fila['id_estudiante'] !== null ? (int) $fila['id_estudiante'] : 0;
+        $representantes = ($idEstudiante > 0 && $motivo === '')
+            ? $this->obtenerRepresentantesAutorizados($idEstudiante)
+            : [];
+
         return [
-            'id_matricula' => $fila['id_matricula'] !== null ? (int) $fila['id_matricula'] : null,
-            'nombre'       => trim($fila['nombre'] ?? '') ?: 'Estudiante',
-            'cedula'       => $fila['cedula'] ?? '—',
-            'grado'        => $fila['grado'] ?? '—',
-            'seccion'      => $fila['seccion'] ?? '—',
-            'anio'         => $fila['anio'] ?? '—',
-            'elegible'     => $motivo === '',
-            'motivo'       => $motivo,
+            'id_matricula'   => $fila['id_matricula'] !== null ? (int) $fila['id_matricula'] : null,
+            'id_estudiante'  => $idEstudiante,
+            'nombre'         => trim($fila['nombre'] ?? '') ?: 'Estudiante',
+            'cedula'         => $fila['cedula'] ?? '—',
+            'grado'          => $fila['grado'] ?? '—',
+            'seccion'        => $fila['seccion'] ?? '—',
+            'anio'           => $fila['anio'] ?? '—',
+            'elegible'       => $motivo === '',
+            'motivo'         => $motivo,
+            'representantes' => $representantes,
         ];
     }
 
@@ -583,19 +591,124 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  * @param array $data ['id_matricula' => int, 'id_motivo_retiro' => int,
  * 'observaciones' => string, 'id_usuario' => ?int]
 */
+    /**
+     * Obtiene los representantes legales y personas autorizadas de retiro de un estudiante.
+     *
+     * @return array<int, array{id_persona: int, nombre: string, cedula: string, parentesco: string, tipo_relacion: string}>
+     */
+    public function obtenerRepresentantesAutorizados(int $idEstudiante): array
+    {
+        if ($idEstudiante <= 0) {
+            return [];
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT pe.id_persona,
+                    CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS nombre,
+                    CONCAT(p.tipo_documento, '-', p.numero_documento) AS cedula,
+                    COALESCE(par.nombre, 'Familiar') AS parentesco,
+                    pe.es_representante_legal,
+                    pe.es_autorizado_retiro
+               FROM persona_estudiante pe
+               INNER JOIN persona p ON p.id_persona = pe.id_persona
+               LEFT JOIN parentesco par ON par.id_parentesco = pe.id_parentesco
+              WHERE pe.id_estudiante = :id_estudiante
+                AND (pe.es_representante_legal = 1 OR pe.es_autorizado_retiro = 1)
+                AND pe.estado_relacion = 'ACTIVO'
+                AND p.es_fallecido = 0
+              ORDER BY pe.es_representante_legal DESC, p.primer_nombre, p.primer_apellido"
+        );
+        $stmt->execute(['id_estudiante' => $idEstudiante]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $resultado = [];
+        foreach ($rows as $row) {
+            $tipoRel = [];
+            if ((int) $row['es_representante_legal'] === 1) {
+                $tipoRel[] = 'Representante legal';
+            }
+            if ((int) $row['es_autorizado_retiro'] === 1 && (int) $row['es_representante_legal'] === 0) {
+                $tipoRel[] = 'Autorizado para retiro';
+            }
+            $resultado[] = [
+                'id_persona'    => (int) $row['id_persona'],
+                'nombre'        => (string) $row['nombre'],
+                'cedula'        => (string) $row['cedula'],
+                'parentesco'    => (string) $row['parentesco'],
+                'tipo_relacion' => implode(' / ', $tipoRel),
+            ];
+        }
+
+        return $resultado;
+    }
+
+    /**
+     * Verifica si una persona es el representante legal o está autorizada para retirar al estudiante de la matrícula.
+     */
+    public function esRepresentanteOAutorizado(int $idMatricula, int $idPersona): bool
+    {
+        if ($idMatricula <= 0 || $idPersona <= 0) {
+            return false;
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT COUNT(*)
+               FROM persona_estudiante pe
+               INNER JOIN matricula m ON m.id_estudiante = pe.id_estudiante
+               INNER JOIN persona p ON p.id_persona = pe.id_persona
+              WHERE m.id_matricula = :id_matricula
+                AND pe.id_persona = :id_persona
+                AND (pe.es_representante_legal = 1 OR pe.es_autorizado_retiro = 1)
+                AND pe.estado_relacion = 'ACTIVO'
+                AND p.es_fallecido = 0"
+        );
+        $stmt->execute(['id_matricula' => $idMatricula, 'id_persona' => $idPersona]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    /**
+     * Valida si una persona es representante legal o autorizada para retiro de la matrícula dada.
+     */
+    public function validarRepresentanteMatricula(int $idMatricula, int $idPersona): bool
+    {
+        if ($idMatricula <= 0 || $idPersona <= 0) {
+            return false;
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT 1
+               FROM matricula m
+               INNER JOIN persona_estudiante pe ON pe.id_estudiante = m.id_estudiante
+               INNER JOIN persona p ON p.id_persona = pe.id_persona
+              WHERE m.id_matricula = :id_matricula
+                AND pe.id_persona = :id_persona
+                AND (pe.es_representante_legal = 1 OR pe.es_autorizado_retiro = 1)
+                AND pe.estado_relacion = 'ACTIVO'
+                AND p.es_fallecido = 0
+              LIMIT 1"
+        );
+        $stmt->execute(['id_matricula' => $idMatricula, 'id_persona' => $idPersona]);
+        return (bool) $stmt->fetchColumn();
+    }
+
     public function create(array $data): bool
     {
         $observaciones = trim((string) ($data['observaciones'] ?? ''));
         $idUsuario     = isset($data['id_usuario']) ? (int) $data['id_usuario'] : 0;
 
+        $idRepresentante = isset($data['id_persona_representante']) ? (int) $data['id_persona_representante'] : 0;
+        $fechaRetiro    = !empty($data['fecha_retiro']) ? trim((string) $data['fecha_retiro']) : null;
+
         $ok = $this->pdo->prepare(
-            "INSERT INTO retiro (id_matricula, id_motivo_retiro, estado_solicitud, observaciones,
-                                fecha_solicitud, id_usuario_registro)
-             VALUES (:matricula, :motivo, 'PENDIENTE', :observaciones, NOW(), :usuario)"
+            "INSERT INTO retiro (id_matricula, id_motivo_retiro, id_persona_representante, estado_solicitud,
+                                observaciones, fecha_solicitud, fecha_retiro, id_usuario_registro)
+             VALUES (:matricula, :motivo, :representante, 'PENDIENTE', :observaciones, NOW(), :fecha_retiro, :usuario)"
         )->execute([
             'matricula'     => (int) $data['id_matricula'],
             'motivo'        => (int) $data['id_motivo_retiro'],
+            'representante' => $idRepresentante > 0 ? $idRepresentante : null,
             'observaciones' => $observaciones !== '' ? $observaciones : null,
+            'fecha_retiro'  => $fechaRetiro,
             'usuario'       => $idUsuario > 0 ? $idUsuario : null,
         ]);
 

@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Interfaces\Updatable;
 use App\Models\CuentaUsuarioModel;
+use App\Support\Validator;
 use App\Traits\DetalleJsonTrait;
 use PDO;
 use Throwable;
@@ -74,60 +75,65 @@ class CuentaUsuarioController extends CrudController
     }
 
     /**
- * Validación centralizada: chequea formato, unicidad y reglas de negocio.
-*/
+     * Validación centralizada: chequea formato, unicidad y reglas de negocio.
+     */
     protected function validate(array $data, ?int $id = null): array
     {
         $errores = [];
         $model   = $this->modelo();
 
+        $rules = [
+            'nombre_usuario' => 'required|string|min_len:3|max_len:50|regex:/^[a-z0-9._]+$/',
+            'rol_id'         => 'required|integer|min_value:1',
+        ];
+
+        $messages = [
+            'nombre_usuario.required' => 'El nombre de usuario es obligatorio.',
+            'nombre_usuario.min_len'  => 'El nombre de usuario debe tener entre 3 y 50 caracteres.',
+            'nombre_usuario.max_len'  => 'El nombre de usuario debe tener entre 3 y 50 caracteres.',
+            'nombre_usuario.regex'    => 'El nombre de usuario solo puede contener letras minúsculas, números, puntos y guiones bajos.',
+            'rol_id.required'         => 'Debe seleccionar un rol.',
+            'rol_id.min_value'        => 'Debe seleccionar un rol.',
+        ];
+
+        if ($id === null) {
+            $rules['persona_id'] = 'required|integer|min_value:1';
+            $messages['persona_id.required']  = 'Debe seleccionar un empleado.';
+            $messages['persona_id.min_value'] = 'Debe seleccionar un empleado.';
+        }
+
+        $validator = Validator::make($data, $rules, $messages);
+        if (!$validator->passes()) {
+            $errores = $validator->errors();
+        }
+
         // 1. Validaciones dependientes del contexto (Crear vs Actualizar)
         if ($id !== null) {
             if ($id <= 0) {
-                $errores[] = 'ID de usuario inválido.';
+                $errores['id'] = 'ID de usuario inválido.';
             } else {
                 // Reglas de negocio para edición
                 $usuarioActual = $model->getDetalleById($id);
                 if (!$usuarioActual) {
-                    $errores[] = 'Usuario no encontrado.';
+                    $errores['id'] = 'Usuario no encontrado.';
                 } elseif (($usuarioActual['estado'] ?? '') === 'inactivo') {
-                    $errores[] = 'No se puede modificar una cuenta de usuario inactiva. Debe activarla primero.';
+                    $errores['estado'] = 'No se puede modificar una cuenta de usuario inactiva. Debe activarla primero.';
                 }
             }
         } else {
             // Reglas de negocio para creación
             $personaId = (int) ($data['persona_id'] ?? 0);
-            if ($personaId <= 0) {
-                $errores[] = 'Debe seleccionar un empleado.';
-            } elseif ($model->personaTieneUsuario($personaId)) {
-                $errores[] = 'El empleado seleccionado ya posee una cuenta de usuario.';
+            if ($personaId > 0 && $model->personaTieneUsuario($personaId)) {
+                $errores['persona_id'] = 'El empleado seleccionado ya posee una cuenta de usuario.';
             }
         }
 
-        // 2. Rol obligatorio
-        if (($data['rol_id'] ?? 0) <= 0) {
-            $errores[] = 'Debe seleccionar un rol.';
-        }
-
-        // 3. Formato del nombre de usuario
-        $usuario = (string) ($data['nombre_usuario'] ?? '');
-        if ($usuario === '') {
-            $errores[] = 'El nombre de usuario es obligatorio.';
-            return $errores; // Retorno temprano para no romper el regex
-        }
-
-        $longitud = mb_strlen($usuario, 'UTF-8');
-        if ($longitud < 3 || $longitud > 50) {
-            $errores[] = 'El nombre de usuario debe tener entre 3 y 50 caracteres.';
-        }
-
-        if (!preg_match('/^[a-z0-9._]+$/', $usuario)) {
-            $errores[] = 'El nombre de usuario solo puede contener letras minúsculas, números, puntos y guiones bajos.';
-        }
-
-        // 4. Unicidad del nombre de usuario (Aprovecha el $id)
-        if ($model->existeNombreUsuario($usuario, $id ?? 0)) {
-            $errores[] = "El nombre de usuario \"{$usuario}\" ya está en uso.";
+        // 2. Unicidad del nombre de usuario (Aprovecha el $id)
+        if (empty($errores['nombre_usuario'])) {
+            $usuario = (string) ($data['nombre_usuario'] ?? '');
+            if ($usuario !== '' && $model->existeNombreUsuario($usuario, $id ?? 0)) {
+                $errores['nombre_usuario'] = "El nombre de usuario \"{$usuario}\" ya está en uso.";
+            }
         }
 
         return $errores;
@@ -186,21 +192,27 @@ class CuentaUsuarioController extends CrudController
                 $data['rol_id'],
                 $data['nombre_usuario']
             );
+        } catch (\PDOException $e) {
+            if ($e->getCode() === '23000' || ($e->errorInfo[1] ?? 0) === 1062) {
+                $this->jsonResponse(false, ['nombre_usuario' => 'El nombre de usuario o empleado ya posee una cuenta registrada.'], 'El nombre de usuario ya está en uso.', 422);
+            }
+            $this->jsonError($e, 'Cuentas de usuario');
         } catch (Throwable $e) {
             $this->jsonError($e, 'Cuentas de usuario');
         }
 
         if (empty($resultado['ok'])) {
-            $this->jsonResponse(false, null, $resultado['mensaje'] ?? 'No se pudo crear el usuario.', 400);
+            $status = ($resultado['codigo'] ?? 0) === 422 ? 422 : 400;
+            $this->jsonResponse(false, ['nombre_usuario' => $resultado['mensaje'] ?? 'No se pudo crear el usuario.'], $resultado['mensaje'] ?? 'No se pudo crear el usuario.', $status);
         }
 
         $this->jsonRaw($resultado);
     }
 
     /**
- * Se sobreescribe porque al guardar devuelve todo el detalle del usuario
- * para actualizar la fila de la tabla en tiempo real.
-*/
+     * Se sobreescribe porque al guardar devuelve todo el detalle del usuario
+     * para actualizar la fila de la tabla en tiempo real.
+     */
     public function update(): void
     {
         $model = $this->modelo();
@@ -223,6 +235,11 @@ class CuentaUsuarioController extends CrudController
                 'rol_id'         => $data['rol_id'],
                 'nombre_usuario' => $data['nombre_usuario'],
             ]);
+        } catch (\PDOException $e) {
+            if ($e->getCode() === '23000' || ($e->errorInfo[1] ?? 0) === 1062) {
+                $this->jsonResponse(false, ['nombre_usuario' => 'El nombre de usuario ya está registrado por otra cuenta.'], 'El nombre de usuario ya está en uso.', 422);
+            }
+            $this->jsonError($e, 'Cuentas de usuario');
         } catch (Throwable $e) {
             $this->jsonError($e, 'Cuentas de usuario');
         }
@@ -246,23 +263,6 @@ class CuentaUsuarioController extends CrudController
 
     private function sanitizarNombreUsuario(string $nombreUsuario): string
     {
-        $nombreUsuario = trim(mb_strtolower($nombreUsuario, 'UTF-8'));
-
-        if (class_exists(\Transliterator::class)) {
-            $trans = \Transliterator::create('Any-Latin; Latin-ASCII; Lower()');
-            if ($trans !== null) {
-                $nombreUsuario = $trans->transliterate($nombreUsuario);
-            }
-        } else {
-            $search  = ['á', 'é', 'í', 'ó', 'ú', 'ñ', 'ä', 'ë', 'ï', 'ö', 'ü'];
-            $replace = ['a', 'e', 'i', 'o', 'u', 'n', 'a', 'e', 'i', 'o', 'u'];
-            $nombreUsuario = str_replace($search, $replace, $nombreUsuario);
-        }
-
-        $nombreUsuario = (string) preg_replace('/\s+/', '.', $nombreUsuario);
-        $nombreUsuario = (string) preg_replace('/[^a-z0-9._]/', '', $nombreUsuario);
-        $nombreUsuario = (string) preg_replace('/\.+/', '.', $nombreUsuario);
-
-        return trim($nombreUsuario, '._');
+        return trim(mb_strtolower($nombreUsuario, 'UTF-8'));
     }
 }

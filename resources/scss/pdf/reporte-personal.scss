@@ -1,0 +1,34 @@
+/* ── Planilla oficial de personal ─────────────────────────────────────────────
+   Listado Carta vertical para Dompdf. Reutiliza la hoja compartida de nóminas
+   para no duplicar membrete, tablas, tipografía ni pie de página.            */
+
+@import 'nomina';
+
+@page {
+  size: letter portrait;
+  margin: 36pt 36pt 44pt 36pt;
+}
+
+.reporte-personal__col--documento {
+  width: 78pt;
+}
+
+.reporte-personal__col--nombre {
+  width: 140pt;
+}
+
+.reporte-personal__col--cargo {
+  width: 110pt;
+}
+
+.reporte-personal__col--turno {
+  width: 55pt;
+}
+
+.reporte-personal__col--telefono {
+  width: 77pt;
+}
+
+.reporte-personal__col--condicion {
+  width: 80pt;
+}

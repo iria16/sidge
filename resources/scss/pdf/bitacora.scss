@@ -1,0 +1,77 @@
+/* ── Reporte de bitácora horizontal ───────────────────────────────────────────
+   Reutiliza la tabla, el membrete y el pie de la nómina; los valores de
+   orientación se pasan como variables antes de importar el parcial para no
+   repetir selectores ni reglas.                                                */
+
+$nomina-membrete-width: 660pt;
+$nomina-membrete-margin-bottom: 12pt;
+$nomina-membrete-layout: fixed;
+$nomina-membrete-col-min: 140pt;
+$nomina-membrete-col-texto: 380pt;
+$nomina-membrete-col-plantel: 140pt;
+$nomina-titulo-margin: 8pt 0 12pt 0;
+$nomina-datos-width: 660pt;
+$nomina-datos-layout: fixed;
+$nomina-datos-margin-bottom: 14pt;
+$nomina-datos-td-padding: 4.5pt 6pt;
+$nomina-datos-rotulo-width: 95pt;
+$nomina-tabla-width: 660pt;
+$nomina-tabla-layout: fixed;
+$nomina-tabla-th-padding: 6pt 5pt;
+$nomina-tabla-td-padding: 5.5pt 5pt;
+$nomina-pie-margin-top: 14pt;
+
+@import 'nomina';
+
+@page {
+  size: letter landscape;
+  margin: 52pt 66pt 42pt 66pt;
+}
+
+/* ── Columnas de contexto (institución, emisión, período, sección) ────────── */
+.reporte-col-rotulo {
+  width: 95pt;
+}
+
+.reporte-col-dato {
+  width: 235pt;
+}
+
+/* ── Bitácora ─────────────────────────────────────────────────────────────── */
+.bitacora-col-fecha {
+  width: 68pt;
+}
+
+.bitacora-col-usuario {
+  width: 96pt;
+}
+
+.bitacora-col-accion {
+  width: 80pt;
+}
+
+.bitacora-col-modulo {
+  width: 76pt;
+}
+
+.bitacora-col-detalle {
+  width: 268pt;
+}
+
+.bitacora-col-ip {
+  width: 72pt;
+}
+
+/* ── Marcas de celda que antes eran style="" ─────────────────────────────── */
+.reporte-celda {
+  font-size: 8pt;
+}
+
+.reporte-fuerte {
+  font-weight: bold;
+}
+
+.reporte-ip {
+  font-family: monospace;
+  font-size: 8pt;
+}

@@ -33,3 +33,11 @@ RedirectMatch 404 /\.git
 <FilesMatch "^\.(htpasswd|htaccess|bak|old|orig|swp)$">
     Require all denied
 </FilesMatch>
+
+# Código fuente y carpetas internas: el DocumentRoot apunta a /var/www/html, no a
+# /var/www/html/sidgev1/public. Sin esta regla se pueden leer archivos PHP y SCSS
+# aunque no se puedan ejecutar.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(app|database|docs|resources|vendor|storage)(/|$) - [F,L]
+</IfModule>

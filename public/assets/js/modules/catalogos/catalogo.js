@@ -37,11 +37,18 @@ function getTipoCatalogoActivo() {
 function aplicarValidacionNombreElemento(input) {
   if (!input) return;
 
+  // El limite lo declara el formulario con data-max-length. No es una
+  // constante fija porque cada catalogo tiene el suyo: los de siempre 50,
+  // institucion 100, que es lo que admite su columna.
+  var form = input.form;
+  var maximo = form ? parseInt(form.getAttribute('data-max-length'), 10) : 50;
+  if (isNaN(maximo)) maximo = 50;
+
   var actualizarMensaje = function () {
     if (input.validity.valueMissing) {
       input.setCustomValidity('El nombre es obligatorio.');
     } else if (input.validity.tooLong) {
-      input.setCustomValidity('El nombre no puede superar los 50 caracteres.');
+      input.setCustomValidity('El nombre no puede superar los ' + maximo + ' caracteres.');
     } else {
       input.setCustomValidity('');
     }
@@ -137,6 +144,26 @@ function initCrearElementoForm() {
 
   aplicarValidacionNombreElemento(document.getElementById('nuevoElementoNombre'));
 
+  // El bloque del codigo DEA aparece o desaparece con el tipo elegido.
+  var selectTipoNuevo = document.getElementById('nuevoElementoTipo');
+  var bloqueDeaNuevo = formCrear.querySelector('[data-solo-tipo-estudiante]');
+  if (selectTipoNuevo) {
+    selectTipoNuevo.addEventListener('change', function () {
+      alternarCampoDea(selectTipoNuevo, bloqueDeaNuevo);
+    });
+    alternarCampoDea(selectTipoNuevo, bloqueDeaNuevo);
+  }
+
+  // Nacional / extranjera, y la cascada de estado, municipio y parroquia.
+  var interruptorNuevo = formCrear.querySelector('[name="es_extranjera"]');
+  if (interruptorNuevo) {
+    interruptorNuevo.addEventListener('change', function () {
+      alternarBloquesNacionalExtranjera(formCrear);
+    });
+    alternarBloquesNacionalExtranjera(formCrear);
+  }
+  iniciarCascadaInstitucion('nuevoElemento');
+
   formCrear.addEventListener('submit', async function (e) {
     e.preventDefault();
 
@@ -202,10 +229,92 @@ function initCrearElementoForm() {
   });
 }
 
+/**
+ * Alterna los bloques de procedencia segun el interruptor de institution
+ * extranjera.
+ *
+ * Un <select> con required que queda escondido sigue bloqueando el envio del
+ * formulario, asi que el `required` se mueve con el bloque y ademas se limpian
+ * los campos del camino que no aplica: si alguien marca "extranjera" y guarda,
+ * el estado, el municipio y la parroquia tienen que irse a NULL en la base, no
+ * quedar pegados sin que nadie los use.
+ */
+function alternarBloquesNacionalExtranjera(form) {
+  if (!form) return;
+
+  var interruptor = form.querySelector('[name="es_extranjera"]');
+  if (!interruptor) return;
+
+  var esExtranjera = interruptor.checked;
+
+  ['nacional', 'extranjera'].forEach(function (nombre) {
+    var bloque = form.querySelector('[data-bloque="' + nombre + '"]');
+    if (!bloque) return;
+
+    bloque.classList.toggle('d-none', (nombre === 'extranjera') !== esExtranjera);
+
+    Array.prototype.forEach.call(bloque.querySelectorAll('input, select'), function (campo) {
+      var enBloqueOculto = campo.closest('.d-none');
+      if (enBloqueOculto) {
+        campo.required = false;
+        return;
+      }
+      campo.required = !bloque.classList.contains('d-none');
+      if (campo.required === false && campo.tagName === 'SELECT') campo.value = '';
+      if (campo.required === false && campo.tagName === 'INPUT') campo.value = '';
+    });
+  });
+}
+
+/**
+ * Levanta la cascada estado -> municipio -> parroquia del formulario.
+ * La funcion es la misma que usa el domicilio del empleado y el wizard de
+ * inscripciones (ver SIGDEWizardUI.initCascadaUbicacion): pide los tres
+ * niveles de una vez y filtra en el navegador, para no ir a la base en cada
+ * cambio.
+ */
+function iniciarCascadaInstitucion(prefijo) {
+  if (typeof SIGDEWizardUI === 'undefined' || !SIGDEWizardUI.initCascadaUbicacion) return null;
+
+  return SIGDEWizardUI.initCascadaUbicacion({
+    url: baseUrl + rutaControlador + '/getUbicacion',
+    estadoId: prefijo + 'Estado',
+    municipioId: prefijo + 'Municipio',
+    parroquiaId: prefijo + 'Parroquia'
+  });
+}
+
+/**
+ * Muestra u oculta el bloque del codigo DEA segun el tipo elegido.
+ *
+ * El DEA solo tiene sentido en preescolar y escuela, que son las etapas del
+ * sistema escolar. En universidad el campo se oculta y se limpia, para que no
+ * quede un valor viejo pegado a un tipo que ya no lo usa.
+ */
+function alternarCampoDea(selectTipo, bloque) {
+  if (!selectTipo || !bloque) return;
+
+  var esDeEstudiante = selectTipo.value !== 'titulo_academico';
+  var campo = bloque.querySelector('input[name="codigo_dea"]');
+
+  bloque.classList.toggle('d-none', !esDeEstudiante);
+
+  if (!campo) return;
+
+  // El `required` va pegado al bloque. Un campo obligatorio escondido haria que
+  // el navegador bloqueara el envio con el formulario lleno y sin DEA visible.
+  campo.required = esDeEstudiante;
+
+  if (!esDeEstudiante) campo.value = '';
+}
+
 // --- Modal y Formulario Editar Elemento ---
 function initEditarElementoModal() {
   var modalEditarEl = document.getElementById('modalEditarElemento');
   if (!modalEditarEl) return;
+
+  /* Cascada compartida por todas las ediciones de la página. */
+  var cascadaEdicion = null;
 
   aplicarValidacionNombreElemento(modalEditarEl.querySelector('#editarElementoNombre'));
 
@@ -218,9 +327,54 @@ function initEditarElementoModal() {
     var d = btnEditar.dataset;
     var inputId = modalEditarEl.querySelector('#editarElementoId');
     var inputNombre = modalEditarEl.querySelector('#editarElementoNombre');
+    var selectTipo = modalEditarEl.querySelector('#editarElementoTipo');
 
     if (inputId) inputId.value = d.elementoId || '';
     if (inputNombre) inputNombre.value = d.elementoNombre || '';
+
+    // Solo existe en el catalogo institucion. El boton de la fila manda el ID
+    // de tipo_institucion (la columna de texto ya no existe), pero el value de
+    // cada opcion es el codigo de texto. Si se asignara el id al value no
+    // coincidiria con ninguna opcion, el select quedaria vacio y, como es
+    // required, el formulario no se enviaria.
+    if (selectTipo) {
+      var idCatalogo = d.elementoTipo;
+      var opcionTipo = idCatalogo
+        ? selectTipo.querySelector('option[data-id="' + idCatalogo + '"]')
+        : null;
+      selectTipo.value = opcionTipo ? opcionTipo.value : '';
+    }
+
+    // Ubicacion y codigo DEA. Sin esto, editar una institucion los pondria en
+    // blanco y se perderian.
+    var selectEstado = modalEditarEl.querySelector('#editarElementoEstado');
+    var inputDea = modalEditarEl.querySelector('#editarElementoDea');
+    var selectPais = modalEditarEl.querySelector('#editarElementoPais');
+    if (selectEstado) selectEstado.value = d.elementoEstado || '';
+    if (inputDea) inputDea.value = d.elementoDea || '';
+    if (selectPais) selectPais.value = d.elementoPais || '';
+
+    var interruptorEditar = modalEditarEl.querySelector('[name="es_extranjera"]');
+    if (interruptorEditar) {
+      interruptorEditar.checked = d.elementoExtranjera === '1';
+      alternarBloquesNacionalExtranjera(modalEditarEl.querySelector('form'));
+    }
+
+    alternarCampoDea(selectTipo, modalEditarEl.querySelector('[data-solo-tipo-estudiante]'));
+
+    /* La cascada se crea una vez y se reutiliza: pedir los municipios de nuevo
+       en cada edición los descargaría otra vez, y ya seenan 335 filas. */
+    if (!cascadaEdicion) cascadaEdicion = iniciarCascadaInstitucion('editarElemento');
+    if (cascadaEdicion && selectEstado && selectEstado.value) {
+      /* elegirParroquia(estado, municipio, parroquia) deja los tres selects en
+         su valor. Si alguno ya no está en el catálogo devuelve false, y quien
+         guarda lo ve como selección inválida. */
+      cascadaEdicion.elegirParroquia(
+        selectEstado.value,
+        d.elementoMunicipio || 0,
+        d.elementoParroquia || 0
+      );
+    }
 
     if (inputNombre) inputNombre.dispatchEvent(new Event('input'));
 
@@ -229,6 +383,13 @@ function initEditarElementoModal() {
 
     SIGDEUI.mostrarModal(modalEditarEl);
   });
+
+  var selectTipoEditar = modalEditarEl.querySelector('#editarElementoTipo');
+  if (selectTipoEditar) {
+    selectTipoEditar.addEventListener('change', function () {
+      alternarCampoDea(selectTipoEditar, modalEditarEl.querySelector('[data-solo-tipo-estudiante]'));
+    });
+  }
 
   var formEditar = modalEditarEl.querySelector('#formEditarElemento');
   if (!formEditar) return;
@@ -270,6 +431,9 @@ function initEditarElementoModal() {
       // conflicto de foco/aria-hidden entre Bootstrap y SweetAlert2.
       SIGDEUI.alCerrarModal(modalEditarEl, function mostrarSwalActualizado() {
         var id = formData.get('id');
+        var selectTipoEditar = modalEditarEl.querySelector('#editarElementoTipo');
+        var selectEstadoEditar = modalEditarEl.querySelector('#editarElementoEstado');
+        var inputDeaEditar = modalEditarEl.querySelector('#editarElementoDea');
         // 'nuevoNombre' se toma de data.data.nombre (lo que el backend
         // realmente guardó, ya pasado por capitalizarTitulo()) y no de
         // formData.get('nombre') (el texto crudo tipeado por el
@@ -287,6 +451,38 @@ function initEditarElementoModal() {
         if (tr) {
           var nombreCell = tr.querySelector('td');
           if (nombreCell) nombreCell.textContent = nuevoNombre || '';
+
+          // El tipo también se actualiza en la fila. Antes solo se refrescaba
+          // el nombre, así que cambiar el tipo se notaba al recargar la página.
+          // La columna Tipo es la segunda y solo existe en el catálogo
+          // institución: que haya <select> de tipo es la señal de que
+          // también está esa columna.
+          if (selectTipoEditar && selectTipoEditar.value) {
+            var opcionElegida = selectTipoEditar.options[selectTipoEditar.selectedIndex];
+            var celdaTipo = tr.querySelector('td:nth-child(2)');
+            if (celdaTipo && opcionElegida) celdaTipo.textContent = opcionElegida.text;
+            if (btnEditarEnFila && opcionElegida && opcionElegida.dataset.id) {
+              btnEditarEnFila.dataset.elementoTipo = opcionElegida.dataset.id;
+            }
+          }
+
+          // La linea de ubicacion y DEA bajo el nombre se reconstruye con lo
+          // que se acaba de guardar.
+          if (selectEstadoEditar && inputDeaEditar) {
+            var lineaUbicacion = tr.querySelector('td .text-support');
+            if (lineaUbicacion) {
+              var opcionEstadoElegida = selectEstadoEditar.options[selectEstadoEditar.selectedIndex];
+              var textoUbicacion = opcionEstadoElegida && opcionEstadoElegida.value
+                ? opcionEstadoElegida.text
+                : 'Sin ubicacion';
+              if (inputDeaEditar.value) textoUbicacion += ' \u00b7 DEA ' + inputDeaEditar.value.toUpperCase();
+              lineaUbicacion.textContent = textoUbicacion;
+            }
+            if (btnEditarEnFila) {
+              btnEditarEnFila.dataset.elementoEstado = selectEstadoEditar.value;
+              btnEditarEnFila.dataset.elementoDea = inputDeaEditar.value;
+            }
+          }
 
           var toggleInput = tr.querySelector('.toggle-estado');
           if (toggleInput) toggleInput.setAttribute('aria-label', 'Activar o desactivar ' + (nuevoNombre || ''));

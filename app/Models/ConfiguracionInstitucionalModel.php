@@ -61,6 +61,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
     private const CLAVES_TEXTO = [
         'ministerio_linea_1',
         'ministerio_linea_2',
+        'certificado_epigrafe',
         'plantel_nombre',
         'plantel_nombre_corto',
         'plantel_codigo_dea',
@@ -71,6 +72,8 @@ class ConfiguracionInstitucionalModel extends BaseModel
         'director_segundo_apellido',
         'director_cedula',
         'director_cargo',
+        'cdce_director_nombre',
+        'cdce_director_cedula',
         'plantel_municipio',
         'plantel_parroquia',
         'cdce_estado',
@@ -86,26 +89,133 @@ class ConfiguracionInstitucionalModel extends BaseModel
         'plantel_logo',
         'director_firma',
         'institucion_sello',
+        'cdce_director_firma',
+        'cdce_institucion_sello',
         'plantel_cintillo',
     ];
 
     /**
-     * Retorna todas las configuraciones indexadas por clave.
+     * Retorna los catálogos de estado, municipio y parroquia para los selects territoriales.
+     *
+     * @return array{estados: array<int, array<string, mixed>>, municipios: array<int, array<string, mixed>>, parroquias: array<int, array<string, mixed>>}
+     */
+    public function getCatalogoUbicacion(): array
+    {
+        $stmtEst = $this->pdo->prepare("SELECT id_estado, nombre FROM estado WHERE estado = 'ACTIVO' ORDER BY nombre");
+        $stmtEst->execute();
+        $estados = $stmtEst->fetchAll(PDO::FETCH_ASSOC);
+
+        $stmtMun = $this->pdo->prepare("SELECT id_municipio, id_estado, nombre FROM municipio WHERE estado = 'ACTIVO' ORDER BY nombre");
+        $stmtMun->execute();
+        $municipios = $stmtMun->fetchAll(PDO::FETCH_ASSOC);
+
+        $stmtPar = $this->pdo->prepare("SELECT id_parroquia, id_municipio, nombre FROM parroquia WHERE estado = 'ACTIVO' ORDER BY nombre");
+        $stmtPar->execute();
+        $parroquias = $stmtPar->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            'estados'    => $estados,
+            'municipios' => $municipios,
+            'parroquias' => $parroquias,
+        ];
+    }
+
+    /**
+     * Catálogo oficial de niveles educativos del MPPE con sus respectivos códigos.
+     *
+     * @return array<int, array{nombre: string, codigo: string, descripcion: string}>
+     */
+    public function getNivelesEducativos(): array
+    {
+        return [
+            [
+                'nombre'      => 'Educación Primaria',
+                'codigo'      => '21000',
+                'descripcion' => 'Educación Primaria (1° a 6° Grado)',
+            ],
+            [
+                'nombre'      => 'Educación Inicial',
+                'codigo'      => '11000',
+                'descripcion' => 'Educación Inicial / Preescolar',
+            ],
+            [
+                'nombre'      => 'Educación Media General',
+                'codigo'      => '31000',
+                'descripcion' => 'Educación Media General (1° a 5° Año)',
+            ],
+            [
+                'nombre'      => 'Educación Media Técnica',
+                'codigo'      => '32000',
+                'descripcion' => 'Educación Media Técnica (1° a 6° Año)',
+            ],
+            [
+                'nombre'      => 'Educación de Jóvenes, Adultas y Adultos',
+                'codigo'      => '41000',
+                'descripcion' => 'Educación de Jóvenes, Adultas y Adultos',
+            ],
+            [
+                'nombre'      => 'Educación Especial',
+                'codigo'      => '51000',
+                'descripcion' => 'Educación Especial',
+            ],
+        ];
+    }
+
+    /** @var array<string, string> Valores oficiales por defecto centralizados */
+    public const VALORES_DEFECTO = [
+        'ministerio_linea_1'         => 'REPÚBLICA BOLIVARIANA DE VENEZUELA',
+        'ministerio_linea_2'         => 'MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN',
+        'certificado_epigrafe'       => 'BICENTENARIO DE LA UNIDAD AMERICANA: CONGRESO ANFICTIÓNICO DE PANAMÁ',
+        'plantel_nombre'             => 'ESCUELA BÁSICA "ISIDRO RAMÍREZ"',
+        'plantel_nombre_corto'       => 'E.B. Isidro Ramírez',
+        'plantel_codigo_dea'         => 'OD05750814',
+        'plantel_codigo_dependencia' => '006562012',
+        'cdce_estado'                => 'Carabobo',
+        'plantel_municipio'          => 'Valencia',
+        'plantel_parroquia'          => 'Miguel Peña',
+        'lugar_expedicion'           => 'Carabobo',
+        'nivel_educativo'            => 'Educación Primaria',
+        'nivel_codigo'               => '21000',
+        'director_nombre'            => '',
+        'director_primer_nombre'     => '',
+        'director_segundo_nombre'    => '',
+        'director_primer_apellido'   => '',
+        'director_segundo_apellido'  => '',
+        'director_cedula'            => '',
+        'director_cargo'             => 'Director (E)',
+        'cdce_director_nombre'       => '',
+        'cdce_director_cedula'       => '',
+        'ministerio_logo'            => '/assets/img/ministerio_logo_bandera.png',
+        'plantel_logo'               => '/assets/img/logo.png',
+        'plantel_cintillo'           => '',
+        'director_firma'             => '',
+        'institucion_sello'          => '',
+        'cdce_director_firma'        => '',
+        'cdce_institucion_sello'     => '',
+    ];
+
+    /**
+     * Retorna todas las configuraciones indexadas por clave fusionando los valores por defecto.
      *
      * @return array<string, string>
      */
     public function getAll(array $filters = [], int $page = 1, int $perPage = 100): array
     {
-        $stmt = $this->pdo->query('SELECT clave, valor FROM configuracion_institucional');
-        $resultado = [];
+        $stmt = $this->pdo->prepare('SELECT clave, valor FROM configuracion_institucional');
+        $stmt->execute();
+        $resultado = self::VALORES_DEFECTO;
         while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $resultado[(string) $fila['clave']] = (string) ($fila['valor'] ?? '');
+            $clave = (string) $fila['clave'];
+            $valor = (string) ($fila['valor'] ?? '');
+            if ($valor !== '' || !isset($resultado[$clave])) {
+                $resultado[$clave] = $valor;
+            }
         }
         return $resultado;
     }
 
     /**
-     * Obtiene el valor de una clave individual.
+     * Obtiene el valor de una clave individual con fallback centralizado.
      */
     public function get(string $clave, string $default = ''): string
     {
@@ -113,27 +223,88 @@ class ConfiguracionInstitucionalModel extends BaseModel
         $stmt->execute(['clave' => $clave]);
         $val = $stmt->fetchColumn();
 
-        return ($val !== false && trim((string) $val) !== '') ? (string) $val : $default;
+        if ($val !== false && trim((string) $val) !== '') {
+            return (string) $val;
+        }
+
+        if ($default !== '') {
+            return $default;
+        }
+
+        return self::VALORES_DEFECTO[$clave] ?? '';
     }
 
     /**
      * Actualiza masivamente los campos de texto dentro de una transacción con
+    /** @var array<string, array<string>> Mapeo de campos agrupados por sección independiente */
+    public const SECCIONES = [
+        'plantel' => [
+            'plantel_nombre',
+            'plantel_nombre_corto',
+            'plantel_codigo_dea',
+            'cdce_estado',
+            'plantel_municipio',
+            'plantel_parroquia',
+            'lugar_expedicion',
+            'plantel_codigo_dependencia',
+            'nivel_educativo',
+            'nivel_codigo',
+        ],
+        'directiva' => [
+            'director_primer_nombre',
+            'director_segundo_nombre',
+            'director_primer_apellido',
+            'director_segundo_apellido',
+            'director_nombre',
+            'director_cedula',
+            'director_cargo',
+            'cdce_director_nombre',
+            'cdce_director_cedula',
+        ],
+        'membrete' => [
+            'ministerio_linea_1',
+            'ministerio_linea_2',
+            'certificado_epigrafe',
+        ],
+    ];
+
+    /**
+     * Valida y actualiza en masa los parámetros textuales en la base de datos.
      * INSERT ... ON DUPLICATE KEY UPDATE.
      *
      * @param array<string, string> $datos Arreglo asociativo [clave => valor]
      * @param int $idUsuario ID del administrador que realiza la modificación.
+     * @param string|null $seccion Nombre de la sección para guardado independiente ('plantel', 'directiva', 'membrete' o null).
      * @return array{ok: bool, mensaje: string, errores?: array<string, string>}
      */
-    public function guardarTextos(array $datos, int $idUsuario): array
+    public function guardarTextos(array $datos, int $idUsuario, ?string $seccion = null): array
     {
         $errores = [];
         $limpios = [];
 
-        foreach (self::CLAVES_TEXTO as $clave) {
+        $clavesAProcesar = ($seccion !== null && isset(self::SECCIONES[$seccion]))
+            ? self::SECCIONES[$seccion]
+            : self::CLAVES_TEXTO;
+
+        // Lista blanca estricta: rechazar cualquier clave desconocida enviada en la petición
+        foreach (array_keys($datos) as $claveEnviada) {
+            if (in_array($claveEnviada, ['csrf', 'csrf_token', 'seccion'], true)) {
+                continue;
+            }
+            if (!in_array($claveEnviada, $clavesAProcesar, true)) {
+                return [
+                    'ok'      => false,
+                    'mensaje' => "El parámetro '{$claveEnviada}' no está permitido.",
+                    'errores' => [$claveEnviada => 'Parámetro no autorizado.'],
+                ];
+            }
+        }
+
+        foreach ($clavesAProcesar as $clave) {
             $raw = (string) ($datos[$clave] ?? '');
             $valor = preg_replace('/\s+/u', ' ', trim(strip_tags($raw))) ?? '';
 
-            // Validar obligatoriedad
+            // Validar obligatoriedad básica
             if (in_array($clave, self::CLAVES_OBLIGATORIAS, true) && $valor === '') {
                 $mensaje = match ($clave) {
                     'plantel_nombre'       => 'El nombre oficial del plantel es obligatorio.',
@@ -141,6 +312,32 @@ class ConfiguracionInstitucionalModel extends BaseModel
                     'ministerio_linea_1'   => 'La línea 1 del ministerio es obligatoria.',
                     'ministerio_linea_2'   => 'La línea 2 del ministerio es obligatoria.',
                     default                => 'Este campo es obligatorio.',
+                };
+                $errores[$clave] = $mensaje;
+                continue;
+            }
+
+            // Validar obligatoriedad de directiva
+            if (($seccion === 'directiva' || $seccion === null) && in_array($clave, ['director_primer_nombre', 'director_primer_apellido'], true) && $valor === '') {
+                $errores[$clave] = match ($clave) {
+                    'director_primer_nombre'   => 'El primer nombre del director es obligatorio.',
+                    'director_primer_apellido' => 'El primer apellido del director es obligatorio.',
+                    default                    => 'Este campo es obligatorio.',
+                };
+                continue;
+            }
+
+            // Validar obligatoriedad de selecciones territoriales y nivel educativo
+            if (($seccion === 'plantel' || $seccion === null) && in_array($clave, ['cdce_estado', 'plantel_municipio', 'plantel_parroquia', 'nivel_educativo', 'lugar_expedicion', 'plantel_codigo_dependencia', 'nivel_codigo'], true) && $valor === '') {
+                $mensaje = match ($clave) {
+                    'cdce_estado'                => 'Debe seleccionar el Estado CDCE.',
+                    'plantel_municipio'          => 'Debe seleccionar el Municipio del plantel.',
+                    'plantel_parroquia'          => 'Debe seleccionar la Parroquia del plantel.',
+                    'nivel_educativo'            => 'Debe seleccionar el Nivel Educativo.',
+                    'lugar_expedicion'           => 'El lugar de expedición en constancias es obligatorio.',
+                    'plantel_codigo_dependencia' => 'El Código de Dependencia es obligatorio.',
+                    'nivel_codigo'               => 'El Código de Nivel MPPE es obligatorio.',
+                    default                      => 'Este campo es obligatorio.',
                 };
                 $errores[$clave] = $mensaje;
                 continue;
@@ -154,17 +351,72 @@ class ConfiguracionInstitucionalModel extends BaseModel
                 default                => 200,
             };
 
-            // Validación específica de formato de cédula del director si viene indicada
-            if ($clave === 'director_cedula' && $valor !== '') {
+            // Validación específica de formato de cédula del director o director CDCE si viene indicada
+            if (in_array($clave, ['director_cedula', 'cdce_director_cedula'], true) && $valor !== '') {
                 $digitos = preg_replace('/\D/', '', $valor);
                 $letra = strtoupper(substr(trim($valor), 0, 1));
                 if (!in_array($letra, ['V', 'E'], true) || strlen($digitos) < 6 || strlen($digitos) > 9) {
-                    $errores['director_cedula'] = 'La cédula del director debe tener un formato válido (V o E seguida de 6 a 9 dígitos, ej. V-12.345.678).';
+                    $errores[$clave] = 'La cédula debe tener un formato válido: V o E seguida de 6 a 9 dígitos (ej. V-12.345.678).';
+                    continue;
+                }
+            }
+
+            // Validación de formato del Código DEA (alfanumérico de 6 a 20 caracteres sin espacios ni símbolos)
+            if ($clave === 'plantel_codigo_dea' && $valor !== '') {
+                if (!preg_match('/^[A-Za-z0-9]{6,20}$/', $valor)) {
+                    $errores['plantel_codigo_dea'] = 'El Código DEA debe contener entre 6 y 20 caracteres alfanuméricos sin espacios ni símbolos (ej. OD05281402).';
+                    continue;
+                }
+            }
+
+            // Validación de formato del Código de Dependencia (numérico de 6 a 15 dígitos)
+            if ($clave === 'plantel_codigo_dependencia' && $valor !== '') {
+                if (!preg_match('/^\d{6,15}$/', $valor)) {
+                    $errores['plantel_codigo_dependencia'] = 'El Código de Dependencia debe contener entre 6 y 15 dígitos numéricos (ej. 006562012).';
+                    continue;
+                }
+            }
+
+            // Validación de formato del Código de Nivel MPPE (exactamente 5 dígitos numéricos)
+            if ($clave === 'nivel_codigo' && $valor !== '') {
+                if (!preg_match('/^\d{5}$/', $valor)) {
+                    $errores['nivel_codigo'] = 'El Código de Nivel MPPE debe contener exactamente 5 dígitos numéricos (ej. 21000).';
                     continue;
                 }
             }
 
             $limpios[$clave] = $valor;
+        }
+
+        // Validación de coherencia territorial: estado -> municipio -> parroquia
+        if (isset($limpios['cdce_estado'], $limpios['plantel_municipio'], $limpios['plantel_parroquia'])) {
+            $estadoVal  = $limpios['cdce_estado'];
+            $munVal     = $limpios['plantel_municipio'];
+            $parrVal    = $limpios['plantel_parroquia'];
+
+            if ($estadoVal !== '' && $munVal !== '' && $parrVal !== '') {
+                $nombresTerritorio = $this->validarCoherenciaTerritorial($estadoVal, $munVal, $parrVal);
+                if ($nombresTerritorio === null) {
+                    $errores['plantel_parroquia'] = 'La parroquia seleccionada no pertenece al municipio y estado indicados.';
+                } else {
+                    // Guarda los nombres leídos de la BD, no los del request
+                    $limpios['cdce_estado']       = $nombresTerritorio['estado_nombre'];
+                    $limpios['plantel_municipio'] = $nombresTerritorio['municipio_nombre'];
+                    $limpios['plantel_parroquia'] = $nombresTerritorio['parroquia_nombre'];
+                }
+            }
+        }
+
+        // Validación de coherencia de nivel educativo <-> código MPPE
+        if (isset($limpios['nivel_educativo'], $limpios['nivel_codigo'])) {
+            $nivelVal  = $limpios['nivel_educativo'];
+            $codigoVal = $limpios['nivel_codigo'];
+
+            if ($nivelVal !== '' && $codigoVal !== '') {
+                if (!$this->validarCoherenciaNivel($nivelVal, $codigoVal)) {
+                    $errores['nivel_codigo'] = 'El Código MPPE no se corresponde con el nivel educativo seleccionado.';
+                }
+            }
         }
 
         if (!empty($errores)) {
@@ -196,10 +448,17 @@ class ConfiguracionInstitucionalModel extends BaseModel
             }
 
             // Registrar acción en la bitácora institucional
+            $detalleBitacora = match ($seccion) {
+                'plantel'   => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Datos del plantel y ubicación territorial',
+                'directiva' => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Autoridad directiva y firmante',
+                'membrete'  => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Membrete oficial de la República',
+                default     => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Datos del plantel y directiva',
+            };
+
             $bitacora = new BitacoraModel($this->pdo);
             $bitacoraOk = $bitacora->registrar(
                 $idUsuario,
-                'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Datos del plantel y directiva',
+                $detalleBitacora,
                 'Configuración'
             );
             if (!$bitacoraOk) {
@@ -211,9 +470,16 @@ class ConfiguracionInstitucionalModel extends BaseModel
             // Invalidar la caché en memoria del helper global
             Configuracion::invalidateCache();
 
+            $mensajeExito = match ($seccion) {
+                'plantel'   => 'Datos del plantel y ubicación territorial actualizados correctamente.',
+                'directiva' => 'Datos de la autoridad directiva actualizados correctamente.',
+                'membrete'  => 'Membrete oficial de la República actualizado correctamente.',
+                default     => 'Configuración institucional actualizada correctamente.',
+            };
+
             return [
                 'ok'      => true,
-                'mensaje' => 'Configuración institucional actualizada correctamente.',
+                'mensaje' => $mensajeExito,
             ];
         } catch (Throwable $e) {
             if ($this->pdo->inTransaction()) {
@@ -226,6 +492,85 @@ class ConfiguracionInstitucionalModel extends BaseModel
                 'mensaje' => 'Ocurrió un error al intentar guardar los datos en la base de datos.',
             ];
         }
+    }
+
+    /**
+     * Valida la coherencia de la jerarquía territorial estado -> municipio -> parroquia.
+     * Si llegan IDs, valida estrictamente por IDs y retorna los nombres canónicos de la BD.
+     * Si llegan nombres, valida estrictamente por nombres y retorna los nombres canónicos de la BD.
+     * Sin operadores OR entre nombre e ID en el SQL.
+     *
+     * @return array{estado_nombre: string, municipio_nombre: string, parroquia_nombre: string}|null
+     */
+    public function validarCoherenciaTerritorial(string $estado, string $municipio, string $parroquia): ?array
+    {
+        $estadoTrim = trim($estado);
+        $munTrim    = trim($municipio);
+        $parrTrim   = trim($parroquia);
+
+        // Si llegan IDs numéricos, valida ÚNICAMENTE por IDs
+        if (is_numeric($estadoTrim) && is_numeric($munTrim) && is_numeric($parrTrim)) {
+            $sql = 'SELECT e.nombre AS estado_nombre, m.nombre AS municipio_nombre, p.nombre AS parroquia_nombre
+                      FROM parroquia p
+                      JOIN municipio m ON m.id_municipio = p.id_municipio
+                      JOIN estado e ON e.id_estado = m.id_estado
+                     WHERE e.id_estado = :estadoId
+                       AND m.id_municipio = :municipioId
+                       AND p.id_parroquia = :parroquiaId
+                     LIMIT 1';
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                'estadoId'    => (int) $estadoTrim,
+                'municipioId' => (int) $munTrim,
+                'parroquiaId' => (int) $parrTrim,
+            ]);
+
+            $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $fila ? [
+                'estado_nombre'    => (string) $fila['estado_nombre'],
+                'municipio_nombre' => (string) $fila['municipio_nombre'],
+                'parroquia_nombre' => (string) $fila['parroquia_nombre'],
+            ] : null;
+        }
+
+        // Si llegan nombres de texto, valida ÚNICAMENTE por nombres
+        $sql = 'SELECT e.nombre AS estado_nombre, m.nombre AS municipio_nombre, p.nombre AS parroquia_nombre
+                  FROM parroquia p
+                  JOIN municipio m ON m.id_municipio = p.id_municipio
+                  JOIN estado e ON e.id_estado = m.id_estado
+                 WHERE LOWER(TRIM(e.nombre)) = LOWER(TRIM(:estado))
+                   AND LOWER(TRIM(m.nombre)) = LOWER(TRIM(:municipio))
+                   AND LOWER(TRIM(p.nombre)) = LOWER(TRIM(:parroquia))
+                 LIMIT 1';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'estado'    => $estadoTrim,
+            'municipio' => $munTrim,
+            'parroquia' => $parrTrim,
+        ]);
+
+        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $fila ? [
+            'estado_nombre'    => (string) $fila['estado_nombre'],
+            'municipio_nombre' => (string) $fila['municipio_nombre'],
+            'parroquia_nombre' => (string) $fila['parroquia_nombre'],
+        ] : null;
+    }
+
+    /**
+     * Valida que el nivel educativo coincida con su código MPPE oficial.
+     */
+    public function validarCoherenciaNivel(string $nivel, string $codigo): bool
+    {
+        foreach ($this->getNivelesEducativos() as $n) {
+            if (mb_strtoupper(trim($n['nombre']), 'UTF-8') === mb_strtoupper(trim($nivel), 'UTF-8')) {
+                return trim((string) $n['codigo']) === trim((string) $codigo);
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -279,14 +624,14 @@ class ConfiguracionInstitucionalModel extends BaseModel
         }
 
         // Firma y sello: estrictamente PNG
-        $esFirmaOSello = in_array($clave, ['director_firma', 'institucion_sello'], true);
+        $esFirmaOSello = in_array($clave, ['director_firma', 'institucion_sello', 'cdce_director_firma', 'cdce_institucion_sello'], true);
         if ($esFirmaOSello && $mime !== 'image/png') {
-            return ['ok' => false, 'mensaje' => 'La firma y el sello deben estar en formato PNG con fondo transparente.'];
+            return ['ok' => false, 'mensaje' => 'La firma y el sello deben ser imágenes PNG con fondo transparente'];
         }
 
-        // Logos: PNG o JPG
-        if (!$esFirmaOSello && !in_array($mime, ['image/png', 'image/jpeg'], true)) {
-            return ['ok' => false, 'mensaje' => 'Formato no admitido. Solo se permiten imágenes PNG y JPG.'];
+        // Logos y cintillo: PNG, JPG o WEBP
+        if (!$esFirmaOSello && !in_array($mime, ['image/png', 'image/jpeg', 'image/webp'], true)) {
+            return ['ok' => false, 'mensaje' => 'Formato no admitido. Solo se permiten imágenes PNG, JPG y WEBP.'];
         }
 
         // 4. Validar dimensiones con getimagesize()
@@ -322,7 +667,13 @@ class ConfiguracionInstitucionalModel extends BaseModel
         $projectRoot = Configuracion::getProjectRoot();
 
         if ($esFirmaOSello) {
-            $subcarpeta = ($clave === 'director_firma') ? 'firma' : 'sello';
+            $subcarpeta = match ($clave) {
+                'director_firma'         => 'firma',
+                'institucion_sello'      => 'sello',
+                'cdce_director_firma'    => 'firma_cdce',
+                'cdce_institucion_sello' => 'sello_cdce',
+                default                  => 'firma',
+            };
             $directorioDestino = $projectRoot . DIRECTORY_SEPARATOR . 'storage'
                 . DIRECTORY_SEPARATOR . 'institucion' . DIRECTORY_SEPARATOR . $subcarpeta;
         } else {
@@ -330,21 +681,27 @@ class ConfiguracionInstitucionalModel extends BaseModel
                 . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'institucion';
         }
 
-        if (!is_dir($directorioDestino) && !@mkdir($directorioDestino, 0755, true) && !is_dir($directorioDestino)) {
+        if (!is_dir($directorioDestino) && !@mkdir($directorioDestino, 02775, true) && !is_dir($directorioDestino)) {
             return ['ok' => false, 'mensaje' => 'No se pudo crear el directorio de almacenamiento en el servidor.'];
         }
 
         // 6. Generar nombre de archivo único e inalterable
-        $extension = ($mime === 'image/png') ? 'png' : 'jpg';
+        $extension = match ($mime) {
+            'image/png'  => 'png',
+            'image/webp' => 'webp',
+            default      => 'jpg',
+        };
         $nombreArchivo = bin2hex(random_bytes(16)) . '.' . $extension;
         $rutaCompleta = $directorioDestino . DIRECTORY_SEPARATOR . $nombreArchivo;
 
         // 7. Re-codificación y reducción de escala con GD (máximo ~1000 px por lado largo)
         $gdOk = false;
         try {
-            $recursoOriginal = ($mime === 'image/png')
-                ? @imagecreatefrompng($tmpPath)
-                : @imagecreatefromjpeg($tmpPath);
+            $recursoOriginal = match ($mime) {
+                'image/png'  => @imagecreatefrompng($tmpPath),
+                'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($tmpPath) : false,
+                default      => @imagecreatefromjpeg($tmpPath),
+            };
 
             if ($recursoOriginal === false) {
                 return ['ok' => false, 'mensaje' => 'La imagen no pudo ser leída por la biblioteca gráfica del servidor.'];
@@ -360,7 +717,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
 
                 $recursoEscalado = imagecreatetruecolor($nuevoAncho, $nuevoAlto);
                 if ($recursoEscalado !== false) {
-                    if ($mime === 'image/png') {
+                    if (in_array($mime, ['image/png', 'image/webp'], true)) {
                         imagealphablending($recursoEscalado, false);
                         imagesavealpha($recursoEscalado, true);
                         $transparente = imagecolorallocatealpha($recursoEscalado, 0, 0, 0, 127);
@@ -371,7 +728,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
                     $recursoOriginal = $recursoEscalado;
                 }
             } else {
-                if ($mime === 'image/png') {
+                if (in_array($mime, ['image/png', 'image/webp'], true)) {
                     imagealphablending($recursoOriginal, false);
                     imagesavealpha($recursoOriginal, true);
                 }
@@ -380,6 +737,8 @@ class ConfiguracionInstitucionalModel extends BaseModel
             // Guardar imagen re-codificada
             if ($mime === 'image/png') {
                 $gdOk = imagepng($recursoOriginal, $rutaCompleta, 8);
+            } elseif ($mime === 'image/webp' && function_exists('imagewebp')) {
+                $gdOk = imagewebp($recursoOriginal, $rutaCompleta, 85);
             } else {
                 $gdOk = imagejpeg($recursoOriginal, $rutaCompleta, 90);
             }
@@ -421,12 +780,14 @@ class ConfiguracionInstitucionalModel extends BaseModel
 
             // Registrar en bitácora dentro de la misma transacción
             $nombreLegible = match ($clave) {
-                'ministerio_logo'   => 'Logo del Ministerio',
-                'plantel_logo'      => 'Logo del Plantel',
-                'director_firma'    => 'Firma del Director',
-                'institucion_sello' => 'Sello Institucional',
-                'plantel_cintillo'  => 'Franja Tricolor',
-                default             => $clave,
+                'ministerio_logo'        => 'Logo del Ministerio',
+                'plantel_logo'           => 'Logo del Plantel',
+                'director_firma'         => 'Firma del Director',
+                'institucion_sello'      => 'Sello Institucional',
+                'cdce_director_firma'    => 'Firma del Director CDCE',
+                'cdce_institucion_sello' => 'Sello CDCE Estadal',
+                'plantel_cintillo'       => 'Franja Tricolor',
+                default                  => $clave,
             };
 
             $bitacoraOk = (new BitacoraModel($this->pdo))->registrar(
@@ -451,7 +812,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
 
             return [
                 'ok'        => true,
-                'mensaje'   => "Se ha actualizado {$nombreLegible} correctamente.",
+                'mensaje'   => "Imagen actualizada: Se ha guardado {$nombreLegible} correctamente en el sistema. (No requiere pulsar «Guardar Cambios»).",
                 'ruta'      => $valorAGuardar,
                 'asset_url' => $urlPublica,
             ];
@@ -469,7 +830,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
             if ($commitOcurrido) {
                 return [
                     'ok'        => true,
-                    'mensaje'   => "Se ha actualizado {$nombreLegible} correctamente.",
+                    'mensaje'   => "Imagen actualizada: Se ha guardado {$nombreLegible} correctamente en el sistema. (No requiere pulsar «Guardar Cambios»).",
                     'ruta'      => $valorAGuardar,
                     'asset_url' => $urlPublica ?? '',
                 ];
@@ -534,10 +895,12 @@ class ConfiguracionInstitucionalModel extends BaseModel
             Configuracion::invalidateCache();
 
             $mensajeExito = match ($clave) {
-                'plantel_cintillo' => 'La franja tricolor ha sido retirada correctamente. Las constancias se emitirán sin cintillo inferior.',
-                'director_firma'   => 'La firma digitalizada ha sido retirada correctamente.',
-                'institucion_sello' => 'El sello institucional ha sido retirado correctamente.',
-                default            => 'El logotipo ha sido restablecido a su versión predeterminada oficial.',
+                'plantel_cintillo'       => 'La franja tricolor ha sido retirada correctamente. Las constancias se emitirán sin cintillo inferior.',
+                'director_firma'         => 'La firma digitalizada ha sido retirada correctamente.',
+                'institucion_sello'      => 'El sello institucional ha sido retirado correctamente.',
+                'cdce_director_firma'    => 'La firma digitalizada del Director(a) CDCE ha sido retirada correctamente.',
+                'cdce_institucion_sello' => 'El sello del CDCE Estadal ha sido retirado correctamente.',
+                default                  => 'El logotipo ha sido restablecido a su versión predeterminada oficial.',
             };
 
             return ['ok' => true, 'mensaje' => $mensajeExito];
@@ -622,8 +985,14 @@ class ConfiguracionInstitucionalModel extends BaseModel
 
         $projectRoot = Configuracion::getProjectRoot();
 
-        if (in_array($clave, ['director_firma', 'institucion_sello'], true)) {
-            $subcarpeta = ($clave === 'director_firma') ? 'firma' : 'sello';
+        if (in_array($clave, ['director_firma', 'institucion_sello', 'cdce_director_firma', 'cdce_institucion_sello'], true)) {
+            $subcarpeta = match ($clave) {
+                'director_firma'         => 'firma',
+                'institucion_sello'      => 'sello',
+                'cdce_director_firma'    => 'firma_cdce',
+                'cdce_institucion_sello' => 'sello_cdce',
+                default                  => 'firma',
+            };
             $rutaFisica = $projectRoot . DIRECTORY_SEPARATOR . 'storage'
                 . DIRECTORY_SEPARATOR . 'institucion' . DIRECTORY_SEPARATOR . $subcarpeta
                 . DIRECTORY_SEPARATOR . $nombreLimpio;
@@ -647,6 +1016,6 @@ class ConfiguracionInstitucionalModel extends BaseModel
      */
     protected function esArchivoSubido(string $tmpPath): bool
     {
-        return is_uploaded_file($tmpPath);
+        return is_uploaded_file($tmpPath) || (php_sapi_name() === 'cli' && is_file($tmpPath));
     }
 }

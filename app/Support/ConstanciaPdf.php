@@ -9,6 +9,7 @@ use DateTimeInterface;
 use DateTimeZone;
 use DomainException;
 use Dompdf\Dompdf;
+use Dompdf\Options;
 use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
@@ -113,6 +114,101 @@ class ConstanciaPdf
     }
 
     /**
+     * Genera el contenido binario del PDF para una Constancia de Retiro oficial.
+     */
+    public static function generarRetiro(
+        array $config,
+        array $estudiante,
+        ?DateTimeInterface $fechaExpedicion = null,
+        bool $marcaAguaPrueba = false
+    ): string {
+        $datos = self::prepararVariables($config, $estudiante, $fechaExpedicion, $marcaAguaPrueba);
+        $datos['notaBorrador']    = null;
+        $datos['marcaAguaPrueba'] = $marcaAguaPrueba;
+
+        return self::renderizarPdf(__DIR__ . '/../Views/constancias/pdf/retiro.php', $datos);
+    }
+
+    /**
+     * Genera el contenido binario del PDF para una Constancia de Prosecución oficial.
+     */
+    public static function generarProsecucion(
+        array $config,
+        array $estudiante,
+        ?DateTimeInterface $fechaExpedicion = null,
+        bool $marcaAguaPrueba = false
+    ): string {
+        $datos = self::prepararVariables($config, $estudiante, $fechaExpedicion, $marcaAguaPrueba);
+        $datos['notaBorrador']    = null;
+        $datos['marcaAguaPrueba'] = $marcaAguaPrueba;
+
+        return self::renderizarPdf(__DIR__ . '/../Views/constancias/pdf/prosecucion.php', $datos);
+    }
+
+    /**
+     * Genera el contenido binario del PDF para el Certificado de Educación Primaria (Egreso) oficial.
+     */
+    public static function generarEgreso(
+        array $config,
+        array $estudiante,
+        ?DateTimeInterface $fechaExpedicion = null,
+        bool $marcaAguaPrueba = false
+    ): string {
+        $datos = self::prepararVariables($config, $estudiante, $fechaExpedicion, $marcaAguaPrueba);
+        $datos['notaBorrador']    = null;
+        $datos['marcaAguaPrueba'] = $marcaAguaPrueba;
+
+        return self::renderizarPdf(__DIR__ . '/../Views/constancias/pdf/egreso.php', $datos);
+    }
+
+    /**
+     * Genera el contenido binario del PDF para un lote de Certificados de Educación Primaria (Egreso).
+     *
+     * @param array $config Configuración institucional
+     * @param array $estudiantes Array de estudiantes con sus datos oficiales de egreso
+     * @param DateTimeInterface|null $fechaExpedicion Fecha de expedición
+     * @param bool $marcaAguaPrueba Si es true, imprime la marca de agua diagonal "PRUEBA"
+     * @return string Contenido binario del PDF generado
+     * @throws DomainException|InvalidArgumentException Si faltan datos requeridos
+     */
+    public static function generarEgresoPorLote(
+        array $config,
+        array $estudiantes,
+        ?DateTimeInterface $fechaExpedicion = null,
+        bool $marcaAguaPrueba = false
+    ): string {
+        if ($estudiantes === []) {
+            throw new InvalidArgumentException('No hay estudiantes para emitir certificados de egreso.');
+        }
+
+        $estudiantesPreparados = [];
+        $tz = new DateTimeZone(self::TIMEZONE);
+        if ($fechaExpedicion === null) {
+            $fechaExpedicion = new DateTimeImmutable('now', $tz);
+        }
+
+        // Preparamos las variables comunes usando el primer estudiante para validar configuración institucional
+        $datosBase = self::prepararVariables($config, $estudiantes[0], $fechaExpedicion, $marcaAguaPrueba);
+
+        foreach ($estudiantes as $est) {
+            $varsEst = self::prepararVariables($config, $est, $fechaExpedicion, $marcaAguaPrueba);
+            $estPreparado = $varsEst['estudiante'];
+            $estPreparado['fecha_nacimiento_texto'] = $varsEst['fechaNacTexto'];
+            $estPreparado['literal']                = $varsEst['estudiante']['literal'] ?? 'A';
+            $estPreparado['periodo_escolar']         = $varsEst['estudiante']['periodo_escolar'] ?? '';
+            $estudiantesPreparados[] = $estPreparado;
+        }
+
+        $datosBase['estudiantes']         = $estudiantesPreparados;
+        $datosBase['cantidadEstudiantes'] = count($estudiantesPreparados);
+        $datosBase['notaBorrador']        = null;
+        $datosBase['marcaAguaPrueba']     = $marcaAguaPrueba;
+        $datosBase['estadoExpedicion']    = mb_strtoupper((string) ($config['cdce_estado'] ?? $config['lugar_expedicion'] ?? 'CARABOBO'), 'UTF-8');
+
+        return self::renderizarPdf(__DIR__ . '/../Views/constancias/pdf/egreso_por_seccion.php', $datosBase);
+    }
+
+    /**
      * Normaliza y valida exhaustivamente las variables requeridas por las plantillas.
      *
      * Regla estricta: NO se inventan datos. Si falta algún campo del estudiante o del
@@ -158,19 +254,13 @@ class ConstanciaPdf
         }
 
         $municipioNac = trim((string) ($estudiante['municipio_nacimiento'] ?? ''));
-        if ($municipioNac === '') {
-            throw new InvalidArgumentException('Falta el municipio de nacimiento; complete la ficha del estudiante.');
-        }
+        $estadoNac    = trim((string) ($estudiante['estado_nacimiento'] ?? ''));
 
-        $estadoNac = trim((string) ($estudiante['estado_nacimiento'] ?? ''));
-        if ($estadoNac === '') {
-            throw new InvalidArgumentException('Falta el estado de nacimiento; complete la ficha del estudiante.');
-        }
-
-        $gradoEst = trim((string) ($estudiante['grado'] ?? ''));
+        $gradoEst = trim((string) ($estudiante['grado'] ?? ($estudiante['grado_origen'] ?? '')));
         if ($gradoEst === '') {
-            throw new InvalidArgumentException('Falta el grado a cursar; complete la ficha del estudiante.');
+            throw new InvalidArgumentException('Falta el grado; complete la información correspondiente.');
         }
+        $estudiante['grado'] = $gradoEst;
 
         $periodoEst = trim((string) ($estudiante['periodo_escolar'] ?? ''));
         if ($periodoEst === '') {
@@ -224,6 +314,14 @@ class ConstanciaPdf
         $dirNumLimpio = preg_replace('/\D/', '', $dirCedulaRaw);
         $dirNumFormatted = ($dirNumLimpio !== '') ? number_format((int) $dirNumLimpio, 0, '', '.') : '';
 
+        // Datos del Director(a) del CDCE Estadal (opcionales)
+        $cdceDirNombre = mb_strtoupper(trim((string) ($config['cdce_director_nombre'] ?? '')), 'UTF-8');
+        $cdceCedulaRaw = trim((string) ($config['cdce_director_cedula'] ?? ''));
+        $cdceLetra = preg_match('/^[VE]/i', $cdceCedulaRaw, $mCdce) ? strtoupper($mCdce[0]) : 'V';
+        $cdceNumLimpio = preg_replace('/\D/', '', $cdceCedulaRaw);
+        $cdceNumFormatted = ($cdceNumLimpio !== '') ? number_format((int) $cdceNumLimpio, 0, '', '.') : '';
+        $cdceDirDocTexto = ($cdceNumFormatted !== '') ? ($cdceLetra . '-' . $cdceNumFormatted) : '';
+
         // Documento del estudiante
         $estDocTipo = strtoupper((string) ($estudiante['tipo_documento'] ?? 'V'));
         if ($estDocTipo === 'E') {
@@ -238,20 +336,21 @@ class ConstanciaPdf
 
         // Assets gráficos como Data URIs base64 seguros
         // Los logos del ministerio y escuela usan resolución estricta (solo si están subidos y existen en disco)
-        // Dompdf interpreta width/height en px y los convierte a pt con factor 0.75.
-// Se sobredimensiona x1.333 para que el tamaño final en puntos sea el pedido.
-$logoMin = Configuracion::logoEstrictoConstancia('ministerio_logo', 184, 62);
+        $logoMin = Configuracion::logoEstrictoConstancia('ministerio_logo', 140, 42);
         $ministerioLogo = $logoMin['uri'] ?? null;
         $dimMin         = $logoMin ? ['width' => $logoMin['width'], 'height' => $logoMin['height']] : ['width' => 0, 'height' => 0];
 
-        $logoPla = Configuracion::logoEstrictoConstancia('plantel_logo', 68, 78);
+        $logoPla = Configuracion::logoEstrictoConstancia('plantel_logo', 50, 58);
         $plantelLogo = $logoPla['uri'] ?? null;
         $dimPla      = $logoPla ? ['width' => $logoPla['width'], 'height' => $logoPla['height']] : ['width' => 0, 'height' => 0];
 
         $cintilloLogo = Configuracion::dataUriPublico('plantel_cintillo');
+        $escudoNacionalUri = Configuracion::dataUriPublico('escudo_nacional', '/assets/img/escudo_nacional.png');
 
         $firmaUri = Configuracion::dataUriPrivado('director_firma');
         $selloUri = Configuracion::dataUriPrivado('institucion_sello');
+        $cdceFirmaUri = Configuracion::dataUriPrivado('cdce_director_firma');
+        $cdceSelloUri = Configuracion::dataUriPrivado('cdce_institucion_sello');
 
         return [
             'config'            => $config,
@@ -260,10 +359,15 @@ $logoMin = Configuracion::logoEstrictoConstancia('ministerio_logo', 184, 62);
             'ministerioLogo'    => $ministerioLogo,
             'plantelLogo'       => $plantelLogo,
             'cintilloLogo'      => $cintilloLogo,
+            'escudoNacionalUri' => $escudoNacionalUri,
             'dimMin'            => $dimMin,
             'dimPla'            => $dimPla,
             'firmaUri'          => $firmaUri,
             'selloUri'          => $selloUri,
+            'cdceFirmaUri'      => $cdceFirmaUri,
+            'cdceSelloUri'      => $cdceSelloUri,
+            'cdceDirNombre'     => $cdceDirNombre,
+            'cdceDirDocTexto'   => $cdceDirDocTexto,
             'fechaNacTexto'     => $fechaNacTexto,
             'fechaExpTexto'     => $fechaExpTexto,
             'diaExp'            => $diaExp,
@@ -272,6 +376,7 @@ $logoMin = Configuracion::logoEstrictoConstancia('ministerio_logo', 184, 62);
             'dirLetra'          => $dirLetra,
             'dirNumFormatted'   => $dirNumFormatted,
             'dirNumLimpio'      => $dirNumLimpio,
+            'dirDocTexto'       => ($dirNumFormatted !== '') ? ($dirLetra . '-' . $dirNumFormatted) : '',
             'docEstEtiqueta'    => $docEstEtiqueta,
             'recuadroModo'      => $config['constancia_recuadro_modo'] ?? 'completo',
         ];
@@ -279,17 +384,12 @@ $logoMin = Configuracion::logoEstrictoConstancia('ministerio_logo', 184, 62);
 
     /**
      * Renderiza una plantilla PHP con variables y la compila con Dompdf.
-     *
-     * El CSS no vive en la plantilla: se lee de public/assets/css/pdf/ y se
-     * inyecta en $estilosPdf para que la vista solo contenga estructura.
      */
     private static function renderizarPdf(string $templatePath, array $variables): string
     {
         if (!is_file($templatePath)) {
             throw new RuntimeException("Plantilla PDF no encontrada: {$templatePath}");
         }
-
-        $variables['estilosPdf'] = PdfRecursos::estilos('constancia');
 
         extract($variables);
 
@@ -302,7 +402,16 @@ $logoMin = Configuracion::logoEstrictoConstancia('ministerio_logo', 184, 62);
             throw $e;
         }
 
-        $dompdf = new Dompdf(PdfRecursos::opciones('Times-Roman'));
+        $options = new Options();
+        $options->set('isRemoteEnabled', false); // data URIs funcionan localmente sin acceso remoto
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('defaultFont', 'Times-Roman');
+        $options->set('chroot', [
+            Configuracion::getProjectRoot(),
+            Configuracion::getPublicRoot(),
+        ]);
+
+        $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html, 'UTF-8');
         $dompdf->setPaper('letter', 'portrait');
         $dompdf->render();

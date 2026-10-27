@@ -204,9 +204,11 @@ class Configuracion
         }
 
         $subcarpeta = match ($clave) {
-            'director_firma'   => 'firma',
-            'institucion_sello' => 'sello',
-            default             => null,
+            'director_firma'         => 'firma',
+            'institucion_sello'      => 'sello',
+            'cdce_director_firma'    => 'firma_cdce',
+            'cdce_institucion_sello' => 'sello_cdce',
+            default                  => null,
         };
 
         if ($subcarpeta === null) {

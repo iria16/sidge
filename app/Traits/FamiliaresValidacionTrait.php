@@ -63,6 +63,11 @@ trait FamiliaresValidacionTrait
                 'tipo_documento'           => $this->tipoDocumentoFamiliar($item),
                 'numero_documento'         => $this->normalizarDocumentoFamiliar($item),
                 'representante_principal'  => (int) ($item['representante_principal'] ?? 0),
+                /* null = el cliente no declaró el dato. Sirve para no convertir en
+                   vivo a un fallecido si llega una pantalla cacheada sin el campo. */
+                'es_fallecido'             => array_key_exists('es_fallecido', $item)
+                    ? ((int) $item['es_fallecido'] === 1 ? 1 : 0)
+                    : null,
                 'estado_relacion'          => (string) ($item['estado_relacion'] ?? 'ACTIVO'),
                 'sexo'                     => ((string) ($item['sexo'] ?? '')) === 'F' ? 'F' : 'M',
                 /* Entidad federal de nacimiento. Solo se guarda para el representante legal,
@@ -200,10 +205,20 @@ trait FamiliaresValidacionTrait
 
         foreach ($familiares as $familiar) {
             $esRepresentante = (int) ($familiar['representante_principal'] ?? 0) === 1;
+            $esFallecido     = (int) ($familiar['es_fallecido'] ?? 0) === 1;
             $soloAutorizado  = (bool) ($familiar['solo_autorizado'] ?? false);
             $parentesco      = trim((string) ($familiar['parentesco'] ?? ''));
             $contacto        = $familiar['contacto'] ?? [];
             $faltantes       = [];
+
+            /* El representante legal firma, inscribe y responde por el alumno.
+               Una persona fallecida no puede cumplir ese papel, aunque la marquen
+               a mano desde el navegador o manden el JSON por fuera del formulario. */
+            if ($esRepresentante && $esFallecido) {
+                $erroresRol[] = 'Una persona fallecida no puede ser el representante legal. '
+                    . 'Designe a un familiar vivo y con datos de contacto.';
+                continue;
+            }
 
             if ($soloAutorizado && $esRepresentante) {
                 $erroresRol[] = 'Una persona sin parentesco no puede ser el representante legal: márquela como autorizada '
@@ -237,38 +252,45 @@ trait FamiliaresValidacionTrait
                 $faltantes[] = 'una cédula de 7 a 8 dígitos';
             }
 
-            $erroresContacto = [];
-            $this->validarContacto([
-                'contacto' => [
-                    'codigo_telefono_principal'   => $contacto['codigo'] ?? '',
-                    'numero_telefono_principal'   => $contacto['numero'] ?? '',
-                    'codigo_telefono_alternativo' => $contacto['codigo_alt'] ?? '',
-                    'numero_telefono_alternativo' => $contacto['numero_alt'] ?? '',
-                    'correo_electronico'          => $contacto['correo'] ?? '',
-                ],
-            ], $erroresContacto, true);
+            /* A una persona fallecida no se le piden teléfono, correo ni domicilio:
+               esos datos ya no sirven para contactarla. Solo se conservan los datos
+               de identificación. */
+            if (!$esFallecido) {
+                $erroresContacto = [];
+                $this->validarContacto([
+                    'contacto' => [
+                        'codigo_telefono_principal'   => $contacto['codigo'] ?? '',
+                        'numero_telefono_principal'   => $contacto['numero'] ?? '',
+                        'codigo_telefono_alternativo' => $contacto['codigo_alt'] ?? '',
+                        'numero_telefono_alternativo' => $contacto['numero_alt'] ?? '',
+                        'correo_electronico'          => $contacto['correo'] ?? '',
+                    ],
+                ], $erroresContacto, true);
 
-            if (isset($erroresContacto['numero_telefono_principal'], $erroresContacto['codigo_telefono_principal'])) {
-                $faltantes[] = 'el teléfono principal (prefijo y número válidos)';
-            } elseif (isset($erroresContacto['numero_telefono_principal'])) {
-                $faltantes[] = 'un teléfono principal con 7 dígitos';
-            } elseif (isset($erroresContacto['codigo_telefono_principal'])) {
-                $faltantes[] = 'un prefijo válido para el teléfono principal';
-            }
+                if (isset($erroresContacto['numero_telefono_principal'], $erroresContacto['codigo_telefono_principal'])) {
+                    $faltantes[] = 'el teléfono principal (prefijo y número válidos)';
+                } elseif (isset($erroresContacto['numero_telefono_principal'])) {
+                    $faltantes[] = 'un teléfono principal con 7 dígitos';
+                } elseif (isset($erroresContacto['codigo_telefono_principal'])) {
+                    $faltantes[] = 'un prefijo válido para el teléfono principal';
+                }
 
-            if (isset($erroresContacto['numero_telefono_alternativo'], $erroresContacto['codigo_telefono_alternativo'])) {
-                $faltantes[] = 'un teléfono alternativo válido (o dejarlo vacío)';
-            }
+                if (isset($erroresContacto['numero_telefono_alternativo'], $erroresContacto['codigo_telefono_alternativo'])) {
+                    $faltantes[] = 'un teléfono alternativo válido (o dejarlo vacío)';
+                }
 
-            if (isset($erroresContacto['correo_electronico'])) {
-                $faltantes[] = 'un correo electrónico válido';
+                if (isset($erroresContacto['correo_electronico'])) {
+                    $faltantes[] = 'un correo electrónico válido';
+                }
             }
 
             // El domicilio se solicita al representante legal, a la madre o al
             // padre. La edad adulta solo se exige al representante legal.
             $parentescoNormalizado = mb_strtolower($parentesco, 'UTF-8');
-            $requiereDireccion = $esRepresentante
-                || in_array($parentescoNormalizado, ['madre', 'padre'], true);
+            $requiereDireccion = !$esFallecido && (
+                $esRepresentante
+                || in_array($parentescoNormalizado, ['madre', 'padre'], true)
+            );
             if ($requiereDireccion) {
                 $direccion = $familiar['direccion'] ?? [];
 
@@ -322,15 +344,16 @@ trait FamiliaresValidacionTrait
                 if (isset($erroresNacionalidad['id_nacionalidad'])) {
                     $faltantes[] = 'una nacionalidad válida';
                 }
-            } elseif ($esNuevo) {
+            } elseif ($esNuevo && !$esFallecido) {
                 $faltantes[] = 'la nacionalidad';
             }
 
-            if ($esRepresentante) {
-                $erroresFecha = [];
+            $erroresFecha = [];
+            $fechaFamiliar = trim((string) ($familiar['fecha_nacimiento'] ?? ''));
+            if ($fechaFamiliar !== '' || $esRepresentante) {
                 $this->validarFechaNacimiento($familiar, $erroresFecha, 'fecha_nacimiento', 18, 100);
                 if (isset($erroresFecha['fecha_nacimiento'])) {
-                    $faltantes[] = 'una fecha de nacimiento válida (mayor de edad)';
+                    $faltantes[] = 'una fecha de nacimiento válida (entre 18 y 100 años)';
                 }
             }
 

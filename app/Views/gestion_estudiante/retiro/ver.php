@@ -161,6 +161,8 @@ ob_start();
     ?>
   </div>
 
+
+
 <?php else: ?>
   <?php /* Página completa: aquí sí el layout de dos columnas, que aprovecha el ancho.*/ ?>
   <div class="user-detail__header">

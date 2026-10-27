@@ -115,7 +115,8 @@ trait PersonaValidacionTrait
         array &$errores,
         array $tiposPermitidos,
         ?int $ignorarId = null,
-        string $mensajeDuplicado = 'Ya existe un registro con ese documento.'
+        string $mensajeDuplicado = 'Ya existe un registro con ese documento.',
+        ?string $documentoOriginal = null
     ): void {
         $tipo   = (string) ($data['tipo_documento'] ?? '');
         $numero = (string) ($data['numero_documento'] ?? '');
@@ -127,6 +128,8 @@ trait PersonaValidacionTrait
 
         if ($numero === '') {
             $errores['numero_documento'] = 'El documento es obligatorio.';
+        } elseif ($documentoOriginal !== null && $numero === $documentoOriginal) {
+            // El documento no cambió: no se revalida formato ni duplicado para admitir registros históricos
         } elseif (($errorFormato = $this->errorFormatoDocumento($numero, $tipo)) !== null) {
             $errores['numero_documento'] = $errorFormato;
         } elseif ($this->documentoYaRegistrado($numero, $ignorarId)) {
@@ -151,13 +154,13 @@ trait PersonaValidacionTrait
             && $model->existeDocumento($numeroDocumento, $ignorarId);
     }
 
-    /** Valida una fecha de nacimiento contra un rango de edad y agrega el error a $errores por referencia.*/
+    /** Valida una fecha de nacimiento contra un rango de edad (adultos: empleados y familiares).*/
     protected function validarFechaNacimiento(
         array $data,
         array &$errores,
         string $campo = 'fecha_nacimiento',
-        int $edadMinima = 0,
-        int $edadMaxima = 120,
+        int $edadMinima = 18,
+        int $edadMaxima = 100,
         string $etiqueta = ''
     ): void {
         $valor  = (string) ($data[$campo] ?? '');
@@ -171,7 +174,38 @@ trait PersonaValidacionTrait
         } elseif ($valor < $fechaMinima) {
             $errores[$campo] = "La edad{$sufijo} no puede superar los {$edadMaxima} años.";
         } elseif ($valor > $fechaMaxima) {
-            $errores[$campo] = "La edad{$sufijo} debe ser de al menos {$edadMinima} años.";
+            $errores[$campo] = $edadMinima === 18
+                ? "Debe ser mayor de edad (mínimo 18 años)."
+                : "La edad{$sufijo} debe ser de al menos {$edadMinima} años.";
+        }
+    }
+
+    /**
+     * Valida la fecha de nacimiento de un estudiante según las reglas de educación primaria
+     * para el año escolar activo:
+     * - Mínimo: 5 años que cumpla 6 ese mismo año calendario (nacido a más tardar el 31/12 de $anioInicio - 6).
+     * - Máximo: 14 años de edad permitidos para educación primaria (nacido desde el 01/01 de $anioInicio - 14).
+     */
+    protected function validarFechaNacimientoEstudiante(
+        array $data,
+        array &$errores,
+        int $anioInicio,
+        string $campo = 'fecha_nacimiento'
+    ): void {
+        $valor = (string) ($data[$campo] ?? '');
+
+        if ($valor === '' || !$this->fechaValida($valor)) {
+            $errores[$campo] = 'Indique una fecha de nacimiento válida (YYYY-MM-DD).';
+            return;
+        }
+
+        $minFecha = ($anioInicio - 14) . '-01-01';
+        $maxFecha = ($anioInicio - 6) . '-12-31';
+
+        if ($valor < $minFecha) {
+            $errores[$campo] = 'El estudiante supera la edad máxima permitida para educación primaria (14 años).';
+        } elseif ($valor > $maxFecha) {
+            $errores[$campo] = "El estudiante debe tener al menos 5 años y cumplir 6 durante el año escolar {$anioInicio}.";
         }
     }
 

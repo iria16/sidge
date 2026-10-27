@@ -85,6 +85,32 @@ document.addEventListener('DOMContentLoaded', function () {
     var panel = wizardModalEl.querySelector('.wizard-panel[data-step="' + numero + '"]');
     if (!panel) return true;
 
+    if (numero === 1) {
+      var inputFecha = panel.querySelector('#fechaNacimiento') || panel.querySelector('[name="fecha_nacimiento"]');
+      if (inputFecha && inputFecha.value) {
+        var minVal = inputFecha.getAttribute('min');
+        var maxVal = inputFecha.getAttribute('max');
+        if (minVal && inputFecha.value < minVal) {
+          inputFecha.classList.add('is-invalid');
+          SIGDEUI.mostrarAviso(
+            'warning',
+            'Edad máxima superada',
+            'La fecha de nacimiento (' + inputFecha.value + ') supera la edad máxima permitida para educación primaria (14 años).'
+          );
+          return false;
+        }
+        if (maxVal && inputFecha.value > maxVal) {
+          inputFecha.classList.add('is-invalid');
+          SIGDEUI.mostrarAviso(
+            'warning',
+            'Edad mínima no alcanzada',
+            'El estudiante debe tener al menos 5 años y cumplir 6 en el año escolar activo.'
+          );
+          return false;
+        }
+      }
+    }
+
     var campos = panel.querySelectorAll('[required]');
     var valido = true;
 
@@ -456,8 +482,19 @@ document.addEventListener('DOMContentLoaded', function () {
     btnGuardarNuevaInstProcedencia.addEventListener('click', async function () {
       var elNombre = document.getElementById('nuevaInstitucionProcedenciaNombre');
       var elTipo   = document.getElementById('nuevaInstitucionProcedenciaTipo');
+      var elEstado = document.getElementById('nuevaInstitucionProcedenciaEstado');
+      var elDea    = document.getElementById('nuevaInstitucionProcedenciaDea');
       var nombre   = (elNombre && elNombre.value || '').trim();
       var tipo     = (elTipo && elTipo.value) || '';
+      var estado   = (elEstado && elEstado.value) || '';
+      var dea      = (elDea && elDea.value || '').trim();
+    var extranjera = !!document.querySelector('#nuevaInstitucionProcedenciaExtranjera:checked');
+    var municipio = (document.getElementById('nuevaInstitucionProcedenciaMunicipio') || {}).value || '';
+    var parroquia = (document.getElementById('nuevaInstitucionProcedenciaParroquia') || {}).value || '';
+    var pais      = (document.getElementById('nuevaInstitucionProcedenciaPais') || {}).value || '';
+    var ciudad    = (document.getElementById('nuevaInstitucionProcedenciaCiudadExtranjera') || {}).value || '';
+    var direccion = (document.getElementById('nuevaInstitucionProcedenciaDireccionExtranjera') || {}).value || '';
+    var referencia = (document.getElementById('nuevaInstitucionProcedenciaReferencia') || {}).value || '';
 
       if (!nombre) {
         SIGDEUI.mostrarAviso('warning', 'Nombre requerido', 'Escribe el nombre de la institución.');
@@ -467,16 +504,44 @@ document.addEventListener('DOMContentLoaded', function () {
         SIGDEUI.mostrarAviso('warning', 'Tipo requerido', 'Selecciona el tipo de institución.');
         return;
       }
+      if (!estado && !extranjera) {
+        SIGDEUI.mostrarAviso('warning', 'Ubicación requerida', 'Selecciona el estado donde está la institución.');
+        return;
+      }
+
+      /* Se manda el bloque entero. El servidor ignora el que no aplica y
+         limpia esos datos al guardar, así que mandar de más no rompe nada. */
+      if (extranjera) {
+        if (!pais) {
+          SIGDEUI.mostrarAviso('warning', 'País requerido', 'Selecciona el país de la institución.');
+          return;
+        }
+      }
+
+      var payloadInst = {
+        nombre: nombre,
+        tipo: tipo,
+        es_extranjera: extranjera ? '1' : '0'
+      };
+      if (extranjera) {
+        payloadInst.pais_id = pais;
+      } else {
+        payloadInst.id_estado_geo = estado;
+        payloadInst.id_municipio = municipio;
+        payloadInst.id_parroquia = parroquia;
+        payloadInst.codigo_dea = dea;
+      }
 
       var creado = await SIGDEUI.guardarCatalogoRapido(
         route + 'guardarInstitucion',
-        { nombre: nombre, tipo: tipo },
+        payloadInst,
         document.getElementById('institucionProcedencia')
       );
 
       if (creado) {
         if (elNombre) elNombre.value = '';
         if (elTipo) elTipo.value = '';
+        if (elDea) elDea.value = '';
         SIGDEUI.ocultarModal('modalNuevaInstitucionProcedencia');
       }
     });
@@ -560,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setR('turno',       nombreSencilloDe('turno'));
     setR('anio_escolar', f.get('anio_escolar') || (document.getElementById('anioEscolarAcademico') ? document.getElementById('anioEscolarAcademico').value : '') || '—');
 
-    /* Talla uniforme y ficha médica (paso 4)*/
+    /* Talla (paso 4)*/
     var resumenTalla = new FormData(form);
     setR('talla_camisa',   resumenTalla.get('talla_camisa'));
     setR('talla_pantalon', resumenTalla.get('talla_pantalon'));
@@ -751,6 +816,32 @@ document.addEventListener('DOMContentLoaded', function () {
           return;
         }
         envioExitoso = true;
+
+        var idNuevo = result.data.data && result.data.data.id_estudiante
+          ? parseInt(result.data.data.id_estudiante, 10)
+          : 0;
+
+        if (idNuevo > 0 && window.Swal) {
+          return Swal.fire({
+            icon: 'success',
+            title: 'Inscripción registrada',
+            text: result.data.mensaje || 'El estudiante quedó registrado.',
+            confirmButtonText: 'Descargar ficha',
+            cancelButtonText: 'Cerrar',
+            showCancelButton: true,
+            reverseButtons: true,
+            allowOutsideClick: false
+          }).then(function (respuesta) {
+            if (respuesta.isConfirmed) {
+              window.open(
+                (window.BASE_URL || '') + 'estudiantes/exportar?id=' + idNuevo + '&descargar=1',
+                '_blank'
+              );
+            }
+            window.location.reload();
+          });
+        }
+
         return SIGDEUI.exito(result.data.mensaje, 'Inscripción registrada')
           .then(function () { window.location.reload(); });
       })

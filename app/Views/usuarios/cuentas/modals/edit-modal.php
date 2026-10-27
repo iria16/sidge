@@ -40,10 +40,10 @@ ob_start();
           <div class="input-icon-group">
             <i class="bi bi-person-badge" aria-hidden="true"></i>
             <input type="text" class="form-control" id="euNombreUsuario" name="nombre_usuario"
-                   required minlength="3" maxlength="50" pattern="[a-zA-Z0-9._]+" title="Letras, números, puntos y guiones bajos."
+                   required minlength="3" maxlength="50" pattern="[a-z0-9._]+" title="Solo letras minúsculas, números, puntos y guiones bajos."
                    autocomplete="off">
           </div>
-          <div class="invalid-feedback">Usa de 3 a 50 caracteres: letras, números, puntos (.) o guiones bajos (_).</div>
+          <div class="invalid-feedback">Usa de 3 a 50 caracteres: letras minúsculas, números, puntos (.) o guiones bajos (_).</div>
         </div>
 
         <div class="col-md-6">

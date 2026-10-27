@@ -4,7 +4,6 @@
 @import "custom";
 @import "base/mixins";
 @import "base/typography";
-@import "base/selects";
 @import "base/columnas";
 @import "components/input-icon-group";
 @import "components/auth";
@@ -23,6 +22,7 @@
 @import "components/data-panel";
 @import "components/content-card";
 @import "components/tables";
+@import "components/resultado-academico";
 @import "components/form-wizard";
 @import "components/retiro-buscador";
 @import "components/configuracion-institucional";
@@ -30,3 +30,5 @@
 @import "components/featured-birthday-card";
 @import "components/docente-dashboard";
 @import "components/docente-nomina";
+@import "components/admin-dashboard";
+@import "components/secretaria-dashboard";

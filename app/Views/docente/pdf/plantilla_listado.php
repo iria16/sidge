@@ -363,17 +363,7 @@ $mostrarRetiro    = !empty($opcionesColumnas['mostrar_retiro']);
   <!-- 4. TABLA TABULAR SEGÚN EL TIPO DE REPORTE -->
   <table class="report-table">
     <thead>
-      <?php if ($tipoDocumento === 'asistencia'): ?>
-        <tr>
-          <th class="text-center" style="width: 20pt;">N°</th>
-          <th style="width: 140pt;">ESTUDIANTE (APELLIDOS Y NOMBRES)</th>
-          <th style="width: 65pt;">DOCUMENTO</th>
-          <th style="width: 135pt;">REPRESENTANTE LEGAL</th>
-          <th style="width: 65pt;">C.I. REP.</th>
-          <th style="width: 105pt;" class="text-center">FIRMA ASISTENCIA</th>
-          <th>OBSERVACIONES</th>
-        </tr>
-      <?php elseif ($tipoDocumento === 'contactos'): ?>
+      <?php if ($tipoDocumento === 'contactos'): ?>
         <tr>
           <th class="text-center" style="width: 20pt;">N°</th>
           <th style="width: 135pt;">ESTUDIANTE</th>
@@ -418,17 +408,7 @@ $mostrarRetiro    = !empty($opcionesColumnas['mostrar_retiro']);
             $genClass = ($gen === 'F') ? 'badge-f' : 'badge-m';
             $autorizaRetiro = !empty($est['es_autorizado_retiro']) ? 'SÍ' : 'NO';
           ?>
-          <?php if ($tipoDocumento === 'asistencia'): ?>
-            <tr>
-              <td class="col-num"><?= sprintf('%02d', $num) ?></td>
-              <td style="font-weight: 600;"><?= htmlspecialchars($est['apellidos_nombres']) ?></td>
-              <td style="font-family: monospace; font-size: 6.8pt;"><?= htmlspecialchars($est['documento_etiqueta']) ?></td>
-              <td><?= htmlspecialchars($est['rep_apellidos_nombres'] ?: 'Sin asignar') ?></td>
-              <td style="font-family: monospace; font-size: 6.8pt;"><?= htmlspecialchars($est['rep_documento_etiqueta']) ?></td>
-              <td style="height: 18pt; border-bottom: 1px dashed #94a3b8;"></td>
-              <td></td>
-            </tr>
-          <?php elseif ($tipoDocumento === 'contactos'): ?>
+          <?php if ($tipoDocumento === 'contactos'): ?>
             <tr>
               <td class="col-num"><?= sprintf('%02d', $num) ?></td>
               <td style="font-weight: 600;"><?= htmlspecialchars($est['apellidos_nombres']) ?></td>

@@ -1,29 +1,37 @@
 <?php
-
 declare(strict_types=1);
 
 /**
  * Vista: dashboard/directivo/index.php
- * Placeholder de diseño hasta el módulo directivo.
+ * Panel de Dirección: visión estratégica, estadísticas de matrícula, personal y cobertura.
+ *
+ * Variables esperadas desde DashboardController::directivo():
+ * @var string $saludo
+ * @var string $nombreUsuario
+ * @var array|null $anioActivo
+ * @var array $metricasMatricula
+ * @var array $metricasCapacidad
+ * @var array $metricasPersonal
+ * @var array $distribucionGrados
+ * @var array $avanceResultados
+ * @var array $alertas
+ * @var bool $esCoordinador
  */
-$pageTitle       = 'Dashboard';
-$currentNav      = 'dashboard';
-$breadcrumbs     = [
+
+$pageTitle   = 'Dashboard';
+$currentNav  = 'dashboard';
+
+$breadcrumbs = [
     ['label' => 'Panel', 'href' => BASE_URL . 'dashboard/directivo'],
-    ['label' => 'Dashboard'],
+    ['label' => 'Dashboard', 'href' => null],
 ];
 
 ob_start();
-$pageHeading = 'Panel de Directivo';
-$pageSubheading = 'Visión estratégica de la institución: indicadores clave, rendimiento académico y gestión escolar.';
-include __DIR__ . '/../../components/page-header.php';
 ?>
-<section class="content-card">
-  <div class="content-card__empty">
-    <i class="bi bi-journal-text" aria-hidden="true"></i>
-    <p>Este tablero consolidará información de docentes, estudiantes, matrículas y resultados académicos para la toma de decisiones.</p>
-  </div>
-</section>
+<div class="container-fluid px-0">
+  <?php include __DIR__ . '/../partials/directivo-dashboard.php'; ?>
+</div>
 <?php
 $pageContent = ob_get_clean();
+
 include __DIR__ . '/../../layouts/app.php';

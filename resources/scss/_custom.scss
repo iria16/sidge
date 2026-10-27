@@ -25,10 +25,10 @@ body {
 // No existe como utilidad nativa de Bootstrap.
 .label-sigde {
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: $secondary;
+  letter-spacing: $sigde-label-letter-spacing;
+  font-size: $sigde-label-field-font-size;
+  font-weight: $sigde-label-font-weight;
+  color: $sigde-label-color;
   margin-bottom: 0.4rem;
   display: inline-block;
 }
@@ -60,4 +60,14 @@ body {
 
 .form-switch .form-check-input:focus:checked {
   box-shadow: 0 0 0 0.25rem rgba($success, 0.25);
+}
+/* Variante compacta del texto de apoyo (0.75rem). */
+.text-support--xs {
+  font-size: 0.75rem;
+}
+
+/* Ocultamiento inicial sin !important: el JS puede mostrar el bloque con
+   style.display = 'block'/'flex' sin pelear con Bootstrap .d-none. */
+.is-hidden {
+  display: none;
 }

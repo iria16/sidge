@@ -614,6 +614,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  /* Los expedientes viejos pueden tener una talla que ya no está en el catálogo
+     (por ejemplo, pantalón "M"). Se conserva como opción heredada al editar para
+     que abrir el modal y guardar no borre el dato sin que nadie lo cambie. */
+  function ponerTalla(campo, valor) {
+    const el = document.getElementById(campo);
+    const actual = valor == null ? '' : String(valor);
+    if (el && el.tagName === 'SELECT' && actual !== ''
+        && !Array.from(el.options).some(function (opcion) { return opcion.value === actual; })) {
+      const opcion = document.createElement('option');
+      opcion.value = actual;
+      opcion.textContent = actual;
+      el.appendChild(opcion);
+    }
+    poner(campo, actual);
+  }
+
   function marcarSexo(sexo) {
     const radio = document.querySelector('#pane-personales input[name="sexo"][value="' + sexo + '"]');
     if (radio) radio.checked = true;
@@ -631,17 +647,24 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function pintarFoto(foto) {
-    const img = document.getElementById('editAvatarImg');
-    const iniciales = document.getElementById('editAvatarInitials');
+    const preview = document.getElementById('fotoPreview');
+    const btnQuitar = document.getElementById('btnQuitarFotoEstudiante');
+    const flagEliminar = document.getElementById('fotoEliminar');
+    const inputFoto = document.getElementById('fotoInput');
+
+    if (inputFoto) inputFoto.value = '';
+    if (flagEliminar) flagEliminar.value = '0';
+
     if (foto) {
-      img.src = BASE_URL + String(foto).replace(/^\//, '');
-      img.classList.remove('d-none');
-      if (iniciales) iniciales.textContent = '';
+      if (preview) {
+        preview.innerHTML = '<img src="' + BASE_URL + String(foto).replace(/^\//, '') + '" alt="Foto del estudiante">';
+      }
+      if (btnQuitar) btnQuitar.hidden = false;
     } else {
-      img.classList.add('d-none');
-      img.removeAttribute('src');
-      const nombre = document.getElementById('editNombreCompleto');
-      if (iniciales && nombre) iniciales.textContent = inicialesDe(nombre.textContent);
+      if (preview) {
+        preview.innerHTML = '<i class="bi bi-person"></i>';
+      }
+      if (btnQuitar) btnQuitar.hidden = true;
     }
   }
 
@@ -772,6 +795,18 @@ document.addEventListener('DOMContentLoaded', function () {
  formulario se abriría VACÍO: el modal parece funcionar y no muestra nada.*/
       const est = d.estudiante || {};
 
+      const formEl = document.getElementById('formEditarEstudiante');
+      if (formEl) {
+        formEl.dataset.tipoDocOriginal = est.tipo_documento || '';
+        formEl.dataset.fechaOriginal = est.fecha_nacimiento ? String(est.fecha_nacimiento).slice(0, 10) : '';
+      }
+      const bloqueCE = document.getElementById('bloqueCambioAnioCE');
+      const motivoInput = document.getElementById('motivo_cambio_anio');
+      const contadorMotivo = document.getElementById('contadorMotivoCE');
+      if (bloqueCE) bloqueCE.classList.add('d-none');
+      if (motivoInput) motivoInput.value = '';
+      if (contadorMotivo) contadorMotivo.textContent = '40';
+
       poner('tipoDocumento', est.tipo_documento);
       poner('numeroDocumento', est.numero_documento);
       poner('fechaNacimiento', est.fecha_nacimiento ? String(est.fecha_nacimiento).slice(0, 10) : '');
@@ -799,9 +834,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
 
-      poner('tallaCamisa', est.talla_camisa);
-      poner('tallaPantalon', est.talla_pantalon);
-      poner('tallaZapato', est.talla_zapato);
+      ponerTalla('tallaCamisa', est.talla_camisa);
+      ponerTalla('tallaPantalon', est.talla_pantalon);
+      ponerTalla('tallaZapato', est.talla_zapato);
       poner('tallaObservaciones', est.talla_observaciones);
 
       poner('tipoSangre', est.tipo_sangre);
@@ -898,6 +933,22 @@ async function guardarDatosEstudiante() {
  igual, o se queda pegado al campo que ya corrigió.*/
       SIGDEUI.limpiarErroresDeCampos(form);
 
+      const bloqueCE = document.getElementById('bloqueCambioAnioCE');
+      const motivoInput = document.getElementById('motivo_cambio_anio');
+      if (bloqueCE && !bloqueCE.classList.contains('d-none')) {
+        const motivo = (motivoInput ? motivoInput.value : '').trim();
+        if (!motivo) {
+          SIGDEUI.mostrarAviso('error', 'Debe indicar el motivo del cambio de año de nacimiento.');
+          motivoInput?.focus();
+          return;
+        }
+        if (motivo.length > 40) {
+          SIGDEUI.mostrarAviso('error', 'El motivo no puede exceder 40 caracteres.');
+          motivoInput?.focus();
+          return;
+        }
+      }
+
       bloquearBoton(btn,
         '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...');
 
@@ -968,6 +1019,34 @@ async function guardarDatosEstudiante() {
       e.preventDefault();
       guardarDatosEstudiante();
     });
+
+    const inputFecha = document.getElementById('fechaNacimiento');
+    const bloqueCE = document.getElementById('bloqueCambioAnioCE');
+    const motivoInput = document.getElementById('motivo_cambio_anio');
+    const contadorMotivo = document.getElementById('contadorMotivoCE');
+
+    if (inputFecha) {
+      inputFecha.addEventListener('change', function () {
+        if (!bloqueCE) return;
+        const tipoOrig = formEditar.dataset.tipoDocOriginal || '';
+        const fechaOrig = formEditar.dataset.fechaOriginal || '';
+        const anioOrig = fechaOrig ? fechaOrig.slice(0, 4) : '';
+        const anioNuevo = this.value ? this.value.slice(0, 4) : '';
+
+        if (tipoOrig === 'CE' && anioOrig && anioNuevo && anioOrig !== anioNuevo) {
+          bloqueCE.classList.remove('d-none');
+        } else {
+          bloqueCE.classList.add('d-none');
+        }
+      });
+    }
+
+    if (motivoInput && contadorMotivo) {
+      motivoInput.addEventListener('input', function () {
+        const quedan = 40 - this.value.length;
+        contadorMotivo.textContent = String(Math.max(0, quedan));
+      });
+    }
   }
 
   // Al cerrar el modal de editar, volver a abrir el de ratificar.

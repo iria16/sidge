@@ -155,6 +155,11 @@ function initVerDetalleModal() {
 function cargarYMostrarDetalle(id, modalDetalleEl) {
   var elNombre = modalDetalleEl.querySelector('#detalleNombre');
   if (elNombre) elNombre.textContent = 'Cargando...';
+  var elAvatar = modalDetalleEl.querySelector('#detalleAvatar');
+  if (elAvatar) {
+    elAvatar.textContent = '…';
+    elAvatar.className = 'avatar avatar--lg avatar--primary mb-2';
+  }
 
   SIGDEUI.getJson(baseUrl + rutaControlador + '/getDetalle?id=' + encodeURIComponent(id))
     .then(function (respuesta) {
@@ -174,6 +179,8 @@ function cargarYMostrarDetalle(id, modalDetalleEl) {
 
 function pintarDetalleSolicitud(modalDetalleEl, d) {
   if (!d) return;
+
+  pintarAvatar(modalDetalleEl.querySelector('#detalleAvatar'), d);
 
   var estadoInfo = {
     aprobado: ['Aprobado', 'active'],
@@ -240,6 +247,27 @@ function pintarDetalleSolicitud(modalDetalleEl, d) {
       elTexto.innerHTML = 'Atendida el <strong>' + SIGDEUI.escapeHtml(fechaAtencion) + '</strong> por <strong>' + SIGDEUI.escapeHtml(admin) + '</strong>.';
     }
   }
+}
+
+/**
+ * Pinta el avatar del usuario en el modal: foto si existe o iniciales con color por rol.
+ */
+function pintarAvatar(avatarEl, d) {
+  if (!avatarEl) return;
+
+  avatarEl.className = 'avatar avatar--lg avatar--' + (d.avatar_color || 'primary') + ' mb-2';
+
+  if (d.avatar_tipo === 'foto' && d.avatar_foto) {
+    avatarEl.textContent = '';
+    var img = document.createElement('img');
+    var base = (window.BASE_URL || '/').replace(/\/$/, '') + '/';
+    img.src = d.avatar_foto.startsWith('http') ? d.avatar_foto : base + d.avatar_foto.replace(/^\//, '');
+    img.alt = d.nombre || 'Foto del usuario';
+    avatarEl.appendChild(img);
+    return;
+  }
+
+  avatarEl.textContent = d.iniciales || 'U';
 }
 
 /* ── Restablecer contraseña manualmente*/

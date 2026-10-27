@@ -1,0 +1,52 @@
+﻿Created At: 2026-10-02T09:14:27-04:00
+Completed At: 2026-10-02T09:14:28-04:00
+
+The command exited with code 0.
+Output:
+     *         filtra por el año activo; la ratificación necesita el que sea,
+     *         porque su estructura de destino es del periodo SIGUIENTE, que
+     *         todavía no está activo, y filtrar por el activo le daría "no
+     *         existe" siempre.
+     * @return array<int, array<string, mixed>> con id_estructura_academica,
+     *         id_grado, id_seccion, id_turno, id_anio_escolar, grado, seccion,
+     *         turno, capacidad_maxima, ocupados, disponibles, lleno y nombre.
+     */
+    protected function estructurasConCupo(?int $idAnioEscolar = null): array
+    {
+        $donde = $idAnioEscolar !== null ? 'WHERE ea.id_anio_escolar = :anio' : '';
+        $stmt  = $this->pdo->prepare(
+            "SELECT ea.id_estructura_academica,
+                    ea.id_grado, ea.id_seccion, ea.id_turno, ea.id_anio_escolar,
+                    ea.capacidad_maxima,
+                    g.nombre AS grado, s.nombre AS seccion, t.nombre AS turno
+               FROM estructura_academica ea
+               LEFT JOIN grado g   ON g.id_grado   = ea.id_grado
+               LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
+               LEFT JOIN turno t   ON t.id_turno   = ea.id_turno
+               {$donde}
+              ORDER BY g.nombre, s.nombre, t.nombre"
+        );
+        $stmt->execute($idAnioEscolar !== null ? ['anio' => $idAnioEscolar] : []);
+
+        $ocupadosPor = $this->conteoDeOcupados();
+
+        $filas = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $fila) {
+            $id        = (int) $fila['id_estructura_academica'];
+            $capacidad = (int) $fila['capacidad_maxima'];
+            $ocupados  = (int) ($ocupadosPor[$id] ?? 0);
+            $libres    = $capacidad - $ocupados;
+
+            $filas[] = [
+                'id_estructura_academica' => $id,
+                'id_grado'                 => (int) $fila['id_grado'],
+                'id_seccion'               => (int) $fila['id_seccion'],
+                'id_turno'                 => (int) $fila['id_turno'],
+                'id_anio_escolar'          => (int) $fila['id_anio_escolar'],
+                'grado'                    => (string) $fila['grado'],
+                'seccion'                  => (string) $fila['seccion'],
+                'turno'                    => (string) $fila['turno'],
+                'capacidad_maxima'         => $capacidad,
+                'ocupados'                 => $ocupados,
+
+

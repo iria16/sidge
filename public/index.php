@@ -85,14 +85,32 @@ function csrfToken(): string
     return (string) ($_SESSION['csrf'] ?? '');
 }
 
-// Responde un error en JSON con la forma del resto del sistema (ok, data, mensaje).
-// $codigo es opcional: sigde-ui.js reconoce 'sesion_expirada' para enviar al login.
-function responderJson(int $status, string $mensaje, ?string $codigo = null)
+if (!function_exists('e')) {
+    /**
+     * Helper de presentación para escapar salida HTML segura.
+     */
+    function e(mixed $valor): string
+    {
+        return htmlspecialchars((string) ($valor ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+}
+
+// Responde un error o estado en JSON con la forma unificada del sistema (ok, success, mensaje, message, data, errors).
+// $codigo es opcional: sigde-ui.js reconoce 'sesion_expirada' para enviar al login o 'csrf_invalido'.
+function responderJson(int $status, string $mensaje, ?string $codigo = null, mixed $errors = null, mixed $data = null): void
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
 
-    $respuesta = ['ok' => false, 'data' => null, 'mensaje' => $mensaje];
+    $ok = ($status >= 200 && $status < 300);
+    $respuesta = [
+        'ok'      => $ok,
+        'success' => $ok,
+        'mensaje' => $mensaje,
+        'message' => $mensaje,
+        'data'    => $data,
+        'errors'  => $errors,
+    ];
     if ($codigo !== null) {
         $respuesta['codigo'] = $codigo;
     }
@@ -203,28 +221,28 @@ $rutasPermitidas = [
         'toggleStatus' => ['admin']
     ],
     'empleado' => [
-        'index' => ['directivo'],
+        'index' => ['directivo', 'coordinador'],
+        'expediente' => ['directivo', 'coordinador'],
+        'exportar' => ['directivo', 'coordinador'],
+        'estadoInfo' => ['directivo'],
+        'cambiarEstado' => ['directivo'],
+        'cerrarReposo' => ['directivo'],
+        'anularReposo' => ['directivo'],
         'create' => ['directivo'],
-        'show' => ['directivo'],
+        'show' => ['directivo', 'coordinador'],
         'edit' => ['directivo'],
         'store' => ['directivo'],
         'update' => ['directivo'],
         'toggleStatus' => ['directivo'],
-        'getUbicacion' => ['directivo'],
+        'getUbicacion' => ['directivo', 'coordinador'],
         // Reposos del personal (empleados y docentes). Registrarlos es una decisión de
         // la dirección, así que van como el resto del módulo: solo `directivo`.
         'registrarReposo' => ['directivo'],
         'updateReposo' => ['directivo'],
-        'getReposos' => ['directivo'],
+        'getReposos' => ['directivo', 'coordinador'],
         'guardarTitulo' => ['directivo'],
         'guardarInstitucion' => ['directivo']
     ],
-    /* Solo 'directivo': el año escolar es de la escuela, no del sistema. La
-       accion reabrir ya era solo del directivo y estas cinco se le quedaban
-       abiertas al admin sin que el menú se lo ofreciera. */
-    /* Solo 'directivo': el ano escolar es de la escuela, no del sistema. La accion
-       reabrir ya era solo del directivo, y estas cinco se le quedaban abiertas al
-       admin sin que el menu se lo ofreciera. */
     'academicYear' => [
         'index' => ['directivo'],
         'store' => ['directivo'],
@@ -261,13 +279,9 @@ $rutasPermitidas = [
         'updateEstado' => ['directivo']
     ],
     'estudiantes' => [
-        'index' => ['coordinador', 'secretaria', 'docente'],
-        /* El docente ve la MISMA ficha que los demás, con la misma foto y las mismas
-           pestañas: lo que cambia es el contenido, y esa parte la resuelve la vista
-           según el rol. Lo que sí le queda fuera es el PDF: es un documento oficial
-           con firma del directivo, y no lo genera quien consulta. */
-        'show' => ['coordinador', 'secretaria', 'docente'],
-        'exportar' => ['coordinador', 'secretaria'],
+        'index' => ['directivo', 'coordinador', 'secretaria', 'docente'],
+        'show' => ['directivo', 'coordinador', 'secretaria', 'docente'],
+        'exportar' => ['directivo', 'coordinador', 'secretaria', 'docente'],
         // Solo secretaria: marcar un recaudo como entregado es un asiento sobre un requisito
         // de matrícula, no una consulta. La ruta sola no basta, el turno se comprueba en el
         // controlador (secretariaTieneAccesoAEstudiante).
@@ -282,11 +296,6 @@ $rutasPermitidas = [
         'guardarInstitucion' => ['secretaria'],
         'getUbicacion' => ['secretaria']
     ],
-    'egresos' => [
-        'index' => ['secretaria'],
-        'graduar' => ['secretaria'],
-        'graduarMasivo' => ['secretaria']
-    ],
     'ratificacion' => [
         'index' => ['secretaria'],
         'ver' => ['secretaria'],
@@ -297,7 +306,7 @@ $rutasPermitidas = [
         // sección del modal cuando la secretaria cambia el grado.
         'secciones' => ['secretaria'],
         'ratificar' => ['secretaria'],
-        'updateEstudiante' => ['secretaria']
+        'updateEstudiante' => ['secretaria', 'directivo', 'admin']
     ],
     'configuracionInstitucional' => [
         'index'              => ['admin'],
@@ -307,45 +316,43 @@ $rutasPermitidas = [
         'verPrivado'         => ['admin'],
         'restablecerOficial' => ['admin'],
     ],
-    /* Sin 'admin': la constancia es un documento oficial firmado por la
-       institución y lo emite la secretaría o el directivo. El administrador
-       del sistema no es personal de la escuela. */
     'constancias' => [
-        'index'       => ['directivo', 'secretaria'],
-        'estudio'     => ['directivo', 'secretaria'],
-        'inscripcion' => ['directivo', 'secretaria'],
-        'emitir'      => ['directivo', 'secretaria'],
+        'index'       => ['secretaria'],
+        'estudio'     => ['secretaria'],
+        'inscripcion' => ['secretaria'],
+        'retiro'      => ['secretaria'],
+        'prosecucion' => ['secretaria'],
+        'verPrueba'   => ['secretaria'],
+        'emitir'      => ['secretaria'],
+        'emitirLote'  => ['secretaria'],
     ],
-    /* Sin 'admin': quien escribe literales es el docente y quien confirma es
-       el directivo, y el resto son consulta. El administrador del sistema no
-       participa del proceso académico. */
     'resultadoAcademico' => [
         'index'            => ['directivo', 'coordinador', 'docente'],
         'seccion'          => ['directivo', 'coordinador', 'docente'],
-        /* Quién escribe literales está cerrado por rol y es solo de dos:
-           el DOCENTE propone y el DIRECTIVO confirma. El coordinador es de
-           consulta y el admin no escribe, así que ninguno de los dos tiene
-           estas rutas. Verificar que un rol no escriba no puede depender de
-           que no le pintemos el botón: la ruta es la primera barrera. */
-        'guardarPropuesta' => ['docente'],
+        'guardarPropuesta' => ['directivo', 'coordinador', 'docente'],
         'confirmar'        => ['directivo'],
     ],
-    /* Sin 'admin': son listados de una sección, que es materia del directivo y
-       del coordinador. */
-    /* Sin 'admin': son listados de una seccion, que es materia del
-       directivo y del coordinador. */
-    /* Solo 'docente': el listado de la sección es del docente, que es quien
-       tiene la sección asignada. Ni el administrativo del sistema, ni el
-       directivo ni el coordinador lo consultan. */
-    /* Sin listadosSeccion: era la versión anterior de docente/nomina y quedó
-       sin uso. Se le habían portado imprimir y se renunció a propósito a
-       ordenar, ocultar columnas y elegir otra sección (esa última era un
-       agujero de privacidad). La pestaña «Asistencia» era un informe en papel
-       que no guardaba nada: no se Migra. Ver AGENTS.md 9.1. */
+    'certificadoCalificaciones' => [
+        'generarIndividual' => ['docente'],
+        'generarPorSeccion' => ['docente'],
+    ],
     // Listados del docente (GET) y enlace de WhatsApp de su sección (POST). La sección sale de la sesión.
     'docente' => [
+        'index'                 => ['docente'],
         'nomina'                => ['docente'],
+        'seccion'               => ['docente'],
         'guardarEnlaceWhatsapp' => ['docente'],
+    ],
+    // Módulo de reportes y estadísticas oficiales (Directivo y Coordinador).
+    'reporte' => [
+        'index'        => ['directivo', 'coordinador'],
+        'estudiantes'  => ['directivo', 'coordinador'],
+        'distribucion' => ['directivo', 'coordinador'],
+        'personal'     => ['directivo', 'coordinador'],
+        'personalPdf'  => ['directivo', 'coordinador'],
+    ],
+    'estadistica' => [
+        'index' => ['directivo', 'coordinador'],
     ],
 ];
 
@@ -358,7 +365,7 @@ $accionesSoloPost = [
     'cuentaUsuario' => ['store', 'update', 'toggleStatus'],
     'recuperacionAcceso' => ['updateEstado', 'resetPassword'],
     'catalogo' => ['store', 'update', 'toggleStatus'],
-    'empleado' => ['store', 'update', 'toggleStatus', 'guardarTitulo', 'guardarInstitucion', 'registrarReposo', 'updateReposo'],
+    'empleado' => ['store', 'update', 'toggleStatus', 'guardarTitulo', 'guardarInstitucion', 'registrarReposo', 'updateReposo', 'cambiarEstado', 'cerrarReposo', 'anularReposo'],
     'academicYear' => ['store', 'update', 'iniciar', 'cerrar', 'reabrir'],
     'academicStructure' => ['store', 'update'],
     'teacherAssignment' => ['asignar', 'actualizar', 'retirar'],
@@ -367,11 +374,6 @@ $accionesSoloPost = [
     'inscripciones' => ['store', 'guardarInstitucion'],
     'egresos' => ['graduar', 'graduarMasivo'],
     'ratificacion' => ['ratificar', 'updateEstudiante'],
-    /* emitir genera un PDF a partir de datos del alumno. No escribe nada en la
-       base, pero dispararlo desde un enlace significa que cualquiera puede poner
-       la URL en un href y obtener el documento. La pantalla de estudios ya lo
-       enviaba por POST; la de inscripción se igualó para poder exigirlo aquí. */
-    'constancias'  => ['emitir'],
     'configuracionInstitucional' => ['guardar', 'subirImagen', 'quitarImagen', 'restablecerOficial'],
     'resultadoAcademico' => ['guardarPropuesta', 'confirmar'],
     'docente' => ['guardarEnlaceWhatsapp'],
@@ -445,7 +447,8 @@ if (!$esRutaPublica) {
 }
 
 // Ruta publica con sesion iniciada: no tiene sentido ver el login, va al dashboard.
-if ($esRutaPublica && isset($_SESSION['usuario_id'])) {
+// Si la peticion es auth/authenticate (POST), se permite para que procese el nuevo login.
+if ($esRutaPublica && isset($_SESSION['usuario_id']) && !($controller === 'auth' && $action === 'authenticate')) {
     $destino = 'dashboard/index';
     header('Location: ' . BASE_URL . $destino);
     exit;

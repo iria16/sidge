@@ -91,13 +91,13 @@ $filas = [
     ],
     [
         [
-            'titulo' => 'Talla y salud',
-            'icono'  => 'rulers',
+            'titulo' => 'Información adicional',
+            'icono'  => 'info-circle',
             'paso'   => 4,
             'campos' => [
-                ['Camisa',   'talla_camisa'],
-                ['Pantalón', 'talla_pantalon'],
-                ['Calzado',  'talla_zapato'],
+                ['Camisa',         'talla_camisa'],
+                ['Pantalón',       'talla_pantalon'],
+                ['Calzado',        'talla_zapato'],
             ],
             'cuerpo' => $cuerpoFichaMedica,
         ],

@@ -52,6 +52,24 @@ trait SecurityTrait
     }
 
     /**
+     * Guarda una notificación modal SweetAlert2 para la siguiente carga de página.
+     *
+     * @param 'success'|'error'|'warning'|'info'|'question' $icon
+     */
+    protected function setSwal(string $icon, string $title, string $text): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $_SESSION['swal'] = [
+            'icon'  => $icon,
+            'title' => $title,
+            'text'  => $text,
+        ];
+    }
+
+    /**
  * Comprueba que haya un usuario autenticado; si no, avisa con SweetAlert y redirige al login.
  * Es una segunda línea de defensa: index.php ya filtra las rutas privadas antes de llegar aquí.
  * Tras el login siempre se va al dashboard (ver AuthController::authenticate()).
@@ -63,11 +81,7 @@ trait SecurityTrait
         }
 
         if (!isset($_SESSION['usuario_id'])) {
-            $_SESSION['swal'] = [
-                'icon'  => 'warning',
-                'title' => 'Sesión requerida',
-                'text'  => 'Debes iniciar sesión para acceder a esta sección.'
-            ];
+            $this->setSwal('warning', 'Sesión requerida', 'Debes iniciar sesión para acceder a esta sección.');
             $this->redireccionar('auth/login');
         }
     }
@@ -131,7 +145,7 @@ trait SecurityTrait
  * Redirige a una ruta del sistema (BASE_URL + $url) y corta la ejecución.
  * Es `never`: PHP y el análisis estático saben que nada se ejecuta después de llamarlo.
 */
-    private function redireccionar(string $url): never
+    protected function redireccionar(string $url): never
     {
         $urlCompleta = BASE_URL . ltrim($url, '/');
 

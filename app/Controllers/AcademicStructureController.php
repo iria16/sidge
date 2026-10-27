@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Exceptions\CapacidadInsuficienteException;
 use App\Models\AcademicStructureModel;
 use App\Models\BitacoraModel;
+use App\Support\Validator;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -55,21 +56,8 @@ class AcademicStructureController extends CrudController
 */
 private function anioConsultado(): int
 {
-    $anios    = $this->modelo()->getAniosParaConsultar();
-    $pedido   = (int) ($_GET['anio'] ?? 0);
-
-    foreach ($anios as $anio) {
-        if ((int) $anio['id'] === $pedido && $pedido > 0) {
-            return $pedido;
-        }
-    }
-
     $activo = $this->modelo()->getActiveSchoolYearId();
-    if ($activo !== null) {
-        return $activo;
-    }
-
-    return $anios !== [] ? (int) $anios[0]['id'] : 0;
+    return $activo ?? 0;
 }
 
 /**
@@ -99,49 +87,41 @@ protected function getFiltersFromRequest(): array
     ];
 }
 
-    /* Las estadísticas y el nombre del año salen del año que se está mirando. Antes getStats() contaba
- solo el ACTIVO: al consultar 2025-2026 la pantalla enseñaba los totales de 2026-2027. Una
- lista de un período con las cifras de otro se lee bien y no quiere decir nada.*/
+    /* Las estadísticas y el nombre del año salen del año escolar activo.*/
 protected function getExtraIndexData(array $items, array $filters): array
 {
-    $model     = $this->modelo();
-    $idAnio    = (int) $filters['anio'];
+    $model       = $this->modelo();
+    $idAnio      = (int) $filters['anio'];
     $consultable = $this->anioEsConsultable($idAnio);
 
-    $nombreAnio = 'No hay un año escolar activo';
-    foreach ($model->getAniosParaConsultar() as $anio) {
-        if ((int) $anio['id'] === $idAnio) {
-            $nombreAnio = (string) $anio['nombre'];
-            break;
-        }
+    $nombreAnio = $model->getActiveSchoolYearName() ?? 'No hay un año escolar activo';
+
+    $activo = $model->getActiveSchoolYearId();
+    $aniosActivos = [];
+    if ($activo !== null && $activo > 0) {
+        $aniosActivos[] = [
+            'id'            => $activo,
+            'nombre'        => $nombreAnio,
+            'estado'        => 'ACTIVO',
+            'es_editable'   => true,
+            'sufijo_estado' => '',
+        ];
     }
 
-    $anios = $model->getAniosParaConsultar();
-
     return [
-        'stats'        => $model->getStats($idAnio),
-        'estructuras'  => $items,
-        /* Los años que se pueden consultar. Se pasan todos, con su estado, para que la
- vista pueda distinguir "el que se está editando" de "uno cerrado, de solo
- lectura".*/
-        'anios'        => $anios,
-        /* Los que se pueden escribir, para el <select> de año del modal de alta y de
- edición. Es el mismo listado filtrado en memoria y no una consulta aparte: el
- modal ofreciendo años cerrados no era un error de validación, era una
- invitación a capturar un formulario entero para recibir un 422 al final.*/
-        'aniosEditables' => array_values(array_filter(
-            $anios,
-            static fn (array $anio): bool => (bool) $anio['es_editable']
-        )),
-        'anioActivo'   => $consultable ? $nombreAnio : $nombreAnio . ' (solo consulta)',
-        'anioEsLectura' => !$consultable,
-        'grados'       => $model->getOptions('grado'),
-        'secciones'    => $model->getOptions('seccion'),
-        'turnos'       => $model->getOptions('turno'),
+        'stats'          => $model->getStats($idAnio),
+        'estructuras'    => $items,
+        'anios'          => $aniosActivos,
+        'aniosEditables' => $aniosActivos,
+        'anioActivo'     => $nombreAnio,
+        'anioEsLectura'  => !$consultable,
+        'grados'         => $model->getOptions('grado'),
+        'secciones'      => $model->getOptions('seccion'),
+        'turnos'         => $model->getOptions('turno'),
         /* El coordinador llega hasta aquí pero no escribe. La vista lo usa para no
            pintar los botones de alta ni de edición, y para no cargar los modales
            que solo sirven para escribir. */
-        'esConsulta'   => $this->esRolConsulta(),
+        'esConsulta'     => $this->esRolConsulta(),
     ];
 }
 
@@ -167,6 +147,37 @@ protected function getExtraIndexData(array $items, array $filters): array
  * sección con 30 alumnos produciría un error genérico sin decir por qué, que es justo lo que
  * la secretaria necesita saber.
 */
+    public function store(): void
+    {
+        $source = $_POST;
+        $data = $this->extractData($source);
+        $errores = $this->validate($data);
+
+        if (!empty($errores)) {
+            $this->jsonResponse(false, $errores, 'Corrige los errores antes de continuar.', 422);
+            return;
+        }
+
+        try {
+            $this->modelo()->create($data);
+            $this->jsonResponse(true, null, 'Estructura académica registrada correctamente.');
+        } catch (\PDOException $e) {
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(
+                    false,
+                    ['id_grado' => 'Esta combinación académica ya existe.'],
+                    'Registro duplicado.',
+                    422
+                );
+                return;
+            }
+            $this->jsonError($e, static::class);
+        } catch (Throwable $e) {
+            $this->jsonError($e, static::class);
+        }
+    }
+
     public function update(): void
     {
         $id = (int) ($_POST['id'] ?? 0);
@@ -209,6 +220,18 @@ protected function getExtraIndexData(array $items, array $filters): array
  como el resto de estados que cambiaron bajo los pies de la pantalla.*/
             $this->registrarError($e, static::class);
             $this->jsonResponse(false, null, $e->getMessage(), 409);
+        } catch (\PDOException $e) {
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(
+                    false,
+                    ['id_grado' => 'Esta combinación académica ya existe.'],
+                    'Registro duplicado.',
+                    422
+                );
+                return;
+            }
+            $this->jsonError($e, static::class);
         } catch (Throwable $e) {
             $this->jsonError($e, static::class);
         }
@@ -323,22 +346,22 @@ protected function getExtraIndexData(array $items, array $filters): array
     {
         $errores = [];
 
-        if ($data['id_anio_escolar'] <= 0) {
-            $errores['id_anio_escolar'] = 'Seleccione el año escolar.';
-        } elseif (!$this->modelo()->esAnioActivo($data['id_anio_escolar'])) {
+        $v = Validator::make($data, [
+            'id_anio_escolar'  => 'required|integer|min_value:1',
+            'id_grado'         => 'required|integer|min_value:1',
+            'id_seccion'       => 'required|integer|min_value:1',
+            'id_turno'         => 'required|integer|min_value:1',
+            'capacidad_maxima' => 'required|integer|min_value:1|max_value:60',
+        ]);
+
+        if (!$v->passes()) {
+            foreach ($v->errors() as $campo => $mensajes) {
+                $errores[$campo] = $mensajes[0];
+            }
+        }
+
+        if ($data['id_anio_escolar'] > 0 && !$this->modelo()->esAnioActivo($data['id_anio_escolar'])) {
             $errores['id_anio_escolar'] = 'Las operaciones académicas nuevas deben usar el año escolar activo.';
-        }
-        if ($data['id_grado'] <= 0) {
-            $errores['id_grado'] = 'Seleccione el grado.';
-        }
-        if ($data['id_seccion'] <= 0) {
-            $errores['id_seccion'] = 'Seleccione la sección.';
-        }
-        if ($data['id_turno'] <= 0) {
-            $errores['id_turno'] = 'Seleccione el turno.';
-        }
-        if ($data['capacidad_maxima'] < 1 || $data['capacidad_maxima'] > 60) {
-            $errores['capacidad_maxima'] = 'La capacidad debe estar entre 1 y 60.';
         }
 
         /* La capacidad no puede quedar por debajo de los que ya están: una sección con 30

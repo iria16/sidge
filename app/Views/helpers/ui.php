@@ -45,6 +45,16 @@ if (!function_exists('csrfToken')) {
     }
 }
 
+if (!function_exists('e')) {
+    /**
+     * Helper de presentación para escapar salida HTML segura.
+     */
+    function e(mixed $valor): string
+    {
+        return htmlspecialchars((string) ($valor ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+}
+
 if (!function_exists('enlaceWhatsapp')) {
     /**
      * Enlace de WhatsApp para un teléfono venezolano.
@@ -123,7 +133,6 @@ if (!function_exists('sigde_nav_sections')) {
                     ['id' => 'inscripcion',  'label' => 'Inscripción',  'icon' => 'bi-person-plus',     'href' => BASE_URL . 'inscripciones/index', 'roles' => ['secretaria']],
                     ['id' => 'ratificacion', 'label' => 'Ratificación', 'icon' => 'bi-arrow-repeat',    'href' => BASE_URL . 'ratificacion/index',  'roles' => ['secretaria']],
                     ['id' => 'retiro',       'label' => 'Retiro',       'icon' => 'bi-box-arrow-right', 'href' => BASE_URL . 'withdrawal/index',    'roles' => ['secretaria', 'directivo']],
-                    ['id' => 'egreso',       'label' => 'Egreso',       'icon' => 'bi-mortarboard-fill','href' => BASE_URL . 'egresos/index',       'roles' => ['secretaria']],
                     ['id' => 'promocion',    'label' => 'Promoción Académica', 'icon' => 'bi-award',     'href' => BASE_URL . 'resultadoAcademico/index', 'roles' => ['directivo', 'coordinador']],
                 ],
             ],
@@ -132,13 +141,13 @@ if (!function_exists('sigde_nav_sections')) {
                 'roles' => ['docente'],
                 'items' => [
                     ['id' => 'mi-seccion-estudiantes', 'label' => 'Estudiantes', 'icon' => 'bi-mortarboard', 'href' => BASE_URL . 'estudiantes/index'],
-                    ['id' => 'mi-seccion-listados',    'label' => 'Listados y Actas', 'icon' => 'bi-journal-text', 'href' => BASE_URL . 'docente/nomina'],
+                    ['id' => 'mi-seccion-listados',    'label' => 'Listados', 'icon' => 'bi-journal-text', 'href' => BASE_URL . 'docente/nomina'],
                     ['id' => 'mi-seccion-promocion',   'label' => 'Resultados y Promoción', 'icon' => 'bi-award', 'href' => BASE_URL . 'resultadoAcademico/index'],
                 ],
             ],
             [
                 'label' => 'Consulta académica',
-                'roles' => ['coordinador','secretaria'],
+                'roles' => ['directivo', 'coordinador', 'secretaria'],
                 'items' => [
                     ['id' => 'estudiantes', 'label' => 'Estudiantes', 'icon' => 'bi-mortarboard', 'href' => BASE_URL . 'estudiantes/index'],
                 ],
@@ -146,19 +155,14 @@ if (!function_exists('sigde_nav_sections')) {
 
             [
                 'label' => 'Constancias',
-                /* Sin 'admin' ni 'coordinador': constancias/* solo lo abre
-                   public/index.php a 'directivo' y 'secretaria'. La constancia es un
-                   documento oficial firmado por la institucion y no le toca al
-                   administrador del sistema. */
-                'roles' => ['secretaria', 'directivo'],
+                'roles' => ['secretaria'],
                 'items' => [
-                    ['id' => 'constancia-estudio',     'label' => 'Constancia de Estudio',     'icon' => 'bi-file-earmark-text',  'href' => BASE_URL . 'constancias/estudio'],
-                    ['id' => 'constancia-inscripcion', 'label' => 'Constancia de Inscripción', 'icon' => 'bi-file-earmark-check', 'href' => BASE_URL . 'constancias/inscripcion'],
+                    ['id' => 'constancias', 'label' => 'Emisión de Constancias', 'icon' => 'bi-file-earmark-text', 'href' => BASE_URL . 'constancias/index'],
                 ],
             ],
             [
                 'label' => 'Personal',
-                'roles' => ['directivo'],
+                'roles' => ['directivo', 'coordinador'],
                 'items' => [
                     ['id' => 'empleados', 'label' => 'Empleados', 'icon' => 'bi-person-badge', 'href' => BASE_URL . 'empleado/index'],
                 ],
@@ -181,14 +185,11 @@ if (!function_exists('sigde_nav_sections')) {
                 ],
             ],
             [
-                'label' => 'Reportes',
+                'label' => 'Seguimiento institucional',
                 'roles' => ['directivo', 'coordinador'],
                 'items' => [
-                    ['id' => 'personal-docente',       'label' => 'Personal Docente',       'icon' => 'bi-person-lines-fill', 'href' => '#', 'roles' => ['directivo']],
-                    ['id' => 'estadistico-general',     'label' => 'Estadístico General',     'icon' => 'bi-bar-chart',        'href' => '#', 'roles' => ['directivo', 'coordinador']],
-                    ['id' => 'listado-estudiantes',     'label' => 'Listado de Estudiantes', 'icon' => 'bi-journal-text',     'href' => '#', 'roles' => ['coordinador']],
-                    ['id' => 'distribucion-academica',  'label' => 'Distribución Académica',  'icon' => 'bi-diagram-2',        'href' => '#', 'roles' => ['coordinador']],
-                    ['id' => 'expedientes',             'label' => 'Expediente personal',     'icon' => 'bi-folder2-open',     'href' => '#', 'roles' => ['coordinador']],
+                    ['id' => 'estadisticas', 'label' => 'Estadísticas', 'icon' => 'bi-bar-chart', 'href' => BASE_URL . 'estadistica/index', 'roles' => ['directivo', 'coordinador']],
+                    ['id' => 'reportes',     'label' => 'Reportes',     'icon' => 'bi-file-earmark-bar-graph', 'href' => BASE_URL . 'reporte/index', 'roles' => ['directivo', 'coordinador']],
                 ],
             ],
             [

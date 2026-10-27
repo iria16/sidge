@@ -3,7 +3,7 @@
 /**
  * app/Views/empleados/modals/new-institution-modal.php
  * Alta rápida en el catálogo `institucion` desde el paso 5 del wizard.
- * La lógica de guardado (btnGuardarNuevaInstitucion) vive en empleado-alta.js.
+ * La lógica de guardado (btnGuardarNuevaInstitucion) vive en empleado.js.
  *
  * Variables en scope: $tiposInstitucion (App\Support\Instituciones: aquí solo
  * TIPO_TITULO_ACADEMICO, porque este módulo registra dónde se obtuvo el título)

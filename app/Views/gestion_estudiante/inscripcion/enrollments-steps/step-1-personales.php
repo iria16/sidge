@@ -7,10 +7,10 @@
 
 $prefixId = '';
 $prefixName = '';
-$showPhoto = true;
-$minDate = '';
-$maxDate = '';
-$dateTitle = 'Indique la fecha de nacimiento.';
+$showPhoto = $showPhoto ?? true;
+$minDate = $minDateEstudiante ?? '';
+$maxDate = $maxDateEstudiante ?? '';
+$dateTitle = 'El estudiante debe tener entre 5 (cumpliendo 6 este año) y 14 años.';
 $docMinLength = '7';
 $docMaxLength = '20';
 $btnQuitarFotoId = 'btnQuitarFotoEstudiante';

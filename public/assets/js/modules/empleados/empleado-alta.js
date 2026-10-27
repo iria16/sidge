@@ -459,13 +459,38 @@ function initWizardRegistro() {
     });
   }
 
+  /* Arma el bloque de procedencia según el interruptor de institución
+     extranjera. Este módulo solo registra universidades, así que el código DEA
+     nunca aplica: se manda vacío y el modelo lo guarda NULL. */
+  function construirProcedencia(estado) {
+    var esExtranjera = !!document.querySelector('#nuevaInstitucionExtranjera:checked');
+
+    if (esExtranjera) {
+      var pais = (document.getElementById('nuevaInstitucionPais') || {}).value || '';
+      return {
+        es_extranjera: '1',
+        pais_id: pais
+      };
+    }
+
+    return {
+      es_extranjera: '0',
+      id_estado_geo: estado || '',
+      id_municipio: (document.getElementById('nuevaInstitucionMunicipio') || {}).value || '',
+      id_parroquia: (document.getElementById('nuevaInstitucionParroquia') || {}).value || ''
+    };
+  }
+
   var btnNuevaInstitucion = document.getElementById('btnGuardarNuevaInstitucion');
   if (btnNuevaInstitucion) {
     btnNuevaInstitucion.addEventListener('click', async function () {
       var elNombre = document.getElementById('nuevaInstitucionNombre');
       var elTipo   = document.getElementById('nuevaInstitucionTipo');
+      var elEstado = document.getElementById('nuevaInstitucionEstado');
       var nombre = (elNombre && elNombre.value || '').trim();
       var tipo   = (elTipo && elTipo.value) || '';
+      var estado = (elEstado && elEstado.value) || '';
+      var extranjera = !!document.querySelector('#nuevaInstitucionExtranjera:checked');
       if (!nombre) {
         SIGDEUI.mostrarAviso('warning', 'Nombre requerido', 'Escribe el nombre de la institución.');
         return;
@@ -474,9 +499,23 @@ function initWizardRegistro() {
         SIGDEUI.mostrarAviso('warning', 'Tipo requerido', 'Selecciona el tipo de institución.');
         return;
       }
+      if (extranjera) {
+        var pais = (document.getElementById('nuevaInstitucionPais') || {}).value || '';
+        if (!pais) {
+          SIGDEUI.mostrarAviso('warning', 'País requerido', 'Selecciona el país de la institución.');
+          return;
+        }
+      } else if (!estado) {
+        SIGDEUI.mostrarAviso('warning', 'Ubicación requerida', 'Selecciona el estado donde está la institución.');
+        return;
+      }
+
+      /* Se manda el bloque entero según el interruptor. El servidor ignora el
+         que no aplica y limpia esos datos al guardar, así que mandarlos
+         always no rompe nada; mandarlos solo del camino activo es más claro. */
       var creado = await guardarCatalogoRapido(
         'guardarInstitucion',
-        { nombre: nombre, tipo: tipo },
+        Object.assign({ nombre: nombre, tipo: tipo }, construirProcedencia(estado)),
         document.getElementById('institucionAgregar')
       );
       if (creado) {

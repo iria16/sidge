@@ -1,7 +1,4 @@
 <?php
-
-declare(strict_types=1);
-
 /**
  * Vista: audit/index.php
  * Bitácora del Sistema — registro detallado de acciones y movimientos.
@@ -116,11 +113,11 @@ ob_start();
   ob_start();
   ?>
   <colgroup>
-    <col class="ancho-120px">
+    <col style="width: 120px;">
     <col style="width: 220px;">
-    <col class="ancho-170px">
-    <col class="ancho-170px">
-    <col class="ancho-150px">
+    <col style="width: 170px;">
+    <col style="width: 170px;">
+    <col style="width: 150px;">
   </colgroup>
   <?php
   $panelColgroup = ob_get_clean();
@@ -172,16 +169,9 @@ ob_start();
           <?= htmlspecialchars($r['accion_label']) ?>
         </span>
         <?php /* El detalle de la acción (a quién, a qué grado, con qué motivo): sin esto el
- badge decía "Retiro" y no se distinguía una salida de otra.
-
- El texto se recorta con puntos suspensivos porque bitacora.accion es varchar(100) y
- esa celda mide 170 px: un detalle largo no cabe, y como .table pone white-space:
- nowrap a todas las td, no se partía en varias líneas sino que se pintaba encima de
- las columnas de Módulo e IP. El title lleva el texto entero, que se lee al pasar el
- ratón por encima. */ ?>
-        <?php $detalle = (string) ($r['detalle'] ?? ''); ?>
-        <?php if ($detalle !== '' && $detalle !== $r['accion_label']): ?>
-          <div class="text-support small text-truncate" title="<?= htmlspecialchars($detalle) ?>"><?= htmlspecialchars($detalle) ?></div>
+ badge decía "Retiro" y no se distinguía una salida de otra.*/ ?>
+        <?php if (($r['detalle'] ?? '') !== '' && ($r['detalle'] ?? '') !== $r['accion_label']): ?>
+          <div class="text-support small"><?= htmlspecialchars($r['detalle']) ?></div>
         <?php endif; ?>
       </td>
       <td class="text-support"><?= htmlspecialchars($r['modulo']) ?></td>
@@ -211,5 +201,5 @@ ob_start();
 
 <?php
 $pageContent  = ob_get_clean();
-$extraScripts = ['/js/modules/auditoria/bitacora.js'];
+$extraScripts = ['/js/bitacora.js'];
 include __DIR__ . '/../layouts/app.php';

@@ -66,6 +66,12 @@ abstract class CrudController extends BaseController
 
         try {
             $model->create($data);
+        } catch (\PDOException $e) {
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(false, ['nombre' => 'Ya existe un registro con este nombre en el catálogo.'], 'Registro duplicado.', 422);
+            }
+            $this->jsonError($e, static::class);
         } catch (Throwable $e) {
             $this->jsonError($e, static::class);
         }
@@ -141,15 +147,8 @@ abstract class CrudController extends BaseController
  * Elimina un registro. Ruta: {controlador}/delete (POST, JSON).
  * Requiere Deletable; si el módulo desactiva en vez de borrar, su
  * modelo no la implementa y se usa toggleStatus().
- *
- * protected y no public, a propósito. No hay ninguna ruta que lo llame:
- * `delete` no está en el mapa de rutas, y esto es lo que sostiene esa cuenta.
- * Con el método público, el día que alguien lo añadiera al mapa por costumbre
- * —es un nombre que se escribe solo—, veinte controladores quedarían con
- * borrado por HTTP sin que nadie lo hubiera decidido. Ahora el front controller
- * responde 404 aunque se añada, porque exige un método público.
 */
-    protected function delete(): void
+    public function delete(): void
     {
         $model =$this->getModel();
 

@@ -8,6 +8,7 @@ use App\Exceptions\DatoFamiliarIncompletoException;
 use App\Models\ContactoModel;
 use App\Models\DireccionModel;
 use App\Models\PersonaModel;
+use App\Support\Documento;
 
 trait FamiliaresModelTrait
 {
@@ -18,10 +19,29 @@ trait FamiliaresModelTrait
  * (hallazgo MEDIO 4.7). Lo deja apagado a propósito la inscripción, donde la
  * lista del formulario es siempre de cero y una sincronización solo podría
  * borrar algo por error.
+ * @param int $idUsuario Usuario que guarda, para la auditoría de los
+ * documentos por persona. 0 cuando no hay sesión (scripts o pruebas).
  * @throws DatoFamiliarIncompletoException
 */
-    protected function guardarFamiliares(int $estudianteId, array $familiares, bool $sincronizar = false): void
+    protected function guardarFamiliares(
+        int $estudianteId,
+        array $familiares,
+        bool $sincronizar = false,
+        int $idUsuario = 0
+    ): void
     {
+        /* La regla se comprueba antes de sincronizar: si la lista llega con un
+           representante fallecido, no se debe desvincular ni escribir nada. */
+        foreach ($familiares as $f) {
+            if ((int) ($f['es_fallecido'] ?? 0) === 1
+                && (int) ($f['representante_principal'] ?? 0) === 1) {
+                throw new DatoFamiliarIncompletoException(
+                    'Una persona fallecida no puede ser el representante legal. '
+                    . 'Designe a un familiar vivo y con datos de contacto.'
+                );
+            }
+        }
+
         if ($sincronizar) {
             $this->sincronizarFamiliares($estudianteId, $familiares);
         }
@@ -29,8 +49,11 @@ trait FamiliaresModelTrait
         $personaModel = new PersonaModel($this->pdo);
         $hayRepresentante = false;
         $vistos = [];
+        $idsFallecidos = [];
 
         foreach ($familiares as $f) {
+            $declaraFallecido = array_key_exists('es_fallecido', $f) && $f['es_fallecido'] !== null;
+            $esFallecido = $declaraFallecido && (int) $f['es_fallecido'] === 1;
             $esRepresentante = (int) ($f['representante_principal'] ?? 0) === 1;
             if ($esRepresentante) {
                 $hayRepresentante = true;
@@ -50,7 +73,7 @@ trait FamiliaresModelTrait
                 throw new DatoFamiliarIncompletoException('Cada familiar debe tener una fecha de nacimiento.');
             }
 
-            $idPersona = $personaModel->buscarOCrear([
+            $datosPersona = [
                 'tipo_documento'   => (string) ($f['tipo_documento'] ?? 'V'),
                 'numero_documento' => mb_substr($documento, 0, 20),
                 'fecha_nacimiento' => mb_substr($fechaNacimiento, 0, 10),
@@ -67,7 +90,36 @@ trait FamiliaresModelTrait
                 que vive en `persona` como el del estudiante. No va en persona_estudiante
                 porque esa tabla es el vínculo, no la persona. */
                 'id_nacionalidad' => (int) ($f['id_nacionalidad'] ?? 0) ?: null,
-            ]);
+            ];
+            /* Si el cliente no manda la marca, no se toca el valor guardado: una
+               pantalla cacheada no debe revivir a una persona fallecida. */
+            if ($declaraFallecido) {
+                $datosPersona['es_fallecido'] = $esFallecido ? 1 : 0;
+            }
+
+            $idPersona = $personaModel->buscarOCrear($datosPersona);
+
+            if ($esFallecido) {
+                $idsFallecidos[$idPersona] = true;
+            }
+
+            /* Si la persona ya existía en la base, buscarOCrear no toca sus campos.
+               Se actualizan aquí la entidad federal de nacimiento, la nacionalidad y
+               el estado vital para que una edición sobre el familiar persista en
+               `persona`. */
+            $actualizarPersona = [];
+            if (!empty($f['id_estado_nacimiento'])) {
+                $actualizarPersona['id_estado_nacimiento'] = (int) $f['id_estado_nacimiento'];
+            }
+            if (!empty($f['id_nacionalidad'])) {
+                $actualizarPersona['id_nacionalidad'] = (int) $f['id_nacionalidad'];
+            }
+            if ($declaraFallecido) {
+                $actualizarPersona['es_fallecido'] = $esFallecido ? 1 : 0;
+            }
+            if ($actualizarPersona !== []) {
+                $personaModel->updatePersona($idPersona, $actualizarPersona);
+            }
 
             $idParentesco = $this->resolverIdCatalogo('parentesco', 'id_parentesco', (string) ($f['parentesco'] ?? ''));
             $idOcupacion = $this->resolverIdCatalogo('ocupacion', 'id_ocupacion', (string) ($f['profesion'] ?? ($f['ocupacion'] ?? '')));
@@ -93,8 +145,10 @@ trait FamiliaresModelTrait
                 'persona' => $idPersona,
                 'estudiante' => $estudianteId,
                 'representante' => $esRepresentante ? 1 : 0,
-                'autorizado' => $esRepresentante || !empty($f['autorizado_retiros']) ? 1 : 0,
-                'vive' => !empty($f['vive_con_estudiante']) ? 1 : 0,
+                /* Un fallecido no puede retirar al alumno ni compartir la casa:
+                   aunque el cliente mande las marcas, no se guardan. */
+                'autorizado' => !$esFallecido && ($esRepresentante || !empty($f['autorizado_retiros'])) ? 1 : 0,
+                'vive' => !$esFallecido && !empty($f['vive_con_estudiante']) ? 1 : 0,
                 'estado' => $esRepresentante ? 'ACTIVO' : $estadoRelacion,
                 'parentesco' => $idParentesco,
                 'profesion' => $idOcupacion,
@@ -123,6 +177,31 @@ trait FamiliaresModelTrait
                     'nro_casa_apto' => trim((string) ($direccion['casa'] ?? '')),
                     'punto_referencia' => trim((string) ($direccion['referencia'] ?? '')),
                 ]);
+            }
+        }
+
+        /* La persona puede ser representante de varios alumnos. Si se marca
+           fallecida desde uno de ellos, no puede seguir siéndolo en los demás:
+           se comprueba al final, cuando ya se aplicaron las desvinculaciones de
+           este expediente, y la transacción de quien llama deshace todo si falla. */
+        if ($idsFallecidos !== []) {
+            $marcadores = implode(',', array_fill(0, count($idsFallecidos), '?'));
+            $stmt = $this->pdo->prepare(
+                "SELECT COUNT(*)
+                   FROM persona_estudiante pe
+                   INNER JOIN persona p ON p.id_persona = pe.id_persona
+                  WHERE pe.id_persona IN ({$marcadores})
+                    AND p.es_fallecido = 1
+                    AND pe.es_representante_legal = 1
+                    AND pe.estado_relacion = 'ACTIVO'"
+            );
+            $stmt->execute(array_keys($idsFallecidos));
+
+            if ((int) $stmt->fetchColumn() > 0) {
+                throw new DatoFamiliarIncompletoException(
+                    'Una persona fallecida no puede seguir como representante legal de otro estudiante. '
+                    . 'Designe primero un representante vivo en cada expediente.'
+                );
             }
         }
 
@@ -291,5 +370,41 @@ trait FamiliaresModelTrait
         }
 
         return $filas;
+    }
+
+    /**
+     * Próximo número de orden para la cédula escolar de un hermano del mismo año de nacimiento.
+     * Usa MAX(orden) + 1 para evitar colisiones si un hermano cambió de año o si alguno tiene cédula laminada.
+     */
+    public function proximoOrdenHermano(string $cedulaRepresentante, string $fechaNacimiento, int $ignorarIdEstudiante = 0): int
+    {
+        $cedula = Documento::normalizar($cedulaRepresentante);
+        $anio   = (int) substr($fechaNacimiento, 0, 4);
+
+        if ($cedula === '' || $anio <= 0) {
+            return 1;
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT COALESCE(MAX(CAST(SUBSTRING(est.numero_documento, 2, 1) AS UNSIGNED)), 0) + 1
+             FROM persona_estudiante pe
+             INNER JOIN persona rep ON rep.id_persona = pe.id_persona
+             INNER JOIN estudiante e ON e.id_estudiante = pe.id_estudiante
+             INNER JOIN persona est ON est.id_persona = e.id_persona
+             WHERE pe.es_representante_legal = 1
+               AND (rep.numero_documento = :cedula
+                    OR LPAD(rep.numero_documento, 8, '0') = :cedulaConCero)
+               AND est.tipo_documento = 'CE'
+               AND YEAR(est.fecha_nacimiento) = :anio
+               AND e.id_estudiante != :ignorarIdEstudiante"
+        );
+        $stmt->execute([
+            'cedula'              => $cedula,
+            'cedulaConCero'       => str_pad($cedula, 8, '0', STR_PAD_LEFT),
+            'anio'                => $anio,
+            'ignorarIdEstudiante' => $ignorarIdEstudiante,
+        ]);
+
+        return (int) $stmt->fetchColumn() ?: 1;
     }
 }

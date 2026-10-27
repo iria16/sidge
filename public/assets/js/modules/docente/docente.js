@@ -78,114 +78,30 @@
 
     /* ── Vista previa y descarga del documento (todas las pestañas) ────── */
     var btnVistaPrevia    = document.getElementById('btnVistaPreviaDocumento');
-    var panelActa         = document.getElementById('panelActa');
-    var inputMotivo       = document.getElementById('actaMotivo');
-    var inputFecha        = document.getElementById('actaFecha');
     var modalDocumento    = document.getElementById('modalVistaPreviaDocumento');
     var contenedorPreview = document.getElementById('contenedorPreviewDocumento');
     var iframeDocumento   = document.getElementById('iframeVistaPreviaDocumento');
     var btnDescargar      = document.getElementById('btnDescargarDocumentoPdf');
     var btnImprimir       = document.getElementById('btnImprimirDocumentoPdf');
-    var regexMotivo       = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9\s.,;:()°ºª\-\/'"]+$/;
-
-    function sanitizarMotivoActa(valor) {
-        var limpio = String(valor || '')
-            .replace(/<[^>]*>/g, '')
-            .replace(/[\u0000-\u001F\u007F<>]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        if (limpio === '') { return ''; }
-
-        var tieneLetras = /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(limpio);
-        var tieneMinuscula = /[a-záéíóúüñ]/.test(limpio);
-        if (tieneLetras && !tieneMinuscula) {
-            limpio = limpio.toLowerCase();
-        }
-
-        return limpio.charAt(0).toUpperCase() + limpio.slice(1);
-    }
-
-    function esMotivoValido(motivo) {
-        return motivo.length >= 3 && motivo.length <= 120 && regexMotivo.test(motivo);
-    }
-
-    if (inputMotivo) {
-        inputMotivo.addEventListener('input', function () {
-            var limpio = sanitizarMotivoActa(inputMotivo.value);
-            if (esMotivoValido(limpio)) {
-                inputMotivo.classList.remove('is-invalid');
-            }
-        });
-        inputMotivo.addEventListener('blur', function () {
-            if (inputMotivo.value !== '') {
-                inputMotivo.value = sanitizarMotivoActa(inputMotivo.value);
-            }
-        });
-        inputMotivo.addEventListener('keydown', function (ev) {
-            if (ev.key === 'Enter' && btnVistaPrevia) {
-                ev.preventDefault();
-                btnVistaPrevia.click();
-            }
-        });
-    }
-
-    if (inputFecha) {
-        inputFecha.addEventListener('change', function () {
-            if (/^\d{4}-\d{2}-\d{2}$/.test(inputFecha.value.trim())) {
-                inputFecha.classList.remove('is-invalid');
-            }
-        });
-    }
-
-    /* El motivo y la fecha viven en la propia pestaña del acta, así que al
-       abrirla el foco cae en el motivo: es el primer dato que hay que escribir.
-       Antes esto pasaba al abrirse el modal. */
-    if (panelActa && inputMotivo) {
-        inputMotivo.focus();
-    }
+    var modalTitleEl      = modalDocumento ? modalDocumento.querySelector('.modal-title') : null;
+    var modalSubtitleEl   = modalDocumento ? modalDocumento.querySelector('.modal-subtitle, .app-modal__subtitle, small.text-muted') : null;
+    var tituloBase        = modalTitleEl ? modalTitleEl.textContent : '';
+    var subtituloBase     = modalSubtitleEl ? modalSubtitleEl.textContent : '';
 
     /* Un solo manejador para todas las pestañas. «Visualizar documento» arma el
        PDF de la vista en curso y lo abre en el modal; el enlace de descarga solo
-       aparece después, que es cuando el docente ya lo vio. El acta es la única
-       que además pide motivo y fecha, y se sabe por sus campos: si están, se
-       validan y se mandan en la URL. */
+       aparece después, que es cuando el docente ya lo vio. */
     if (btnVistaPrevia && modalDocumento && iframeDocumento && btnDescargar) {
         btnVistaPrevia.addEventListener('click', function () {
+            if (modalTitleEl) { modalTitleEl.textContent = tituloBase; }
+            if (modalSubtitleEl) { modalSubtitleEl.textContent = subtituloBase; }
+
             var basePdf = btnVistaPrevia.getAttribute('data-base-pdf') || window.location.pathname;
             var urlPdf;
             try {
                 urlPdf = new URL(basePdf, window.location.origin);
             } catch (err) {
                 return;
-            }
-
-            if (inputMotivo && inputFecha) {
-                var motivo = sanitizarMotivoActa(inputMotivo.value);
-                inputMotivo.value = motivo;
-                var fecha  = inputFecha.value.trim();
-                var valido = true;
-
-                if (!esMotivoValido(motivo)) {
-                    inputMotivo.classList.add('is-invalid');
-                    inputMotivo.focus();
-                    valido = false;
-                } else {
-                    inputMotivo.classList.remove('is-invalid');
-                }
-
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-                    inputFecha.classList.add('is-invalid');
-                    if (valido) { inputFecha.focus(); }
-                    valido = false;
-                } else {
-                    inputFecha.classList.remove('is-invalid');
-                }
-
-                if (!valido) { return; }
-
-                urlPdf.searchParams.set('motivo', motivo);
-                urlPdf.searchParams.set('fecha', fecha);
             }
 
             urlPdf.searchParams.set('formato', 'pdf');
@@ -198,7 +114,7 @@
             }
 
             /* La vista previa se abre en modal, no sobre la página: el docente
-               puede revisarla y cerrar sin perder el motivo que escribió. El
+               puede revisarla y cerrar sin perder los filtros aplicados. El
                enlace de descarga solo se destapa cuando ya la vio. */
             SIGDEUI.mostrarModal(modalDocumento);
 
@@ -226,6 +142,60 @@
                 var urlImprimir = btnDescargar ? btnDescargar.getAttribute('href') : null;
                 window.open(urlImprimir || '#', '_blank');
             }
+        });
+    }
+
+    /* Vista previa individual de boleta/certificado por estudiante.
+       Abre el modal de vista previa antes de imprimir o descargar. */
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.btn-preview-boleta-individual');
+        if (!btn || !modalDocumento || !iframeDocumento || !btnDescargar) {
+            return;
+        }
+
+        var basePdf = btn.getAttribute('data-url-pdf');
+        if (!basePdf) {
+            return;
+        }
+
+        var estudiante = btn.getAttribute('data-estudiante') || '';
+
+        if (modalTitleEl) {
+            modalTitleEl.textContent = 'Certificado de Calificaciones';
+        }
+        if (modalSubtitleEl) {
+            modalSubtitleEl.textContent = estudiante ? (estudiante + ' · ' + subtituloBase) : subtituloBase;
+        }
+
+        var urlPdf;
+        try {
+            urlPdf = new URL(basePdf, window.location.origin);
+        } catch (err) {
+            return;
+        }
+
+        urlPdf.searchParams.delete('descargar');
+        iframeDocumento.src = urlPdf.pathname + urlPdf.search;
+
+        if (contenedorPreview) {
+            contenedorPreview.classList.remove('d-none');
+        }
+
+        SIGDEUI.mostrarModal(modalDocumento);
+
+        urlPdf.searchParams.set('descargar', '1');
+        btnDescargar.setAttribute('href', urlPdf.pathname + urlPdf.search);
+        btnDescargar.classList.remove('d-none');
+
+        if (btnImprimir) {
+            btnImprimir.classList.remove('d-none');
+        }
+    });
+
+    /* Limpiar iframe al cerrar el modal para liberar memoria y recursos */
+    if (modalDocumento && iframeDocumento) {
+        modalDocumento.addEventListener('hidden.bs.modal', function () {
+            iframeDocumento.src = 'about:blank';
         });
     }
 

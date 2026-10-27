@@ -1,7 +1,4 @@
 <?php
-
-declare(strict_types=1);
-
 /**
  * app/Views/empleados/index.php
  * Listado de empleados (Personal > Empleados).
@@ -16,19 +13,7 @@ declare(strict_types=1);
 $pageTitle       = 'Gestión de Empleados';
 $pageDescription = 'Administre el personal docente, administrativo y auxiliar de la institución.';
 $currentNav      = 'empleados';
-/* Los cuatro scripts del módulo, más el de configuración y utilidades compartidas.
-   El orden importa por dos razones:
-     - empleado-comun.js publica window.SIGDEEmpleados, del que dependen todos los demás;
-     - empleado-reposo.js publica SIGDEEmpleados.reposos, que es a quien llama
-       empleado-listado.js cuando el modal de detalle pinta el historial de reposos.
-   Ver tambien: partials/scripts.php agrega la version (?v=mtime) de cada uno. */
-$extraScripts    = [
-    '/js/modules/empleados/empleado-comun.js',
-    '/js/modules/empleados/empleado-reposo.js',
-    '/js/modules/empleados/empleado-listado.js',
-    '/js/modules/empleados/empleado-editar.js',
-    '/js/modules/empleados/empleado-alta.js',
-];
+$extraScripts    = ['/js/empleado.js']; // la version la agrega partials/scripts.php
 $breadcrumbs     = [['label' => 'Personal', 'href' => null], ['label' => 'Empleados', 'href' => null]];
 
 // ---------- Valores por defecto (contrato de variables de la vista) ----------
@@ -42,6 +27,7 @@ $tiposInstitucion = $tiposInstitucion ?? [];
 $estados          = $estados ?? [];
 $turnos           = $turnos ?? [];
 $paginacion       = $paginacion ?? ['desde' => 0, 'hasta' => 0, 'total' => 0, 'pagina_actual' => 1, 'total_paginas' => 1];
+$puedeGestionar   = $puedeGestionar ?? (function_exists('App\Traits\sigde_rol_clave') ? \App\Traits\sigde_rol_clave($_SESSION['rol'] ?? '') === 'directivo' : false);
 
 // Filtros activos (se reflejan en los <select> al recargar)
 $filtroCargo  = (string) ($_GET['cargo'] ?? '');
@@ -51,11 +37,13 @@ ob_start(); // todo lo que sigue se captura en $pageContent
 
 // ---------- Cabecera de página (components/page-header.php) ----------
 ob_start();
+if ($puedeGestionar):
 ?>
 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoEmpleadoModal">
   <i class="bi bi-person-plus"></i> Registrar Empleado
 </button>
 <?php
+endif;
 $pageHeading       = $pageTitle;
 $pageSubheading    = $pageDescription;
 $pageHeaderActions = ob_get_clean();
@@ -110,7 +98,7 @@ $panelFilters = ob_get_clean();
 ob_start();
 ?>
 <colgroup>
-  <col class="ancho-30"><col class="ancho-18"><col class="ancho-22"><col class="ancho-14"><col class="ancho-16">
+  <col style="width:30%"><col style="width:18%"><col style="width:22%"><col style="width:14%"><col style="width:16%">
 </colgroup>
 <?php
 $panelColgroup = ob_get_clean();
@@ -154,6 +142,7 @@ include __DIR__ . '/modals/employee-modal.php';   // wizard + modales anidados (
 include __DIR__ . '/modals/show-modal.php';
 include __DIR__ . '/modals/edit-modal.php';
 include __DIR__ . '/modals/reposo-modal.php';
+include __DIR__ . '/modals/estado-modal.php';
 $pageModals = ob_get_clean();
 
 require __DIR__ . '/../layouts/app.php';

@@ -316,7 +316,7 @@ class CuentaUsuarioModel extends BaseModel implements Creatable, Updatable, Togg
             error_log('CuentaUsuarioModel::crearUsuario(): ' . $e->getMessage());
 
             if ($e instanceof PDOException && $e->getCode() === '23000') {
-                return ['ok' => false, 'mensaje' => 'El nombre de usuario "' . $nombreUsuario . '" ya está en uso. Por favor elija otro.'];
+                return ['ok' => false, 'mensaje' => 'El nombre de usuario "' . $nombreUsuario . '" ya está en uso. Por favor elija otro.', 'codigo' => 422];
             }
 
             return ['ok' => false, 'mensaje' => 'Ocurrió un error al registrar el usuario en el sistema.'];
@@ -324,23 +324,18 @@ class CuentaUsuarioModel extends BaseModel implements Creatable, Updatable, Togg
     }
 
     /**
- * Cambia el nombre de usuario y el rol de la cuenta.
-*/
+     * Cambia el nombre de usuario y el rol de la cuenta.
+     */
     public function update(int $id, array $data): bool
     {
         $sql = "UPDATE usuario
                 SET nombre_usuario = :nombre_usuario, id_rol = :rol_id
                 WHERE id_usuario = :id";
-        try {
-            return $this->pdo->prepare($sql)->execute([
-                'nombre_usuario' => $data['nombre_usuario'],
-                'rol_id'         => $data['rol_id'],
-                'id'             => $id,
-            ]);
-        } catch (Throwable $e) {
-            error_log('CuentaUsuarioModel::update(): ' . $e->getMessage());
-            return false;
-        }
+        return $this->pdo->prepare($sql)->execute([
+            'nombre_usuario' => $data['nombre_usuario'],
+            'rol_id'         => $data['rol_id'],
+            'id'             => $id,
+        ]);
     }
 
     /**

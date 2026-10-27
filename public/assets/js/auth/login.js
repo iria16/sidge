@@ -22,7 +22,9 @@ function initLoginSubmitLock() {
 
   form.addEventListener('submit', function () {
     if (!form.checkValidity()) return;
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Verificando...';
+    setTimeout(function () {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Verificando...';
+    }, 10);
   });
 }

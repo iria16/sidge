@@ -2,12 +2,14 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
 use App\Models\AcademicStructureModel;
-use App\Models\ResultadoAcademicoModel;
+use App\Models\DirectivoDashboardModel;
+use App\Models\EstudianteModel;
+use App\Models\InscripcionesModel;
+use App\Models\RatificacionModel;
+use App\Models\TurnoModel;
+use App\Models\WithdrawalModel;
 use App\Support\AniosEscolares;
-use App\Traits\SecurityTrait;
-use PDO;
 use Throwable;
 use function App\Traits\sigde_rol_clave;
 
@@ -30,9 +32,6 @@ use function App\Traits\sigde_rol_clave;
  * mande a `dashboard/index`, y esta clase concentra en un solo lugar la
  * decisión de a dónde va cada rol.
  *
- * No extiende BaseController: solo necesita comprobar que exista sesión
- * (igual que AuthController), y ese chequeo lo hago en el constructor.
- *
  * Rutas: `dashboard/index` y `dashboard/{rol}`. Si agrego un rol nuevo debo:
  * 1. añadirlo a RUTAS_POR_ROL,
  * 2. crear el método y la vista correspondientes,
@@ -43,9 +42,10 @@ use function App\Traits\sigde_rol_clave;
  * @author Logística
  * @package App\Controllers
 */
-class DashboardController
+class DashboardController extends BaseController
 {
-    use SecurityTrait;
+    protected string $viewPath  = 'dashboard';
+    protected string $routeName = 'dashboard';
 
     /**
  * Roles válidos del sistema y su método/ruta correspondiente.
@@ -61,21 +61,6 @@ class DashboardController
         'directivo'   => 'dashboard/directivo/index',
         'secretaria'  => 'dashboard/secretaria/index',
     ];
-
-    /**
- * Exige sesión activa para todo el controlador.
- *
- * Igual que en AuthController: sin sesión activa, no hay dashboard.
- * Si no existe `usuario_id`, redirijo al login antes de ejecutar
- * cualquier acción.
-*/
-    public function __construct()
-    {
-        // Igual que en AuthController: sin sesión activa, no hay dashboard.
-        if (!isset($_SESSION['usuario_id'])) {
-            $this->redireccionar('auth/login');
-        }
-    }
 
     /**
  * Punto de entrada genérico: ejecuta directamente el dashboard
@@ -106,21 +91,32 @@ class DashboardController
     public function admin(): void
     {
         $this->verificarAccesoRol('admin');
+
+        date_default_timezone_set('America/Caracas');
+        $horaCaracas = (int) (new \DateTimeImmutable('now'))->format('G');
+        $saludo = match (true) {
+            $horaCaracas < 12 => 'Buenos días',
+            $horaCaracas < 19 => 'Buenas tardes',
+            default           => 'Buenas noches',
+        };
+        $nombreUsuario = trim((string) ($_SESSION['nombre'] ?? 'Administrador'));
+
+        $model = new \App\Models\DashboardModel($this->conexion());
+
+        $anioActivo       = $model->getAnioActivo();
+        $indicadores      = $model->getMetricasUsuarios();
+        $requiereAtencion = $model->getAtencionRequerida();
+        $actividad        = $model->getActividadBitacora(30);
+        $usuariosPorRol   = $model->getUsuariosPorRol();
+
         require_once __DIR__ . '/../Views/dashboard/admin/index.php';
     }
 
-/**
- * Panel del docente.
- *
- * El módulo del docente vive ahora en su propio espacio, /docente, con la nómina
- * y la ficha del estudiante. Esta acción queda como redirigido para que los
- * enlaces ya publicados (marcadores, mensajes, exportaciones antiguas) sigan
- * llevando al docente a su inicio sin romperse.
- *
- * La vista antigua no se borra: sigue siendo la que sirve la vista anterior del
- * panel y sirve de referencia de las cifras que ahora calcula el módulo nuevo.
- * Quien llame a este método ya nunca la ve.
- */
+    /**
+ * Dashboard del docente.
+ * Ruta: dashboard/docente. Lo renderiza DocenteDashboardController con la
+ * vista Views/dashboard/docente/index.php.
+*/
     public function docente(): void
     {
         $this->verificarAccesoRol('docente');
@@ -128,60 +124,160 @@ class DashboardController
     }
 
     /**
- * Dashboard del coordinador.
- * Ruta: dashboard/coordinador. Vista: Views/dashboard/coordinador/index.php.
-*/
+     * Dashboard del coordinador.
+     * Ruta: dashboard/coordinador. Vista: Views/dashboard/coordinador/index.php.
+     */
     public function coordinador(): void
     {
         $this->verificarAccesoRol('coordinador');
-        require_once __DIR__ . '/../Views/dashboard/coordinador/index.php';
+        $datos = $this->prepararDatosDirectivoYCoordinador('coordinador');
+        extract($datos);
+        $esCoordinador = true;
+
+        require __DIR__ . '/../Views/dashboard/coordinador/index.php';
     }
 
     /**
- * Dashboard del directivo.
- * Ruta: dashboard/directivo. Vista: Views/dashboard/directivo/index.php.
-*/
+     * Dashboard del directivo.
+     * Ruta: dashboard/directivo. Vista: Views/dashboard/directivo/index.php.
+     */
     public function directivo(): void
     {
         $this->verificarAccesoRol('directivo');
-        require_once __DIR__ . '/../Views/dashboard/directivo/index.php';
+        $datos = $this->prepararDatosDirectivoYCoordinador('directivo');
+        extract($datos);
+        $esCoordinador = false;
+
+        require __DIR__ . '/../Views/dashboard/directivo/index.php';
+    }
+
+    /**
+     * Prepara métricas e indicadores consolidados para Dirección y Coordinación.
+     */
+    private function prepararDatosDirectivoYCoordinador(string $rol): array
+    {
+        date_default_timezone_set('America/Caracas');
+        $horaCaracas = (int) (new \DateTimeImmutable('now'))->format('G');
+        $saludo = match (true) {
+            $horaCaracas < 12 => 'Buenos días',
+            $horaCaracas < 19 => 'Buenas tardes',
+            default           => 'Buenas noches',
+        };
+        $nombreUsuario = trim((string) ($_SESSION['nombre'] ?? ($rol === 'directivo' ? 'Directora' : 'Coordinación')));
+
+        $model = new DirectivoDashboardModel($this->conexion());
+
+        return [
+            'saludo'             => $saludo,
+            'nombreUsuario'      => $nombreUsuario,
+            'anioActivo'         => $model->getAnioActivo(),
+            'metricasMatricula'  => $model->getMetricasMatricula(),
+            'metricasCapacidad'  => $model->getMetricasCapacidad(),
+            'metricasPersonal'   => $model->getMetricasPersonal(),
+            'distribucionGrados' => $model->getMatriculaPorGradoYSexo(),
+            'avanceResultados'   => $model->getResultadosPorSeccion(),
+            'alertas'            => $model->getAlertas(),
+        ];
     }
 
 /**
  * Dashboard de secretaría.
  * Ruta: dashboard/secretaria. Vista: Views/dashboard/secretaria/index.php.
 */
-public function secretaria(): void
+    public function secretaria(): void
     {
         $this->verificarAccesoRol('secretaria');
 
-        /* El aviso de estructura se calcula aquí y no en la vista a propósito: es una
- regla de negocio (qué combinaciones debería existir) y las vistas del proyecto
- no hacen consultas. Además, si fallara la consulta, este controller registra el
- error y sigue mostrando el panel: es preferible un panel sin aviso a un
- dashboard en blanco.*/
+        date_default_timezone_set('America/Caracas');
+        $horaCaracas = (int) (new \DateTimeImmutable('now'))->format('G');
+        $saludo = match (true) {
+            $horaCaracas < 12 => 'Buenos días',
+            $horaCaracas < 19 => 'Buenas tardes',
+            default           => 'Buenas noches',
+        };
+        $nombreUsuario = trim((string) ($_SESSION['nombre'] ?? 'Secretaría'));
+
+        $pdo = $this->conexion();
+        $anioId = AniosEscolares::idEnCurso($pdo);
+        $anioNombre = AniosEscolares::nombreEnCurso($pdo);
+        $anioActivo = $anioId > 0
+            ? ['id' => $anioId, 'nombre' => $anioNombre]
+            : null;
+
+        $turnoId = (int) ($_SESSION['id_turno'] ?? 0);
+        $turnoNombre = null;
+        try {
+            $turnoNombre = (new TurnoModel($pdo))->getNombreById($turnoId);
+        } catch (Throwable $e) {
+            error_log('DashboardController::secretaria(): no se pudo obtener el turno: '
+                . $e->getMessage());
+        }
+
         $estructura = null;
         try {
-            $estructura = (new AcademicStructureModel($this->conexionDashboard()))
-                ->pendientesDeConfiguracion();
+            $estructura = (new AcademicStructureModel($pdo))->pendientesDeConfiguracion();
         } catch (Throwable $e) {
             error_log('DashboardController::secretaria(): no se pudo calcular el estado de la estructura: '
                 . $e->getMessage());
+        }
+
+        $estadisticasEstudiantes = null;
+        $estadisticasInscripciones = null;
+        $estadisticasRatificacion = null;
+        $estadisticasRetiros = null;
+        $cuposPorEstructura = null;
+
+        if ($anioActivo !== null && $turnoId > 0) {
+            $estadisticasEstudiantes = $this->estadisticaSegura(
+                static fn(): array => (new EstudianteModel($pdo))->getStats([
+                    'anio' => $anioId,
+                    'id_turno' => $turnoId,
+                ]),
+                'estudiantes de Secretaría'
+            );
+
+            $estadisticasInscripciones = $this->estadisticaSegura(
+                static fn(): array => (new InscripcionesModel($pdo))->getStats($turnoId, $anioId),
+                'inscripciones de Secretaría'
+            );
+
+            // RatificacionModel resuelve el año activo dentro de getStats(); aquí solo se acota el turno.
+            $estadisticasRatificacion = $this->estadisticaSegura(
+                static fn(): array => (new RatificacionModel($pdo))->getStats($turnoId),
+                'ratificación de Secretaría'
+            );
+
+            $estadisticasRetiros = $this->estadisticaSegura(
+                static fn(): array => (new WithdrawalModel($pdo))->getStats($turnoId, $anioId),
+                'retiros de Secretaría'
+            );
+
+            $cuposPorEstructura = $this->estadisticaSegura(
+                static fn(): array => (new InscripcionesModel($pdo))
+                    ->getCuposPorEstructura($turnoId, $anioId),
+                'cupos por estructura de Secretaría'
+            );
         }
 
         require_once __DIR__ . '/../Views/dashboard/secretaria/index.php';
     }
 
     /**
- * Conexión propia para este controlador.
- *
- * DashboardController no extiende BaseController (no usa CRUD ni vistas con
- * panel), así que no tiene conexion(). Se abre una conexión por request, igual
- * que harían los demás: PHP cierra la de PHP al terminar la petición.
-*/
-    private function conexionDashboard(): PDO
+     * Ejecuta una consulta de indicadores sin tumbar el resto del panel.
+     *
+     * @param callable():array<string, mixed> $consulta
+     * @return array<string, mixed>|null
+     */
+    private function estadisticaSegura(callable $consulta, string $nombre): ?array
     {
-        return (new Database())->getConnection();
+        try {
+            return $consulta();
+        } catch (Throwable $e) {
+            error_log("DashboardController::secretaria(): no se pudieron calcular {$nombre}: "
+                . $e->getMessage());
+
+            return null;
+        }
     }
 
     /**

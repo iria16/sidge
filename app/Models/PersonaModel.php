@@ -33,6 +33,9 @@ class PersonaModel extends BaseModel
            completa; empleados y familiares quedan en NULL. Guarda el id del catálogo
            `nacionalidad`, no el texto, como el resto de los catálogos. */
         'id_nacionalidad',
+        /* El fallecimiento es un estado de la persona, no del vínculo con un
+           alumno. Viaja en el bloque de familiar porque ahí se declara. */
+        'es_fallecido',
     ];
 
     private const PERSONA_NULABLES = [
@@ -68,6 +71,7 @@ class PersonaModel extends BaseModel
         $stmt = $this->pdo->prepare(
             'SELECT id_persona, tipo_documento, numero_documento, fecha_nacimiento,
                     id_estado_nacimiento, id_parroquia_nacimiento, id_nacionalidad,
+                    es_fallecido,
                     primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, sexo
                FROM persona
               WHERE numero_documento = :documento
@@ -110,9 +114,11 @@ class PersonaModel extends BaseModel
 
         $stmt = $this->pdo->prepare(
             'SELECT COUNT(*)
-               FROM persona_estudiante
-              WHERE id_persona = :id
-                AND es_representante_legal = 1'
+               FROM persona_estudiante pe
+               INNER JOIN persona p ON p.id_persona = pe.id_persona
+              WHERE pe.id_persona = :id
+                AND pe.es_representante_legal = 1
+                AND p.es_fallecido = 0'
         );
         $stmt->execute(['id' => $id]);
 
@@ -135,6 +141,8 @@ class PersonaModel extends BaseModel
                    lo que ya está guardado en vez de un select vacío. */
                 'id_estado_nacimiento' => (int) ($persona['id_estado_nacimiento'] ?? 0),
                 'id_parroquia_nacimiento' => (int) ($persona['id_parroquia_nacimiento'] ?? 0),
+                'id_nacionalidad' => (int) ($persona['id_nacionalidad'] ?? 0),
+                'es_fallecido' => (int) ($persona['es_fallecido'] ?? 0),
             ],
             'nivel_instruccion' => $datosRelacion['nivel_instruccion'],
             'ocupacion' => $datosRelacion['ocupacion'],

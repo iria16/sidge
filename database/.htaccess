@@ -1,0 +1,3 @@
+# El DocumentRoot del servidor es /var/www/html, no /var/www/html/sidgev1/public.
+# Sin esta regla, database/backups/*.sql y database/schema_actual.sql se sirven por HTTP.
+Require all denied

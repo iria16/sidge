@@ -351,12 +351,7 @@ class AuthController
 */
     private function mostrarSwalYRedirigir(string $icono, string $titulo, string $texto, string $ruta): never
     {
-        $_SESSION['swal'] = [
-            'icon'  => $icono,
-            'title' => $titulo,
-            'text'  => $texto,
-        ];
-
+        $this->setSwal($icono, $titulo, $texto);
         $this->redireccionar($ruta);
     }
 }

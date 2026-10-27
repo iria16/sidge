@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Vista: configuracion_institucional/index.php
- * Gestión de Parámetros Oficiales del Plantel, Directiva y Recursos Gráficos.
+ * Dashboard Ejecutivo de Gestión Institucional, Identidad Oficial y Directiva.
  *
  * Variables esperadas del controlador:
  * @var array<string, string> $config              Valores actuales de la tabla `configuracion_institucional`
@@ -21,6 +21,10 @@ declare(strict_types=1);
  * @var string                $firmaUrl            URL protegida para preview de firma
  * @var bool                  $tieneSello          Indica si hay sello institucional guardado
  * @var string                $selloUrl            URL protegida para preview de sello
+ * @var array<int, array<string, mixed>> $estados
+ * @var array<int, array<string, mixed>> $municipios
+ * @var array<int, array<string, mixed>> $parroquias
+ * @var array<int, array{nombre: string, codigo: string, descripcion: string}> $nivelesEducativos
  */
 
 $pageTitle   = 'Datos Institucionales';
@@ -31,23 +35,15 @@ $breadcrumbs = [
     ['label' => 'Datos Institucionales', 'href' => null],
 ];
 
+// ---------- Contenido principal ----------
 ob_start();
 ?>
-
-  <!-- El <style> que estaba aqui (72 lineas) duplicaba caracter por caracter
-       las reglas .transparency-pattern, .image-preview-box,
-       .cintillo-preview-box y .private-preview-box, que ya estan en
-       resources/scss/components/_configuracion-institucional.scss y llegan
-       compiladas en app.css. Se estaba mandando dos veces al navegador. -->
-
-
-
 <div class="container-fluid px-0">
 
   <!-- Encabezado de página -->
   <?php
   $pageHeading       = 'Datos Institucionales y Directiva';
-  $pageSubheading    = 'Configure la identidad oficial del plantel, membretes de constancias y datos de la autoridad directiva.';
+  $pageSubheading    = 'Identidad oficial del plantel, membretes de constancias y datos de la autoridad directiva.';
   $pageHeaderActions = '';
   include __DIR__ . '/../components/page-header.php';
   ?>
@@ -59,620 +55,591 @@ ob_start();
       <div>
         <h6 class="alert-heading fw-bold mb-1">Autoridad Directiva Incompleta</h6>
         <p class="mb-0 small text-dark">
-          Complete los campos de <strong>nombre, cédula y cargo</strong> del director(a) en el formulario a continuación para habilitar la emisión de constancias de estudio e inscripción en el sistema.
+          <?php echo e($mensajeDirector); ?>
         </p>
       </div>
     </div>
   <?php endif; ?>
 
+  <!-- Cabecera de Identidad Institucional (Banner de Perfil) -->
+  <div class="institutional-banner p-4 mb-4">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-4">
+      
+      <div class="d-flex align-items-center gap-3">
+        <!-- Logo del Plantel -->
+        <div class="school-logo-frame">
+          <img id="header-plantel_logo"
+               src="<?php echo e($plantelLogoUrl); ?>"
+               alt="Logo del Plantel">
+        </div>
+
+        <div>
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <h3 class="fw-bold text-dark mb-0 fs-4" id="header-plantel_nombre">
+              <?php echo e($config['plantel_nombre'] ?? 'Plantel Sin Configurar'); ?>
+            </h3>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7" id="header-plantel_nombre_corto">
+              <?php echo e($config['plantel_nombre_corto'] ?? 'E.B.'); ?>
+            </span>
+          </div>
+
+          <div class="d-flex align-items-center gap-2 flex-wrap text-muted small mt-2">
+            <span class="badge bg-white text-dark border font-monospace px-2 py-1">
+              <i class="bi bi-upc-scan text-primary me-1"></i>DEA: <strong id="header-plantel_codigo_dea"><?php echo e(!empty($config['plantel_codigo_dea']) ? $config['plantel_codigo_dea'] : 'Sin asignar'); ?></strong>
+            </span>
+            <span class="badge bg-white text-secondary border px-2 py-1">
+              <i class="bi bi-geo-alt-fill text-danger me-1"></i><span id="header-cdce_estado"><?php echo e($valEstado); ?></span>, <span id="header-plantel_municipio"><?php echo e($valMunicipio); ?></span>
+            </span>
+            <span class="badge bg-white text-dark border font-monospace px-2 py-1">
+              <i class="bi bi-hash text-secondary me-1"></i>Dep: <span id="header-plantel_codigo_dependencia"><?php echo e($config['plantel_codigo_dependencia'] ?? '006562012'); ?></span>
+            </span>
+            <span class="badge bg-white text-primary border px-2 py-1">
+              <i class="bi bi-mortarboard-fill me-1"></i><span id="header-nivel_educativo"><?php echo e($valNivel); ?></span> (<span id="header-nivel_codigo"><?php echo e($valCodigoNivel); ?></span>)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center gap-2 flex-shrink-0">
+        <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 btn-abrir-subida" data-clave="plantel_logo" data-titulo="Logo del Plantel" data-privado="0">
+          <i class="bi bi-camera"></i> Cambiar Logo
+        </button>
+        <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-2 px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalEditarPlantel">
+          <i class="bi bi-pencil-square"></i>
+          <span>Editar Datos Oficiales</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Dashboard de Configuración Institucional (2 Columnas) -->
   <div class="row g-4">
 
-    <!-- COLUMNA IZQUIERDA: Formulario de Identificación y Directiva -->
-    <div class="col-lg-7">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-bottom py-3">
+    <!-- COLUMNA IZQUIERDA: Membrete Oficial y Ubicación Territorial -->
+    <div class="col-lg-6 d-flex flex-column gap-4">
+
+      <!-- Tarjeta 1: Membrete Oficial de la República y Ministerio -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
           <h5 class="card-title fw-bold mb-0 text-primary d-flex align-items-center gap-2">
-            <i class="bi bi-bank" aria-hidden="true"></i> Identificación Oficial y Membretes
+            <i class="bi bi-card-heading" aria-hidden="true"></i> Membrete Oficial de la República
           </h5>
+          <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#modalEditarMembrete">
+            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+            <span>Editar Membrete</span>
+          </button>
+        </div>
+        <div class="card-body p-4">
+          <div class="d-flex flex-column gap-3">
+            <div class="p-3 bg-light rounded border">
+              <div class="text-muted small fw-semibold text-uppercase">Línea 1 del Ministerio</div>
+              <div class="fw-bold text-dark mt-1" id="view-ministerio_linea_1">
+                <?php echo e($config['ministerio_linea_1'] ?? 'REPÚBLICA BOLIVARIANA DE VENEZUELA'); ?>
+              </div>
+            </div>
+            <div class="p-3 bg-light rounded border">
+              <div class="text-muted small fw-semibold text-uppercase">Línea 2 del Ministerio</div>
+              <div class="fw-bold text-dark mt-1" id="view-ministerio_linea_2">
+                <?php echo e($config['ministerio_linea_2'] ?? 'MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN'); ?>
+              </div>
+            </div>
+            <div class="p-3 bg-light rounded border">
+              <div class="text-muted small fw-semibold text-uppercase">Epígrafe Anual (Certificado de Educación Primaria)</div>
+              <div class="fw-bold text-dark mt-1 small" id="view-certificado_epigrafe">
+                <?php echo e($config['certificado_epigrafe'] ?? 'BICENTENARIO DE LA UNIDAD AMERICANA: CONGRESO ANFICTIÓNICO DE PANAMÁ'); ?>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tarjeta 2: Ubicación Territorial y Dependencia -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+          <h5 class="card-title fw-bold mb-0 text-primary d-flex align-items-center gap-2">
+            <i class="bi bi-geo-alt-fill" aria-hidden="true"></i> Ubicación Territorial y Dependencia
+          </h5>
+          <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#modalEditarPlantel">
+            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+            <span>Editar</span>
+          </button>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <div class="p-3 bg-light rounded border h-100">
+                <div class="text-muted small fw-semibold text-uppercase">Estado CDCE</div>
+                <div class="fw-bold text-dark mt-1" id="view-cdce_estado">
+                  <?php echo e($valEstado); ?>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-sm-6">
+              <div class="p-3 bg-light rounded border h-100">
+                <div class="text-muted small fw-semibold text-uppercase">Municipio del Plantel</div>
+                <div class="fw-bold text-dark mt-1" id="view-plantel_municipio">
+                  <?php echo e($valMunicipio); ?>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-sm-6">
+              <div class="p-3 bg-light rounded border h-100">
+                <div class="text-muted small fw-semibold text-uppercase">Parroquia del Plantel</div>
+                <div class="fw-bold text-dark mt-1" id="view-plantel_parroquia">
+                  <?php echo e($valParroquia); ?>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-sm-6">
+              <div class="p-3 bg-light rounded border h-100">
+                <div class="text-muted small fw-semibold text-uppercase">Lugar de Expedición</div>
+                <div class="fw-bold text-dark mt-1" id="view-lugar_expedicion">
+                  <?php echo e($config['lugar_expedicion'] ?? 'Carabobo'); ?>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-sm-6">
+              <div class="p-3 bg-light rounded border h-100">
+                <div class="text-muted small fw-semibold text-uppercase">Código Dependencia</div>
+                <div class="mt-1">
+                  <span class="badge bg-white text-dark border font-monospace px-2 py-1 fs-6" id="view-plantel_codigo_dependencia">
+                    <?php echo e($config['plantel_codigo_dependencia'] ?? '006562012'); ?>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-sm-6">
+              <div class="p-3 bg-light rounded border h-100">
+                <div class="text-muted small fw-semibold text-uppercase">Nivel Educativo y MPPE</div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                  <span class="fw-bold text-dark" id="view-nivel_educativo"><?php echo e($valNivel); ?></span>
+                  <span class="badge bg-primary text-white font-monospace px-2 py-1" id="view-nivel_codigo">
+                    <?php echo e($valCodigoNivel); ?>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COLUMNA DERECHA: Autoridad Directiva y Recursos Gráficos -->
+    <div class="col-lg-6 d-flex flex-column gap-4">
+
+      <!-- Tarjeta 3: Autoridad Directiva y Firmante -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+          <h5 class="card-title fw-bold mb-0 text-primary d-flex align-items-center gap-2">
+            <i class="bi bi-person-vcard-fill" aria-hidden="true"></i> Autoridad Directiva y Firmante
+          </h5>
+          <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#modalEditarDirectiva">
+            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+            <span>Editar Autoridad</span>
+          </button>
         </div>
         <div class="card-body p-4">
 
-          <form id="formTextosInstitucion" novalidate>
-            <input type="hidden" name="csrf" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>">
-
-            <!-- Bloque 1: Membrete Ministerial -->
-            <div class="mb-4">
-              <h6 class="text-uppercase text-secondary fw-bold small mb-3 border-bottom pb-1">
-                Membrete Oficial de la República
-              </h6>
-              <div class="mb-3">
-                <label for="ministerio_linea_1" class="form-label fw-semibold">
-                  Línea 1 del Ministerio <span class="text-danger">*</span>
-                </label>
-                <input type="text"
-                       class="form-control"
-                       id="ministerio_linea_1"
-                       name="ministerio_linea_1"
-                       value="<?php echo htmlspecialchars($config['ministerio_linea_1'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                       maxlength="200"
-                       required>
-                <div class="invalid-feedback" id="error-ministerio_linea_1"></div>
-                <div class="form-text">Ejemplo: REPÚBLICA BOLIVARIANA DE VENEZUELA</div>
+          <!-- Datos de la Autoridad -->
+          <div class="p-3 bg-light rounded border mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <div class="text-muted small fw-semibold text-uppercase">Director(a) / Máxima Autoridad</div>
+                <div class="fs-5 fw-bold text-dark mt-1" id="view-director_nombre">
+                  <?php echo e($nombreCompletoDir !== '' ? $nombreCompletoDir : 'No configurado'); ?>
+                </div>
               </div>
-
-              <div class="mb-3">
-                <label for="ministerio_linea_2" class="form-label fw-semibold">
-                  Línea 2 del Ministerio <span class="text-danger">*</span>
-                </label>
-                <input type="text"
-                       class="form-control"
-                       id="ministerio_linea_2"
-                       name="ministerio_linea_2"
-                       value="<?php echo htmlspecialchars($config['ministerio_linea_2'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                       maxlength="200"
-                       required>
-                <div class="invalid-feedback" id="error-ministerio_linea_2"></div>
-                <div class="form-text">Ejemplo: MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</div>
+              <span id="badge-estado-director" class="badge <?php echo $directorConfigurado ? 'bg-success' : 'bg-warning text-dark'; ?>">
+                <?php echo $directorConfigurado ? 'Configurado' : 'Incompleto'; ?>
+              </span>
+            </div>
+            <div class="row g-2 mt-2">
+              <div class="col-sm-6">
+                <span class="text-muted small">Cédula:</span>
+                <span class="badge bg-white text-primary border font-monospace ms-1" id="view-director_cedula">
+                  <?php echo e(!empty($config['director_cedula']) ? $config['director_cedula'] : 'No registrada'); ?>
+                </span>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small">Cargo:</span>
+                <strong class="text-dark ms-1" id="view-director_cargo">
+                  <?php echo e(!empty($config['director_cargo']) ? $config['director_cargo'] : 'Director (E)'); ?>
+                </strong>
               </div>
             </div>
+          </div>
 
-            <!-- Bloque 2: Datos del Plantel Educativo -->
-            <div class="mb-4">
-              <h6 class="text-uppercase text-secondary fw-bold small mb-3 border-bottom pb-1">
-                Identificación del Plantel
-              </h6>
-              <div class="mb-3">
-                <label for="plantel_nombre" class="form-label fw-semibold">
-                  Nombre Oficial Completo del Plantel <span class="text-danger">*</span>
-                </label>
-                <input type="text"
-                       class="form-control"
-                       id="plantel_nombre"
-                       name="plantel_nombre"
-                       value="<?php echo htmlspecialchars($config['plantel_nombre'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                       maxlength="200"
-                       required>
-                <div class="invalid-feedback" id="error-plantel_nombre"></div>
-                <div class="form-text">Denominación completa según el registro ministerial.</div>
-              </div>
-
-              <div class="row g-3">
-                <div class="col-md-7">
-                  <label for="plantel_nombre_corto" class="form-label fw-semibold">
-                    Nombre Corto / Siglas <span class="text-danger">*</span>
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="plantel_nombre_corto"
-                         name="plantel_nombre_corto"
-                         value="<?php echo htmlspecialchars($config['plantel_nombre_corto'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         maxlength="100"
-                         required>
-                  <div class="invalid-feedback" id="error-plantel_nombre_corto"></div>
-                  <div class="form-text">Ejemplo: E.B.N.B. ISIDRO RAMÍREZ</div>
+          <!-- Firma y Sello Privados -->
+          <div class="row g-3">
+            <!-- Firma -->
+            <div class="col-sm-6">
+              <div class="border rounded p-3 bg-white h-100 d-flex flex-column justify-content-between">
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-dark small">Firma Digitalizada</span>
+                    <span id="badge-director_firma" class="badge <?php echo $tieneFirma ? 'bg-success' : 'bg-secondary'; ?>">
+                      <?php echo $tieneFirma ? 'Configurada' : 'Sin Firma'; ?>
+                    </span>
+                  </div>
+                  <div class="private-preview-box transparency-pattern mb-2" id="box-director_firma">
+                    <?php if ($tieneFirma): ?>
+                      <img id="preview-director_firma"
+                           src="<?php echo e($firmaUrl); ?>"
+                           alt="Firma del Director">
+                    <?php else: ?>
+                      <div class="text-center text-secondary small py-2" id="placeholder-director_firma">
+                        <i class="bi bi-pen fs-5 d-block mb-1 text-muted"></i>
+                        <span class="small">Sin firma cargada</span>
+                      </div>
+                    <?php endif; ?>
+                  </div>
                 </div>
-
-                <div class="col-md-5">
-                  <label for="plantel_codigo_dea" class="form-label fw-semibold">
-                    Código DEA
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="plantel_codigo_dea"
-                         name="plantel_codigo_dea"
-                         value="<?php echo htmlspecialchars($config['plantel_codigo_dea'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         maxlength="50">
-                  <div class="invalid-feedback" id="error-plantel_codigo_dea"></div>
-                  <div class="form-text">Ejemplo: OD05281402</div>
+                <div class="d-flex gap-1 mt-2">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-primary flex-fill d-inline-flex align-items-center justify-content-center gap-1 btn-abrir-subida"
+                          data-clave="director_firma"
+                          data-titulo="Firma del Director"
+                          data-privado="1">
+                    <i class="bi bi-upload"></i> <?php echo $tieneFirma ? 'Cambiar' : 'Cargar'; ?>
+                  </button>
+                  <?php if ($tieneFirma): ?>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen"
+                            id="btn-quitar-director_firma"
+                            data-clave="director_firma"
+                            data-titulo="Firma del Director"
+                            data-privado="1">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  <?php endif; ?>
                 </div>
               </div>
             </div>
 
-            <!-- Bloque 3: Autoridad Directiva -->
-            <div class="mb-4">
-              <h6 class="text-uppercase text-secondary fw-bold small mb-3 border-bottom pb-1">
-                Autoridad Directiva (Firmante en Constancias)
-              </h6>
-              <!-- Nombres del Director(a) -->
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label for="director_primer_nombre" class="form-label fw-semibold">
-                    Primer Nombre <span class="text-danger">*</span>
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="director_primer_nombre"
-                         name="director_primer_nombre"
-                         value="<?php echo htmlspecialchars($dirPrimerNombre ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: Tibisay"
-                         maxlength="50">
-                  <div class="invalid-feedback" id="error-director_primer_nombre"></div>
+            <!-- Sello -->
+            <div class="col-sm-6">
+              <div class="border rounded p-3 bg-white h-100 d-flex flex-column justify-content-between">
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-dark small">Sello Institucional</span>
+                    <span id="badge-institucion_sello" class="badge <?php echo $tieneSello ? 'bg-success' : 'bg-secondary'; ?>">
+                      <?php echo $tieneSello ? 'Configurado' : 'Sin Sello'; ?>
+                    </span>
+                  </div>
+                  <div class="private-preview-box transparency-pattern mb-2" id="box-institucion_sello">
+                    <?php if ($tieneSello): ?>
+                      <img id="preview-institucion_sello"
+                           src="<?php echo e($selloUrl); ?>"
+                           alt="Sello Institucional">
+                    <?php else: ?>
+                      <div class="text-center text-secondary small py-2" id="placeholder-institucion_sello">
+                        <i class="bi bi-award fs-5 d-block mb-1 text-muted"></i>
+                        <span class="small">Sin sello cargado</span>
+                      </div>
+                    <?php endif; ?>
+                  </div>
                 </div>
-
-                <div class="col-md-6">
-                  <label for="director_segundo_nombre" class="form-label fw-semibold">
-                    Segundo Nombre
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="director_segundo_nombre"
-                         name="director_segundo_nombre"
-                         value="<?php echo htmlspecialchars($dirSegundoNombre ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: Coromoto"
-                         maxlength="50">
-                  <div class="invalid-feedback" id="error-director_segundo_nombre"></div>
-                </div>
-              </div>
-
-              <!-- Apellidos del Director(a) -->
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label for="director_primer_apellido" class="form-label fw-semibold">
-                    Primer Apellido <span class="text-danger">*</span>
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="director_primer_apellido"
-                         name="director_primer_apellido"
-                         value="<?php echo htmlspecialchars($dirPrimerApellido ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: López"
-                         maxlength="50">
-                  <div class="invalid-feedback" id="error-director_primer_apellido"></div>
-                </div>
-
-                <div class="col-md-6">
-                  <label for="director_segundo_apellido" class="form-label fw-semibold">
-                    Segundo Apellido
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="director_segundo_apellido"
-                         name="director_segundo_apellido"
-                         value="<?php echo htmlspecialchars($dirSegundoApellido ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: Hernández"
-                         maxlength="50">
-                  <div class="invalid-feedback" id="error-director_segundo_apellido"></div>
+                <div class="d-flex gap-1 mt-2">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-primary flex-fill d-inline-flex align-items-center justify-content-center gap-1 btn-abrir-subida"
+                          data-clave="institucion_sello"
+                          data-titulo="Sello Institucional"
+                          data-privado="1">
+                    <i class="bi bi-upload"></i> <?php echo $tieneSello ? 'Cambiar' : 'Cargar'; ?>
+                  </button>
+                  <?php if ($tieneSello): ?>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen"
+                            id="btn-quitar-institucion_sello"
+                            data-clave="institucion_sello"
+                            data-titulo="Sello Institucional"
+                            data-privado="1">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  <?php endif; ?>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label for="director_cedula" class="form-label fw-semibold">
-                    Cédula de Identidad
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="director_cedula"
-                         name="director_cedula"
-                         value="<?php echo htmlspecialchars($config['director_cedula'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: V-12.345.678"
-                         maxlength="25">
-                  <div class="invalid-feedback" id="error-director_cedula"></div>
+          <hr class="my-4">
+
+          <!-- Datos de la Autoridad CDCE Estadal (Opcional para Prosecución y Certificado 6.° Grado) -->
+          <div class="p-3 bg-light rounded border mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <div class="text-muted small fw-semibold text-uppercase">Director(a) CDCE Estadal (Prosecución y Certificado 6.° Grado)</div>
+                <div class="fs-6 fw-bold text-dark mt-1" id="view-cdce_director_nombre">
+                  <?php echo e(!empty($config['cdce_director_nombre']) ? $config['cdce_director_nombre'] : 'En blanco (para llenado manual)'); ?>
                 </div>
+              </div>
+              <span class="badge bg-light text-secondary border">Opcional</span>
+            </div>
+            <div class="row g-2 mt-1">
+              <div class="col-sm-6">
+                <span class="text-muted small">Cédula CDCE:</span>
+                <span class="badge bg-white text-primary border font-monospace ms-1" id="view-cdce_director_cedula">
+                  <?php echo e(!empty($config['cdce_director_cedula']) ? $config['cdce_director_cedula'] : 'En blanco'); ?>
+                </span>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small">Cargo:</span>
+                <strong class="text-dark ms-1">DIRECTOR(A)</strong>
+              </div>
+            </div>
+          </div>
 
-                <div class="col-md-6">
-                  <label for="director_cargo" class="form-label fw-semibold">
-                    Cargo Oficial
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="director_cargo"
-                         name="director_cargo"
-                         value="<?php echo htmlspecialchars($config['director_cargo'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: Director (E)"
-                         maxlength="100">
-                  <div class="invalid-feedback" id="error-director_cargo"></div>
+          <!-- Firma y Sello Privados del CDCE Estadal -->
+          <div class="row g-3">
+            <!-- Firma CDCE -->
+            <div class="col-sm-6">
+              <div class="border rounded p-3 bg-white h-100 d-flex flex-column justify-content-between">
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-dark small">Firma Director(a) CDCE</span>
+                    <span id="badge-cdce_director_firma" class="badge <?php echo !empty($tieneFirmaCdce) ? 'bg-success' : 'bg-secondary'; ?>">
+                      <?php echo !empty($tieneFirmaCdce) ? 'Configurada' : 'Sin Firma'; ?>
+                    </span>
+                  </div>
+                  <div class="private-preview-box transparency-pattern mb-2" id="box-cdce_director_firma">
+                    <?php if (!empty($tieneFirmaCdce)): ?>
+                      <img id="preview-cdce_director_firma"
+                           src="<?php echo e($firmaCdceUrl); ?>"
+                           alt="Firma del Director CDCE">
+                    <?php else: ?>
+                      <div class="text-center text-secondary small py-2" id="placeholder-cdce_director_firma">
+                        <i class="bi bi-pen fs-5 d-block mb-1 text-muted"></i>
+                        <span class="small">Sin firma cargada</span>
+                      </div>
+                    <?php endif; ?>
+                  </div>
+                </div>
+                <div class="d-flex gap-1 mt-2">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-primary flex-fill d-inline-flex align-items-center justify-content-center gap-1 btn-abrir-subida"
+                          data-clave="cdce_director_firma"
+                          data-titulo="Firma del Director CDCE"
+                          data-privado="1">
+                    <i class="bi bi-upload"></i> <?php echo !empty($tieneFirmaCdce) ? 'Cambiar' : 'Cargar'; ?>
+                  </button>
+                  <?php if (!empty($tieneFirmaCdce)): ?>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen"
+                            id="btn-quitar-cdce_director_firma"
+                            data-clave="cdce_director_firma"
+                            data-titulo="Firma del Director CDCE"
+                            data-privado="1">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  <?php endif; ?>
                 </div>
               </div>
             </div>
 
-            <!-- Bloque 4: Parámetros Oficiales para Constancias -->
-            <div class="mb-4">
-              <h6 class="text-uppercase text-secondary fw-bold small mb-3 border-bottom pb-1">
-                Ubicación y Parámetros para Constancias
-              </h6>
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label for="plantel_municipio" class="form-label fw-semibold">
-                    Municipio del Plantel
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="plantel_municipio"
-                         name="plantel_municipio"
-                         value="<?php echo htmlspecialchars($config['plantel_municipio'] ?? 'Valencia', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: Valencia"
-                         maxlength="200">
-                  <div class="invalid-feedback" id="error-plantel_municipio"></div>
+            <!-- Sello CDCE -->
+            <div class="col-sm-6">
+              <div class="border rounded p-3 bg-white h-100 d-flex flex-column justify-content-between">
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-dark small">Sello CDCE Estadal</span>
+                    <span id="badge-cdce_institucion_sello" class="badge <?php echo !empty($tieneSelloCdce) ? 'bg-success' : 'bg-secondary'; ?>">
+                      <?php echo !empty($tieneSelloCdce) ? 'Configurado' : 'Sin Sello'; ?>
+                    </span>
+                  </div>
+                  <div class="private-preview-box transparency-pattern mb-2" id="box-cdce_institucion_sello">
+                    <?php if (!empty($tieneSelloCdce)): ?>
+                      <img id="preview-cdce_institucion_sello"
+                           src="<?php echo e($selloCdceUrl); ?>"
+                           alt="Sello CDCE Estadal">
+                    <?php else: ?>
+                      <div class="text-center text-secondary small py-2" id="placeholder-cdce_institucion_sello">
+                        <i class="bi bi-award fs-5 d-block mb-1 text-muted"></i>
+                        <span class="small">Sin sello cargado</span>
+                      </div>
+                    <?php endif; ?>
+                  </div>
                 </div>
-                <div class="col-md-6">
-                  <label for="plantel_parroquia" class="form-label fw-semibold">
-                    Parroquia del Plantel
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="plantel_parroquia"
-                         name="plantel_parroquia"
-                         value="<?php echo htmlspecialchars($config['plantel_parroquia'] ?? 'Miguel Peña', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: Miguel Peña"
-                         maxlength="200">
-                  <div class="invalid-feedback" id="error-plantel_parroquia"></div>
+                <div class="d-flex gap-1 mt-2">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-primary flex-fill d-inline-flex align-items-center justify-content-center gap-1 btn-abrir-subida"
+                          data-clave="cdce_institucion_sello"
+                          data-titulo="Sello CDCE Estadal"
+                          data-privado="1">
+                    <i class="bi bi-upload"></i> <?php echo !empty($tieneSelloCdce) ? 'Cambiar' : 'Cargar'; ?>
+                  </button>
+                  <?php if (!empty($tieneSelloCdce)): ?>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen"
+                            id="btn-quitar-cdce_institucion_sello"
+                            data-clave="cdce_institucion_sello"
+                            data-titulo="Sello CDCE Estadal"
+                            data-privado="1">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  <?php endif; ?>
                 </div>
-              </div>
-
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label for="cdce_estado" class="form-label fw-semibold">
-                    Estado CDCE (Centro de Calidad Educativa)
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="cdce_estado"
-                         name="cdce_estado"
-                         value="<?php echo htmlspecialchars($config['cdce_estado'] ?? 'Carabobo', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: Carabobo"
-                         maxlength="200">
-                  <div class="invalid-feedback" id="error-cdce_estado"></div>
-                </div>
-                <div class="col-md-6">
-                  <label for="plantel_codigo_dependencia" class="form-label fw-semibold">
-                    Código de Dependencia
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="plantel_codigo_dependencia"
-                         name="plantel_codigo_dependencia"
-                         value="<?php echo htmlspecialchars($config['plantel_codigo_dependencia'] ?? '006562012', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: 006562012"
-                         maxlength="50">
-                  <div class="invalid-feedback" id="error-plantel_codigo_dependencia"></div>
-                </div>
-              </div>
-
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label for="nivel_educativo" class="form-label fw-semibold">
-                    Nivel Educativo
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="nivel_educativo"
-                         name="nivel_educativo"
-                         value="<?php echo htmlspecialchars($config['nivel_educativo'] ?? 'Educación Primaria', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: Educación Primaria"
-                         maxlength="200">
-                  <div class="invalid-feedback" id="error-nivel_educativo"></div>
-                </div>
-                <div class="col-md-6">
-                  <label for="nivel_codigo" class="form-label fw-semibold">
-                    Código de Nivel MPPE
-                  </label>
-                  <input type="text"
-                         class="form-control"
-                         id="nivel_codigo"
-                         name="nivel_codigo"
-                         value="<?php echo htmlspecialchars($config['nivel_codigo'] ?? '21000', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                         placeholder="Ej: 21000"
-                         maxlength="50">
-                  <div class="invalid-feedback" id="error-nivel_codigo"></div>
-                </div>
-              </div>
-
-              <div class="mb-3">
-                <label for="lugar_expedicion" class="form-label fw-semibold">
-                  Lugar de Expedición en Constancias
-                </label>
-                <input type="text"
-                       class="form-control"
-                       id="lugar_expedicion"
-                       name="lugar_expedicion"
-                       value="<?php echo htmlspecialchars($config['lugar_expedicion'] ?? 'Carabobo', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                       placeholder="Ej: Carabobo"
-                       maxlength="200">
-                <div class="invalid-feedback" id="error-lugar_expedicion"></div>
-                <div class="form-text">Texto que aparecerá en «Constancia que se expide en [Lugar]...».</div>
               </div>
             </div>
-
-            <div class="d-flex justify-content-end pt-3 border-top">
-              <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 shadow-sm" id="btnGuardarTextos">
-                <i class="bi bi-save" aria-hidden="true"></i>
-                <span>Guardar Cambios</span>
-              </button>
-            </div>
-          </form>
+          </div>
 
         </div>
       </div>
-    </div>
 
-    <!-- COLUMNA DERECHA: Logotipos y Elementos Gráficos -->
-    <div class="col-lg-5">
-      <div class="d-flex flex-column gap-4">
-
-        <!-- TARJETA: Logotipos Públicos -->
-        <div class="card border-0 shadow-sm">
-          <div class="card-header bg-white border-bottom py-3">
-            <h5 class="card-title fw-bold mb-0 text-primary d-flex align-items-center gap-2">
-              <i class="bi bi-images" aria-hidden="true"></i> Logotipos Oficiales (Membretes)
-            </h5>
-          </div>
-          <div class="card-body p-4">
+      <!-- Tarjeta 4: Recursos Gráficos Oficiales -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+          <h5 class="card-title fw-bold mb-0 text-primary d-flex align-items-center gap-2">
+            <i class="bi bi-images" aria-hidden="true"></i> Recursos Gráficos y Logotipos
+          </h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3">
 
             <!-- Logo Ministerial -->
-            <div class="mb-4 pb-3 border-bottom">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-semibold text-dark">Logo del Ministerio</span>
+            <div class="col-sm-6">
+              <div class="border rounded p-3 bg-white h-100 d-flex flex-column justify-content-between">
                 <div>
-                  <span class="badge bg-warning text-dark border">Provisional</span>
-                  <span class="badge bg-light text-secondary border">Público · PNG/JPG</span>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-dark small">Logo del Ministerio</span>
+                    <span class="badge bg-light text-secondary border">Público</span>
+                  </div>
+                  <div class="image-preview-box transparency-pattern mb-2">
+                    <img id="preview-ministerio_logo"
+                         src="<?php echo e($ministerioLogoUrl); ?>"
+                         alt="Logo del Ministerio">
+                  </div>
                 </div>
-              </div>
-              <div class="image-preview-box transparency-pattern mb-2">
-                <img id="preview-ministerio_logo"
-                     src="<?php echo htmlspecialchars($ministerioLogoUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                     alt="Logo del Ministerio">
-              </div>
-              <div class="d-flex gap-2">
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-abrir-subida"
-                        data-clave="ministerio_logo"
-                        data-titulo="Logo del Ministerio"
-                        data-privado="0">
-                  <i class="bi bi-upload"></i> Cambiar Imagen
-                </button>
-                <button type="button"
-                        class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 btn-quitar-imagen"
-                        data-clave="ministerio_logo"
-                        data-titulo="Logo del Ministerio"
-                        data-privado="0">
-                  <i class="bi bi-arrow-counterclockwise"></i> Restablecer
-                </button>
+                <div class="d-flex gap-1 mt-2">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-primary flex-fill d-inline-flex align-items-center justify-content-center gap-1 btn-abrir-subida"
+                          data-clave="ministerio_logo"
+                          data-titulo="Logo del Ministerio"
+                          data-privado="0">
+                    <i class="bi bi-upload"></i> Cambiar
+                  </button>
+                  <button type="button"
+                          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 btn-quitar-imagen"
+                          data-clave="ministerio_logo"
+                          data-titulo="Logo del Ministerio"
+                          data-privado="0"
+                          title="Restablecer oficial">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- Logo del Plantel -->
-            <div class="mb-4 pb-3 border-bottom">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-semibold text-dark">Logo del Plantel</span>
-                <span class="badge bg-light text-secondary border">Público · PNG/JPG</span>
-              </div>
-              <div class="image-preview-box transparency-pattern mb-2">
-                <img id="preview-plantel_logo"
-                     src="<?php echo htmlspecialchars($plantelLogoUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                     alt="Logo del Plantel">
-              </div>
-              <div class="d-flex gap-2">
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-abrir-subida"
-                        data-clave="plantel_logo"
-                        data-titulo="Logo del Plantel"
-                        data-privado="0">
-                  <i class="bi bi-upload"></i> Cambiar Imagen
-                </button>
-                <button type="button"
-                        class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 btn-quitar-imagen"
-                        data-clave="plantel_logo"
-                        data-titulo="Logo del Plantel"
-                        data-privado="0">
-                  <i class="bi bi-arrow-counterclockwise"></i> Restablecer
-                </button>
+            <div class="col-sm-6">
+              <div class="border rounded p-3 bg-white h-100 d-flex flex-column justify-content-between">
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-dark small">Logo del Plantel</span>
+                    <span class="badge bg-light text-secondary border">Público</span>
+                  </div>
+                  <div class="image-preview-box transparency-pattern mb-2">
+                    <img id="preview-plantel_logo"
+                         src="<?php echo e($plantelLogoUrl); ?>"
+                         alt="Logo del Plantel">
+                  </div>
+                </div>
+                <div class="d-flex gap-1 mt-2">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-primary flex-fill d-inline-flex align-items-center justify-content-center gap-1 btn-abrir-subida"
+                          data-clave="plantel_logo"
+                          data-titulo="Logo del Plantel"
+                          data-privado="0">
+                    <i class="bi bi-upload"></i> Cambiar
+                  </button>
+                  <button type="button"
+                          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 btn-quitar-imagen"
+                          data-clave="plantel_logo"
+                          data-titulo="Logo del Plantel"
+                          data-privado="0"
+                          title="Restablecer oficial">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <!-- Franja Tricolor / Cintillo de Pie de Página -->
-            <div>
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <div>
-                  <span class="fw-semibold text-dark">Franja Tricolor (Pie de Página)</span>
-                  <div class="small text-muted" style="font-size: 0.75rem;">Cintillo inferior en constancias oficiales</div>
-                </div>
-                <div class="d-flex align-items-center gap-1">
+            <!-- Franja Tricolor (Cintillo) -->
+            <div class="col-12">
+              <div class="border rounded p-3 bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <span class="fw-semibold text-dark small">Franja Tricolor (Cintillo de Pie de Página)</span>
+                    <div class="text-muted small">Cintillo inferior en las constancias oficiales</div>
+                  </div>
                   <span id="badge-plantel_cintillo" class="badge <?php echo $tieneCintillo ? ($esCintilloOficial ? 'bg-info text-dark border' : 'bg-success') : 'bg-secondary'; ?>">
                     <?php echo $tieneCintillo ? ($esCintilloOficial ? 'Oficial' : 'Personalizada') : 'Sin Franja'; ?>
                   </span>
-                  <span class="badge bg-light text-secondary border">Público · PNG/JPG</span>
+                </div>
+                <div class="cintillo-preview-box mb-2" id="box-plantel_cintillo">
+                  <?php if ($tieneCintillo): ?>
+                    <img id="preview-plantel_cintillo"
+                         src="<?php echo e($plantelCintilloUrl); ?>"
+                         alt="Franja Tricolor">
+                  <?php else: ?>
+                    <div class="text-center text-secondary small py-1" id="placeholder-plantel_cintillo">
+                      <i class="bi bi-slash-circle me-1 text-muted"></i> Sin franja inferior activa
+                    </div>
+                  <?php endif; ?>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-abrir-subida"
+                          id="btn-subir-plantel_cintillo"
+                          data-clave="plantel_cintillo"
+                          data-titulo="Franja Tricolor"
+                          data-privado="0">
+                    <i class="bi bi-upload"></i> <?php echo $tieneCintillo ? 'Cambiar Imagen' : 'Cargar Franja'; ?>
+                  </button>
+                  <button type="button"
+                          class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen <?php echo $tieneCintillo ? '' : 'd-none'; ?>"
+                          id="btn-quitar-plantel_cintillo"
+                          data-clave="plantel_cintillo"
+                          data-titulo="Franja Tricolor"
+                          data-privado="0">
+                    <i class="bi bi-trash"></i> Retirar
+                  </button>
+                  <button type="button"
+                          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 btn-restablecer-oficial <?php echo (!$tieneCintillo || !$esCintilloOficial) ? '' : 'd-none'; ?>"
+                          id="btn-oficial-plantel_cintillo"
+                          data-clave="plantel_cintillo">
+                    <i class="bi bi-arrow-counterclockwise"></i> Restablecer Oficial
+                  </button>
                 </div>
               </div>
-
-              <div class="cintillo-preview-box transparency-pattern mb-2" id="box-plantel_cintillo">
-                <?php if ($tieneCintillo): ?>
-                  <img id="preview-plantel_cintillo"
-                       src="<?php echo htmlspecialchars($plantelCintilloUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                       alt="Franja Tricolor de Pie de Página">
-                <?php else: ?>
-                  <div class="text-center text-secondary small py-2" id="placeholder-plantel_cintillo">
-                    <i class="bi bi-slash-circle fs-5 d-block mb-1 text-muted"></i>
-                    <span>Sin franja de pie de página (las constancias se emitirán sin cintillo inferior)</span>
-                  </div>
-                <?php endif; ?>
-              </div>
-
-              <div class="d-flex flex-wrap gap-2">
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-abrir-subida"
-                        id="btn-subir-plantel_cintillo"
-                        data-clave="plantel_cintillo"
-                        data-titulo="Franja Tricolor (Pie de Página)"
-                        data-privado="0">
-                  <i class="bi bi-upload"></i> <?php echo $tieneCintillo ? 'Cambiar Imagen' : 'Cargar Imagen (PNG/JPG)'; ?>
-                </button>
-                <button type="button"
-                        class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen <?php echo $tieneCintillo ? '' : 'd-none'; ?>"
-                        id="btn-quitar-plantel_cintillo"
-                        data-clave="plantel_cintillo"
-                        data-titulo="Franja Tricolor"
-                        data-privado="0">
-                  <i class="bi bi-trash"></i> Retirar Franja
-                </button>
-                <button type="button"
-                        class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 btn-restablecer-oficial <?php echo (!$tieneCintillo || !$esCintilloOficial) ? '' : 'd-none'; ?>"
-                        id="btn-oficial-plantel_cintillo"
-                        data-clave="plantel_cintillo">
-                  <i class="bi bi-arrow-counterclockwise"></i> Restablecer Oficial
-                </button>
-              </div>
             </div>
 
           </div>
         </div>
-
-        <!-- TARJETA: Firma y Sello Privados -->
-        <div class="card border-0 shadow-sm">
-          <div class="card-header bg-white border-bottom py-3">
-            <h5 class="card-title fw-bold mb-0 text-primary d-flex align-items-center gap-2">
-              <i class="bi bi-shield-lock" aria-hidden="true"></i> Firma Digitalizada y Sello
-            </h5>
-          </div>
-          <div class="card-body p-4">
-            <p class="small text-secondary mb-3">
-              <i class="bi bi-shield-check text-success me-1"></i>
-              Almacenados de forma privada fuera de la raíz web. Se leen únicamente en el servidor para generar las constancias. Si no se cargan, los documentos se emitirán con el espacio en blanco para firma manual.
-            </p>
-
-            <!-- Firma del Director -->
-            <div class="mb-4 pb-3 border-bottom">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-semibold text-dark">Firma del Director(a)</span>
-                <span id="badge-director_firma" class="badge <?php echo $tieneFirma ? 'bg-success' : 'bg-secondary'; ?>">
-                  <?php echo $tieneFirma ? 'Configurada' : 'Sin Firma'; ?>
-                </span>
-              </div>
-
-              <div class="private-preview-box transparency-pattern mb-2" id="box-director_firma">
-                <?php if ($tieneFirma): ?>
-                  <img id="preview-director_firma"
-                       src="<?php echo htmlspecialchars($firmaUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                       alt="Firma del Director">
-                <?php else: ?>
-                  <div class="text-center text-secondary small py-3" id="placeholder-director_firma">
-                    <i class="bi bi-pen fs-4 d-block mb-1 text-muted"></i>
-                    <span>Sin firma digitalizada (se emitirá en blanco)</span>
-                  </div>
-                <?php endif; ?>
-              </div>
-
-              <div class="d-flex gap-2">
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-abrir-subida"
-                        data-clave="director_firma"
-                        data-titulo="Firma del Director"
-                        data-privado="1">
-                  <i class="bi bi-upload"></i> <?php echo $tieneFirma ? 'Cambiar Firma' : 'Cargar Firma (PNG)'; ?>
-                </button>
-                <?php if ($tieneFirma): ?>
-                  <button type="button"
-                          class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen"
-                          id="btn-quitar-director_firma"
-                          data-clave="director_firma"
-                          data-titulo="Firma del Director"
-                          data-privado="1">
-                    <i class="bi bi-trash"></i> Retirar
-                  </button>
-                <?php endif; ?>
-              </div>
-            </div>
-
-            <!-- Sello Institucional -->
-            <div>
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-semibold text-dark">Sello Institucional</span>
-                <span id="badge-institucion_sello" class="badge <?php echo $tieneSello ? 'bg-success' : 'bg-secondary'; ?>">
-                  <?php echo $tieneSello ? 'Configurado' : 'Sin Sello'; ?>
-                </span>
-              </div>
-
-              <div class="private-preview-box transparency-pattern mb-2" id="box-institucion_sello">
-                <?php if ($tieneSello): ?>
-                  <img id="preview-institucion_sello"
-                       src="<?php echo htmlspecialchars($selloUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>"
-                       alt="Sello Institucional">
-                <?php else: ?>
-                  <div class="text-center text-secondary small py-3" id="placeholder-institucion_sello">
-                    <i class="bi bi-award fs-4 d-block mb-1 text-muted"></i>
-                    <span>Sin sello digitalizado (se emitirá en blanco)</span>
-                  </div>
-                <?php endif; ?>
-              </div>
-
-              <div class="d-flex gap-2">
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-abrir-subida"
-                        data-clave="institucion_sello"
-                        data-titulo="Sello Institucional"
-                        data-privado="1">
-                  <i class="bi bi-upload"></i> <?php echo $tieneSello ? 'Cambiar Sello' : 'Cargar Sello (PNG)'; ?>
-                </button>
-                <?php if ($tieneSello): ?>
-                  <button type="button"
-                          class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen"
-                          id="btn-quitar-institucion_sello"
-                          data-clave="institucion_sello"
-                          data-titulo="Sello Institucional"
-                          data-privado="1">
-                    <i class="bi bi-trash"></i> Retirar
-                  </button>
-                <?php endif; ?>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
       </div>
+
     </div>
 
   </div>
 </div>
-
 <?php
 $pageContent = ob_get_clean();
 
-// ---------- Modales ----------
+// ---------- Modales (uno por archivo, fuera del contenido) ----------
 ob_start();
-?>
-<!-- Modal Reutilizable para Carga de Imágenes -->
-<div class="modal fade app-modal" id="modalSubirImagen" tabindex="-1" aria-labelledby="modalSubirImagenTitulo" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header border-bottom">
-        <h5 class="modal-title fw-bold" id="modalSubirImagenTitulo">Actualizar Imagen</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <form id="formSubirImagen">
-        <div class="modal-body p-4">
-          <input type="hidden" id="subidaClave" name="clave" value="">
-
-          <div class="mb-3">
-            <label for="inputArchivoImagen" class="form-label fw-semibold">Seleccionar archivo</label>
-            <input type="file"
-                   class="form-control"
-                   id="inputArchivoImagen"
-                   name="imagen"
-                   required>
-            <div class="form-text" id="subidaRequisitosTexto">
-              Formatos permitidos: PNG o JPG. Tamaño máx: 2 MB. Ancho mínimo: 300 px.
-            </div>
-          </div>
-
-          <!-- Previsualización en el modal -->
-          <div class="d-none text-center p-3 border rounded transparency-pattern" id="contenedorModalPreview">
-            <img id="imgModalPreview" src="" alt="Previsualización" style="max-height: 180px; max-width: 100%; object-fit: contain;">
-          </div>
-        </div>
-        <div class="modal-footer border-top bg-light">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2" id="btnConfirmarSubida">
-            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
-            <span>Subir y Guardar</span>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-<?php
+include __DIR__ . '/modals/editar-plantel-modal.php';
+include __DIR__ . '/modals/editar-directiva-modal.php';
+include __DIR__ . '/modals/editar-membrete-modal.php';
+include __DIR__ . '/modals/subir-imagen-modal.php';
 $pageModals = ob_get_clean();
 
+// ---------- Scripts ----------
 $extraScripts = ['/js/modules/institucional/configuracion-institucional.js'];
+
 include __DIR__ . '/../layouts/app.php';

@@ -168,10 +168,53 @@ async function cerrarReposoRapido(reposo, idEmpleado, nombreCompleto, activo) {
     }
 
     SIGDEUI.exito(data.mensaje || 'Reposo cerrado correctamente.', '¡Listo!');
-    cargarRepososEmpleado(idEmpleado, nombreCompleto, activo);
+    if (document.getElementById('historialRepososBody')) {
+      cargarRepososEmpleado(idEmpleado, nombreCompleto, activo);
+    } else {
+      setTimeout(function () { window.location.reload(); }, 600);
+    }
   } catch (err) {
     console.error('Error al cerrar reposo:', err);
     SIGDEUI.mostrarError('Fallo de conexión al cerrar el reposo.');
+  }
+}
+
+async function anularReposoRapido(reposo, nombreCompleto, idEmpleado) {
+  var confirmacion = await SIGDEUI.confirmar({
+    titulo: '¿Anular reposo médico?',
+    texto: 'El reposo quedará en estado ANULADO y no se considerará en los cálculos de vigencia ni traslapes. ¿Desea continuar?',
+    confirmar: 'Sí, anular reposo',
+    cancelar: 'Cancelar',
+    icono: 'warning'
+  });
+
+  if (!confirmacion) return;
+
+  var formData = new FormData();
+  formData.append('id_reposo', reposo.id_reposo);
+  formData.append('observacion', 'Anulado desde el expediente.');
+
+  try {
+    var res = await SIGDEUI.enviar(SIGDEEmpleados.baseUrl + SIGDEEmpleados.rutaControlador + '/anularReposo', {
+      metodo: 'POST',
+      cuerpo: formData
+    });
+    var data = res.data;
+
+    if (!res.ok || !data.ok) {
+      SIGDEUI.mostrarError((data && data.mensaje) || 'No se pudo anular el reposo.', 'Error al anular reposo');
+      return;
+    }
+
+    SIGDEUI.exito(data.mensaje || 'Reposo anulado correctamente.', '¡Listo!');
+    if (document.getElementById('historialRepososBody')) {
+      cargarRepososEmpleado(idEmpleado, nombreCompleto, true);
+    } else {
+      setTimeout(function () { window.location.reload(); }, 600);
+    }
+  } catch (err) {
+    console.error('Error al anular reposo:', err);
+    SIGDEUI.mostrarError('Fallo de conexión al anular el reposo.');
   }
 }
 
@@ -359,7 +402,11 @@ function initRepososEmpleado() {
         SIGDEUI.ocultarModal(modalReposoEl);
         SIGDEUI.exito(data.mensaje || 'Reposo guardado correctamente.', '¡Listo!');
 
-        cargarRepososEmpleado(idEmpleado, nombreEmpleado, activo);
+        if (document.getElementById('historialRepososBody')) {
+          cargarRepososEmpleado(idEmpleado, nombreEmpleado, activo);
+        } else {
+          setTimeout(function () { window.location.reload(); }, 600);
+        }
       } catch (err) {
         console.error('Error al guardar reposo:', err);
         SIGDEUI.mostrarError('Fallo de conexión al guardar el reposo.');
@@ -371,10 +418,15 @@ function initRepososEmpleado() {
   }
 }
 
-  /* El modal de Ver Detalle llama a esta función desde empleado-listado.js. Se publica en el
-   * espacio de nombres para que el listado no tenga que conocer el archivo de al lado, y
-   * después de esto el listado puede invocarla sin problema. */
-  SIGDEEmpleados.reposos = { cargar: cargarRepososEmpleado };
+  /* Publica la API de reposos en el espacio de nombres SIGDEEmpleados.
+   * La usan el modal de Ver Detalle y la pantalla del expediente. */
+  SIGDEEmpleados.reposos = {
+    cargar: cargarRepososEmpleado,
+    abrirNuevo: abrirModalNuevoReposo,
+    abrirEditar: abrirModalEditarReposo,
+    abrirCerrar: cerrarReposoRapido,
+    abrirAnular: anularReposoRapido
+  };
 
   // --- Inicialización Módulo ---
   function init() {

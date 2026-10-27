@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
   var modal = document.getElementById('modalVistaPreviaExpediente');
-  var iframe = modal ? modal.querySelector('.student-record__pdf-preview iframe') : null;
+  var iframe = document.getElementById('iframeVistaPreviaExpediente') || (modal ? modal.querySelector('.student-record__pdf-preview iframe') : null);
+  var btnImprimir = document.getElementById('btnImprimirExpedientePdf');
 
   if (!modal || !iframe) return;
 
@@ -11,4 +12,17 @@ document.addEventListener('DOMContentLoaded', function () {
     iframe.src = pdfUrl;
     delete iframe.dataset.src;
   });
+
+  if (btnImprimir) {
+    btnImprimir.addEventListener('click', function () {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        if (iframe.src) {
+          window.open(iframe.src, '_blank');
+        }
+      }
+    });
+  }
 });

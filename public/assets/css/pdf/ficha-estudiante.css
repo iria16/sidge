@@ -1,15 +1,14 @@
 @charset "UTF-8";
 /* ── Ficha integral del estudiante ────────────────────────────────────────────
-   Hoja de impresión del expediente que exporta consulta académica (A4).
-
-   Antes estas reglas vivían en resources/scss/components/_student-record-pdf.scss,
-   que se compilaba dentro de app.css junto a todo Bootstrap; el controlador
-   inyectaba ese bundle de 300 KB en el PDF solo para heredarel. Ahora el
-   documento trae su propia hoja y app.css deja de participar.
-
-   Las medidas están en mm porque el documento está pensado en A4 con márgenes
-   de 15 mm; las tipografías, en pt. No hay flexbox ni grid: toda la estructura
-   es tablas, que es lo que Dompdf maqueta con fidelidad.                        */
+   Documento formal de consulta académica (Carta).
+   Aplica el patrón oficial unificado de Certificado y Constancia:
+   - Hoja tamaño Carta vertical con márgenes oficiales de 2.5 cm (70.87pt).
+   - Tipografía Times New Roman (#000000) y eliminación total de tonos azules.
+   - Membrete ministerial e institucional de 3 columnas (20% / 60% / 20%).
+   - Cuadro de datos del estudiante con borde fino (0.75 pt), esquinas rectas y sin sombras.
+   - Foto proporcional fija (80pt x 102pt) con recuadro neutro si no hay foto.
+   - Tablas con bordes finos de 0.75pt, cabeceras en gris muy claro (#f2f2f2) y texto negro.
+   - Cierre con fecha automática formal y bloque de firma/sello oficial idéntico. */
 /* ── Reinicio común a todos los documentos PDF ──────────────────────────────────
    Los PDF de Dompdf no se maquetan con el navegador: no hay flexbox, ni grid,
    ni variables CSS, ni fuentes del sistema. Este archivo fija el comportamiento
@@ -80,432 +79,735 @@ b {
   font-weight: bolder;
 }
 
-@page {
-  margin: 17mm 15mm 18mm;
-}
-/* El interletraje negativo de los títulos venía por accidente desde app.css:
-   la interfaz web aplica h1..h6 { letter-spacing: -0.01em } y el PDF heredaba
-   esa hoja. Al dejar de inyectar app.css, el título "FICHA INTEGRAL DEL
-   ESTUDIANTE" queda 3.9 pt más ancho (0.14 pt por carácter × 28). Se declara
-   aquí para que el documento siga imprimiéndose idéntico, pero ahora es una
-   decisión de esta hoja y no una consecuencia colateral de la interfaz web. */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  letter-spacing: -0.01em;
+/* ── Tipografía y colores base de los documentos oficiales ────────────────────
+   Se declaran como variables Sass locales (Dompdf no entiende custom properties)
+   para no repetir literales en los entrypoints que comparten estas piezas.     */
+/* ── Membrete institucional de tres columnas ───────────────────────────────────
+   Sólo la estructura común. Los anchos, márgenes y tamaños de logo cambian
+   según el documento y se declaran en cada entrypoint.                        */
+.header-table {
+  width: 100%;
 }
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 11pt;
-  line-height: 1.15;
-}
-
-/* ── Membrete institucional ──────────────────────────────────────────────────
-   Clases del componente compartido (app/Views/partials/pdf-membrete.php); el
-   mismo marcado sirve para las constancias. Solo cambian las medidas: aquí el
-   documento es A4 y el texto va en mm, mientras que la constancia es Carta y
-   trabaja en pt. */
-.pdf-membrete {
-  border: 0;
-  border-collapse: collapse;
-  margin-bottom: 24pt;
+.header-table td {
+  vertical-align: middle;
   padding: 0;
-  /* El membrete se sangra más que el cuerpo del texto, igual que en las
-     constancias. Sin este margen el membrete mediría 180 mm y las columnas de
-     los logos se comerían el espacio del texto. */
-  width: 200mm;
-  margin-left: -10mm;
-  margin-right: -10mm;
 }
 
+.col-min-logo {
+  text-align: left;
+  vertical-align: middle;
+}
+
+.col-min-logo img {
+  width: auto;
+  display: block;
+}
+
+.col-box-center {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.membrete-texto {
+  font-family: "Times New Roman", "Times-Roman", Times, serif;
+  line-height: 1.25;
+  text-align: center;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #000000;
+}
+
+.col-plantel-logo {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.col-plantel-logo img {
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ── Membrete de los listados (partial pdf-membrete.php) ──────────────────────
+   La estructura de la tabla es la misma para nómina y reportes; el ancho y el
+   margen se ajustan en cada hoja.                                             */
 .pdf-membrete td {
   vertical-align: middle;
   padding: 0;
 }
 
-/* Las dos columnas laterales miden lo mismo a propósito: es lo que mantiene el
-   bloque institucional en el centro exacto de la hoja. Si una crece y la otra
-   no, el membrete se desplaza.
-
-   El reparto sale de una resta, no de un gusto. El texto del membrete mide
-   107.6 mm como línea más larga ("MINISTERIO DEL PODER POPULAR PARA LA
-   EDUCACIÓN") y no debe partirse: quien lo Lea en papel tiene que reconocer la
-   línea entera de un vistazo. Sobre los 200 mm del membrete sangrado, con
-   columnas de 43 mm quedan 114 mm de centro, o sea 6.4 mm de holgura por
-   encima del texto. Con 44 mm la holgura era de 0.9 mm y Dompdf partía la línea:
-   basta con que las métricas de la fuente cambien un pelo para que el membrete
-   salte de 5 a 6 renglones. */
-.pdf-membrete__ministerio {
-  width: 43mm;
-}
-
-.pdf-membrete__texto {
-  width: 114mm;
-}
-
-.pdf-membrete__plantel {
-  text-align: right;
-  width: 43mm;
-}
-
-.pdf-membrete__logo--ministerio {
-  display: block;
-  height: auto;
-  margin: 0 auto;
-  max-width: 41mm;
-  max-height: 31pt;
-  width: auto;
-}
-
-.pdf-membrete__logo--plantel {
-  display: block;
-  height: auto;
-  max-width: 17.6mm;
-  max-height: 58pt;
-  width: auto;
-  margin: 0 0 0 auto;
-}
-
-.letterhead-text {
-  color: #000;
-  padding: 0 2pt;
-  text-align: center;
-}
-
-.letterhead-text .pdf-membrete__linea {
-  color: #000;
-  display: block;
-  font-size: 11pt;
-  font-weight: normal;
-  line-height: 1.15;
-}
-
-.document-title {
-  color: #102d80;
-  font-size: 14pt;
-  font-weight: bold;
-  margin: 0 0 16pt;
-  text-align: center;
-}
-
-.student-card {
-  border: 1px solid #d3d8e5;
-  border-radius: 5pt;
-  margin: 0 auto 14pt;
-  padding: 14pt;
-  width: 92%;
-}
-
-.student-card-layout {
-  border-collapse: collapse;
-  table-layout: fixed;
-  width: 100%;
-}
-
-.student-card-layout__photo {
-  width: 24%;
-}
-
-.student-card-layout__summary {
-  width: 76%;
-}
-
-.student-photo-cell {
-  padding: 0 10pt 0 4pt;
-  text-align: center;
-  vertical-align: middle;
-  width: 24%;
-}
-
-.student-photo {
-  display: inline-block;
-  width: 29mm;
-  height: 37mm;
-  vertical-align: middle;
-}
-
-.student-placeholder {
-  background: #f2f4f8;
-  border: 1px solid #d3d8e5;
-  color: #102d80;
-  display: inline-block;
-  font-size: 16pt;
-  font-weight: bold;
-  height: 37mm;
-  line-height: 37mm;
-  text-align: center;
-  vertical-align: middle;
-  width: 29mm;
-}
-
-.student-summary-cell {
-  padding: 0;
-  vertical-align: middle;
-}
-
-.eyebrow {
-  color: #606b83;
-  font-size: 9pt;
-  text-transform: uppercase;
-}
-
-.student-name {
-  color: #102d80;
+/* ── Título principal ─────────────────────────────────────────────────────────
+   Tipografía compartida. El margen y el interlineado varían por documento.    */
+.doc-title {
+  font-family: "Times New Roman", "Times-Roman", Times, serif;
   font-size: 15pt;
   font-weight: bold;
-  margin: 2pt 0 10pt;
+  text-transform: uppercase;
+  text-align: center;
+  color: #000000;
+  letter-spacing: 0.5pt;
 }
 
-.student-details {
-  border-collapse: collapse;
-  table-layout: fixed;
+/* ── Firma y sello (bloque centrado) ─────────────────────────────────────────
+   La ficha y las constancias comparten la caja de 220pt. Los tamaños de las
+   imágenes y los márgenes finos se ajustan en cada entrypoint.                */
+.firma-box {
+  width: 220pt;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+}
+
+.sello-wrap {
+  position: relative;
   width: 100%;
+  height: 0;
+  line-height: 0;
+  margin: 0;
+  padding: 0;
+  text-align: center;
 }
 
-.summary-item {
-  padding: 0 6pt 5pt 0;
-  vertical-align: top;
+.sello-img {
+  height: auto;
+  display: inline-block;
+}
+
+.sign-img-wrapper {
+  text-align: center;
+}
+
+.sign-img {
+  display: inline-block;
+}
+
+.firma-linea {
+  width: 160pt;
+  border-top: 1px solid #000000;
+  margin: 0 auto;
+}
+
+.firma-nombre {
+  font-weight: bold;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #000000;
+}
+
+.firma-cargo {
+  font-weight: normal;
+  margin-top: 2pt;
+  color: #000000;
+}
+
+.firma-ci {
+  font-weight: normal;
+  margin-top: 2pt;
+  color: #000000;
+}
+
+/* ── Franja tricolor de pie de página ────────────────────────────────────────
+   Fija al fondo y a todo el ancho, con z-index negativo para que el texto del
+   documento pase por encima en lugar de quedar tapado.                        */
+.footer-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: -1;
+  line-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.footer-banner img {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.nota-borrador {
+  font-size: 7.5pt;
+  color: #777777;
+  font-style: italic;
+  margin-top: 10pt;
+  text-align: center;
+}
+
+/* Marca de agua de los documentos en prueba. El bloque sólo se imprime cuando
+   la plantilla lo decide; la regla queda declarada aquí para todas las hojas. */
+.watermark-prueba {
+  position: fixed;
+  top: 38%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 80pt;
+  font-family: "Helvetica", "Arial", sans-serif;
+  font-weight: bold;
+  color: #d6d6d6;
+  opacity: 0.28;
+  transform: rotate(-35deg);
+  z-index: 1000;
+  letter-spacing: 8px;
+}
+
+.page-break {
+  page-break-after: always;
+}
+
+/* ── Cuerpo y cabecera de constancias y certificados de egreso ────────────────
+   Estas piezas se comparten entre las constancias oficiales y el cuadernillo
+   de egreso por sección. Los anchos del membrete de tres columnas quedan en
+   cada entrypoint porque el certificado de calificaciones usa otros.          */
+.page-container {
+  margin: 71pt auto 0 auto;
+  width: 470pt;
+}
+
+.header-ministerio-escudo {
+  width: 100%;
+  margin-bottom: 10pt;
+}
+
+.header-min-top {
+  text-align: left;
+  margin-bottom: 6pt;
+}
+
+.header-min-top img {
+  max-width: 175pt;
+  max-height: 48pt;
+  height: auto;
+  display: block;
+}
+
+.header-escudo-below {
+  text-align: center;
+  margin-top: 2pt;
+  margin-bottom: 6pt;
+}
+
+.header-escudo-below img {
+  max-height: 56pt;
+  width: auto;
+  display: inline-block;
+}
+
+.doc-title-sub {
+  font-size: 14pt;
+  font-weight: bold;
+  margin-top: 2pt;
+}
+
+.doc-body {
+  text-align: justify;
+  font-size: 12pt;
+  line-height: 1.5;
+  text-indent: 1.25cm;
+  margin-bottom: 18pt;
+}
+
+.doc-body strong {
+  font-weight: bold;
+}
+
+.doc-closing {
+  text-align: justify;
+  font-size: 12pt;
+  line-height: 1.5;
+  text-indent: 1.25cm;
+  margin-bottom: 0;
+}
+
+.doc-closing strong {
+  font-weight: bold;
+}
+
+.tabla-doble-firma {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16pt;
+}
+
+.tabla-doble-firma th,
+.tabla-doble-firma td {
+  border: 1px solid #000000;
+  padding: 4pt 6pt;
+  font-size: 9.5pt;
+  line-height: 1.25;
   width: 50%;
 }
 
-.summary-item .eyebrow {
-  display: block;
-  margin-bottom: 2pt;
-}
-
-.summary-item strong {
-  color: #20283c;
-  display: block;
-  font-size: 11pt;
-}
-
-.section-title {
-  border-bottom: 1px solid #d3d8e5;
-  color: #102d80;
-  font-size: 14pt;
+.tabla-doble-firma th {
+  text-align: center;
   font-weight: bold;
-  padding: 0 0 4pt;
-  margin: 12pt 0 6pt;
-  page-break-after: avoid;
+  text-transform: uppercase;
+  vertical-align: middle;
+  height: 24pt;
 }
 
-/* El bloque familiar arranca en hoja nueva: son dos páginas de contenido y
-   partirlo en media hoja deja la tabla de autorizados cortada al final. */
+.tabla-doble-firma .fila-cargo td {
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.tabla-doble-firma .celda-firma-sello {
+  height: 82pt;
+  vertical-align: top;
+  position: relative;
+}
+
+.doble-firma-area {
+  text-align: center;
+  margin-top: 6pt;
+  position: relative;
+  height: 60pt;
+}
+
+.doble-firma-area .sign-img {
+  max-height: 44pt;
+  max-width: 120pt;
+  vertical-align: middle;
+}
+
+.doble-firma-area .sello-img-inline {
+  max-height: 62pt;
+  max-width: 68pt;
+  vertical-align: middle;
+  margin-left: 6pt;
+}
+
+.footer-validity {
+  margin-top: 10pt;
+  font-size: 10pt;
+  font-weight: bold;
+  text-align: left;
+}
+
+.footer-epigrafe {
+  margin-top: 8pt;
+  font-size: 9.5pt;
+  font-weight: bold;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@page {
+  size: letter portrait;
+  margin: 70.87pt;
+}
+body {
+  font-family: "Times New Roman", "Times-Roman", Times, serif;
+  font-size: 11pt;
+  line-height: 1.35;
+}
+
+/* ── 1. Encabezado institucional de 3 columnas (20% / 60% / 20%) ─────────── */
+.header-table {
+  margin-bottom: 16pt;
+  table-layout: fixed;
+}
+
+.col-min-logo {
+  width: 20%;
+}
+
+.col-min-logo img {
+  height: 56pt; /* aprox. 2 cm */
+  max-width: 100%;
+}
+
+.col-box-center {
+  width: 60%;
+  padding: 0 4pt;
+}
+
+.membrete-texto {
+  font-size: 10pt;
+}
+
+.membrete-linea {
+  display: block;
+}
+
+.membrete-codigos {
+  font-size: 9pt;
+  font-weight: normal;
+  margin-top: 3pt;
+  color: #000000;
+}
+
+.col-plantel-logo {
+  width: 20%;
+}
+
+.col-plantel-logo img {
+  height: 56pt; /* aprox. 2 cm */
+  max-width: 100%;
+}
+
+/* ── 2. Título principal ─────────────────────────────────────────────────── */
+.doc-title {
+  margin: 0 0 16pt 0;
+  line-height: 1.25;
+}
+
+/* ── 3. Cuadro de datos del estudiante ───────────────────────────────────── */
+.student-card {
+  border: 0.75pt solid #000000;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0 0 16pt 0;
+  padding: 8pt 10pt;
+  background: #ffffff;
+}
+
+.student-card-layout {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.student-photo-cell {
+  width: 95pt;
+  vertical-align: top;
+  padding-right: 12pt;
+  text-align: center;
+}
+
+.student-photo {
+  width: 80pt;
+  height: 102pt;
+  border: 0.75pt solid #000000;
+  display: block;
+  margin: 0 auto;
+}
+
+.student-photo-placeholder {
+  width: 80pt;
+  height: 102pt;
+  border: 0.75pt solid #555555;
+  background-color: #fafafa;
+  display: table;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.student-photo-placeholder span {
+  display: table-cell;
+  vertical-align: middle;
+  font-size: 8.5pt;
+  font-weight: bold;
+  color: #555555;
+  text-transform: uppercase;
+}
+
+.student-summary-cell {
+  vertical-align: top;
+  padding: 0;
+}
+
+.summary-name-box {
+  margin-bottom: 8pt;
+}
+
+.student-name-val {
+  font-size: 13pt;
+  font-weight: bold;
+  color: #000000;
+  margin-top: 2pt;
+  text-transform: uppercase;
+}
+
+.student-details-grid {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detail-cell {
+  width: 50%;
+  vertical-align: top;
+  padding: 3pt 6pt 4pt 0;
+}
+
+.detail-val {
+  font-size: 11pt;
+  font-weight: bold;
+  color: #000000;
+  display: block;
+  margin-top: 1pt;
+}
+
+/* ── 4. Secciones y encabezados ──────────────────────────────────────────── */
+.section-title {
+  font-family: "Times New Roman", "Times-Roman", Times, serif;
+  font-size: 10pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #000000;
+  border-bottom: 0.75pt solid #000000;
+  padding-bottom: 2pt;
+  margin: 10pt 0 4pt 0;
+  page-break-after: avoid;
+  page-break-inside: avoid;
+}
+
 .second-page {
   page-break-before: always;
 }
 
+/* ── Grid de campos (Sección 1 y 2) ───────────────────────────────────────── */
 .field-grid {
-  table-layout: fixed;
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .field {
   width: 50%;
-  padding: 5pt 8pt 6pt;
+  padding: 2.5pt 6pt 3pt 0;
   vertical-align: top;
 }
 
 .field.wide {
   width: 100%;
+  padding: 2.5pt 0 3pt 0;
 }
 
 .field-label {
-  color: #606b83;
-  display: block;
-  font-size: 9pt;
-  margin-bottom: 2pt;
+  font-size: 8.5pt;
+  color: #444444;
   text-transform: uppercase;
+  display: block;
+  margin-bottom: 1pt;
+  font-weight: normal;
 }
 
 .field-value {
-  color: #20283c;
+  font-size: 10.5pt;
+  font-weight: bold;
+  color: #000000;
   display: block;
-  min-height: 17pt;
-  padding-bottom: 3pt;
+  min-height: 13pt;
 }
 
 .contact-box {
-  background: #f7f8fa;
-  border: 1px solid #d3d8e5;
-  border-radius: 4pt;
-  padding: 9pt;
+  border: 0.75pt solid #000000;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 6pt 8pt;
+  margin-top: 6pt;
+  background: #ffffff;
 }
 
-.measurements {
-  background: #f2f3f7;
-  border: 1px solid #d5d9e3;
-  border-collapse: collapse;
-  border-radius: 4pt;
-  margin-bottom: 7pt;
-  padding: 7pt 0;
+.contact-box-title {
+  font-size: 9pt;
+  font-weight: bold;
+  color: #444444;
+  text-transform: uppercase;
+  margin-bottom: 4pt;
+  display: block;
+  border-bottom: 0.5pt solid #cccccc;
+  padding-bottom: 2pt;
+}
+
+/* ── Medidas y tallas (Sección 2) ────────────────────────────────────────── */
+.measurements-table {
   width: 100%;
+  border-collapse: collapse;
+  border: 0.75pt solid #000000;
+  margin-bottom: 6pt;
+  table-layout: fixed;
 }
 
-.measure {
-  display: inline-block;
+.measure-cell {
+  width: 25%;
+  border: 0.75pt solid #000000;
+  padding: 3pt 4pt;
   text-align: center;
-  width: 24%;
   vertical-align: top;
 }
 
-.measure strong {
-  color: #102d80;
+.measure-cell .field-label {
+  font-size: 8pt;
+  color: #444444;
+  text-transform: uppercase;
   display: block;
-  font-size: 11pt;
-  margin-top: 3pt;
 }
 
-.family-table {
-  border-collapse: collapse;
-  table-layout: fixed;
+.measure-cell strong {
+  font-size: 10pt;
+  font-weight: bold;
+  color: #000000;
+  display: block;
+  margin-top: 1pt;
+}
+
+/* ── Tablas de familiares y autorizados (Sección 3 y 4) ──────────────────── */
+.data-table {
   width: 100%;
+  border-collapse: collapse;
+  margin-top: 4pt;
+  margin-bottom: 6pt;
+  table-layout: fixed;
 }
 
-/* El encabezado se repite en cada hoja: si la tabla de familiares salta de
-   página, las columnas siguen siendo legibles sin volver atrás. */
-.family-table thead {
+.data-table thead {
   display: table-header-group;
 }
 
-.family-table tr {
+.data-table tr {
   page-break-inside: avoid;
 }
 
-.family-table th {
-  background: #e8eaf0;
-  border-bottom: 1px solid #d3d8e5;
-  color: #252c3a;
-  font-size: 9pt;
-  padding: 5pt 4pt;
-  text-align: left;
+.data-table th {
+  border: 0.75pt solid #000000;
+  background-color: #f2f2f2;
+  color: #000000;
+  font-size: 8.5pt;
+  font-weight: bold;
   text-transform: uppercase;
+  padding: 3pt 4pt;
+  text-align: left;
+  vertical-align: middle;
 }
 
-.family-table td {
-  color: #20283c;
-  font-size: 11pt;
-  padding: 6pt 4pt;
+.data-table td {
+  border: 0.75pt solid #000000;
+  color: #000000;
+  font-size: 9pt;
+  padding: 3pt 4pt;
   vertical-align: top;
 }
 
-.family-table td:first-child {
-  color: #102d80;
+.data-table td.strong-cell {
   font-weight: bold;
 }
 
-/* ── Anchos de la tabla de autorizados ────────────────────────────────────────
-   Con table-layout: fixed y cinco columnas, Dompdf reparte el ancho en partes
-   iguales y el resultado es que todo se parte a la mitad: "NOMBRE Y / APELLIDO",
-   "Madre (Rep. / Legal)", "También es / familiar". En un documento que se lleva
-   por delante eso se lee como un error de maquetación.
-
-   Los porcentajes salen de medir el texto con las métricas reales de Dompdf sobre
-   el ancho útil de A4 con márgenes de 15 mm (510 pt), más los 8 pt de padding
-   horizontal de la celda:
-
-     Parentesco   "Madre (Rep. Legal)"    94.8 pt  -> 20.1 %  ->  21 %
-     Nombre       encabezado 72.5 pt      15.8 %  ->  28 %
-     Cédula      "V-25863136"            59.9 pt  -> 13.3 %  ->  14 %
-     Teléfono     "0414 1234567"          70.3 pt  -> 15.4 %  ->  16 %
-     Condición    "También es familiar"   96.0 pt  -> 20.4 %  ->  21 %
-
-   El nombre es la única celda que se deja partir a propósito: "María Fernanda
-   Rodríguez Salazar" no cabe en ningún reparto razonable y partirlo por palabras
-   es lo correcto.
-
-   El ancho va en el encabezado y no con :nth-child porque la tabla oculta las
-   columnas que no tienen datos, y si una falta, las posiciones se corren y cada
-   columna recibiría el ancho de otra. Con una clase por columna el ancho sigue
-   a su campo aunque el conjunto cambie. */
-.family-table--autorizados .col-parentesco {
-  width: 17%;
+.empty-note {
+  font-size: 9.5pt;
+  font-style: italic;
+  color: #444444;
+  margin: 4pt 0 6pt 0;
 }
 
-.family-table--autorizados .col-nombre {
-  width: 23%;
+/* Anchos de columnas en tablas */
+.col-parentesco {
+  width: 20%;
 }
 
-.family-table--autorizados .col-documento {
-  width: 13%;
+.col-nombre {
+  width: 28%;
 }
 
-.family-table--autorizados .col-telefono {
-  width: 14%;
+.col-documento {
+  width: 16%;
 }
 
-.family-table--autorizados .col-nacionalidad {
-  width: 14%;
+.col-telefono {
+  width: 16%;
 }
 
-.family-table--autorizados .col-condicion {
-  width: 19%;
+.col-nacionalidad {
+  width: 20%;
 }
 
-.history-item {
-  background: #f7f8fa;
-  border: 1px solid #d9dce5;
-  border-radius: 4pt;
-  color: #20283c;
-  margin: 0 0 8pt;
-  padding: 7pt 9pt;
+.col-condicion {
+  width: 20%;
+}
+
+/* ── Historial académico institucional (Sección 5) ───────────────────────── */
+.history-box {
+  border: 0.75pt solid #000000;
+  border-radius: 0;
+  padding: 4pt 6pt;
+  margin-bottom: 4pt;
   page-break-inside: avoid;
+  background: #ffffff;
 }
 
 .history-year {
-  color: #606b83;
-  font-size: 9pt;
+  font-size: 8.5pt;
+  color: #444444;
+  font-weight: bold;
   text-transform: uppercase;
 }
 
 .history-grade {
-  color: #20283c;
-  font-size: 11pt;
+  font-size: 10pt;
   font-weight: bold;
-  margin: 2pt 0;
+  color: #000000;
+  margin: 1pt 0;
 }
 
 .history-status {
-  color: #102d80;
-  font-size: 9pt;
+  font-size: 8.5pt;
   font-weight: bold;
+  color: #000000;
   text-transform: uppercase;
 }
 
-.empty {
-  color: #606b83;
-  font-style: italic;
-  padding: 8pt 0;
+/* ── 5. Cierre y Bloque de Firma/Sello ────────────────────────────────────── */
+.cierre-documento {
+  page-break-inside: avoid;
+  margin-top: 8pt;
 }
 
-.signature {
-  border-top: 1px solid #6e7481;
-  color: #606b83;
-  display: block;
-  margin: 50pt auto 0;
-  padding-top: 5pt;
-  text-align: center;
-  width: 60%;
-  font-size: 9pt;
-  text-transform: uppercase;
+.fecha-cierre {
+  font-size: 10.5pt;
+  line-height: 1.35;
+  text-align: justify;
+  text-indent: 1.25cm;
+  margin-top: 6pt;
+  margin-bottom: 8pt;
+  color: #000000;
 }
 
-.signature-area {
-  margin-top: 42pt;
+.seccion-firmas {
   text-align: center;
   page-break-inside: avoid;
+  margin-top: 8pt;
 }
 
-.footer {
-  bottom: -11mm;
-  color: #9aa0ae;
-  font-size: 9pt;
-  position: fixed;
-  left: 0;
-  right: 0;
+.sello-img {
+  width: 85pt;
+  max-width: 90pt;
+  margin-top: -26pt;
+}
+
+.sign-img-wrapper {
+  height: 35pt;
+  margin-bottom: -8pt;
+}
+
+.sign-img {
+  max-height: 40pt;
+  max-width: 130pt;
+}
+
+.sign-placeholder {
+  height: 35pt;
+}
+
+.firma-linea {
+  margin: 0 auto 5pt auto;
+}
+
+.firma-nombre {
+  font-size: 9.5pt;
+  line-height: 1.2;
+}
+
+.firma-cargo {
+  font-size: 9.5pt;
+  line-height: 1.2;
+}
+
+.firma-ci {
+  font-size: 9.5pt;
+  line-height: 1.2;
 }

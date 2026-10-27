@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Support\AniosEscolares;
+use App\Support\ConQuienVive;
 use App\Support\Documento;
 use App\Support\Instituciones;
 use App\Interfaces\Listable;
@@ -85,8 +86,7 @@ class RatificacionModel extends BaseModel implements Listable
                 LEFT JOIN turno t ON t.id_turno = ea.id_turno
                 LEFT JOIN matricula sig ON sig.id_estudiante = est.id_estudiante
                                      AND sig.id_anio_escolar = $anio
-                LEFT JOIN resultado_academico ra ON ra.id_estudiante = est.id_estudiante
-                                                AND ra.id_anio_escolar = m.id_anio_escolar";
+                LEFT JOIN resultado_academico ra ON ra.id_matricula = m.id_matricula";
     }
 
     /**
@@ -193,29 +193,28 @@ class RatificacionModel extends BaseModel implements Listable
             $row['id_seccion']   = (int) $row['id_seccion'];
             $row['id_turno']     = (int) $row['id_turno'];
 
-            // Lógica de grado sugerido según resultado académico confirmado del año cursado:
+            // Lógica de grado sugerido según literal cargado del año cursado:
             $estadoRes  = $row['resultado_academico_estado'] ?? null;
             $literalRes = $row['resultado_academico_literal'] ?? null;
 
-            if ($estadoRes === 'PROMOVIDO') {
+            if (in_array($literalRes, ['A', 'B', 'C', 'D'], true) || $estadoRes === 'PROMOVIDO') {
                 $siguiente = $this->siguienteGradoConId($grados, $row['id_grado']);
                 $row['proximo_grado']    = $siguiente['nombre'] ?? '—';
                 $row['proximo_grado_id'] = (int) ($siguiente['id'] ?? 0);
                 $row['promocion_badge']  = 'Promovido' . ($literalRes ? " ({$literalRes})" : '');
                 $row['promocion_tipo']   = 'promovido';
-            } elseif ($estadoRes === 'NO_PROMOVIDO') {
+            } elseif ($literalRes === 'E' || $estadoRes === 'NO_PROMOVIDO') {
                 // Alumno no promovido: sugerir el MISMO grado (repitiente)
                 $row['proximo_grado']    = ($row['grado_actual'] ?? 'Grado actual') . ' (Repite)';
                 $row['proximo_grado_id'] = (int) $row['id_grado'];
                 $row['promocion_badge']  = 'No promovido' . ($literalRes ? " ({$literalRes})" : '');
                 $row['promocion_tipo']   = 'no_promovido';
             } else {
-                // Pendiente de confirmación o sin resultado
-                $siguiente = $this->siguienteGradoConId($grados, $row['id_grado']);
-                $row['proximo_grado']    = $siguiente['nombre'] ?? '—';
-                $row['proximo_grado_id'] = (int) ($siguiente['id'] ?? 0);
-                $row['promocion_badge']  = 'Pendiente';
-                $row['promocion_tipo']   = 'pendiente';
+                // Sin literal cargado por la docente
+                $row['proximo_grado']    = '—';
+                $row['proximo_grado_id'] = 0;
+                $row['promocion_badge']  = 'Sin literal';
+                $row['promocion_tipo']   = 'sin_literal';
             }
         }
         return $rows;
@@ -314,7 +313,7 @@ class RatificacionModel extends BaseModel implements Listable
     public function getAnioDestino(): array
     {
         $stmt = $this->pdo->prepare(
-            "SELECT id_anio_escolar AS id, nombre_periodo AS nombre, estado
+            "SELECT id_anio_escolar AS id, nombre_periodo AS nombre, estado, anio_inicio
                FROM anio_escolar
               WHERE estado IN ('ACTIVO', 'PLANIFICADO')
               ORDER BY (estado = 'ACTIVO') DESC, anio_inicio ASC
@@ -324,7 +323,7 @@ class RatificacionModel extends BaseModel implements Listable
         $anio = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$anio) {
-            return ['id' => 0, 'nombre' => '—', 'estado' => '', 'es_escribible' => false];
+            return ['id' => 0, 'nombre' => '—', 'estado' => '', 'es_escribible' => false, 'anio_inicio' => 0];
         }
 
         return [
@@ -332,6 +331,7 @@ class RatificacionModel extends BaseModel implements Listable
             'nombre'        => (string) $anio['nombre'],
             'estado'        => (string) $anio['estado'],
             'es_escribible' => strtoupper((string) $anio['estado']) === 'ACTIVO',
+            'anio_inicio'   => (int) ($anio['anio_inicio'] ?? 0),
         ];
     }
 
@@ -417,22 +417,18 @@ class RatificacionModel extends BaseModel implements Listable
     /**
  * Datos del estudiante para el modal de edición, y también su id_persona.
  *
-* Devuelve persona + talla + ficha en una sola consulta con subconsultas
-     * escalares, que es lo mismo que se hace al escribir (ver
-     * actualizarEstudiante()): leer y escribir tienen que mirar los mismos
-     * campos, o el formulario se llenaría con unos y se guardarían otros.
-     *
-     * @return array<string, mixed>|null null si el estudiante no existe.
+ * Devuelve persona + talla + ficha en una sola consulta con subconsultas
+ * escalares, que es lo mismo que se hace al escribir (ver
+ * actualizarEstudiante()): leer y escribir tienen que mirar los mismos
+ * campos, o el formulario se llenaría con unos y se guardarían otros.
+ *
+ * @param bool $incluirDatosSensibles false para docentes: no trae tallas ni ficha médica.
+ * @return array<string, mixed>|null null si el estudiante no existe.
 */
-    public function getEstudianteEditable(int $idEstudiante): ?array
+    public function getEstudianteEditable(int $idEstudiante, bool $incluirDatosSensibles = true): ?array
     {
-        $stmt = $this->pdo->prepare(
-            'SELECT e.id_estudiante AS id_estudiante,
-                    e.id_persona,
-                    p.tipo_documento, p.numero_documento, p.fecha_nacimiento,
-                    p.id_estado_nacimiento, p.id_parroquia_nacimiento, p.id_nacionalidad,
-                    p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
-                    p.sexo, p.foto,
+        $datosSensibles = $incluirDatosSensibles
+            ? ",
                     (SELECT tu.talla_camisa    FROM talla_uniforme tu WHERE tu.id_estudiante = e.id_estudiante) AS talla_camisa,
                     (SELECT tu.talla_pantalon  FROM talla_uniforme tu WHERE tu.id_estudiante = e.id_estudiante) AS talla_pantalon,
                     (SELECT tu.talla_zapato    FROM talla_uniforme tu WHERE tu.id_estudiante = e.id_estudiante) AS talla_zapato,
@@ -442,7 +438,17 @@ class RatificacionModel extends BaseModel implements Listable
                     (SELECT fm.observaciones  FROM ficha_medica fm WHERE fm.id_estudiante = e.id_estudiante) AS observaciones_medicas,
                     (SELECT fm.alergias       FROM ficha_medica fm WHERE fm.id_estudiante = e.id_estudiante) AS alergias,
                     (SELECT fm.enfermedades   FROM ficha_medica fm WHERE fm.id_estudiante = e.id_estudiante) AS enfermedades,
-                    (SELECT fm.tipo_sangre    FROM ficha_medica fm WHERE fm.id_estudiante = e.id_estudiante) AS tipo_sangre
+                    (SELECT fm.tipo_sangre    FROM ficha_medica fm WHERE fm.id_estudiante = e.id_estudiante) AS tipo_sangre"
+            : '';
+
+        $stmt = $this->pdo->prepare(
+            'SELECT e.id_estudiante AS id_estudiante,
+                    e.id_persona,
+                    ' . ConQuienVive::expresionSql('e.id_estudiante') . ' AS con_quien_vive,
+                    p.tipo_documento, p.numero_documento, p.fecha_nacimiento,
+                    p.id_estado_nacimiento, p.id_parroquia_nacimiento, p.id_nacionalidad,
+                    p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
+                    p.sexo, p.foto' . $datosSensibles . '
                FROM estudiante e
                INNER JOIN persona p ON p.id_persona = e.id_persona
               WHERE e.id_estudiante = :id
@@ -566,6 +572,16 @@ class RatificacionModel extends BaseModel implements Listable
                 (int) ($data['id_usuario'] ?? 0)
             );
 
+            if (!empty($data['cambio_ce'])) {
+                $bitacora = new BitacoraModel($this->pdo);
+                $accion = "ACTUALIZACIÓN CE: {$data['cambio_ce']['ce_anterior']} → {$data['cambio_ce']['ce_nueva']}. Motivo: {$data['cambio_ce']['motivo']}";
+                $bitacora->registrar(
+                    (int) ($data['id_usuario'] ?? 0),
+                    $accion,
+                    'Ratificaciones'
+                );
+            }
+
             $this->pdo->commit();
             return true;
         } catch (Throwable $e) {
@@ -619,8 +635,11 @@ class RatificacionModel extends BaseModel implements Listable
     public function getCatalogosFamiliar(): array
     {
         return [
-            'parentescos'         => $this->pdo->query("SELECT nombre FROM parentesco WHERE estado = 'ACTIVO' ORDER BY nombre")
-                                ->fetchAll(\PDO::FETCH_COLUMN),
+'parentescos'         => $this->pdo->query("SELECT nombre, COALESCE(codigo, '') AS codigo
+                                           FROM parentesco
+                                          WHERE estado = 'ACTIVO'
+                                          ORDER BY nombre")
+                                 ->fetchAll(\PDO::FETCH_ASSOC),
             'niveles_instruccion' => [],
             'ocupaciones'         => $this->pdo->query("SELECT nombre FROM ocupacion WHERE estado = 'ACTIVO' ORDER BY nombre")
                                 ->fetchAll(\PDO::FETCH_COLUMN),
@@ -644,17 +663,14 @@ class RatificacionModel extends BaseModel implements Listable
  * formulario leyera un campo que el guardado no lee, ese campo se perdería
  * en silencio al guardar.
  *
+ * @param bool $sinDatosSensibles Cuando es true, las columnas de documento de
+ *        identidad y nacionalidad NO se piden a la base: llegan vacías y el
+ *        dato ni siquiera sale del servidor. Es el camino del docente, que no
+ *        necesita el documento de un tercero. El resto de los usuarios (secretaría
+ *        al inscribir, coordinación al consultar) lo piden normal.
+ *
  * @return array<int, array<string, mixed>>
 */
-    /**
-     * Familiares y contactos de un estudiante.
-     *
-     * @param bool $sinDatosSensibles Cuando es true, las columnas de documento de
-     *        identidad y nacionalidad NO se piden a la base: llegan vacías y el
-     *        dato ni siquiera sale del servidor. Es el camino del docente, que no
-     *        necesita el documento de un tercero. El resto de los usuarios (secretaría
-     *        al inscribir, coordinación al consultar) lo piden normal.
-     */
     public function getFamiliares(int $idEstudiante, bool $sinDatosSensibles = false): array
     {
         /* Columnas que se sustituyen por NULL cuando el destino es el docente.
@@ -681,6 +697,7 @@ class RatificacionModel extends BaseModel implements Listable
                     COALESCE(oc.nombre, "") AS ocupacion,
                     pe.es_representante_legal, pe.es_autorizado_retiro,
                     pe.vive_con_estudiante, pe.estado_relacion,
+                    p.es_fallecido,
                     c.codigo_telefono_principal, c.numero_telefono_principal,
                     c.codigo_telefono_alternativo, c.numero_telefono_alternativo,
                     c.correo_electronico,
@@ -742,6 +759,8 @@ es.nombre AS estado_nombre
                 'numero_documento'=> (string) $fila['numero_documento'],
                 'sexo'            => ((string) $fila['sexo']) === 'F' ? 'F' : 'M',
                 'fecha_nacimiento'=> (string) $fila['fecha_nacimiento'],
+                /* Entidad federal de nacimiento para precargar en el submodal al editar */
+                'id_estado_nacimiento' => (int) ($fila['id_estado_nacimiento'] ?? 0),
                 /* La nacionalidad viaja como nombre Y como id: el nombre para pintar la
                    tabla y el PDF, el id para que el sub-modal vuelva a marcar el mismo
                    <select> cuando se reabre una fila ya guardada. */
@@ -751,6 +770,7 @@ es.nombre AS estado_nombre
                 'representante_principal' => (int) $fila['es_representante_legal'],
                 'autorizado_retiros'      => (int) $fila['es_autorizado_retiro'],
                 'vive_con_estudiante'     => (int) $fila['vive_con_estudiante'],
+                'es_fallecido'            => (int) ($fila['es_fallecido'] ?? 0),
                 'solo_autorizado'         => $fila['parentesco'] === '' ? 1 : 0,
                   'estado_relacion'         => (string) $fila['estado_relacion'],
                   /* 1 = su contacto y su dirección son los mismos datos de su
@@ -842,11 +862,10 @@ es.nombre AS estado_nombre
             }
 
             /* AUTORIZADOS PARA RETIRAR
- Estrictamente la bandera, sin ningún otro filtro. Quien está
- autorizado tiene derecho a estar aquí estén o no en el núcleo, y a
- quien está en el núcleo tampoco se le quita: son atributos
- distintos de la misma persona.*/
-            if ((int) ($familiar['autorizado_retiros'] ?? 0) === 1) {
+               Se excluye al representante legal porque ya figura en el núcleo familiar
+               con su insignia y se sobreentiende por ley que está autorizado para retirar
+               al estudiante. Aquí solo aparecen las personas adicionales autorizadas. */
+            if (!$esRepresentante && (int) ($familiar['autorizado_retiros'] ?? 0) === 1) {
                 $autorizados[] = $familiar;
             }
         }
@@ -963,6 +982,7 @@ es.nombre AS estado_nombre
                  LEFT JOIN contacto c ON c.id_persona = pe.id_persona
                  LEFT JOIN direccion d ON d.id_persona = pe.id_persona
               WHERE pe.id_estudiante = :id AND pe.es_representante_legal = 1
+                AND p.es_fallecido = 0
               LIMIT 1'
         );
         $stmt->execute(['id' => $idEstudiante]);
@@ -1192,6 +1212,29 @@ es.nombre AS estado_nombre
                 . 'entonces corresponde ratificarlo.'];
         }
 
+        /* Validar que la matrícula que se está ratificando tenga literal cargado por la docente */
+        $stmtLiteral = $this->pdo->prepare(
+            'SELECT literal, estado_resultado FROM resultado_academico WHERE id_matricula = :id_matricula LIMIT 1'
+        );
+        $stmtLiteral->execute(['id_matricula' => (int) $matriculaVigente['id_matricula']]);
+        $resLiteral = $stmtLiteral->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$resLiteral || empty($resLiteral['literal'])) {
+            return [
+                'ok' => false,
+                'mensaje' => 'El estudiante no tiene literal cargado por la docente. No se puede ratificar sin resultado.',
+            ];
+        }
+
+        // Estudiantes de 6.º grado promovidos (literal A–D) no se ratifican: su proceso es el egreso
+        $ordinalGradoOrigen = (int) Instituciones::ordinalGrado($matriculaVigente['grado_nombre'] ?? null);
+        if ($ordinalGradoOrigen === Instituciones::GRADO_MAYOR && in_array($resLiteral['literal'], ['A', 'B', 'C', 'D'], true)) {
+            return [
+                'ok' => false,
+                'mensaje' => 'El estudiante culminó 6to grado con resultado promovido: su proceso correspondiente es el egreso, no la ratificación.',
+            ];
+        }
+
         $estructura = $this->estructuraDestino($matriculaVigente, $destino);
         if (!$estructura) {
             /* El mensaje cambia según si la secretaria eligió o si se dedujo: si
@@ -1235,8 +1278,12 @@ es.nombre AS estado_nombre
  ratificar al último que cabía entre el aviso y el INSERT.
 
  Y el orden dentro de esa transacción importa más de lo que parece.*/
+        $abrioTransaccion = false;
         try {
-            $this->pdo->beginTransaction();
+            if (!$this->pdo->inTransaction()) {
+                $this->pdo->beginTransaction();
+                $abrioTransaccion = true;
+            }
 
     /* El cupo se comprueba PRIMERO, antes de cualquier otra lectura. reservarCupo() abre con un
  SELECT ... FOR UPDATE sobre estructura_academica, y ese bloqueo es lo que serializa a dos
@@ -1252,7 +1299,9 @@ es.nombre AS estado_nombre
  alumno. Ahora sí se ve, porque la vista de lectura se creó después de
  esperar el bloqueo.*/
             if ($this->yaRatificado($matriculaVigente['id_matricula'])) {
-                $this->pdo->rollBack();
+                if ($abrioTransaccion && $this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
                 return ['ok' => false, 'mensaje' => 'El estudiante ya tiene matrícula en el año escolar en curso: ya está ratificado.'];
             }
 
@@ -1295,11 +1344,13 @@ es.nombre AS estado_nombre
                 );
             }
 
-            $this->pdo->commit();
+            if ($abrioTransaccion) {
+                $this->pdo->commit();
+            }
             return ['ok' => true, 'mensaje' => 'Ratificación registrada correctamente.'];
         } catch (RuntimeException $e) {
             // reservarCupo() lanza con un texto ya apto para la secretaria: es un aviso, no una falla.
-            if ($this->pdo->inTransaction()) {
+            if ($abrioTransaccion && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             /* Comprobar el cupo antes que la revalidación invierte la prioridad de los dos
@@ -1313,7 +1364,7 @@ es.nombre AS estado_nombre
             }
             return ['ok' => false, 'mensaje' => $e->getMessage()];
         } catch (Throwable $e) {
-            if ($this->pdo->inTransaction()) {
+            if ($abrioTransaccion && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             error_log('RatificacionModel::ratificar(): ' . $e->getMessage());
@@ -1475,7 +1526,7 @@ es.nombre AS estado_nombre
         /* El filtro de año anterior impide ratificar a quien ya cursa el año activo.
  Se compara por `anio_inicio` y no por id, porque los ids son de inserción y no siguen el orden.*/
         $stmt = $this->pdo->prepare(
-            "SELECT m.id_matricula, m.tipo, m.id_anio_escolar, ea.id_estructura_academica,
+            "SELECT m.id_matricula, m.id_estudiante, m.tipo, m.id_anio_escolar, ea.id_estructura_academica,
                     ea.id_grado, ea.id_seccion, ea.id_turno, g.nombre AS grado_nombre
                FROM matricula m
                INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
@@ -1515,9 +1566,14 @@ es.nombre AS estado_nombre
         if ($gradoElegido > 0) {
             $gradoDestino = $gradoElegido;
         } else {
-            // Consultar si el estudiante tiene resultado académico NO_PROMOVIDO en su matrícula de origen
-            $resAcad = (new ResultadoAcademicoModel($this->pdo))->getResultadoUltimoAnio((int) $matricula['id_estudiante'], (int) $this->anioEnCurso());
-            if ($resAcad && $resAcad['estado_resultado'] === ResultadoAcademicoModel::ESTADO_NO_PROMOVIDO) {
+            // Consultar si el estudiante tiene resultado académico NO_PROMOVIDO (o literal E) en su matrícula de origen
+            $stmtRes = $this->pdo->prepare(
+                'SELECT literal, estado_resultado FROM resultado_academico WHERE id_matricula = :id_matricula LIMIT 1'
+            );
+            $stmtRes->execute(['id_matricula' => (int) $matricula['id_matricula']]);
+            $resAcad = $stmtRes->fetch(\PDO::FETCH_ASSOC);
+
+            if ($resAcad && ($resAcad['literal'] === 'E' || $resAcad['estado_resultado'] === ResultadoAcademicoModel::ESTADO_NO_PROMOVIDO)) {
                 // Si no fue promovido, debe repetir el mismo grado
                 $gradoDestino = (int) $matricula['id_grado'];
             } else {
@@ -1626,6 +1682,17 @@ es.nombre AS estado_nombre
                  SELECT 1 FROM retiro r
                   WHERE r.id_matricula = m.id_matricula
                     AND r.estado_solicitud = \'PENDIENTE\'
+             )',
+
+            // (4) Excluir a estudiantes de 6.º grado con literal promovido (A, B, C, D):
+            // su camino es el egreso. Quienes no promovieron (literal E / NO_PROMOVIDO) sí se
+            // ratifican para repetir 6.º; y quienes aún no tienen literal cargado se muestran
+            // en la lista con aviso y botón desactivado.
+            '(
+                CAST(REGEXP_SUBSTR(COALESCE(g.nombre, \'\'), \'^[0-9]+\') AS UNSIGNED) < ' . Instituciones::GRADO_MAYOR . '
+                OR ra.literal IS NULL
+                OR ra.literal = \'E\'
+                OR ra.estado_resultado = \'NO_PROMOVIDO\'
              )',
         ];
     }

@@ -7,18 +7,6 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-# Zona de trabajo: arneses de render, diagnosticos de una sesion y scripts
-# que se ejecutan una vez (pruebas de memoria, generadores de SVG, carga de
-# datos de prueba). No son parte de la aplicacion y sus rutas cambian con la
-# maquina: por eso viven fuera del versionado y no en scripts/, que queda
-# solo para los verificadores.
-scratch/
-
-# Artefactos que generan los scripts de prueba.
-storage/*.pdf
-storage/**/*.pdf
-
-# Copias de seguridad que se crean al desplegar.
 .DS_Store
 dist/
 build/
@@ -31,10 +19,31 @@ coverage/
 
 # Fotografias de empleados y estudiantes que sube la aplicacion.
 # Son datos personales: nunca deben entrar al repositorio.
-public/uploads/
+public/uploads/*
+!public/uploads/.gitkeep
+!public/uploads/institucion/
+public/uploads/institucion/*
+!public/uploads/institucion/.gitkeep
+!public/uploads/institucion/.htaccess
+public/uploads/empleados/*
+!public/uploads/empleados/.gitkeep
+public/uploads/estudiantes/*
+!public/uploads/estudiantes/.gitkeep
 
-# Respaldos de la base de datos. Llevan la base completa: documentos de identidad,
-# correos y hashes de contrasena de personas reales. Se guardan en
-# database/backups/ para consulta local, pero no se versionan.
-database/backups/*.sql
-database/backups/*.dump
+# Respaldos de base de datos: nunca al repositorio
+database/backups/*
+
+# Almacenamiento privado (firmas y sellos institucionales, respaldos)
+storage/*
+!storage/.gitkeep
+!storage/.htaccess
+!storage/institucion/
+storage/institucion/*
+!storage/institucion/.gitkeep
+!storage/institucion/.gitignore
+!storage/institucion/firma/
+storage/institucion/firma/*
+!storage/institucion/firma/.gitkeep
+!storage/institucion/sello/
+storage/institucion/sello/*
+!storage/institucion/sello/.gitkeep

@@ -47,6 +47,12 @@
     padding: 0.75rem 1.5rem 1.25rem;
     max-height: min(60vh, 520px);
     overflow-y: auto;
+
+    &:has(.student-record__pdf-preview) {
+      max-height: none;
+      overflow: hidden;
+      padding: 0.5rem 1.5rem 1rem;
+    }
   }
 
   .modal-footer {
@@ -212,4 +218,15 @@
     flex-shrink: 0;
     font-size: 0.9rem;
   }
+}
+/* Marcador vertical de sección del modal de ratificación. */
+.ratificar-modal__marker {
+  width: 4px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+/* Enlace de edición de datos dentro del modal de ratificación. */
+.btn-editar-datos {
+  color: $primary;
 }

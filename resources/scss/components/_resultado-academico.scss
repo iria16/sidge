@@ -1,0 +1,438 @@
+// ==========================================================================
+// SIGDE - Módulo: Resultados académicos y literales
+// Tabla de secciones, nómina de literales, filtros y acta.
+// Usa los tokens de resources/scss/_variables.scss; no colores sueltos.
+// ==========================================================================
+
+// ---------- Bandeja de secciones ----------
+.resultado-secciones-table {
+  width: 100%;
+  min-width: 1040px;
+  table-layout: auto;
+  font-size: 0.85rem;
+
+  > :not(caption) > * > * {
+    padding: 0.6rem 0.55rem;
+    white-space: nowrap;
+  }
+
+  th,
+  td {
+    vertical-align: middle;
+  }
+
+  .resultado-th-num,
+  .resultado-td-num {
+    text-align: center;
+  }
+
+  .resultado-td-num {
+    font-weight: 600;
+  }
+
+  @include media-breakpoint-up(xxl) {
+    font-size: 1rem;
+  }
+
+  .resultado-estado {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .resultado-accion {
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.resultado-sin-asignar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: $secondary;
+  font-size: 0.8rem;
+}
+
+// ---------- Nómina de literales ----------
+.resultado-nomina-table {
+  min-width: 0;
+}
+
+.resultado-col-num {
+  width: 50px;
+  min-width: 50px;
+}
+
+.resultado-col-estudiante {
+  width: 30%;
+}
+
+.resultado-col-literal {
+  width: 15%;
+}
+
+.resultado-col-decision {
+  width: 20%;
+}
+
+.resultado-col-obs {
+  width: 30%;
+}
+
+// En tablet la columna de decisión necesita más ancho para que las insignias
+// no partan palabras como "PROMOVIDO" en dos líneas.
+@include media-breakpoint-down(lg) {
+  .resultado-col-estudiante {
+    width: 27%;
+  }
+
+  .resultado-col-literal {
+    width: 14%;
+  }
+
+  .resultado-col-decision {
+    width: 26%;
+  }
+
+  .resultado-col-obs {
+    width: 28%;
+  }
+}
+
+// En teléfonos se conserva un ancho mínimo legible y el scroll horizontal
+// queda dentro del data-panel, no en la página.
+@include media-breakpoint-down(md) {
+  .resultado-nomina-table {
+    min-width: 760px;
+  }
+}
+
+.resultado-estudiante-celda {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.resultado-estudiante-nombre {
+  font-size: 0.88rem;
+}
+
+.resultado-proyeccion {
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.resultado-aviso {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 1rem 0;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid $border-color-soft;
+  border-radius: $border-radius-sm;
+  font-size: 0.82rem;
+
+  i {
+    flex-shrink: 0;
+    font-size: 0.95rem;
+  }
+
+  &--abierta {
+    background-color: $surface-soft;
+    color: $secondary;
+  }
+
+  &--cerrada {
+    background-color: rgba($warning, 0.12);
+    border-color: rgba($warning, 0.28);
+    color: shade-color($warning, 20%);
+  }
+}
+
+.literal-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  border-radius: $border-radius;
+  font-size: 0.95rem;
+  font-weight: $font-weight-bold;
+  color: $surface;
+
+  &--a { background-color: $success; }
+  &--b { background-color: $info; }
+  &--c { background-color: shade-color($info, 10%); }
+  &--d { background-color: $warning; }
+  &--e { background-color: $danger; }
+
+  &--empty {
+    height: auto;
+    min-height: 1.75rem;
+    background-color: $light;
+    border: 1px solid $border-color-soft;
+    color: $secondary;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+}
+
+.resultado-observacion-texto {
+  display: block;
+  font-size: 0.85rem;
+  color: $dark;
+  overflow-wrap: break-word;
+}
+
+.fila-confirmada {
+  background-color: rgba($surface-soft, 0.65);
+}
+
+.resultado-acta-badge {
+  background-color: $primary;
+  color: $surface;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  font-weight: $font-weight-bold;
+  padding: 4px 8px;
+  border-radius: $border-radius-sm;
+}
+
+.resultado-toolbar__actions {
+  min-width: 280px;
+}
+
+.resultado-toolbar__search {
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.resultado-toolbar__search-icon {
+  font-size: 0.85rem;
+}
+
+// Selector de literal en forma de pastilla sólida.
+.select-literal-pill {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 72px;
+  height: 38px;
+  border-radius: $border-radius;
+  font-size: 0.95rem;
+  font-weight: $font-weight-bold;
+  text-align: center;
+  text-align-last: center;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding-left: 6px;
+  padding-right: 20px;
+  transition: all 0.15s ease-in-out;
+
+  // Chevron dibujado con gradientes para no meter colores literales en un SVG.
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 13px) calc(50% + 2px),
+    calc(100% - 9px) calc(50% + 2px);
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+
+  option {
+    background-color: $surface;
+    color: $dark;
+    font-weight: 600;
+  }
+
+  &[data-literal="A"] {
+    background-color: $success;
+    border-color: shade-color($success, 12%);
+    color: $surface;
+  }
+
+  &[data-literal="B"] {
+    background-color: $info;
+    border-color: shade-color($info, 12%);
+    color: $surface;
+  }
+
+  &[data-literal="C"] {
+    background-color: shade-color($info, 10%);
+    border-color: shade-color($info, 20%);
+    color: $surface;
+  }
+
+  &[data-literal="D"] {
+    background-color: $warning;
+    border-color: shade-color($warning, 12%);
+    color: $surface;
+  }
+
+  &[data-literal="E"] {
+    background-color: $danger;
+    border-color: shade-color($danger, 12%);
+    color: $surface;
+  }
+
+  &[data-literal=""],
+  &:not([data-literal]) {
+    background-color: $light;
+    border-color: $border-color-soft;
+    color: $secondary;
+  }
+
+  &:disabled {
+    opacity: 0.88;
+    cursor: not-allowed;
+    filter: saturate(0.9);
+  }
+}
+
+// Badges de decisión oficial.
+.decision-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: $border-radius-sm;
+  font-size: 0.75rem;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+
+  &--promovido {
+    background-color: rgba($info, 0.12);
+    color: shade-color($info, 8%);
+    border: 1px solid rgba($info, 0.25);
+  }
+
+  &--no-promovido {
+    background-color: rgba($danger, 0.1);
+    color: shade-color($danger, 5%);
+    border: 1px solid rgba($danger, 0.22);
+  }
+
+  &--pendiente {
+    background-color: rgba($warning, 0.14);
+    color: shade-color($warning, 20%);
+    border: 1px solid rgba($warning, 0.28);
+  }
+}
+
+// Observación pedagógica.
+.input-obs-pedagogica {
+  background-color: $surface-soft;
+  border-color: $border-color-soft;
+  font-size: 0.85rem;
+  border-radius: $border-radius-sm;
+  transition: all 0.15s ease;
+
+  &:focus {
+    background-color: $surface;
+    border-color: $info;
+    box-shadow: 0 0 0 2px rgba($info, 0.15);
+  }
+
+  &:disabled {
+    background-color: $light;
+    color: $secondary;
+    cursor: not-allowed;
+  }
+}
+
+// Pestañas de filtro.
+.filter-pills-nav {
+  display: inline-flex;
+  gap: 4px;
+  background: $light;
+  padding: 4px;
+  border-radius: $border-radius;
+}
+
+.btn-filter-tab {
+  border: none;
+  background: transparent;
+  color: $secondary;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: $border-radius-sm;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: $primary;
+    background: rgba($surface, 0.6);
+  }
+
+  &.active {
+    background: $primary;
+    color: $surface;
+    box-shadow: 0 1px 3px rgba($primary, 0.15);
+  }
+}
+
+// Tarjeta de normativa.
+.normativa-card {
+  background: $surface;
+  border: 1px solid $border-color-soft;
+  border-radius: $border-radius-lg;
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: $box-shadow-sm;
+  }
+}
+
+.normativa-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: $border-radius;
+  background-color: $primary-tint;
+  color: $primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.resultado-normativa__title {
+  font-size: 0.92rem;
+}
+
+.resultado-normativa__collapse {
+  border-color: $border-color-soft !important;
+}
+
+.resultado-literal-badge {
+  color: $surface;
+
+  &--a { background-color: $success; }
+  &--b { background-color: $info; }
+  &--c { background-color: shade-color($info, 10%); }
+  &--d { background-color: $warning; }
+  &--e { background-color: $danger; }
+}
+
+@media print {
+  .app-shell__sidebar,
+  .app-header,
+  .app-footer,
+  .data-panel__toolbar,
+  .data-panel__footer,
+  .btn,
+  .normativa-card button {
+    display: none !important;
+  }
+
+  .data-panel {
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

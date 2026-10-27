@@ -20,7 +20,32 @@ $estado           = ['activo' => 'Activo', 'retirado' => 'Retirado', 'egresado' 
 $documento       = trim(($estudiante['tipo_documento'] ?? '') . '-' . ($estudiante['numero_documento'] ?? ''), '-');
 $nombres          = trim(($estudiante['primer_nombre'] ?? '') . ' ' . ($estudiante['segundo_nombre'] ?? ''));
 $apellidos        = trim(($estudiante['primer_apellido'] ?? '') . ' ' . ($estudiante['segundo_apellido'] ?? ''));
-$direccion        = trim(($estudiante['calle_avenida'] ?? '') . (($estudiante['nro_casa_apto'] ?? '') !== '' ? ' ' . $estudiante['nro_casa_apto'] : ''));
+$armarDireccionFamiliar = static function (array $dir): string {
+    $val = static fn ($v): string => trim((string) ($v ?? ''));
+    return implode(', ', array_filter([
+        $val($dir['calle'] ?? ''),
+        $val($dir['casa'] ?? '') !== '' ? 'Casa nro ' . $val($dir['casa']) : '',
+        $val($dir['sector'] ?? '') !== '' ? 'Sector ' . $val($dir['sector']) : '',
+        $val($dir['parroquia_nombre'] ?? '') !== '' ? 'Parroquia ' . $val($dir['parroquia_nombre']) : '',
+        $val($dir['municipio_nombre'] ?? '') !== '' ? 'Municipio ' . $val($dir['municipio_nombre']) : '',
+        $val($dir['estado_nombre'] ?? '') !== '' ? 'Estado ' . $val($dir['estado_nombre']) : '',
+        $val($dir['referencia'] ?? '') !== '' ? 'Punto de referencia ' . $val($dir['referencia']) : '',
+    ], static fn (string $parte): bool => $parte !== ''));
+};
+$direccionRepresentante = '';
+foreach ($familiaresNucleo ?? [] as $famRep) {
+    if (!empty($famRep['representante_principal'])) {
+        $direccionRepresentante = $armarDireccionFamiliar($famRep['direccion'] ?? []);
+        break;
+    }
+}
+$direccionEstudiante = trim(implode(', ', array_filter([
+    trim((string) ($estudiante['calle_avenida'] ?? '')),
+    trim((string) ($estudiante['nro_casa_apto'] ?? '')) !== '' ? 'Casa nro ' . trim((string) $estudiante['nro_casa_apto']) : '',
+    trim((string) ($estudiante['sector_urbanizacion'] ?? '')) !== '' ? 'Sector ' . trim((string) $estudiante['sector_urbanizacion']) : '',
+    trim((string) ($estudiante['punto_referencia'] ?? '')) !== '' ? 'Punto de referencia ' . trim((string) $estudiante['punto_referencia']) : '',
+], static fn (string $parte): bool => $parte !== '')));
+$direccion        = $direccionRepresentante !== '' ? $direccionRepresentante : $direccionEstudiante;
 $fechaNacimiento  = !empty($estudiante['fecha_nacimiento']) ? date('d/m/Y', strtotime($estudiante['fecha_nacimiento'])) : '—';
 /* El lugar de nacimiento se arma con los mismos dos niveles que el PDF: del estado y la
    parroquia salen el nombre y el municipio, que no se guarda porque se deduce. */
@@ -46,13 +71,19 @@ $sexo = match ($estudiante['sexo'] ?? '') {
 };
 $anioId = (int) ($anioSeleccionado ?? 0);
 
-$breadcrumbs = [
-    /* "Gestión de estudiantes" es la sección donde vive la secretaría. El docente
-       no entra ahí: su entrada son los estudiantes de su propia sección. */
-    ['label' => $esDocente ? 'Mis estudiantes' : 'Gestión de estudiantes',
-     'href' => BASE_URL . 'estudiantes/index?anio=' . $anioId],
-    ['label' => 'Expediente', 'href' => null],
-];
+$urlVolverEstudiantes = BASE_URL . 'estudiantes/index' . ($anioId > 0 ? '?anio=' . $anioId : '');
+
+$breadcrumbs = $esDocente
+    ? [
+        ['label' => 'Mi sección', 'href' => null],
+        ['label' => 'Estudiantes', 'href' => $urlVolverEstudiantes],
+        ['label' => 'Expediente', 'href' => null],
+    ]
+    : [
+        ['label' => 'Consulta académica', 'href' => null],
+        ['label' => 'Estudiantes', 'href' => $urlVolverEstudiantes],
+        ['label' => 'Expediente', 'href' => null],
+    ];
 
 ob_start();
 ?>
@@ -86,16 +117,15 @@ ob_start();
       $badgeStatus = ['activo' => 'active', 'retirado' => 'inactive', 'egresado' => 'info'][$estadoClave] ?? 'active';
       include __DIR__ . '/../../components/status-badge.php';
     ?>
-      <?php /* El PDF es un documento oficial con espacio para la firma del directivo:
-       lo genera quien administra la matrícula, no quien consulta. El botón desaparece
-       para el docente y la ruta tampoco lo acepta. */ ?>
+      <?php /* El docente puede exportar la ficha, pero el PDF omite la ficha médica,
+       las tallas y los documentos de identidad de los terceros. */ ?>
     <?php if (!$esDocente): ?>
       <button type="button" class="btn btn-sm btn-light"
               data-bs-toggle="modal" data-bs-target="#modalVistaPreviaExpediente">
-      <i class="bi bi-printer me-1" aria-hidden="true"></i>Exportar ficha
-    </button>
+        <i class="bi bi-printer me-1" aria-hidden="true"></i>Exportar ficha
+      </button>
     <?php endif; ?>
-    <a href="<?= BASE_URL ?>estudiantes/index?anio=<?= $anioId ?>" class="btn btn-sm btn-light">
+    <a href="<?= $urlVolverEstudiantes ?>" class="btn btn-sm btn-light">
       <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Volver
     </a>
       </div>
@@ -197,27 +227,16 @@ ob_start();
           <span class="label-sigde">Estado</span>
           <strong><?= htmlspecialchars($estado) ?></strong>
         </div>
+        <div class="student-record__field">
+          <span class="label-sigde">Con quién vive</span>
+          <strong><?= htmlspecialchars(\App\Support\ConQuienVive::etiqueta($datosEditables['con_quien_vive'] ?? null)) ?></strong>
+        </div>
+        <div class="student-record__field student-record__field--wide">
+          <span class="label-sigde">Dirección de habitación</span>
+          <strong><?= htmlspecialchars($direccion ?: '—') ?></strong>
+        </div>
       </div>
     </section>
-    <?php /* Atajo a la pestaña de Familiares. Al docente no se le muestra: la dirección
-         y el teléfono del representante ya los tiene en «Listados y Actas →
-         Contacto» y en «Direcciones», y en la ficha no viene a añadir nada. */ ?>
-    <?php if (!$esDocente): ?>
-    <button type="button"
-            class="student-record__contact-shortcut<?= $puedeEditar ? ' student-record__edit' : '' ?>"
-            data-id="<?= (int) ($estudiante['id'] ?? 0) ?>"
-            data-tab="pane-familiares"
-            <?= $puedeEditar ? 'data-edit-representante="1"' : 'data-bs-toggle="tab" data-bs-target="#student-pane-familiares" role="tab"' ?>>
-      <span class="student-record__contact-icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
-      <span class="student-record__contact-label">
-        <i class="bi bi-telephone me-1" aria-hidden="true"></i>Dirección y teléfono
-      </span>
-      <span class="student-record__contact-action">
-        <?= $puedeEditar ? 'Ver/Editar en Familiar' : 'Ver en Familiares' ?>
-        <i class="bi bi-arrow-right" aria-hidden="true"></i>
-      </span>
-    </button>
-    <?php endif; ?>
       </div>
 
       <?php if (!$esDocente): ?>
@@ -250,11 +269,6 @@ ob_start();
           </div>
         </div>
       </div>
-      <?php /* Ficha médica: la salud del alumno no se consulta desde el expediente, ni
-       siquiera para ver las alertas. Se pide por el canal que usa la escuela para
-       eso. El bloque no se pinta y además el controller no trae los datos: si
-       alguien revierte esta condición, el dato sigue sin estar en la página. */ ?>
-      <?php if (!$esDocente): ?>
       <div class="student-record__subsection">
         <h3><i class="bi bi-heart-pulse me-2" aria-hidden="true"></i>Ficha médica</h3>
         <div class="student-record__fields">
@@ -284,13 +298,11 @@ ob_start();
           </div>
         </div>
       </div>
-      <?php endif; /* !$esDocente */ ?>
 
       <?php /* Solo lectura. La EDICIÓN de los recaudos es una pestaña del modal "Actualizar
  expediente" (el mismo que usa la ratificación); aquí solo se informa, y sin
- botón, porque quien llega hasta aquí puede ser un coordinador que consulta y no
- tiene por qué poder alterar documentos de matrícula. El docente no llega a esta
- pestaña, así que el panel siempre enseña la observación completa. */ ?>
+ botón, porque quien llega hasta aquí puede ser un docente o un coordinador que
+ consulta y no tiene por qué poder alterar documentos de matrícula.*/ ?>
       <div class="student-record__subsection">
         <h3><i class="bi bi-folder2-open me-2" aria-hidden="true"></i>Recaudos</h3>
         <?php
@@ -336,12 +348,30 @@ ob_start();
                   $familiar['segundo_apellido'] ?? '',
               ])));
               $esRepresentante = !empty($familiar['representante_principal']);
+              $cedulaFamiliar = trim(($familiar['tipo_documento'] ?? '') . '-' . ($familiar['numero_documento'] ?? ''), '-');
+              $telefonoFamiliar = trim(
+                  ($familiar['contacto']['codigo'] ?? '') . ' ' . ($familiar['contacto']['numero'] ?? '')
+              );
+              $correoFamiliar = trim((string) ($familiar['contacto']['correo'] ?? ''));
+              $direccionFamiliar = $armarDireccionFamiliar($familiar['direccion'] ?? []);
             ?>
             <article class="student-record__family">
               <span class="student-record__family-icon"><i class="bi bi-person" aria-hidden="true"></i></span>
               <div class="student-record__family-details">
                 <strong><?= htmlspecialchars($nombreFamiliar ?: 'Familiar') ?></strong>
                 <span><?= htmlspecialchars($familiar['parentesco'] ?: 'Parentesco no indicado') ?></span>
+                <?php if (!$esDocente && $cedulaFamiliar !== ''): ?>
+                  <span><?= htmlspecialchars($cedulaFamiliar) ?></span>
+                <?php endif; ?>
+                <?php if ($telefonoFamiliar !== ''): ?>
+                  <span><?= htmlspecialchars($telefonoFamiliar) ?></span>
+                <?php endif; ?>
+                <?php if ($correoFamiliar !== ''): ?>
+                  <span><?= htmlspecialchars($correoFamiliar) ?></span>
+                <?php endif; ?>
+                <?php if ($direccionFamiliar !== ''): ?>
+                  <span><?= htmlspecialchars($direccionFamiliar) ?></span>
+                <?php endif; ?>
                 <?php /* La nacionalidad se escribe aunque venga vacía, sin texto de
                        relleno: una celda en blanco dice "falta el dato" y un "—"
                        sería indistinguible de las que sí lo tienen.
@@ -446,7 +476,7 @@ ob_start();
       <?php else: ?>
         <div class="content-card__empty">
           <i class="bi bi-people" aria-hidden="true"></i>
-          <p>Nadie está autorizado a retirar a este alumno.</p>
+          <p>No hay personas adicionales autorizadas para retirar al alumno (además de su representante legal).</p>
         </div>
       <?php endif; ?>
     </section>
@@ -510,23 +540,24 @@ if ($puedeEditar) {
  leen al abrir el expediente.*/
     $extraScripts[] = '/js/modules/estudiantes/recaudos.js';
 }
-$extraScripts[] = '/js/modules/estudiantes/student-record.js';
-
-/* La vista previa del PDF va con su botón: sin botón el modal es un iframe
-   apuntando a una ruta que el docente no puede abrir. No se construye para él. */
 if (!$esDocente) {
+    $extraScripts[] = '/js/modules/estudiantes/student-record.js';
+
     $urlPdf = BASE_URL . 'estudiantes/exportar/' . (int) ($estudiante['id'] ?? 0) . '?anio=' . $anioId;
     ob_start();
     ?>
     <div class="student-record__pdf-preview">
-      <iframe data-src="<?= htmlspecialchars($urlPdf) ?>" title="Vista previa del expediente estudiantil"></iframe>
+      <iframe id="iframeVistaPreviaExpediente" data-src="<?= htmlspecialchars($urlPdf) ?>" title="Vista previa del expediente estudiantil"></iframe>
     </div>
     <?php
     $modalBody = ob_get_clean();
 
     ob_start();
     ?>
-    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar vista previa</button>
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+    <button type="button" class="btn btn-outline-primary" id="btnImprimirExpedientePdf">
+      <i class="bi bi-printer me-1" aria-hidden="true"></i>Imprimir
+    </button>
     <a href="<?= htmlspecialchars($urlPdf . '&descargar=1') ?>"
        class="btn btn-primary" target="_blank" rel="noopener">
       <i class="bi bi-download me-1" aria-hidden="true"></i>Descargar PDF
@@ -534,8 +565,8 @@ if (!$esDocente) {
     <?php
     $modalFooter = ob_get_clean();
     $modalId = 'modalVistaPreviaExpediente';
-    $modalTitle = 'Vista previa del expediente';
-    $modalSubtitle = 'Revise el documento antes de descargarlo.';
+    $modalTitle = 'Ficha integral del estudiante';
+    $modalSubtitle = trim($nombre . ($documento !== '' ? ' · ' . $documento : '')) ?: 'Revise el documento antes de descargarlo.';
     $modalSize = 'xl';
     $modalCentered = false;
     ob_start();

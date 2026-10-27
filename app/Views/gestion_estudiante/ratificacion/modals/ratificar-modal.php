@@ -78,7 +78,22 @@ ob_start();
 
     <div class="border rounded p-3">
       <div class="mb-3">
-        <label class="form-label text-muted small mb-2 d-block fw-semibold">1. ¿Posee equipo Canaima? *</label>
+        <label class="form-label text-muted small mb-2 d-block fw-semibold">1. ¿El estudiante repite el grado? *</label>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="repite_grado" id="repiteGradoNo" value="0" checked>
+          <label class="form-check-label" for="repiteGradoNo">No (Avanza de grado)</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="repite_grado" id="repiteGradoSi" value="1">
+          <label class="form-check-label" for="repiteGradoSi">Sí (Repite el grado)</label>
+        </div>
+        <div class="form-text">
+          Si no repite se sugiere el grado siguiente; si repite se conserva el grado actual.
+        </div>
+      </div>
+
+      <div class="mb-3 pt-3 border-top">
+        <label class="form-label text-muted small mb-2 d-block fw-semibold">2. ¿Posee equipo Canaima? *</label>
         <div class="form-check form-check-inline">
           <input class="form-check-input" type="radio" name="tiene_canaima" id="tieneCanaimaNo" value="0" checked>
           <label class="form-check-label" for="tieneCanaimaNo">No</label>
@@ -96,7 +111,7 @@ ob_start();
       </div>
 
       <div class="mb-0 pt-3 border-top">
-        <label class="form-label text-muted small mb-2 d-block fw-semibold">2. ¿Tiene ingreso al SIGE? *</label>
+        <label class="form-label text-muted small mb-2 d-block fw-semibold">3. ¿Tiene ingreso al SIGE? *</label>
         <div class="form-check form-check-inline">
           <input class="form-check-input" type="radio" name="tiene_ingreso_sige" id="tieneIngresoSigeNo" value="0" checked>
           <label class="form-check-label" for="tieneIngresoSigeNo">No</label>

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\RatificacionModel;
+use App\Support\CedulaEscolar;
 use App\Support\Documento;
+use App\Support\DocumentosObligatorios;
+use App\Support\Validator;
 use App\Traits\ContactoValidacionTrait;
 use App\Traits\FotoSubidaTrait;
 use App\Traits\FamiliaresValidacionTrait;
@@ -135,6 +138,8 @@ class RatificacionController extends CrudController
             'estados'        => $catFamiliares['estados'],
             // El modal reutiliza el paso 1 del estudiante, así que necesita su catálogo.
             'nacionalidades' => $model->getNacionalidades(),
+            'minDateEstudiante' => (((int) ($anioDestino['anio_inicio'] ?? date('Y')) ?: (int) date('Y')) - 14) . '-01-01',
+            'maxDateEstudiante' => (((int) ($anioDestino['anio_inicio'] ?? date('Y')) ?: (int) date('Y')) - 6) . '-12-31',
         ];
     }
 
@@ -233,8 +238,25 @@ class RatificacionController extends CrudController
                 'repite_grado'       => 0,
             ];
 
-            if ($encuesta['tiene_canaima'] === 1 && $encuesta['serial_canaima'] === '') {
-                $fallar('Debe ingresar el serial del equipo Canaima si posee uno.', 400);
+            if ($encuesta['tiene_canaima'] === 1) {
+                if ($encuesta['serial_canaima'] === '') {
+                    $fallar('Debe ingresar el serial del equipo Canaima si posee uno.', 400);
+                }
+                if (mb_strlen($encuesta['serial_canaima'], 'UTF-8') > 50) {
+                    $fallar('El serial de la Canaima no puede superar 50 caracteres.', 422);
+                }
+            }
+
+            if ($encuesta['tiene_ingreso_sige'] === 1) {
+                if (mb_strlen($encuesta['motivo_sige'], 'UTF-8') > 200) {
+                    $fallar('El motivo del SIGE no puede superar 200 caracteres.', 422);
+                }
+                if ($encuesta['fecha_ingreso_sige'] !== '') {
+                    $v = Validator::make(['fecha' => $encuesta['fecha_ingreso_sige']], ['fecha' => 'date|date_not_future']);
+                    if (!$v->passes()) {
+                        $fallar('La fecha de ingreso al SIGE no es válida o es una fecha futura.', 422);
+                    }
+                }
             }
 
             $destino = [
@@ -441,13 +463,13 @@ class RatificacionController extends CrudController
                 'segundo_nombre'   => $this->capitalizarTitulo($crudo('segundo_nombre')),
                 'primer_apellido'  => $this->capitalizarTitulo($crudo('primer_apellido')),
                 'segundo_apellido' => $this->capitalizarTitulo($crudo('segundo_apellido')),
-                'sexo'             => $crudo('sexo') === 'F' ? 'F' : 'M',
+                'sexo'             => $crudo('sexo'),
                 /* Esta ruta edita al estudiante, no a un familiar: es el único caso en que
                    se guardan los tres niveles. El municipio se deduce de la parroquia y no
                    se persiste. */
-                'id_estado_nacimiento'    => (int) ($crudo('id_estado_nacimiento') ?? '0'),
-                'id_nacionalidad'         => (int) ($crudo('id_nacionalidad') ?? '0'),
-                'id_parroquia_nacimiento' => (int) ($crudo('id_parroquia_nacimiento') ?? '0'),
+                'id_estado_nacimiento'    => ((int) $crudo('id_estado_nacimiento')) ?: null,
+                'id_nacionalidad'         => ((int) $crudo('id_nacionalidad')) ?: null,
+                'id_parroquia_nacimiento' => ((int) $crudo('id_parroquia_nacimiento')) ?: null,
             ],
             'talla_uniforme' => [
                 'camisa'        => $this->aMayusculas($crudo('talla_camisa')),
@@ -480,25 +502,157 @@ class RatificacionController extends CrudController
             'id_usuario'   => (int) ($this->idUsuarioActual() ?? 0),
         ];
 
+        // Regla institucional: cambio de fecha_nacimiento con Cédula Escolar (CE)
+        $fechaActual = (string) ($actual['fecha_nacimiento'] ?? '');
+        $fechaNueva  = (string) ($data['persona']['fecha_nacimiento'] ?? '');
+        $anioActual  = (int) substr($fechaActual, 0, 4);
+        $anioNuevo   = (int) substr($fechaNueva, 0, 4);
+        $esCE        = ($actual['tipo_documento'] === 'CE');
+        $cambiaAnio  = ($esCE && $anioActual > 0 && $anioNuevo > 0 && $anioActual !== $anioNuevo);
+
+        if ($cambiaAnio) {
+            $rolSesion   = sigde_rol_clave($_SESSION['rol'] ?? '');
+            $esDireccion = in_array($rolSesion, ['directivo', 'admin'], true);
+
+            if (!$esDireccion) {
+                $this->jsonResponse(
+                    false,
+                    ['fecha_nacimiento' => 'Solo los usuarios de Dirección pueden autorizar el cambio de año de nacimiento para un estudiante con Cédula Escolar.'],
+                    'Acción no autorizada.',
+                    422
+                );
+            }
+
+            $motivo = trim((string) ($_POST['motivo_cambio_anio'] ?? ''));
+            if ($motivo === '') {
+                $this->jsonResponse(
+                    false,
+                    ['motivo_cambio_anio' => 'Debe indicar el motivo del cambio de año de nacimiento.'],
+                    'Motivo obligatorio.',
+                    422
+                );
+            }
+            if (mb_strlen($motivo, 'UTF-8') > 40) {
+                $this->jsonResponse(
+                    false,
+                    ['motivo_cambio_anio' => 'El motivo no puede exceder 40 caracteres.'],
+                    'Motivo demasiado largo.',
+                    422
+                );
+            }
+
+            $familiaresActuales = $this->modelo()->getFamiliares($idEstudiante);
+            $rep = $this->representanteLegal($data['familiares']) ?? $this->representanteLegal($familiaresActuales);
+            $cedulaRep = (string) ($rep['numero_documento'] ?? '');
+            $letraRep  = (string) ($rep['tipo_documento'] ?? 'V');
+
+            if ($cedulaRep === '') {
+                $this->jsonResponse(
+                    false,
+                    ['fecha_nacimiento' => 'No se puede regenerar la Cédula Escolar porque el estudiante no tiene un representante legal con documento válido.'],
+                    'Representante no válido.',
+                    422
+                );
+            }
+
+            $nuevoOrden = $this->modelo()->proximoOrdenHermano($cedulaRep, $fechaNueva, $idEstudiante);
+            if ($nuevoOrden > 9) {
+                $this->jsonResponse(
+                    false,
+                    ['fecha_nacimiento' => 'No es posible asignar una Cédula Escolar: se superó el límite máximo de 9 hermanos con Cédula Escolar para este año de nacimiento.'],
+                    'Límite de hermanos alcanzado.',
+                    422
+                );
+            }
+
+            try {
+                $nuevaCE = CedulaEscolar::generar($nuevoOrden, $fechaNueva, $cedulaRep, $letraRep);
+            } catch (\InvalidArgumentException $e) {
+                $this->jsonResponse(false, ['fecha_nacimiento' => $e->getMessage()], 'Error en cédula escolar.', 422);
+            }
+
+            $data['persona']['numero_documento'] = $nuevaCE;
+            $data['cambio_ce'] = [
+                'ce_anterior' => $actual['numero_documento'],
+                'ce_nueva'    => $nuevaCE,
+                'motivo'      => $motivo,
+            ];
+        }
+
         $errores = $this->validarDatosEstudiante($data, $idEstudiante);
         $this->validarFamiliares($data['familiares'], $errores, false);
+
+        /* Regla 2, no retroactiva: solo se evalúa si cambió el representante o su
+           parentesco. Un expediente viejo con representante distinto de madre/padre
+           y sin permiso LOPNNA no se bloquea al guardar cualquier otro dato. */
+        $servicioDocumentos = new DocumentosObligatorios($this->conexion());
+        $familiaresActuales = $this->modelo()->getFamiliares($idEstudiante);
+        $representanteActual = $this->representanteLegal($familiaresActuales);
+        $representanteNuevo = $this->representanteLegal($data['familiares']);
+
+        if ($this->cambioElRepresentante($representanteActual, $representanteNuevo, $servicioDocumentos)) {
+            $faltantes = $servicioDocumentos->faltantesPermisoLopnna(
+                $representanteNuevo,
+                $data['recaudos']
+            );
+
+            if ($faltantes !== []) {
+                $errores['recaudos'] = implode(' ', array_column($faltantes, 'mensaje'));
+            }
+        }
+
+        /* Regla 3, no retroactiva: solo se exige a las personas que se autorizan
+           para retirar en este guardado. Una persona que ya estaba autorizada no
+           se bloquea si su expediente viejo no tiene los documentos. Los
+           documentos se marcan en la pestaña de recaudos (`estudiante_documento`). */
+        $faltantesRetiro = $this->faltantesRetiroNuevos(
+            $data['familiares'],
+            $familiaresActuales,
+            $data['recaudos'],
+            $servicioDocumentos
+        );
+
+        if ($faltantesRetiro !== []) {
+            $previo = trim((string) ($errores['recaudos'] ?? ''));
+            $errores['recaudos'] = trim(
+                $previo . ' ' . implode(' ', array_column($faltantesRetiro, 'mensaje'))
+            );
+        }
 
         if ($errores !== []) {
             $this->jsonResponse(false, $errores, 'Hay errores en el formulario.', 422);
         }
 
         /* La foto se procesa DESPUÉS de validar, no antes: si el formulario tiene
- errores no se quiere dejar un archivo subido que nadie va a usar.*/
+           errores no se quiere dejar un archivo subido que nadie va a usar. */
         $fotoAnterior = (string) ($actual['foto'] ?? '');
         $fotoNueva    = $this->procesarFotoSubida(self::FOTO_ESTUDIANTE);
+        $quitarFoto   = (string) ($_POST['eliminar_foto'] ?? '') === '1';
+
         if ($fotoNueva !== null) {
             $data['persona']['foto'] = $fotoNueva;
+        } elseif ($quitarFoto) {
+            $data['persona']['foto'] = null;
         }
 
         try {
             // Los familiares van dentro de la misma transacción que la persona:
             // guardar medio formulario es peor que no guardar nada.
             $this->modelo()->actualizarEstudiante($idEstudiante, $data, $data['familiares']);
+        } catch (\PDOException $e) {
+            if ($fotoNueva !== null) {
+                $this->borrarFoto($fotoNueva);
+            }
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(
+                    false,
+                    ['numero_documento' => 'La Cédula Escolar generada ya se encuentra registrada para otro estudiante.'],
+                    'Conflicto de documento.',
+                    422
+                );
+            }
+            $this->jsonError($e, 'Actualización del estudiante');
         } catch (Throwable $e) {
             // Si se subió una foto y el guardado falló, se borra: si no queda
             // apuntando a un archivo huérfano.
@@ -508,7 +662,7 @@ class RatificacionController extends CrudController
             $this->jsonError($e, 'Actualización del estudiante');
         }
 
-        if ($fotoNueva !== null && $fotoAnterior !== '') {
+        if (($fotoNueva !== null || $quitarFoto) && $fotoAnterior !== '') {
             $this->borrarFoto($fotoAnterior);
         }
 
@@ -563,15 +717,27 @@ class RatificacionController extends CrudController
         $errores = [];
         $p = $data['persona'];
 
+        $estudianteActual = $this->modelo()->getEstudianteEditable($idEstudiante);
+        $documentoOriginal = (string) ($estudianteActual['numero_documento'] ?? '');
+
         $this->validarDocumento(
             ['tipo_documento' => $p['tipo_documento'], 'numero_documento' => $p['numero_documento']],
             $errores,
             ['V', 'E', 'CE'],
-            (int) ($this->modelo()->getEstudianteEditable($idEstudiante)['id_persona'] ?? 0),
-            'Ya existe un estudiante con ese número de documento.'
+            (int) ($estudianteActual['id_persona'] ?? 0),
+            'Ya existe un estudiante con ese número de documento.',
+            $documentoOriginal
         );
 
-        $this->validarFechaNacimiento($p, $errores, 'fecha_nacimiento', 5, 14);
+        $anioDestino = $this->modelo()->getAnioDestino();
+        $inicioAnio = (int) ($anioDestino['anio_inicio'] ?? 0);
+        if ($inicioAnio <= 0) {
+            $inicioAnio = (int) date('Y');
+        }
+        // Regla no retroactiva: si la fecha no cambió, no se bloquea a un alumno existente al editar otros campos
+        if ($p['fecha_nacimiento'] !== ($estudianteActual['fecha_nacimiento'] ?? '')) {
+            $this->validarFechaNacimientoEstudiante($p, $errores, $inicioAnio);
+        }
         /* Este método solo se llama al EDITAR un alumno que ya existe, y ese alumno se
         registró antes de que el lugar de nacimiento y la nacionalidad fueran campos. Los
         tiene en NULL y exigirlos hacía imposible guardar cualquier edición: el
@@ -580,23 +746,23 @@ class RatificacionController extends CrudController
         $this->validarLugarNacimiento($p, $errores, true, false);
         $this->validarNacionalidad($p, $errores, false);
 
-        if ($p['primer_nombre'] === '') {
-            $errores['primer_nombre'] = 'Indique el nombre del estudiante.';
-        }
-        if ($p['primer_apellido'] === '') {
-            $errores['primer_apellido'] = 'Indique el apellido del estudiante.';
+        $this->validarNombresApellidos($p, $errores);
+
+        if (!in_array($p['sexo'], ['F', 'M'], true)) {
+            $errores['sexo'] = 'El sexo seleccionado no es válido.';
         }
 
-        // Las tallas son NOT NULL en la base, y vacías se guardan como ''.
-        // Se avisa para que la secretaria no crea que se guardó.
-        foreach (['camisa', 'pantalon', 'zapato'] as $prenda) {
-            if (($data['talla_uniforme'][$prenda] ?? '') === '') {
-                $errores['talla_' . $prenda] = 'Seleccione una talla.';
+        /* Las tallas son opcionales: un valor vacío se guarda como '' (la columna es
+           NOT NULL). Si se proporciona un valor, no debe exceder 10 caracteres (varchar(10)). */
+        foreach (['camisa', 'pantalon', 'zapato'] as $talla) {
+            $val = (string) ($data['talla_uniforme'][$talla] ?? '');
+            if ($val !== '' && mb_strlen($val, 'UTF-8') > 10) {
+                $errores['talla_' . $talla] = 'La talla no puede superar los 10 caracteres.';
             }
         }
 
         /* Mismo control que en la inscripción: ficha_medica.tipo_sangre es un ENUM y un valor
- fuera de la lista lo trunca la base en silencio dejando un 500 sin explicación.*/
+         fuera de la lista lo trunca la base en silencio dejando un 500 sin explicación.*/
         if ($data['ficha_medica']['tipo_sangre'] !== null
             && !in_array($data['ficha_medica']['tipo_sangre'], self::TIPOS_SANGRE, true)) {
             $errores['tipo_sangre'] = 'Seleccione un tipo de sangre de la lista.';
@@ -688,6 +854,80 @@ class RatificacionController extends CrudController
         }
 
         return $familiares;
+    }
+
+    /**
+     * Regla 3 para una edición: solo valida a quien se autoriza ahora.
+     *
+     * Si la persona ya estaba autorizada, no se le exigen los documentos: son
+     * expedientes que se guardaron antes de que existiera la regla y no se
+     * pueden bloquear hacia atrás. Si es nueva o pasa de no autorizada a
+     * autorizada, sí se valida.
+     *
+     * @param array<int, array<string, mixed>> $nuevos
+     * @param array<int, array<string, mixed>> $actuales
+     * @return array<int, array{codigo: string, mensaje: string}>
+     */
+    private function faltantesRetiroNuevos(
+        array $nuevos,
+        array $actuales,
+        array $recaudos,
+        DocumentosObligatorios $servicio
+    ): array {
+        $porDocumento = [];
+        foreach ($actuales as $actual) {
+            $documento = (string) preg_replace('/\D/', '', (string) ($actual['numero_documento'] ?? ''));
+            if ($documento !== '') {
+                $porDocumento[$documento] = $actual;
+            }
+        }
+
+        foreach ($nuevos as $nuevo) {
+            $documento = (string) preg_replace('/\D/', '', (string) ($nuevo['numero_documento'] ?? ''));
+            $actual = $documento !== '' ? ($porDocumento[$documento] ?? null) : null;
+
+            if ($actual !== null && (int) ($actual['autorizado_retiros'] ?? 0) === 1) {
+                continue;
+            }
+
+            $faltantes = $servicio->faltantesDocumentosRetiro($nuevo, $recaudos);
+            if ($faltantes !== []) {
+                return $faltantes;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * ¿Cambió el representante legal o su parentesco?
+     *
+     * Se compara por documento y por código de parentesco, no por nombre: el
+     * nombre del catálogo se puede corregir sin que cambie el vínculo. Si el
+     * payload no trae representante, la validación de familiares ya reporta la
+     * falta y aquí no se inventa un cambio.
+     */
+    private function cambioElRepresentante(
+        ?array $actual,
+        ?array $nuevo,
+        DocumentosObligatorios $servicio
+    ): bool {
+        if ($nuevo === null) {
+            return false;
+        }
+        if ($actual === null) {
+            return true;
+        }
+
+        $documento = static fn (array $familiar): string =>
+            (string) preg_replace('/\D/', '', (string) ($familiar['numero_documento'] ?? ''));
+
+        if ($documento($actual) !== $documento($nuevo)) {
+            return true;
+        }
+
+        return $servicio->codigoParentesco((string) ($actual['parentesco'] ?? ''))
+            !== $servicio->codigoParentesco((string) ($nuevo['parentesco'] ?? ''));
     }
 
     /** Vacío a null, como en InscripcionesController (texto libre opcional).*/

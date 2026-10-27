@@ -240,12 +240,16 @@
   width: 100%;
   font-size: 0.85rem;
 
+  &--fixed {
+    table-layout: fixed;
+  }
+
   thead th {
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: $secondary;
+    font-size: $sigde-label-micro-font-size;
+    font-weight: $sigde-label-font-weight;
+    color: $sigde-label-color;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: $sigde-label-letter-spacing-tight;
     padding: 0.6rem 0.5rem;
     border-bottom: 1px solid $tint-hover;
   }
@@ -381,9 +385,9 @@
 }
 
 .wizard-summary__label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: $secondary;
+  font-size: $sigde-label-field-font-size;
+  font-weight: $sigde-label-font-weight;
+  color: $sigde-label-color;
   margin-bottom: 0.3rem;
 }
 

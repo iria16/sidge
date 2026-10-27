@@ -69,7 +69,7 @@ $phoneFeedback     =$phoneFeedback ?? '';
   <?php endif; ?>
 </div>
 <?php
-// El filtro de "solo dígitos" en tiempo real vive en core/wizard-ui.js
+// El filtro de "solo dígitos" en tiempo real vive en empleado.js
 // (initSoloDigitosTelefono), como listener único delegado sobre
 // input[pattern="[0-9]{7}"]. No se repite un <script> por cada inclusión
 // de este componente.

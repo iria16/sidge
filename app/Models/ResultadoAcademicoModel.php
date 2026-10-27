@@ -108,17 +108,24 @@ class ResultadoAcademicoModel extends BaseModel
                        -- Total de alumnos activos cursando en esta sección
                        COUNT(DISTINCT m.id_estudiante) AS total_estudiantes,
                        -- Conteo de estados de resultado académico
-                       COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'PROMOVIDO' THEN ra.id_estudiante END) AS total_promovidos,
-                       COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'NO_PROMOVIDO' THEN ra.id_estudiante END) AS total_no_promovidos,
-                       COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'PENDIENTE' OR (ra.id_resultado IS NULL AND m.id_estudiante IS NOT NULL) THEN m.id_estudiante END) AS total_pendientes,
-                       /* Registrados ≠ confirmados. Registrado es a quien YA se le
-                          asignó un literal, este docente o el anterior; confirmado es a
-                          quien la Dirección validó. Son dos pasos distintos del mismo
-                          circuito y confundirlos haría que el panel pareciera listo con
-                          la mitad del trabajo todavía sin revisar. Se cuentan por
-                          literal y por confirmado_por, no por estado_resultado: un
-                          literal propuesto sigue en PENDIENTE hasta que se confirma. */
-                       COUNT(DISTINCT CASE WHEN ra.literal IS NOT NULL THEN ra.id_estudiante END) AS total_registrados,
+                       COUNT(DISTINCT CASE 
+                           WHEN ra.estado_resultado = 'PROMOVIDO' 
+                             OR (ra.literal IN ('A','B','C','D') AND (ra.estado_resultado IS NULL OR ra.estado_resultado = 'PENDIENTE')) 
+                           THEN ra.id_estudiante 
+                       END) AS total_promovidos,
+                       COUNT(DISTINCT CASE 
+                           WHEN ra.estado_resultado = 'NO_PROMOVIDO' 
+                             OR (ra.literal = 'E' AND (ra.estado_resultado IS NULL OR ra.estado_resultado = 'PENDIENTE')) 
+                           THEN ra.id_estudiante 
+                       END) AS total_no_promovidos,
+                       -- Pendientes de carga (sin literal asignado todavía)
+                       COUNT(DISTINCT CASE WHEN m.id_estudiante IS NOT NULL AND (ra.literal IS NULL OR TRIM(ra.literal) = '') THEN m.id_estudiante END) AS total_pendientes,
+                       /* Registrados ≠ confirmados. Registrado/cargado es a quien YA se le
+                          asignó un literal válido; confirmado es a quien la Dirección validó.
+                          Se devuelven ambos alias (total_cargados y total_registrados) para
+                          que la vista de índice y cualquier otro consumidor reciban el dato. */
+                       COUNT(DISTINCT CASE WHEN ra.literal IS NOT NULL AND TRIM(ra.literal) != '' THEN ra.id_estudiante END) AS total_cargados,
+                       COUNT(DISTINCT CASE WHEN ra.literal IS NOT NULL AND TRIM(ra.literal) != '' THEN ra.id_estudiante END) AS total_registrados,
                        COUNT(DISTINCT CASE WHEN ra.confirmado_por IS NOT NULL THEN ra.id_estudiante END) AS total_confirmados,
                        -- Docente asignado
                        CONCAT_WS(' ', p_doc.primer_nombre, p_doc.primer_apellido) AS docente_nombre
@@ -200,17 +207,8 @@ class ResultadoAcademicoModel extends BaseModel
         }
 
         /* Alcance de la consulta, por rol.
-
-         * Antes estas dos comprobaciones solo corrían cuando el rol era exactamente
-         * 'docente', así que cualquier otro rol pasaba sin validar. Eso no era un
-         * problema mientras la única forma de llegar aquí era la pantalla: el
-         * coordinador nunca vio un botón de guardar. Pero `guardarPropuesta()`
-         * llama a este método con el rol real antes de escribir, de modo que un
-         * POST directo de un coordinador pasaba sin comprobar año ni sección y
-         * podía tocar cualquier sección de cualquier período. Que un botón no se
-         * vea no es una protección.
-
-         * Ahora, para todo rol que no sea admin o directivo:
+         *
+         * Para todo rol que no sea admin o directivo:
          *   - el período escolar debe ser el que está en curso;
          *   - y, si el rol es docente, además la sección debe ser la suya.
          *
@@ -218,8 +216,7 @@ class ResultadoAcademicoModel extends BaseModel
          * único rol con asignación en `asignacion_docente`. Para el coordinador la
          * sección no es suya ni de nadie: su ámbito es la consulta de todas las
          * secciones del período, y por eso lo que se le acota es el año, no la
-         * sección. Un coordinador sin turno ni asignación no quedaría fuera, que es
-         * lo contrario de lo que hace falta. */
+         * sección. */
         $rolNormalizado = strtolower($rol);
         $esPrivilegiado = in_array($rolNormalizado, ['admin', 'directivo'], true);
 
@@ -244,7 +241,10 @@ class ResultadoAcademicoModel extends BaseModel
                                   p.segundo_nombre,
                                   p.primer_apellido,
                                   p.segundo_apellido,
-                                  CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS nombre_completo,
+                                  CONCAT_WS(', ',
+                                      TRIM(CONCAT_WS(' ', NULLIF(p.primer_apellido, ''), NULLIF(p.segundo_apellido, ''))),
+                                      TRIM(CONCAT_WS(' ', NULLIF(p.primer_nombre, ''), NULLIF(p.segundo_nombre, '')))
+                                  ) AS nombre_completo,
                                   p.tipo_documento,
                                   p.numero_documento,
                                   ra.id_resultado,
@@ -287,12 +287,6 @@ class ResultadoAcademicoModel extends BaseModel
     /**
      * Guarda o actualiza la PROPUESTA pedagógica del docente.
      * El estado queda siempre en PENDIENTE hasta que la dirección lo confirme.
-     *
-     * Proponer literales es escribir, y escribir es solo del docente: lo declara la
-     * regla del módulo. Aquí se comprueba el rol aunque la ruta ya lo exija, para que
-     * el método no dependa de que quien lo llama pase por el controller. Al
-     * coordinador y al admin se les niega con un mensaje claro en vez de dejarlos
-     * llegar a un fallo raro más adelante.
      */
     public function guardarPropuesta(int $idEstructura, array $datosEstudiantes, int $idUsuario, string $rol = 'admin'): array
     {
@@ -314,7 +308,9 @@ class ResultadoAcademicoModel extends BaseModel
             "SELECT m.id_matricula,
                     m.id_estudiante,
                     ra.id_resultado,
-                    ra.estado_resultado
+                    ra.estado_resultado,
+                    ra.fecha_confirmacion,
+                    ra.confirmado_por
                FROM matricula m
                LEFT JOIN resultado_academico ra
                       ON ra.id_estudiante = m.id_estudiante
@@ -329,8 +325,9 @@ class ResultadoAcademicoModel extends BaseModel
         foreach ($filasNomina as $fila) {
             $idEst = (int) $fila['id_estudiante'];
             $nominaValida[$idEst] = [
-                'id_matricula'     => (int) $fila['id_matricula'],
-                'estado_resultado' => (string) ($fila['estado_resultado'] ?? self::ESTADO_PENDIENTE),
+                'id_matricula'       => (int) $fila['id_matricula'],
+                'estado_resultado'   => (string) ($fila['estado_resultado'] ?? self::ESTADO_PENDIENTE),
+                'confirmado'         => !empty($fila['fecha_confirmacion']) || !empty($fila['confirmado_por']),
             ];
         }
 
@@ -347,15 +344,16 @@ class ResultadoAcademicoModel extends BaseModel
                     propuesto_por, fecha_propuesta
                  ) VALUES (
                     :id_est, :id_anio, :id_estr, :id_mat,
-                    :literal, 'PENDIENTE', :id_grado_dest, :obs,
+                    :literal, :estado, :id_grado_dest, :obs,
                     :usuario, NOW()
                  )
                  ON DUPLICATE KEY UPDATE
-                    literal = IF(estado_resultado = 'PENDIENTE', VALUES(literal), literal),
-                    id_grado_destino = IF(estado_resultado = 'PENDIENTE', VALUES(id_grado_destino), id_grado_destino),
-                    observaciones = IF(estado_resultado = 'PENDIENTE', VALUES(observaciones), observaciones),
-                    propuesto_por = IF(estado_resultado = 'PENDIENTE', VALUES(propuesto_por), propuesto_por),
-                    fecha_propuesta = IF(estado_resultado = 'PENDIENTE', VALUES(fecha_propuesta), fecha_propuesta)"
+                    literal = IF(confirmado_por IS NULL, VALUES(literal), literal),
+                    estado_resultado = IF(confirmado_por IS NULL, VALUES(estado_resultado), estado_resultado),
+                    id_grado_destino = IF(confirmado_por IS NULL, VALUES(id_grado_destino), id_grado_destino),
+                    observaciones = IF(confirmado_por IS NULL, VALUES(observaciones), observaciones),
+                    propuesto_por = IF(confirmado_por IS NULL, VALUES(propuesto_por), propuesto_por),
+                    fecha_propuesta = IF(confirmado_por IS NULL, VALUES(fecha_propuesta), fecha_propuesta)"
             );
 
             $guardados           = 0;
@@ -377,8 +375,7 @@ class ResultadoAcademicoModel extends BaseModel
                 }
 
                 // Defensa PHP 2: Bloqueo universal de registros ya confirmados por la Dirección
-                $estadoActual = $nominaValida[$idEstudiante]['estado_resultado'];
-                if (in_array($estadoActual, [self::ESTADO_PROMOVIDO, self::ESTADO_NO_PROMOVIDO], true)) {
+                if (!empty($nominaValida[$idEstudiante]['confirmado'])) {
                     $omitidosConfirmados++;
                     continue;
                 }
@@ -392,8 +389,9 @@ class ResultadoAcademicoModel extends BaseModel
                     continue;
                 }
 
-                // Determinar grado destino sugerido según el literal en el servidor
+                // Determinar grado destino sugerido y estado de resultado según el literal
                 $idGradoDestino = $this->determinarGradoDestino($literal, $idGradoActual, $idGradoSiguiente);
+                $estado         = self::estadoSugeridoPorLiteral($literal);
 
                 $stmtUpsert->execute([
                     'id_est'        => $idEstudiante,
@@ -401,6 +399,7 @@ class ResultadoAcademicoModel extends BaseModel
                     'id_estr'       => $idEstructura,
                     'id_mat'        => $idMat,
                     'literal'       => $literal,
+                    'estado'        => $estado,
                     'id_grado_dest' => $idGradoDestino,
                     'obs'           => $obs,
                     'usuario'       => $idUsuario > 0 ? $idUsuario : null,
@@ -458,24 +457,12 @@ class ResultadoAcademicoModel extends BaseModel
     }
 
     /**
-     * Confirma y valida formalmente el resultado académico (solo Directivo).
+     * Confirma y valida formalmente el resultado académico (solo Directivos / Administradores).
      * Pasa el estado a PROMOVIDO o NO_PROMOVIDO y sella confirmado_por y fecha_confirmacion.
      * Aplica doble defensa: filtro de nómina con Matriculas::condicionCursando('m') + candado SQL atómico.
-     *
-     * Sellar un resultado es irreversible desde esta pantalla y no admite vuelta atrás
-     * por la interfaz, así que aquí se exige, sea quien sea el rol, que el período
-     * escolar siga en curso. Es el invariante que de verdad protege el dato. La
-     * comprobación vive en el modelo y no en el controller para que el método no
-     * dependa de que quien lo llama se acuerde de validarla: si mañana otro punto
-     * llama a confirmarResultados() sin pasar por el controller, la regla se sigue
-     * cumpliendo.
      */
     public function confirmarResultados(int $idEstructura, array $datosEstudiantes, int $idUsuarioDirectivo, string $rol = 'directivo'): array
     {
-        /* Igual que en guardarPropuesta(): confirmar es escribir, y escribir es solo
-           del docente que propone y del directivo que confirma. La ruta y el
-           controller ya lo exigen; que el modelo también lo compruebe evita que una
-           llamada directa selle resultados de un rol que no debería poder hacerlo. */
         if (strtolower($rol) !== 'directivo') {
             return ['ok' => false, 'mensaje' => 'Solo el personal directivo puede confirmar los resultados académicos.'];
         }
@@ -682,8 +669,7 @@ class ResultadoAcademicoModel extends BaseModel
                        ra.id_grado_destino,
                        g_dest.nombre AS grado_destino_nombre,
                        ra.observaciones,
-                       ra.confirmado_por,
-                       ra.fecha_confirmacion
+                       COALESCE(ra.fecha_propuesta, ra.fecha_actualizacion) AS fecha_resultado
                 FROM resultado_academico ra
                 INNER JOIN anio_escolar ae ON ae.id_anio_escolar = ra.id_anio_escolar
                 INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ra.id_estructura_academica
@@ -725,7 +711,50 @@ class ResultadoAcademicoModel extends BaseModel
     /**
      * Helpers internos
      */
-    private function getIdDocentePorUsuario(int $idUsuario): int
+    public function esDocenteAsignada(int $idUsuario, int $idEstructura): bool
+    {
+        if ($idUsuario <= 0 || $idEstructura <= 0) {
+            return false;
+        }
+        $idDocente = $this->getIdDocentePorUsuario($idUsuario);
+        return ($idDocente > 0 && $this->docenteTieneSeccion($idDocente, $idEstructura));
+    }
+
+    public function porMatricula(int $idMatricula): ?array
+    {
+        if ($idMatricula <= 0) {
+            return null;
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT ra.id_resultado,
+                    ra.id_estudiante,
+                    ra.id_anio_escolar,
+                    ra.id_estructura_academica,
+                    ra.id_matricula,
+                    ra.literal,
+                    ra.estado_resultado,
+                    ra.id_grado_destino,
+                    ra.observaciones,
+                    ra.propuesto_por,
+                    ra.fecha_propuesta,
+                    ra.fecha_actualizacion,
+                    ra.fecha_creacion,
+                    COALESCE(ra.fecha_actualizacion, ra.fecha_propuesta, ra.fecha_creacion) AS fecha_resultado,
+                    CONCAT_WS(' ', p_prop.primer_nombre, p_prop.primer_apellido) AS propuesto_por_nombre
+             FROM resultado_academico ra
+             LEFT JOIN usuario u_prop ON u_prop.id_usuario = ra.propuesto_por
+             LEFT JOIN persona p_prop ON p_prop.id_persona = u_prop.id_persona
+             WHERE ra.id_matricula = :id_matricula
+             LIMIT 1"
+        );
+        $stmt->execute(['id_matricula' => $idMatricula]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
+    public function getIdDocentePorUsuario(int $idUsuario): int
     {
         $stmt = $this->pdo->prepare(
             "SELECT d.id_docente
@@ -739,7 +768,7 @@ class ResultadoAcademicoModel extends BaseModel
         return (int) ($stmt->fetchColumn() ?: 0);
     }
 
-    private function docenteTieneSeccion(int $idDocente, int $idEstructura): bool
+    public function docenteTieneSeccion(int $idDocente, int $idEstructura): bool
     {
         $stmt = $this->pdo->prepare(
             "SELECT COUNT(*)
@@ -835,11 +864,22 @@ class ResultadoAcademicoModel extends BaseModel
     {
         $stmt = $this->pdo->prepare(
             "SELECT COUNT(DISTINCT m.id_estudiante) AS total_estudiantes,
-                    COUNT(DISTINCT CASE WHEN ra.literal IS NOT NULL THEN ra.id_estudiante END) AS total_registrados
+                    COUNT(DISTINCT CASE WHEN ra.literal IS NOT NULL AND TRIM(ra.literal) != '' THEN ra.id_estudiante END) AS total_registrados,
+                    COUNT(DISTINCT CASE 
+                        WHEN ra.estado_resultado = 'PROMOVIDO' 
+                          OR (ra.literal IN ('A','B','C','D') AND (ra.estado_resultado IS NULL OR ra.estado_resultado = 'PENDIENTE')) 
+                        THEN ra.id_estudiante 
+                    END) AS total_promovidos,
+                    COUNT(DISTINCT CASE 
+                        WHEN ra.estado_resultado = 'NO_PROMOVIDO' 
+                          OR (ra.literal = 'E' AND (ra.estado_resultado IS NULL OR ra.estado_resultado = 'PENDIENTE')) 
+                        THEN ra.id_estudiante 
+                    END) AS total_no_promovidos,
+                    COUNT(DISTINCT CASE WHEN ra.confirmado_por IS NOT NULL THEN ra.id_estudiante END) AS total_confirmados
                FROM matricula m
                LEFT JOIN resultado_academico ra
-                      ON ra.id_matricula = m.id_matricula
-                     AND ra.id_estructura_academica = m.id_estructura_academica
+                      ON ra.id_estudiante = m.id_estudiante
+                     AND ra.id_anio_escolar = m.id_anio_escolar
               WHERE m.id_estructura_academica = :estructura
                 AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
                 AND " . Matriculas::condicionCursando('m')
@@ -847,15 +887,23 @@ class ResultadoAcademicoModel extends BaseModel
         $stmt->execute(['estructura' => $idEstructura]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-        $total       = (int) ($row['total_estudiantes'] ?? 0);
-        $registrados = (int) ($row['total_registrados'] ?? 0);
-        $pendientes  = max(0, $total - $registrados);
-        $porcentaje  = $total > 0 ? round(($registrados / $total) * 100, 1) : 0.0;
+        $total        = (int) ($row['total_estudiantes'] ?? 0);
+        $registrados  = (int) ($row['total_registrados'] ?? 0);
+        $pendientes   = max(0, $total - $registrados);
+        $promovidos   = (int) ($row['total_promovidos'] ?? 0);
+        $noPromovidos = (int) ($row['total_no_promovidos'] ?? 0);
+        $confirmados  = (int) ($row['total_confirmados'] ?? 0);
+        $porcentaje   = $total > 0 ? round(($registrados / $total) * 100, 1) : 0.0;
 
         return [
             'total'             => $total,
+            'cargados'          => $registrados,
             'registrados'       => $registrados,
+            'sin_literal'       => $pendientes,
             'pendientes'        => $pendientes,
+            'promovidos'        => $promovidos,
+            'no_promovidos'     => $noPromovidos,
+            'confirmados'       => $confirmados,
             'porcentaje'        => $porcentaje,
             'literales_validos' => self::LITERALES_VALIDOS,
             'escala_texto'      => implode(', ', self::LITERALES_VALIDOS),

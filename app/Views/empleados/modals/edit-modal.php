@@ -1,167 +1,142 @@
 <?php
+declare(strict_types=1);
+
 /**
  * app/Views/empleados/modals/edit-modal.php
  * Modal "Editar Empleado". Se puebla vía AJAX (empleados/show) antes de abrirse y
  * envía los cambios a empleados/update. Usa components/modal.php.
  *
- * Mismo lenguaje visual que el detalle (verEmpleadoModal) y el registro:
- * encabezado de identidad (user-detail__header) + secciones con
- * "icono + título" (wizard-summary__section-header) sobre tarjetas
- * wizard-summary__card.
+ * Mismo lenguaje visual, estructura de encabezado y pestañas que el modal de
+ * edición del estudiante (modalEditarEstudiante):
+ *   - Encabezado con foto circular editable arriba (modal-identity-header.php)
+ *   - Pestañas organizadas: Personales, Laborales, Contacto y Domicilio, Formación
+ *   - Sin foto duplicada en Datos Personales
  *
- * Variables en scope (definidas en index.php):
- * $cargos, $titulos, $gradosAcademicos, $instituciones
-*/
+ * Variables en scope (definidas en index.php o expediente.php):
+ * @var array $cargos
+ * @var array $turnos
+ * @var array $gradosAcademicos
+ * @var array $titulos
+ * @var array $instituciones
+ * @var array $estados
+ */
 ob_start();
 ?>
 <form id="formEditarEmpleado" novalidate>
   <!-- ID oculto del empleado que se está editando -->
   <input type="hidden" id="editEmpleado__id" name="id" value="">
 
-  <!-- Encabezado de identidad: mismo patrón que el modal de detalle
-       (user-detail__header). Foto + nombre + documento + acciones.
-       Rellenado por empleado-editar.js (#editEncabezadoNombre/#editEncabezadoDocumento). -->
-  <div class="user-detail__header">
-    <div class="wizard-photo-upload__circle">
-      <div class="wizard-photo-upload__preview" id="editFotoPreview">
-        <i class="bi bi-person"></i>
+  <!-- Encabezado de identidad compartido con el modal de estudiante -->
+  <?php
+  $identityPreviewId  = 'editFotoPreview';
+  $identityInputId    = 'editFotoInput';
+  $identityInputName  = 'foto';
+  $identityNameId     = 'editEncabezadoNombre';
+  $identityDocId      = 'editEncabezadoDocumento';
+  $identityQuitarId   = 'btnQuitarFotoEdicion';
+  $identityEliminarId = 'editEliminarFoto';
+  include __DIR__ . '/../../components/modal-identity-header.php';
+  ?>
+
+  <ul class="nav nav-tabs modal-tabs px-3 pt-3 border-bottom-0" id="editEmpleadoTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-emp-personales" data-bs-toggle="tab" data-bs-target="#pane-emp-personales" type="button" role="tab">Datos Personales</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-emp-laborales" data-bs-toggle="tab" data-bs-target="#pane-emp-laborales" type="button" role="tab">Datos Laborales</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-emp-contacto" data-bs-toggle="tab" data-bs-target="#pane-emp-contacto" type="button" role="tab">Contacto y Domicilio</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-emp-formacion" data-bs-toggle="tab" data-bs-target="#pane-emp-formacion" type="button" role="tab">Formación Académica</button>
+    </li>
+  </ul>
+
+  <div class="tab-content bg-white p-3 border-top" id="editEmpleadoTabsContent">
+    <!-- Pestaña 1: Datos Personales -->
+    <div class="tab-pane fade show active" id="pane-emp-personales" role="tabpanel" aria-labelledby="tab-emp-personales">
+      <?php
+      $prefixId = 'editEmpleado__';
+      $prefixName = '';
+      $showPhoto = false;
+      $minDate = date('Y-m-d', strtotime('-100 years'));
+      $maxDate = date('Y-m-d', strtotime('-18 years'));
+      $dateTitle = 'El empleado debe tener entre 18 y 100 años.';
+      $docMinLength = '7';
+      $docMaxLength = '8';
+      $tipoDocOpciones = ['V', 'E'];
+      $pideMunicipioParroquiaNacimiento = false;
+
+      include __DIR__ . '/../../components/persona-form.php';
+      ?>
+    </div>
+
+    <!-- Pestaña 2: Datos Laborales -->
+    <div class="tab-pane fade" id="pane-emp-laborales" role="tabpanel" aria-labelledby="tab-emp-laborales">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="label-sigde" for="editEmpleado__cargo">Cargo <span class="text-danger">*</span></label>
+          <select class="form-select" id="editEmpleado__cargo" name="id_cargo" required>
+            <option value="">Seleccione...</option>
+            <?php foreach ($cargos as $option): ?>
+              <option value="<?= (int) $option['id_cargo'] ?>"><?= htmlspecialchars($option['nombre']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="invalid-feedback">El cargo es obligatorio.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="label-sigde" for="editEmpleado__fechaIngreso">Fecha de ingreso <span class="text-danger">*</span></label>
+          <input
+            type="date"
+            class="form-control"
+            id="editEmpleado__fechaIngreso"
+            name="fecha_ingreso"
+            min="1980-01-01"
+            max="<?= date('Y-m-d') ?>"
+            required>
+          <div class="invalid-feedback">La fecha de ingreso es obligatoria.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="label-sigde" for="editEmpleado__turno">Turno de trabajo</label>
+          <select class="form-select" id="editEmpleado__turno" name="id_turno">
+            <option value="">Sin turno asignado</option>
+            <?php foreach (($turnos ?? []) as $turno): ?>
+              <option value="<?= (int) $turno['id_turno'] ?>"><?= htmlspecialchars($turno['nombre']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-text">Déjelo vacío para cargos generales que no dependen de un turno.</div>
+        </div>
       </div>
-      <label class="wizard-photo-upload__edit" for="editFotoInput" title="Cambiar foto">
-        <i class="bi bi-pencil-fill"></i>
-      </label>
-      <input type="file" id="editFotoInput" name="foto" accept="image/*" class="d-none">
- </div>
- <div class="user-detail__name mt-0" id="editEncabezadoNombre">—</div>
- <div class="user-detail__meta" id="editEncabezadoDocumento">—</div>
- <button type="button" class="btn btn-link btn-sm p-0 text-danger mt-1" id="btnQuitarFotoEdicion" hidden>
- <i class="bi bi-x-circle me-1"></i>Quitar foto
- </button>
- </div>
- <input type="hidden" name="eliminar_foto" id="editEliminarFoto" value="">
+    </div>
 
- <section class="wizard-summary__section">
- <div class="wizard-summary__section-header">
- <span class="wizard-summary__icon"><i class="bi bi-person-vcard" aria-hidden="true"></i></span>
- <span class="wizard-summary__section-title">Identificación oficial</span>
- </div>
- <div class="wizard-summary__card">
- <div class="row g-2">
-<?php
-$prefixId = 'editEmpleado__';
-$prefixName = '';
-$showPhoto = false; // We already have a custom photo header in this modal
-$minDate = date('Y-m-d', strtotime('-75 years'));
-$maxDate = date('Y-m-d', strtotime('-18 years'));
-$dateTitle = 'El empleado debe tener entre 18 y 75 años.';
-$docMinLength = '7';
-$docMaxLength = '20';
-$tipoDocOpciones = ['V', 'E'];
-/* El empleado declara SOLO la entidad federal de nacimiento. Explícito aunque false ya
-   sea el valor por defecto, por la razón del scope compartido que se explica en
-   persona-form.php: si esta pantalla viviera junto al paso 1 del estudiante, esa marca
-   en true se colaría hasta acá. */
-$pideMunicipioParroquiaNacimiento = false;
+    <!-- Pestaña 3: Contacto y Domicilio -->
+    <div class="tab-pane fade" id="pane-emp-contacto" role="tabpanel" aria-labelledby="tab-emp-contacto">
+      <?php
+      $prefixId = 'editEmpleado__';
+      $prefixName = '';
+      $supportText = 'Actualice los datos de comunicación del trabajador para asegurar una vía de contacto efectiva.';
+      $phoneRequired = true;
+      include __DIR__ . '/../../components/contacto-form.php';
+      ?>
+      <hr class="my-4">
+      <?php
+      $prefixId = 'editEmpleado__';
+      $prefixName = '';
+      $direccionRequired = true;
+      include __DIR__ . '/../../components/direccion-form.php';
+      ?>
+    </div>
 
-include __DIR__ . '/../../components/persona-form.php';
-?>
- </div>
- </div>
- </section>
-
- <section class="wizard-summary__section mt-2">
- <div class="wizard-summary__section-header">
- <span class="wizard-summary__icon"><i class="bi bi-briefcase" aria-hidden="true"></i></span>
- <span class="wizard-summary__section-title">Información laboral</span>
- </div>
- <div class="wizard-summary__card">
- <div class="row g-2">
- <div class="col-md-6">
- <label class="label-sigde" for="editEmpleado__cargo">Cargo</label>
- <select class="form-select" id="editEmpleado__cargo" name="id_cargo" required>
- <option value="">Seleccione...</option>
- <?php foreach ($cargos as $option): ?>
- <option value="<?= (int) $option['id_cargo'] ?>"><?= htmlspecialchars($option['nombre']) ?></option>
- <?php endforeach; ?>
- </select>
- <div class="invalid-feedback">El cargo es obligatorio.</div>
- </div>
- <div class="col-md-6">
- <label class="label-sigde" for="editEmpleado__fechaIngreso">Fecha de ingreso</label>
- <input
- type="date"
- class="form-control"
- id="editEmpleado__fechaIngreso"
- name="fecha_ingreso"
- min="1980-01-01"
- max="<?= date('Y-m-d') ?>"
- required>
- <div class="invalid-feedback">La fecha de ingreso es obligatoria.</div>
- </div>
- <div class="col-md-6">
- <label class="label-sigde" for="editEmpleado__turno">Turno de trabajo</label>
- <select class="form-select" id="editEmpleado__turno" name="id_turno">
- <option value="">Sin turno asignado</option>
- <?php foreach (($turnos ?? []) as $turno): ?>
- <option value="<?= (int) $turno['id_turno'] ?>"><?= htmlspecialchars($turno['nombre']) ?></option>
- <?php endforeach; ?>
- </select>
- <div class="form-text">Déjelo vacío para cargos generales que no dependen de un turno.</div>
- </div>
- </div>
- </div>
- </section>
-
- <section class="wizard-summary__section mt-2">
- <div class="wizard-summary__section-header">
- <span class="wizard-summary__icon"><i class="bi bi-telephone" aria-hidden="true"></i></span>
- <span class="wizard-summary__section-title">Información de contacto</span>
- </div>
- <div class="wizard-summary__card">
- <div class="row g-2">
-<?php
-$prefixId = 'editEmpleado__';
-$prefixName = '';
-$supportText = 'Actualice los datos de comunicación del trabajador para asegurar una vía de contacto efectiva.';
-$phoneRequired = true;
-include __DIR__ . '/../../components/contacto-form.php';
-?>
- </div>
- </div>
- </section>
-
- <section class="wizard-summary__section mt-2">
- <div class="wizard-summary__section-header">
- <span class="wizard-summary__icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
- <span class="wizard-summary__section-title">Dirección de habitación</span>
- </div>
- <div class="wizard-summary__card">
- <div class="row g-2">
-<?php
-$prefixId = 'editEmpleado__';
-$prefixName = '';
-$direccionRequired = true;
-include __DIR__ . '/../../components/direccion-form.php';
-?>
- </div>
- </div>
- </section>
-
- <section class="wizard-summary__section mt-2">
- <div class="wizard-summary__section-header">
- <span class="wizard-summary__icon"><i class="bi bi-mortarboard" aria-hidden="true"></i></span>
- <span class="wizard-summary__section-title">Formación académica (opcional)</span>
- </div>
- <div class="wizard-summary__card">
- <?php /* Qué fila de formación se está editando y si se pidió quitarla. El botón de
- borrar no limpia los <select>: si los vaciara por JS, un guardado que fallara
- más abajo los dejaría en blanco y el siguiente intento borraría la fila de
- verdad. Se marca con un campo aparte, igual que el de la foto.*/ ?>
+    <!-- Pestaña 4: Formación Académica -->
+    <div class="tab-pane fade" id="pane-emp-formacion" role="tabpanel" aria-labelledby="tab-emp-formacion">
       <input type="hidden" name="id_formacion_academica" id="editFormacionId" value="">
       <input type="hidden" name="eliminar_formacion" id="editFormacionEliminar" value="">
 
       <div id="editFormacionActual" class="d-none mb-3">
-        <div class="d-flex align-items-center gap-2 border rounded px-3 py-2"
-             style="border-color:#cbd5e1 !important;">
+        <div class="d-flex align-items-center gap-2 border rounded px-3 py-2">
           <i class="bi bi-mortarboard text-primary" aria-hidden="true"></i>
           <div class="flex-grow-1">
             <div class="fw-semibold" id="editFormacionTitulo">—</div>
@@ -183,6 +158,7 @@ include __DIR__ . '/../../components/direccion-form.php';
             <?php endforeach; ?>
           </select>
         </div>
+
         <div class="col-md-6">
           <label class="label-sigde" for="editEmpleado__titulo">Título</label>
           <select class="form-select" id="editEmpleado__titulo" name="id_titulo">
@@ -192,6 +168,7 @@ include __DIR__ . '/../../components/direccion-form.php';
             <?php endforeach; ?>
           </select>
         </div>
+
         <div class="col-md-8">
           <label class="label-sigde" for="editEmpleado__institucion">Institución</label>
           <select class="form-select" id="editEmpleado__institucion" name="id_institucion">
@@ -201,31 +178,26 @@ include __DIR__ . '/../../components/direccion-form.php';
             <?php endforeach; ?>
           </select>
         </div>
+
         <div class="col-md-4">
           <label class="label-sigde" for="editEmpleado__fechaObtencion">Fecha de obtención</label>
-          <?php /* Sin "required": la formación es opcional y este modal también sirve para
- cambiar un teléfono o un correo. Ponerlo aquí haría que checkValidity()
- bloquease el guardado entero con la fecha en blanco, que es el estado
- normal de un empleado sin formación. Si se elige título, el servidor
- responde con "Indica la fecha de obtención del título" sobre este campo.*/ ?>
-          <input type="date" class="form-control" id="editEmpleado__fechaObtencion"
-                 name="fecha_obtencion">
+          <input type="date" class="form-control" id="editEmpleado__fechaObtencion" name="fecha_obtencion">
         </div>
       </div>
     </div>
-  </section>
+  </div>
 </form>
 <?php
 $modalBody     = ob_get_clean();
 $modalId       = 'editarEmpleadoModal';
 $modalTitle    = 'Editar Empleado';
-$modalSubtitle = 'Modifique la información institucional y personal del empleado.';
-$modalSize     = 'lg';
+$modalSubtitle = '';
+$modalSize     = 'xl';
 $modalStatic   = true;
 
 ob_start();
 ?>
-<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+<button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
 <button type="submit" form="formEditarEmpleado" id="btnGuardarEdicionEmpleado" class="btn btn-primary">
   <i class="bi bi-floppy me-1"></i> Guardar cambios
 </button>

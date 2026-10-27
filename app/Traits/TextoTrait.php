@@ -77,6 +77,39 @@ trait TextoTrait
     }
 
     /**
+     * Capitaliza cada palabra respetando siglas como U.E., S.A., UNEFA, etc.
+     */
+    protected function capitalizarTituloConSiglas(string $texto): string
+    {
+        $texto = $this->normalizarEspacios($texto);
+        if ($texto === '') {
+            return '';
+        }
+
+        $palabras = explode(' ', $texto);
+        foreach ($palabras as $indice => $palabra) {
+            // Si la palabra ya viene en mayúsculas de al menos 2 letras (siglas como UNEFA, IUT, LOPNNA, MPPE)
+            // o es una sigla con puntos (U.E., S.A.): se conserva en mayúsculas
+            if (preg_match('/^[A-ZÁÉÍÓÚÑ]{2,}$/u', $palabra) || $this->esSigla($palabra)) {
+                $palabras[$indice] = mb_strtoupper($palabra, 'UTF-8');
+                continue;
+            }
+            $palabraMin = mb_strtolower($palabra, 'UTF-8');
+            if ($this->esSigla($palabraMin)) {
+                $palabras[$indice] = mb_strtoupper($palabraMin, 'UTF-8');
+                continue;
+            }
+            if ($indice === 0 || !in_array($palabraMin, self::CONECTORES, true)) {
+                $palabras[$indice] = mb_convert_case($palabraMin, MB_CASE_TITLE, 'UTF-8');
+            } else {
+                $palabras[$indice] = $palabraMin;
+            }
+        }
+
+        return implode(' ', $palabras);
+    }
+
+    /**
  * Pone en mayúscula solo la primera letra del texto; el resto en
  * minúscula. Es el estilo natural en español para frases largas
  * ("autorización del consejo de protección"), a diferencia de

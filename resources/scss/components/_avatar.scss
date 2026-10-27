@@ -65,9 +65,11 @@
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .avatar-group__name {
+  min-width: 0;
   font-weight: 600;
   color: $primary;
   font-size: 0.88rem;

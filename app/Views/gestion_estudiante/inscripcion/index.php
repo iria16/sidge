@@ -8,7 +8,7 @@
  * components/page-header.php, components/stat-card.php,
  * components/avatar.php, components/status-badge.php y
  * components/data-panel.php. El wizard vive en enrollment-modal.php y su
- * JS en public/assets/js/modules/estudiantes/enrollments.js ($extraScripts).
+ * JS en public/assets/js/enrollments.js ($extraScripts).
  *
  * El filtrado y la paginación los aplica automáticamente main.js sobre el
  * form del panel (initAutoFilters), igual que en el resto de módulos: por
@@ -157,21 +157,6 @@ ob_start();
 
   ob_start();
   ?>
-  <?php /* El año era un texto fijo y ahora se elige: con él cambian la lista, las tres tarjetas y los
- filtros de grado y sección. Es un filtro más de la barra, así que vive dentro del <form> del
- data-panel y se manda con name="anio".*/ ?>
-  <label for="filtroAnio" class="visually-hidden">Año escolar</label>
-  <select id="filtroAnio" name="anio" class="form-select" style="width:auto" data-carga-completa
-          aria-label="Año escolar a consultar"
-          title="<?= $anioEsLectura ? 'Año cerrado: solo consulta.' : 'Año escolar a consultar.' ?>"
-          onchange="this.form.submit()">
-    <?php foreach ($anios as $anio): ?>
-      <option value="<?= (int) $anio['id'] ?>" <?= (int) $anio['id'] === (int) $anioSeleccionado['id'] ? 'selected' : '' ?>>
-        <?= htmlspecialchars($anio['nombre']) ?><?= $anio['es_lectura'] ? ' (cerrado)' : '' ?>
-      </option>
-    <?php endforeach; ?>
-  </select>
-
   <label for="filtroGrado" class="visually-hidden">Grado</label>
   <select id="filtroGrado" name="grado" class="form-select" aria-label="Filtrar por grado">
     <option value="">Grado (Todos)</option>
@@ -191,15 +176,6 @@ ob_start();
       </option>
     <?php endforeach; ?>
   </select>
-  <?php /* Estado del alumno. Por defecto solo los activos: un alumno retirado ya no
- se inscribe ni se edita, y dejarlo en la lista normal lo hace parecer
- disponible. Con "Todos" sale con su insignia de retirado y sin acciones, para
- poder consultar su inscripción histórica sin confundirla con una activa.*/ ?>
-  <label for="filtroEstado" class="visually-hidden">Estado del alumno</label>
-  <select id="filtroEstado" name="estado" class="form-select" aria-label="Filtrar por estado del alumno">
-    <option value="activos" <?= ($filters['estado'] ?? 'activos') === 'activos' ? 'selected' : '' ?>>Solo activos</option>
-    <option value="todos" <?= ($filters['estado'] ?? 'activos') === 'todos' ? 'selected' : '' ?>>Todos</option>
-  </select>
 
   <?php
   $panelFilters           = ob_get_clean();
@@ -208,15 +184,14 @@ ob_start();
   $panelSearchPlaceholder = 'Buscar por nombre o cédula...';
 
   // ---------- Data panel: colgroup ----------
-  // Anchos fijos: Estudiante / Grado / Sección / Fecha / Estado / Acción.
+  // Anchos fijos: Estudiante / Grado / Sección / Fecha / Acción.
   ob_start();
   ?>
   <colgroup>
-    <col style="width: 28%;">
-    <col style="width: 14%;">
-    <col style="width: 12%;">
+    <col style="width: 34%;">
     <col style="width: 18%;">
-    <col style="width: 14%;">
+    <col style="width: 16%;">
+    <col style="width: 18%;">
     <col style="width: 14%;">
   </colgroup>
   <?php
@@ -230,7 +205,6 @@ ob_start();
     <th scope="col">Grado</th>
     <th scope="col">Sección</th>
     <th scope="col">Fecha inscripción</th>
-    <th scope="col">Estado</th>
     <th scope="col" class="text-center">Acción</th>
   </tr>
   <?php
@@ -239,11 +213,7 @@ ob_start();
   // ---------- Data panel: tbody ----------
   ob_start();
   foreach ($inscripciones as $inscripcion):
-    $esCompleta = ($inscripcion['estado'] ?? '') === 'completa';
     $inscripcionId = (int) ($inscripcion['id'] ?? 0);
-    /* Estado derivado que trae el modelo (RetiradoTrait): el alumno tiene fila de
- retiro. No es un campo de la inscripción, por eso se lee de 'es_retirado'.*/
-    $esRetirado = (int) ($inscripcion['es_retirado'] ?? 0) === 1;
   ?>
     <tr>
       <td>
@@ -265,66 +235,20 @@ ob_start();
       <td class="text-support"><?= htmlspecialchars($inscripcion['grado'] ?? '') ?></td>
       <td class="text-support"><?= htmlspecialchars($inscripcion['seccion'] ?? '') ?></td>
       <td class="text-support"><?= htmlspecialchars($inscripcion['fecha_inscripcion'] ?? '') ?></td>
-      <td>
-        <?php /* Un alumno retirado no está ni "completa" ni "incompleta": está fuera
- de la institución. La insignia va aparte para que se lea sin
- ambigüedad.*/ ?>
-        <?php if ($esRetirado): ?>
-          <?php
-            $badgeLabel  = 'Retirado';
-            $badgeStatus = 'inactive';
-            include __DIR__ . '/../../components/status-badge.php';
-          ?>
-        <?php else: ?>
-          <?php
-            $badgeLabel  = $esCompleta ? 'Completa' : 'Incompleta';
-            $badgeStatus = $esCompleta ? 'active' : 'pending';
-            include __DIR__ . '/../../components/status-badge.php';
-          ?>
-        <?php endif; ?>
-      </td>
       <td class="text-center">
         <div class="data-panel__actions">
-          <?php if ($esRetirado): ?>
-            <?php /* Retirado = solo lectura. Se permite VER la inscripción (es su
- histórico y mirarlo no altera nada), pero no continuar ni editar.
- El botón va con `disabled` de verdad, no solo atenuado: el enlace de
- "continuar" es una navegación, y sin esto el retirado podría volver
- a entrar al wizard por la URL.*/ ?>
-            <button type="button" class="action-btn action-btn--view" disabled
-                    title="Inscripción de un alumno retirado: solo consulta">
-              <i class="bi bi-eye-slash"></i>
-            </button>
-          <?php elseif ($anioEsLectura): ?>
-            <?php /* Año CERRADO: todo es historial, así que la acción es SIEMPRE ver.
- Va antes que el caso "completa" a propósito, porque también las
- inscripciones incompletas de un año cerrado se pueden mirar; si no,
- una incompleta seguiría mostrando "continuar" y sería la única fila
- con una acción de escritura en una pantalla que es de consulta.*/ ?>
-            <button type="button" class="action-btn action-btn--view btn-ver-inscripcion"
-                    title="Ver inscripción (año cerrado, solo consulta)"
-                    data-id="<?= $inscripcionId ?>">
-              <i class="bi bi-eye"></i>
-            </button>
-          <?php elseif ($esCompleta): ?>
-            <button type="button" class="action-btn action-btn--view btn-ver-inscripcion"
-                    title="Ver inscripción"
-                    data-id="<?= $inscripcionId ?>">
-              <i class="bi bi-eye"></i>
-            </button>
-          <?php else: ?>
-            <a href="<?= BASE_URL ?>inscripciones/continuar/<?= $inscripcionId ?>"
-               class="action-btn action-btn--edit" title="Continuar inscripción">
-              <i class="bi bi-arrow-right"></i>
-            </a>
-          <?php endif; ?>
+          <button type="button" class="action-btn action-btn--view btn-ver-inscripcion"
+                  title="Ver inscripción"
+                  data-id="<?= $inscripcionId ?>">
+            <i class="bi bi-eye" aria-hidden="true"></i>
+          </button>
         </div>
       </td>
     </tr>
   <?php endforeach; ?>
   <?php if (!$inscripciones): ?>
     <tr>
-      <td colspan="6" class="text-center text-support py-4">
+      <td colspan="5" class="text-center text-support py-4">
         No se encontraron inscripciones con los filtros seleccionados.
       </td>
     </tr>

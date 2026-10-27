@@ -8,23 +8,21 @@
  * y se inyecta por JS).
  *
  * IDs que cuentas.js debe rellenar:
+ * - #verUsuarioAvatar           avatar con iniciales del usuario
  * - #verUsuarioNombre           nombre completo del usuario
  * - #verUsuarioRolBadge         nombre del rol (reutiliza .status-badge, no representa un estado)
- * - #verUsuarioDocumentoTop     documento/cédula del empleado (confirmar que el endpoint lo devuelve)
+ * - #verUsuarioDocumentoTop     documento/cédula del empleado
  * - #verUsuarioEmpleado         nombre del empleado asociado
  * - #verUsuarioCargo            cargo del empleado
  * - #verUsuarioUsuario          nombre_usuario de la cuenta
  * - #verUsuarioUltimoAcceso     fecha/hora del último acceso
  * - #verUsuarioEstado           badge de estado (activo/inactivo)
  * - #verUsuarioMiembroDesde     fecha de creación de la cuenta
- *
- * TODO: agregar el avatar (clases .avatar, avatar--lg, avatar--primary)
- * que se usa en el resto de la app para representar al usuario,
- * consistente con la tabla de index.php.
  */
 ob_start();
 ?>
 <div class="text-center mb-4">
+  <div class="avatar avatar--lg avatar--primary mb-2" id="verUsuarioAvatar" aria-hidden="true"></div>
   <p class="fw-bold fs-4 mb-1" id="verUsuarioNombre" aria-live="polite"></p>
   <span class="status-badge" id="verUsuarioRolBadge" aria-live="polite"></span>
   <p class="text-support small mb-0 mt-2" id="verUsuarioDocumentoTop"></p>

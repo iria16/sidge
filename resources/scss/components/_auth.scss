@@ -315,3 +315,7 @@ $auth-input-muted:    #8a91a5;  // iconos, placeholder y el ojo del toggle
 .auth-card .was-validated .input-icon-group:has(.form-control:valid) {
   border-color: $success;
 }
+/* Nota legal del pie del formulario de acceso. */
+.auth-footer-note {
+  font-size: 0.78rem;
+}

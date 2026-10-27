@@ -31,11 +31,15 @@ function initEditarEmpleadoModal() {
   function pintarFotoEdicion(ruta) {
     if (editFotoUrl) { URL.revokeObjectURL(editFotoUrl); editFotoUrl = null; }
     if (ruta) {
-      editFotoPreview.innerHTML = '<img src="' + SIGDEEmpleados.baseUrl + ruta.replace(/^\//, '') + '" alt="Foto de perfil">';
-      btnQuitarFoto.hidden = false;
+      if (editFotoPreview) {
+        editFotoPreview.innerHTML = '<img src="' + SIGDEEmpleados.baseUrl + ruta.replace(/^\//, '') + '" alt="Foto de perfil">';
+      }
+      if (btnQuitarFoto) btnQuitarFoto.hidden = false;
     } else {
-      editFotoPreview.innerHTML = '<i class="bi bi-person"></i>';
-      btnQuitarFoto.hidden = true;
+      if (editFotoPreview) {
+        editFotoPreview.innerHTML = '<i class="bi bi-person"></i>';
+      }
+      if (btnQuitarFoto) btnQuitarFoto.hidden = true;
     }
   }
 
@@ -80,7 +84,7 @@ function initEditarEmpleadoModal() {
  alguno ya no está en el catálogo, elegirParroquia devuelve false y quien
  guarda lo ve en el resumen.*/
   function poblarUbicacionEdicion(d) {
-    if (!d) return;
+    if (!d || !cascadaEdicion || typeof cascadaEdicion.elegirParroquia !== 'function') return;
     cascadaEdicion.elegirParroquia(
       Number(d.id_estado || 0),
       Number(d.id_municipio || 0),
@@ -92,6 +96,9 @@ function initEditarEmpleadoModal() {
   // El comportamiento vive en wizard-ui.js, compartido con el wizard de
   // empleado y el de inscripción.
   SIGDEWizardUI.initTipoDocumentoLetra({ selectId: 'editEmpleado__TipoDocumento' });
+  if (SIGDEWizardUI.initTarjetasSeleccionables) {
+    SIGDEWizardUI.initTarjetasSeleccionables('[data-sexo-card]');
+  }
 
   // --- Formación académica: el grado académico filtra los títulos ---
   // El grado académico filtra los títulos (data-id-grado del servidor), igual
@@ -137,7 +144,12 @@ function initEditarEmpleadoModal() {
     if (det) {
       var partes = [];
       if (opcionInst) partes.push(opcionInst.text);
-      if (primera.fecha_obtencion) partes.push('obtenido el ' + SIGDEUI.formatearFechaCorta(primera.fecha_obtencion));
+      if (primera.fecha_obtencion) {
+        var fechaStr = (SIGDEUI && typeof SIGDEUI.formatearFechaCorta === 'function')
+          ? SIGDEUI.formatearFechaCorta(primera.fecha_obtencion)
+          : String(primera.fecha_obtencion).slice(0, 10);
+        partes.push('obtenido el ' + fechaStr);
+      }
       if (filas.length > 1) {
         partes.push('y ' + (filas.length - 1) + ' título(s) más que este modal no muestra; '
           + 'no se borran al guardar');
@@ -196,51 +208,68 @@ function initEditarEmpleadoModal() {
     var btnEditar = e.target.closest('.editar-empleado');
     if (!btnEditar || btnEditar.disabled || btnEditar.classList.contains('disabled')) return;
 
-    SIGDEEmpleados.cargarEmpleado(btnEditar.dataset.empleadoId).then(function (d) {
+    var idEmpleado = btnEditar.dataset.empleadoId;
+    if (!idEmpleado) return;
+
+    SIGDEEmpleados.cargarEmpleado(idEmpleado).then(function (d) {
       if (!d) return;
 
-      formEditar.reset();
-      formEditar.classList.remove('was-validated');
+      try {
+        formEditar.reset();
+        formEditar.classList.remove('was-validated');
 
-      // Cada input se llena por su name; lo que la BD devuelve como null se
-      // deja vacío. Se salta explícitamente los input[type=file]: el
-      // navegador nunca permite asignarles un valor no vacío por JS (por
-      // seguridad) y hacerlo lanza InvalidStateError, cortando el resto del
-      // llenado. La foto actual se muestra aparte (avatar de solo lectura),
-      // no se precarga en el <input type="file">.
-      Object.keys(d).forEach(function (campo) {
-        var input = formEditar.elements[campo];
-        if (!input || d[campo] === null) return;
-        if (input.type === 'file') return;
-        input.value = d[campo];
-      });
-      if (formEditar.elements.id) formEditar.elements.id.value = d.id_empleado;
+        // Cada input se llena por su name; lo que la BD devuelve como null se deja vacío.
+        Object.keys(d).forEach(function (campo) {
+          if (d[campo] === null || typeof d[campo] === 'object') return;
+          var input = formEditar.elements[campo];
+          if (!input || typeof input.value === 'undefined') return;
+          if (input instanceof RadioNodeList || (input.length && input[0] && input[0].type === 'radio')) {
+            return;
+          }
+          if (input.type === 'file' || input.type === 'submit' || input.type === 'button') return;
+          input.value = d[campo];
+        });
 
-      // Foto de perfil: se refleja la foto actual en el círculo; el
-      // <input type="file"> se deja vacío (el navegador no permite
-      // asignarle valor por JS) y el hidden eliminar_foto vuelve a su
-      // valor inicial gracias a formEditar.reset().
-      pintarFotoEdicion(d.avatar_foto || d.foto || '');
-      poblarUbicacionEdicion(d);
+        var inputId = formEditar.querySelector('#editEmpleado__id') || formEditar.querySelector('input[name="id"]');
+        if (inputId) inputId.value = d.id_empleado;
 
-      // Encabezado de perfil: nombre completo + documento del empleado.
-      var encNombre = document.getElementById('editEncabezadoNombre');
-      var encDoc    = document.getElementById('editEncabezadoDocumento');
-      if (encNombre) encNombre.textContent = d.nombre_completo || '—';
-      if (encDoc) {
-        encDoc.textContent = d.numero_documento
-          ? [d.tipo_documento, d.numero_documento].filter(Boolean).join('-')
-          : '—';
+        // Radio buttons de sexo y sus tarjetas seleccionables
+        if (d.sexo) {
+          var radiosSexo = formEditar.querySelectorAll('input[name="sexo"]');
+          radiosSexo.forEach(function (r) {
+            r.checked = (r.value === String(d.sexo));
+            var card = r.closest('[data-sexo-card], .selectable-card');
+            if (card) {
+              card.classList.toggle('selected', r.checked);
+            }
+          });
+        }
+
+        pintarFotoEdicion(d.avatar_foto || d.foto || '');
+        poblarUbicacionEdicion(d);
+
+        // Encabezado de perfil: nombre completo + documento del empleado.
+        var encNombre = document.getElementById('editEncabezadoNombre');
+        var encDoc    = document.getElementById('editEncabezadoDocumento');
+        if (encNombre) encNombre.textContent = d.nombre_completo || '—';
+        if (encDoc) {
+          encDoc.textContent = d.numero_documento
+            ? [d.tipo_documento, d.numero_documento].filter(Boolean).join('-')
+            : '—';
+        }
+
+        pintarFormacionEdicion(d.formacion);
+        filtrarTitulosEdicion();
+
+        var primerTab = modalEditarEl.querySelector('.modal-tabs .nav-link');
+        if (primerTab) bootstrap.Tab.getOrCreateInstance(primerTab).show();
+
+        var modal = modalEditarEl || document.getElementById('editarEmpleadoModal');
+        SIGDEUI.mostrarModal(modal);
+      } catch (err) {
+        console.error('Error al preparar modal de edición de empleado:', err);
+        SIGDEUI.mostrarError('No se pudo preparar el formulario de edición.');
       }
-
-      // Primero la formación guardada y DESPUÉS el filtrado, en ese orden: el filtrado usa
-      // el grado que hay seleccionado, y al abrir el modal ese grado todavía está en
-      // "Seleccione...". Al revés, todos los títulos quedaban ocultos y el que se precargaba
-      // caía dentro de una opción en hidden, así que el select se veía vacío.
-      pintarFormacionEdicion(d.formacion);
-      filtrarTitulosEdicion();
-
-      SIGDEUI.mostrarModal(modalEditarEl);
     });
   });
 
@@ -250,6 +279,15 @@ function initEditarEmpleadoModal() {
     if (!formEditar.checkValidity()) {
       e.stopPropagation();
       formEditar.classList.add('was-validated');
+      var primerInvalido = formEditar.querySelector(':invalid');
+      if (primerInvalido) {
+        var paneInvalido = primerInvalido.closest('.tab-pane');
+        if (paneInvalido && paneInvalido.id) {
+          var tabBtn = formEditar.querySelector('[data-bs-target="#' + paneInvalido.id + '"]');
+          if (tabBtn) bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+        }
+        primerInvalido.focus();
+      }
       return;
     }
     formEditar.classList.remove('was-validated');

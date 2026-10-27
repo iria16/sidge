@@ -3,7 +3,7 @@
  * app/Views/empleados/modals/add-title-modal.php
  * Modal "Agregar Título" del paso 5 del wizard (historial académico).
  * Se abre con el botón #btnAbrirAgregarTitulo (step-5-academico.php) y el
- * JS (empleado-alta.js) pinta la fila en la tabla y serializa #titulosJson.
+ * JS (empleado.js) pinta la fila en la tabla y serializa #titulosJson.
  *
  * Los botones "+ Nuevo Título" / "+ Nueva Institución" abren las altas
  * rápidas (modals/new-title-modal.php y modals/new-institution-modal.php);

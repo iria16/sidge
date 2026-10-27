@@ -66,8 +66,23 @@ trait InstitucionTrait
      */
     private function guardarInstitucionComun(callable $validarTipo): void
     {
-        $nombre = $this->capitalizarTitulo((string) ($_POST['nombre'] ?? ''));
+        // capitalizarTituloConSiglas(), no capitalizarTitulo(): una institución
+        // llamada UNEFA debe conservarla en mayúsculas, y da igual que se cree
+        // desde Catálogos o desde estos dos wizards.
+        $nombre = $this->capitalizarTituloConSiglas((string) ($_POST['nombre'] ?? ''));
         $tipo   = trim((string) ($_POST['tipo'] ?? ''));
+
+        // Procedencia. Son los mismos campos que envía el formulario de
+        // Catálogos, por eso se leen aquí y no en cada controlador.
+        $esExtranjera = ((string) ($_POST['es_extranjera'] ?? '0')) === '1';
+        $idEstadoGeo  = (int) ($_POST['id_estado_geo'] ?? 0);
+        $idMunicipio  = (int) ($_POST['id_municipio'] ?? 0);
+        $idParroquia  = (int) ($_POST['id_parroquia'] ?? 0);
+        $paisId       = (int) ($_POST['pais_id'] ?? 0);
+        $ciudad       = trim((string) ($_POST['ciudad_extranjera'] ?? ''));
+        $direccion    = trim((string) ($_POST['direccion_extranjera'] ?? ''));
+        $referencia   = trim((string) ($_POST['referencia_plantel'] ?? ''));
+        $codigoDea    = mb_strtoupper(trim((string) ($_POST['codigo_dea'] ?? '')), 'UTF-8');
 
         if ($nombre === '') {
             $this->jsonResponse(
@@ -96,7 +111,99 @@ trait InstitucionTrait
             );
         }
 
+        // El id de la FK no se acepta del formulario: lo resuelve el enum. Sin
+        // esto el INSERT mandaría NULL a una columna NOT NULL.
+        if (Instituciones::idCatalogo($tipo) === null) {
+            $this->jsonResponse(
+                false,
+                ['tipo' => 'El tipo de institución no tiene categoría asignada.'],
+                'Tipo de institución sin categoría.',
+                422
+            );
+        }
+
         $model = new InstitucionModel($this->conexion());
+
+        // ---------- Procedencia ----------
+        //
+        // Dos caminos que no se mezclan, los mismos que aplica
+        // CatalogoController::validarUbicacion(). Que la petición venga de un
+        // lado o del otro no cambia las reglas: si divergieran, una institución
+        // creada por Catálogos y otra creada por el wizard acabarían con datos
+        // distintos según por dónde se tocó.
+        //
+        //   Nacional    estado, municipio y parroquia, comprobando que cada hijo
+        //              pertenezca a su padre. El código DEA solo en preescolar y
+        //              escuela.
+        //   Extranjera  se ignoran los datos nacionales aunque vengan. País,
+        //              ciudad y dirección. La referencia del plantel es
+        //              opcional. El DEA se ignora siempre.
+        if ($esExtranjera) {
+            if ($paisId <= 0) {
+                $this->jsonResponse(
+                    false,
+                    ['pais_id' => 'Selecciona el país de la institución.'],
+                    'Falta el país de la institución.',
+                    422
+                );
+            }
+
+            if (!$model->existePais($paisId)) {
+                $this->jsonResponse(
+                    false,
+                    ['pais_id' => 'El país seleccionado no existe.'],
+                    'País no válido.',
+                    422
+                );
+            }
+
+            // Para institución extranjera solo se exige nombre y país.
+            // Se ignoran DEA, ciudad, dirección y ubicación venezolana.
+            $idEstadoGeo = 0;
+            $idMunicipio = 0;
+            $idParroquia = 0;
+            $codigoDea   = '';
+            $ciudad      = '';
+            $direccion   = '';
+            $referencia  = '';
+        } else {
+            $errores = $this->validarCadenaNacional($model, $idEstadoGeo, $idMunicipio, $idParroquia);
+
+            if ($errores !== []) {
+                $this->jsonResponse(false, $errores, 'Falta la ubicación de la institución.', 422);
+            }
+
+            // El DEA es solo de preescolar y escuela. Las universidades no lo
+            // usan: no se pide ni se valida.
+            if (Instituciones::esDeEstudiante($tipo)) {
+                if ($codigoDea === '') {
+                    $this->jsonResponse(
+                        false,
+                        ['codigo_dea' => 'Escribe el código DEA de la institución.'],
+                        'Falta el código DEA.',
+                        422
+                    );
+                }
+
+                if (!preg_match('/^[A-Z0-9][A-Z0-9\-]{0,19}$/', $codigoDea)) {
+                    $this->jsonResponse(
+                        false,
+                        ['codigo_dea' => 'El código DEA solo admite letras, números y guion (máximo 20).'],
+                        'Código DEA con formato inválido.',
+                        422
+                    );
+                }
+
+                if ($model->existeCodigoDea($codigoDea)) {
+                    $this->jsonResponse(
+                        false,
+                        ['codigo_dea' => 'Ya existe una institución con ese código DEA.'],
+                        'Código DEA repetido.',
+                        409
+                    );
+                }
+            }
+        }
 
         $errorTipo = $validarTipo($tipo);
         if ($errorTipo !== null) {
@@ -118,7 +225,19 @@ trait InstitucionTrait
         }
 
         try {
-            $ok = $model->create(['nombre' => $nombre, 'tipo' => $tipo]);
+            $ok = $model->create([
+                'nombre'               => $nombre,
+                'tipo'                 => $tipo,
+                'es_extranjera'        => $esExtranjera ? 1 : 0,
+                'id_estado_geo'        => $idEstadoGeo,
+                'id_municipio'         => $idMunicipio,
+                'id_parroquia'         => $idParroquia,
+                'pais_id'              => $paisId,
+                'ciudad_extranjera'    => $ciudad,
+                'direccion_extranjera' => $direccion,
+                'referencia_plantel'   => $referencia,
+                'codigo_dea'           => $codigoDea,
+            ]);
         } catch (Throwable $e) {
             $this->jsonError($e, static::class);
         }
@@ -131,6 +250,42 @@ trait InstitucionTrait
             'id'     => (int) $this->pdo->lastInsertId(),
             'nombre' => $nombre,
         ], 'Institución registrada correctamente.');
+    }
+
+    /**
+     * Cadena nacional: estado, municipio y parroquia, los tres obligatorios y
+     * cada uno pertenecerle al de arriba. Devuelve todos los errores juntos, no
+     * solo el primero, para que el formulario los muestre de una vez.
+     *
+     * @return array<string, string>
+     */
+    private function validarCadenaNacional(
+        InstitucionModel $model,
+        int $idEstado,
+        int $idMunicipio,
+        int $idParroquia
+    ): array {
+        $errores = [];
+
+        if ($idEstado <= 0) {
+            $errores['id_estado_geo'] = 'Selecciona el estado donde está la institución.';
+        } elseif (!$model->existeEstadoGeo($idEstado)) {
+            $errores['id_estado_geo'] = 'El estado seleccionado no existe.';
+        }
+
+        if ($idMunicipio <= 0) {
+            $errores['id_municipio'] = 'Selecciona el municipio.';
+        } elseif (!$model->municipioPerteneceAlEstado($idMunicipio, $idEstado)) {
+            $errores['id_municipio'] = 'El municipio seleccionado no pertenece a ese estado.';
+        }
+
+        if ($idParroquia <= 0) {
+            $errores['id_parroquia'] = 'Selecciona la parroquia.';
+        } elseif (!$model->parroquiaPerteneceAlMunicipio($idParroquia, $idMunicipio)) {
+            $errores['id_parroquia'] = 'La parroquia seleccionada no pertenece a ese municipio.';
+        }
+
+        return $errores;
     }
 
 
@@ -147,5 +302,5 @@ trait InstitucionTrait
 
     abstract protected function jsonError(Throwable $e, string $seccion, int $code = 500): never;
 
-    abstract protected function capitalizarTitulo(string $texto): string;
+    abstract protected function capitalizarTituloConSiglas(string $texto): string;
 }

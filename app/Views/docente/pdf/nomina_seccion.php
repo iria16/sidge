@@ -96,7 +96,7 @@ $anioEscolar   = trim((string) ($seccion['anio_escolar'] ?? ''));
     <thead>
       <tr>
         <?php foreach ($columnas as $clave => $titulo): ?>
-          <th class="nomina-col--<?= $esc($clave) ?>"><?= $esc($titulo) ?></th>
+          <th class="nomina-col--<?= $esc($clave) ?>"><?= $esc(is_array($titulo) ? ($titulo['etiqueta'] ?? '') : $titulo) ?></th>
         <?php endforeach; ?>
       </tr>
     </thead>

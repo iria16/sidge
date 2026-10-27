@@ -87,6 +87,9 @@ class InscripcionesModel extends BaseModel implements Listable, Creatable
     protected string $table = 'inscripcion';
     protected string $primaryKey = 'id_inscripcion';
 
+    /** Último estudiante creado en esta petición; lo usa el controlador para ofrecer la ficha. */
+    private ?int $ultimoEstudianteId = null;
+
     public function getAll(array $filters = [], int $page = 1, int $perPage = 10): array
     {
         [$where, $params] = $this->filters($filters);
@@ -249,6 +252,85 @@ $row['id']          = (int) $row['id'];
         ];
     }
 
+    /**
+     * Cupos por combinación grado/sección del turno y año indicados.
+     *
+     * Usa la misma definición de «cursando» que getStats(), para que la suma de
+     * «disponibles» coincida con la tarjeta «Cupos disponibles». El LEFT JOIN
+     * conserva las estructuras sin matrículas.
+     *
+     * @return array{
+     *     filas: array<int, array{
+     *         grado:string, seccion:string, capacidad:int,
+     *         inscritos:int, disponibles:int, ocupacion:int
+     *     }>,
+     *     totales: array{capacidad:int, inscritos:int, disponibles:int, ocupacion:int}
+     * }
+     */
+    public function getCuposPorEstructura(int $idTurno, int $idAnioEscolar): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT g.nombre AS grado,
+                    s.nombre AS seccion,
+                    ea.capacidad_maxima AS capacidad,
+                    COUNT(DISTINCT CASE WHEN ' . Matriculas::condicionCursando('m') . '
+                                        THEN m.id_estudiante END) AS inscritos
+               FROM estructura_academica ea
+               INNER JOIN grado g ON g.id_grado = ea.id_grado
+               INNER JOIN seccion s ON s.id_seccion = ea.id_seccion
+               LEFT JOIN matricula m ON m.id_estructura_academica = ea.id_estructura_academica
+              WHERE ea.id_turno = :turno
+                AND ea.id_anio_escolar = :anio
+              GROUP BY ea.id_estructura_academica, g.nombre, s.nombre, ea.capacidad_maxima'
+        );
+        $stmt->execute(['turno' => $idTurno, 'anio' => $idAnioEscolar]);
+
+        $filas = [];
+        $totalCapacidad = 0;
+        $totalInscritos = 0;
+
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $capacidad = (int) $row['capacidad'];
+            $inscritos = (int) $row['inscritos'];
+            $disponibles = max(0, $capacidad - $inscritos);
+            $ocupacion = $capacidad > 0
+                ? (int) round(($inscritos / $capacidad) * 100)
+                : 0;
+
+            $filas[] = [
+                'grado' => (string) $row['grado'],
+                'seccion' => (string) $row['seccion'],
+                'capacidad' => $capacidad,
+                'inscritos' => $inscritos,
+                'disponibles' => $disponibles,
+                'ocupacion' => $ocupacion,
+            ];
+
+            $totalCapacidad += $capacidad;
+            $totalInscritos += $inscritos;
+        }
+
+        usort($filas, static function (array $a, array $b): int {
+            $ordenA = Instituciones::ordinalGrado($a['grado']);
+            $ordenB = Instituciones::ordinalGrado($b['grado']);
+            $comparacion = ($ordenA ?? PHP_INT_MAX) <=> ($ordenB ?? PHP_INT_MAX);
+
+            return $comparacion !== 0 ? $comparacion : strcmp($a['seccion'], $b['seccion']);
+        });
+
+        return [
+            'filas' => $filas,
+            'totales' => [
+                'capacidad' => $totalCapacidad,
+                'inscritos' => $totalInscritos,
+                'disponibles' => max(0, $totalCapacidad - $totalInscritos),
+                'ocupacion' => $totalCapacidad > 0
+                    ? (int) round(($totalInscritos / $totalCapacidad) * 100)
+                    : 0,
+            ],
+        ];
+    }
+
     /** Listas de strings para los filtros de la tabla.*/
     public function getOptions(string $type): array
     {
@@ -326,16 +408,20 @@ $row['id']          = (int) $row['id'];
 */
     public function getInstituciones(): array
     {
-        $marcadores = implode(', ', array_fill(0, count(Instituciones::TIPOS_DE_ESTUDIANTE), '?'));
+        // El filtro va por id_tipo_institucion, no por `institucion.tipo`: la
+        // FK es la fuente de verdad. La columna de texto quedó congelada como
+        // respaldo histórico y su retiro es una migración futura aparte.
+        $ids = Instituciones::idsCatalogoDeEstudiante();
+        $marcadores = implode(', ', array_fill(0, count($ids), '?'));
 
         $stmt = $this->pdo->prepare(
-            "SELECT i.id_institucion AS id, i.nombre
+            "SELECT i.id_institucion AS id, i.nombre, i.id_tipo_institucion
              FROM institucion i
              WHERE i.estado = 'ACTIVO'
-               AND i.tipo IN ({$marcadores})
+               AND i.id_tipo_institucion IN ({$marcadores})
              ORDER BY i.nombre"
         );
-        $stmt->execute(Instituciones::TIPOS_DE_ESTUDIANTE);
+        $stmt->execute($ids);
 
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
@@ -399,7 +485,12 @@ $row['id']          = (int) $row['id'];
     public function getFamiliarCatalogs(): array
     {
         return [
-            'parentescos'         => $this->pdo->query("SELECT nombre FROM parentesco WHERE estado = 'ACTIVO' ORDER BY nombre")->fetchAll(\PDO::FETCH_COLUMN),
+            'parentescos'         => $this->pdo->query(
+                "SELECT nombre, COALESCE(codigo, '') AS codigo
+                   FROM parentesco
+                  WHERE estado = 'ACTIVO'
+                  ORDER BY nombre"
+            )->fetchAll(\PDO::FETCH_ASSOC),
             'niveles_instruccion' => [],
             'ocupaciones'         => $this->pdo->query("SELECT nombre FROM ocupacion WHERE estado = 'ACTIVO' ORDER BY nombre")->fetchAll(\PDO::FETCH_COLUMN),
         ];
@@ -500,46 +591,15 @@ $row['id']          = (int) $row['id'];
  *
  * @param string $cedulaRepresentante Cédula del representante (con o sin letra), porque el familiar del wizard aún no está en la base.
 */
-    public function proximoOrdenHermano(string $cedulaRepresentante, string $fechaNacimiento): int
-    {
-        // persona.numero_documento se guarda solo con dígitos; sin normalizar el conteo saldría en cero y dos hermanos tendrían orden 1.
-        $cedula = Documento::normalizar($cedulaRepresentante);
-        $anio   = (int) substr($fechaNacimiento, 0, 4);
-
-        if ($cedula === '' || $anio <= 0) {
-            return 1;
-        }
-
-        $stmt = $this->pdo->prepare(
-            "SELECT COUNT(DISTINCT e.id_estudiante)
-             FROM persona_estudiante pe
-             INNER JOIN persona rep ON rep.id_persona = pe.id_persona
-             INNER JOIN estudiante e ON e.id_estudiante = pe.id_estudiante
-             INNER JOIN persona est ON est.id_persona = e.id_persona
-             WHERE pe.es_representante_legal = 1
-               AND (rep.numero_documento = :cedula
-                    OR LPAD(rep.numero_documento, 8, '0') = :cedulaConCero)
-               AND YEAR(est.fecha_nacimiento) = :anio"
-        );
-        // Dos marcadores distintos: con prepares reales MySQL no admite repetir el mismo en una consulta.
-        $stmt->execute([
-            'cedula'       => $cedula,
-            'cedulaConCero' => str_pad($cedula, 8, '0', STR_PAD_LEFT),
-            'anio'         => $anio,
-        ]);
-
-        return ((int) $stmt->fetchColumn()) + 1;
-    }
-
     /** Año escolar activo para el paso 3 del wizard (solo lectura).*/
     public function getAnioActivo(): array
     {
         $stmt = $this->pdo->query(
-            "SELECT id_anio_escolar AS id, nombre_periodo AS nombre
+            "SELECT id_anio_escolar AS id, nombre_periodo AS nombre, anio_inicio
              FROM anio_escolar WHERE estado = 'ACTIVO'
              ORDER BY anio_inicio DESC LIMIT 1"
         );
-        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: ['id' => '', 'nombre' => ''];
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: ['id' => '', 'nombre' => '', 'anio_inicio' => ''];
     }
 
     /**
@@ -612,6 +672,8 @@ $row['id']          = (int) $row['id'];
 */
     public function create(array $data): bool
     {
+        $this->ultimoEstudianteId = null;
+
         // La foto llega en $data['foto'] (ver extractData() del controlador); el resto de la persona va en $data['persona'].
         $persona = $data['persona'] ?? [];
         $persona['foto'] = $data['foto'] ?? null;
@@ -662,9 +724,11 @@ $row['id']          = (int) $row['id'];
             // con dos fichas y su documento solo podría pertenecer a una.
             $personaModel = new PersonaModel($this->pdo);$personaId = $personaModel->crear($persona);
 
-            $this->pdo->prepare('INSERT INTO estudiante (id_persona) VALUES (:persona)')
-                      ->execute(['persona' => $personaId]);
+            $this->pdo->prepare(
+                'INSERT INTO estudiante (id_persona) VALUES (:persona)'
+            )->execute(['persona' => $personaId]);
             $estudianteId = (int) $this->pdo->lastInsertId();
+            $this->ultimoEstudianteId = $estudianteId;
 
             // 2. Matrícula
             // El wizard no manda fecha: la matrícula se registra con la del día.
@@ -781,7 +845,12 @@ $row['id']          = (int) $row['id'];
 
             /* 7. Familiares: ya no es best-effort; si algún familiar no declara parentesco sin ser "no es familiar",
  se lanza DatoFamiliarIncompletoException y create() hace rollBack.*/
-            $this->guardarFamiliares($estudianteId, $data['familiares'] ?? []);
+            $this->guardarFamiliares(
+                $estudianteId,
+                $data['familiares'] ?? [],
+                false,
+                (int) ($data['id_usuario'] ?? 0)
+            );
 
             /* Se audita antes del commit y en la misma conexión: si el commit fallara, el
  rollback también deshace la bitácora, y nunca queda constancia de una
@@ -805,6 +874,12 @@ $row['id']          = (int) $row['id'];
             error_log('InscripcionesModel::create(): ' . $e->getMessage());
             throw $e;
         }
+    }
+
+    /** Id del estudiante creado, para que el controlador pueda ofrecer su ficha al terminar. */
+    public function getUltimoEstudianteId(): ?int
+    {
+        return $this->ultimoEstudianteId;
     }
 
     /** Nombre y cédula de un estudiante, para que la bitácora se lea sin consultar la ficha.*/
@@ -901,37 +976,26 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
- * El año que hay que mostrar: el que pide la URL, si existe, y si no el que está
- * en curso.
+ * El año que muestra la lista: siempre el ACTIVO. Este listado no tiene selector
+ * de período, así que el año no se toma de la URL.
  *
- * Se valida contra la lista real de años en lugar de castear a entero y ya: un
- * `?anio=999` o un `?anio=abc` no puede convertirse en un id que se meta en el SQL
- * como si fuera un período real, y el usuario no ve una lista vacía sin
- * explicación, ve el año en curso.
+ * Si no hay ningún año abierto se cae al más reciente, que llega marcado como
+ * cerrado y deja la pantalla en solo lectura.
  *
- * @param array $filters Filtros de la petición.
  * @return array{id:int, nombre:string, estado:string, es_lectura:bool}
 */
-    public function getAnioSeleccionado(array $filters): array
+    public function getAnioSeleccionado(): array
     {
-        $anios = $this->getAniosEscolares();
-        $pedido = (int) ($filters['anio'] ?? 0);
-
-        foreach ($anios as $anio) {
-            if ($anio['id'] === $pedido && $pedido > 0) {
-                return $anio;
-            }
-        }
-
-        // Sin año válido en la URL: al que está en curso, o el primero si no hay ninguno.
+        $anios   = $this->getAniosEscolares();
         $enCurso = $this->anioEnCurso();
+
         foreach ($anios as $anio) {
             if ($anio['id'] === $enCurso) {
                 return $anio;
             }
         }
 
-        return $anios[0] ?? ['id' => 0, 'nombre' => 'sin año', 'estado' => 'CERRADO', 'es_lectura' => true];
+        return ['id' => 0, 'nombre' => 'sin año en curso', 'estado' => 'CERRADO', 'es_lectura' => true];
     }
 
     private function filters(array $filters): array
@@ -939,7 +1003,7 @@ $row['id']          = (int) $row['id'];
     /* La lista es del AÑO SELECCIONADO, por defecto el que está en curso. Se filtra por el año de la
  ESTRUCTURA de la inscripción (cuándo entró) y no por el de la matrícula, que para un alumno
  antiguo es el año en curso y no lo sacaría del listado.*/
-        $idAnio = $this->getAnioSeleccionado($filters)['id'];
+        $idAnio = $this->getAnioSeleccionado()['id'];
         $where = $idAnio > 0
             ? ['ea.id_anio_escolar = :anio_listado']
             : ['1 = 0'];

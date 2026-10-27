@@ -46,6 +46,33 @@ $border-color-soft: #e3e7f0; // borde de cajas suaves sobre tarjetas
 // ---------- Tarjetas ----------
 $card-padding:    1.25rem 1.35rem;
 $card-padding-lg: 1.5rem 1.65rem;
+
+// ---------- Tablas ----------
+$sigde-table-font-size:               0.88rem;
+$sigde-table-head-font-size:          0.65rem;
+$sigde-table-head-font-weight:        600;
+$sigde-table-head-letter-spacing:     0.08em;
+$sigde-table-head-padding-y:          0.85rem;
+$sigde-table-head-padding-x:          1.15rem;
+$sigde-table-head-bg:                 rgba($light, 0.5);
+$sigde-table-border:                  $primary-tint;
+$sigde-table-cell-padding-y:          0.85rem;
+$sigde-table-cell-padding-x:          1.15rem;
+$sigde-table-cell-color:              shade-color($dark, 5%);
+$sigde-table-cell-border:             rgba($primary, 0.04);
+$sigde-table-row-hover-bg:            rgba($primary, 0.02);
+$sigde-table-mobile-padding-x:        0.85rem;
+$sigde-table-wide-min-width:          960px;
+
+// ---------- Etiquetas ----------
+$sigde-label-font-weight:             600;
+$sigde-label-color:                   $secondary;
+$sigde-label-letter-spacing:          0.08em;
+$sigde-label-letter-spacing-tight:    0.06em;
+$sigde-label-micro-font-size:         0.65rem;
+$sigde-label-kpi-font-size:           0.68rem;
+$sigde-label-field-font-size:         0.72rem;
+$sigde-label-section-font-size:       0.75rem;
  
 // ---------- Formularios ----------
 // Inputs blancos para destacar sobre la superficie gris de las cajas.

@@ -7,6 +7,7 @@
 .page-header {
   display: flex;
   flex-direction: column;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1.5rem;
 
@@ -15,6 +16,10 @@
     align-items: flex-start;
     justify-content: space-between;
   }
+}
+
+.page-header__main {
+  min-width: 0;
 }
 
 .page-header__title {
@@ -30,6 +35,12 @@
   font-size: 0.9rem;
   margin-bottom: 0;
   max-width: 42rem;
+
+  &--full {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: none;
+  }
 }
 
 .page-header__actions {

@@ -130,6 +130,85 @@ trait ReposoEmpleadoTrait
     }
 
     /**
+     * Cierra anticipadamente un reposo médico.
+     * Ruta: empleado/cerrarReposo (POST, JSON).
+     */
+    private function cerrarReposoDeEmpleado(): void
+    {
+        $idReposo    = (int) ($_POST['id_reposo'] ?? 0);
+        $fechaFin    = trim((string) ($_POST['fecha_fin'] ?? ''));
+        $observacion = trim((string) ($_POST['observacion'] ?? ''));
+
+        if ($idReposo <= 0) {
+            $this->jsonResponse(false, null, 'Reposo no válido.', 400);
+        }
+
+        if ($fechaFin === '' || !$this->fechaValida($fechaFin)) {
+            $this->jsonResponse(false, ['fecha_fin' => 'Indica una fecha de cierre válida.'], 'Fecha de cierre no válida.', 422);
+        }
+
+        $anterior = $this->reposoDe($idReposo);
+        if ($anterior === null) {
+            $this->jsonResponse(false, null, 'Ese reposo no está registrado.', 404);
+        }
+
+        if ($fechaFin < $anterior['fecha_inicio']) {
+            $this->jsonResponse(false, ['fecha_fin' => 'La fecha de fin no puede ser anterior a la de inicio.'], 'Fecha no válida.', 422);
+        }
+
+        try {
+            $model = $this->reposo();
+            $ok = $model->cerrar($idReposo, $fechaFin, $observacion);
+            if (!$ok) {
+                $this->jsonResponse(false, null, 'No se pudo cerrar el reposo. Verifique que esté vigente.', 400);
+            }
+            $this->registrarEnBitacora(
+                'CIERRE REPOSO ' . $this->nombreDeEmpleado($anterior['id_empleado']) . ' · culminación ' . $fechaFin,
+                'Reposos'
+            );
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Empleados');
+        }
+
+        $this->jsonResponse(true, null, 'Reposo cerrado correctamente.', 200);
+    }
+
+    /**
+     * Anula un reposo médico registrado por error.
+     * Ruta: empleado/anularReposo (POST, JSON).
+     */
+    private function anularReposoDeEmpleado(): void
+    {
+        $idReposo    = (int) ($_POST['id_reposo'] ?? 0);
+        $observacion = trim((string) ($_POST['observacion'] ?? ''));
+
+        if ($idReposo <= 0) {
+            $this->jsonResponse(false, null, 'Reposo no válido.', 400);
+        }
+
+        $anterior = $this->reposoDe($idReposo);
+        if ($anterior === null) {
+            $this->jsonResponse(false, null, 'Ese reposo no está registrado.', 404);
+        }
+
+        try {
+            $model = $this->reposo();
+            $ok = $model->anular($idReposo, $observacion);
+            if (!$ok) {
+                $this->jsonResponse(false, null, 'No se pudo anular el reposo.', 400);
+            }
+            $this->registrarEnBitacora(
+                'ANULACIÓN REPOSO ' . $this->nombreDeEmpleado($anterior['id_empleado']),
+                'Reposos'
+            );
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Empleados');
+        }
+
+        $this->jsonResponse(true, null, 'Reposo anulado correctamente.', 200);
+    }
+
+    /**
      * Reposos de un empleado, para el historial del modal.
      * Ruta: empleado/getReposos?id_empleado= (GET, JSON).
      *
@@ -456,4 +535,6 @@ trait ReposoEmpleadoTrait
     abstract protected function jsonError(Throwable $e, string $seccion, int $code = 500): never;
 
     abstract protected function idUsuarioActual(): ?int;
+
+    abstract protected function fechaValida(string $fecha): bool;
 }

@@ -7,10 +7,16 @@ namespace App\Controllers;
 use App\Exceptions\DocumentoDuplicadoException;
 use App\Interfaces\Creatable;
 use App\Interfaces\Updatable;
+use App\Models\BitacoraModel;
 use App\Models\EmpleadoModel;
+use App\Models\InstitucionModel;
+use App\Models\ReposoEmpleadoModel;
 use App\Models\TituloModel;
+use App\Support\Configuracion;
+use App\Support\FichaEmpleadoPdf;
 use App\Support\Instituciones;
 use App\Support\Documento;
+use App\Support\Validator;
 use App\Traits\ContactoValidacionTrait;
 use App\Traits\DireccionValidacionTrait;
 use App\Traits\FotoSubidaTrait;
@@ -21,11 +27,14 @@ use App\Traits\UbicacionTrait;
 use App\Traits\TextoTrait;
 use App\Traits\ValidacionFechaTrait;
 use PDO;
+use RuntimeException;
 use Throwable;
+use function App\Traits\sigde_rol_clave;
 
 /**
  * Controlador de Personal > Empleados (todo el CRUD va por modales).
- * Hereda index() y toggleStatus(); no hay delete (405): se desactiva.
+ * Hereda index(); no hay delete (405): se desactiva.
+ * Sobrescribe toggleStatus() para que todo cambio pase por cambiarEstado().
  * Sobrescribe store()/update() para distinguir la cédula duplicada.
 */
 class EmpleadoController extends CrudController
@@ -94,11 +103,20 @@ class EmpleadoController extends CrudController
             'gradosAcademicos' => $catalogos['grados_academicos'] ?? [],
             'titulos'          => $catalogos['titulos'] ?? [],
             'instituciones'    => $catalogos['instituciones'] ?? [],
-            'tiposInstitucion' => $catalogos['tipos_institucion'] ?? [],
+            /* Antes venía de la tabla tipo_institucion, que trae
+               id_tipo_institucion + nombre, mientras el modal lee $tipo['tipo']:
+               por eso las opciones salían con value vacío. El enum es quien
+               sabe qué tipos hay y en qué formato los espera el modal. */
+            'tiposInstitucion' => (new InstitucionModel($this->conexion()))
+                ->tiposFormulario([Instituciones::TIPO_TITULO_ACADEMICO]),
+            /* Ubicación del <select> del modal de alta rápida. */
+            'estadosGeo'       => (new InstitucionModel($this->conexion()))->getEstadosGeo(),
+            'paises'           => (new InstitucionModel($this->conexion()))->getPaises(),
             'estados'          => $catalogos['estados'] ?? [],
             'turnos'           => $catalogos['turnos'] ?? [],
             /* El <select> de nacionalidad del paso 1. */
             'nacionalidades'   => $model->getNacionalidades(),
+            'puedeGestionar'   => sigde_rol_clave($_SESSION['rol'] ?? '') === 'directivo',
         ];
     }
 
@@ -162,16 +180,22 @@ class EmpleadoController extends CrudController
     {
         $nombre  = $this->capitalizarTitulo((string) ($_POST['nombre'] ?? ''));
         $grado   = (int) ($_POST['id_grado_academico'] ?? 0);
-        $errores = [];
 
-        // 1. Acumulamos errores para devolverlos todos juntos
-        if ($nombre === '') {
-            $errores['nombre'] = 'Escribe el nombre del título.';
-        }
-
-        if ($grado <= 0) {
-            $errores['id_grado_academico'] = 'Selecciona el grado académico.';
-        } elseif (!$this->modelo()->existeGradoAcademico($grado)) {
+        $validator = \App\Support\Validator::make([
+            'nombre'             => $nombre,
+            'id_grado_academico' => $grado,
+        ], [
+            'nombre'             => 'required|string|min_len:2|max_len:100',
+            'id_grado_academico' => 'required|integer|min_value:1',
+        ], [
+            'nombre.required'             => 'Escribe el nombre del título.',
+            'nombre.min_len'              => 'El nombre del título debe tener al menos 2 caracteres.',
+            'nombre.max_len'              => 'El nombre del título no puede superar los 100 caracteres.',
+            'id_grado_academico.required'  => 'Selecciona el grado académico.',
+            'id_grado_academico.min_value' => 'Selecciona el grado académico.',
+        ]);
+        $errores = $validator->validate();
+        if (empty($errores['id_grado_academico']) && !$this->modelo()->existeGradoAcademico($grado)) {
             $errores['id_grado_academico'] = 'El grado académico seleccionado no existe.';
         }
 
@@ -249,6 +273,259 @@ class EmpleadoController extends CrudController
     }
 
     /**
+     * Expediente del empleado: datos personales, laborales, formación,
+     * asignaciones, reposos e historial de estados.
+     * Ruta: empleado/expediente?id=... (GET).
+     */
+    public function expediente(): void
+    {
+        $id = (int) ($_GET['id'] ?? 0);
+
+        if ($id <= 0) {
+            $this->setFlash('error', 'El empleado solicitado no existe.');
+            $this->redirect('index');
+        }
+
+        try {
+            $model    = $this->modelo();
+            $empleado = $model->getById($id);
+
+            if ($empleado === null) {
+                $this->setFlash('error', 'El empleado solicitado no existe.');
+                $this->redirect('index');
+            }
+
+            $formacion    = $model->getFormacionAcademica($id);
+            $asignaciones = $model->getAsignacionesDocente($id);
+            $historial    = $model->getHistorialEstados($id);
+            $reposos      = (new ReposoEmpleadoModel($this->conexion()))->getPorEmpleado($id);
+
+            $catalogos        = $model->getCatalogosFormulario();
+            $cargos           = $model->getCargos();
+            $gradosAcademicos = $catalogos['grados_academicos'] ?? [];
+            $titulos          = $catalogos['titulos'] ?? [];
+            $instituciones    = $catalogos['instituciones'] ?? [];
+            $tiposInstitucion = (new InstitucionModel($this->conexion()))
+                ->tiposFormulario([Instituciones::TIPO_TITULO_ACADEMICO]);
+            $estadosGeo       = (new InstitucionModel($this->conexion()))->getEstadosGeo();
+            $paises           = (new InstitucionModel($this->conexion()))->getPaises();
+            $estados          = $catalogos['estados'] ?? [];
+            $turnos           = $catalogos['turnos'] ?? [];
+            $nacionalidades   = $model->getNacionalidades();
+        } catch (Throwable $e) {
+            $this->handleError($e, 'Empleados');
+        }
+
+        $puedeGestionar = sigde_rol_clave($_SESSION['rol'] ?? '') === 'directivo';
+
+        require __DIR__ . '/../Views/empleados/expediente.php';
+    }
+
+    /**
+     * Exporta la Ficha Integral del Empleado en formato PDF ministerial.
+     * Ruta: empleado/exportar?id=... (GET).
+     */
+    public function exportar(): void
+    {
+        $id = (int) ($_GET['id'] ?? 0);
+
+        if ($id <= 0) {
+            http_response_code(404);
+            throw new RuntimeException('ID de empleado inválido.');
+        }
+
+        try {
+            $model    = $this->modelo();
+            $empleado = $model->getById($id);
+
+            if ($empleado === null) {
+                http_response_code(404);
+                throw new RuntimeException('El empleado solicitado no existe.');
+            }
+
+            $formacion    = $model->getFormacionAcademica($id);
+            $asignaciones = $model->getAsignacionesDocente($id);
+            $historial    = $model->getHistorialEstados($id);
+            $reposos      = (new ReposoEmpleadoModel($this->conexion()))->getPorEmpleado($id);
+
+            $config = Configuracion::getAll();
+
+            $fotoRuta    = (string) ($empleado['avatar_foto'] ?? $empleado['foto'] ?? '');
+            $fotoDataUri = $fotoRuta !== '' ? FichaEmpleadoPdf::imagenADataUri($fotoRuta) : null;
+
+            $pdfContent = FichaEmpleadoPdf::generar(
+                $config,
+                $empleado,
+                $formacion,
+                $asignaciones,
+                $reposos,
+                $historial,
+                null,
+                $fotoDataUri
+            );
+
+            $docLimpio     = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($empleado['numero_documento'] ?? 'personal'));
+            $nombreArchivo = 'ficha_empleado_' . $docLimpio . '.pdf';
+            $descargar     = ($_GET['descargar'] ?? '') === '1';
+
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: ' . ($descargar ? 'attachment' : 'inline') . '; filename="' . $nombreArchivo . '"');
+            header('Content-Length: ' . (string) strlen($pdfContent));
+
+            echo $pdfContent;
+            exit;
+        } catch (Throwable $e) {
+            $this->handleError($e, 'Empleados');
+        }
+    }
+
+    /**
+     * Impacto de cambiar el estado (advertencia previa).
+     * Ruta: empleado/estadoInfo?id=...&nuevo_estado=...&fecha_efectiva=... (GET, JSON).
+     */
+    public function estadoInfo(): void
+    {
+        $id            = (int) ($_GET['id'] ?? 0);
+        $nuevoEstado   = strtoupper(trim((string) ($_GET['nuevo_estado'] ?? '')));
+        $fechaEfectiva = trim((string) ($_GET['fecha_efectiva'] ?? date('Y-m-d')));
+
+        if ($id <= 0) {
+            $this->jsonResponse(false, null, 'ID inválido.', 400);
+        }
+
+        if (!in_array($nuevoEstado, ['ACTIVO', 'INACTIVO'], true)) {
+            $this->jsonResponse(false, null, 'Estado no válido.', 422);
+        }
+
+        if (!$this->fechaValida($fechaEfectiva) || $fechaEfectiva > date('Y-m-d')) {
+            $this->jsonResponse(false, ['fecha_efectiva' => 'Indica una fecha efectiva válida (no futura).'], 'Revisa la fecha efectiva.', 422);
+        }
+
+        try {
+            $data = $this->modelo()->getImpactoCambioEstado($id, $nuevoEstado, $fechaEfectiva);
+        } catch (RuntimeException $e) {
+            $this->jsonResponse(false, null, $e->getMessage(), 404);
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Empleados');
+        }
+
+        $this->jsonResponse(true, $data);
+    }
+
+    /**
+     * Cambia el estado con motivo, fecha efectiva e historial.
+     * Ruta: empleado/cambiarEstado y empleado/toggleStatus (POST, JSON).
+     */
+    public function cambiarEstado(): void
+    {
+        $id            = (int) ($_POST['id'] ?? 0);
+        $nuevoEstado   = strtoupper(trim((string) ($_POST['nuevo_estado'] ?? '')));
+        $motivo        = trim((string) ($_POST['motivo'] ?? ''));
+        $fechaEfectiva = trim((string) ($_POST['fecha_efectiva'] ?? date('Y-m-d')));
+        $confirmar     = ($_POST['confirmar'] ?? '') === '1';
+
+        if ($id <= 0) {
+            $this->jsonResponse(false, null, 'ID inválido.', 400);
+        }
+
+        try {
+            $empleado = $this->modelo()->getById($id);
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Empleados');
+        }
+
+        if ($empleado === null) {
+            $this->jsonResponse(false, null, 'El empleado solicitado no existe.', 404);
+        }
+
+        if (!in_array($nuevoEstado, ['ACTIVO', 'INACTIVO'], true)) {
+            $nuevoEstado = strtoupper((string) $empleado['estado']) === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
+        }
+
+        if ($motivo === '') {
+            $this->jsonResponse(false, ['motivo' => 'Indica el motivo del cambio de estado.'], 'Falta el motivo.', 422);
+        }
+
+        if (mb_strlen($motivo, 'UTF-8') > 200) {
+            $this->jsonResponse(false, ['motivo' => 'El motivo no puede pasar de 200 caracteres.'], 'El motivo es demasiado largo.', 422);
+        }
+
+        if (!$this->fechaValida($fechaEfectiva) || $fechaEfectiva > date('Y-m-d')) {
+            $this->jsonResponse(false, ['fecha_efectiva' => 'Indica una fecha efectiva válida (no futura).'], 'Revisa la fecha efectiva.', 422);
+        }
+
+        try {
+            $resultado = $this->modelo()->cambiarEstado(
+                $id,
+                $nuevoEstado,
+                $motivo,
+                $fechaEfectiva,
+                (int) ($this->idUsuarioActual() ?? 0),
+                $confirmar
+            );
+        } catch (RuntimeException $e) {
+            $this->jsonResponse(false, null, $e->getMessage(), 404);
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Empleados');
+        }
+
+        if (!empty($resultado['requiere_confirmacion'])) {
+            $this->jsonResponse(
+                false,
+                [
+                    'requiere_confirmacion' => true,
+                    'asignaciones'          => $resultado['asignaciones'] ?? [],
+                    'reposo_vigente'        => $resultado['reposo_vigente'] ?? null,
+                ],
+                'Confirma que deseas continuar: se cerrarán las asignaciones activas.',
+                409
+            );
+        }
+
+        $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
+        $cambioReal = $resultado['estado_anterior'] !== $resultado['estado_nuevo'];
+
+        if ($cambioReal && $idUsuario > 0) {
+            (new BitacoraModel($this->conexion()))->registrar(
+                $idUsuario,
+                'CAMBIO ESTADO ' . (string) $empleado['nombre_completo'] . ' · ' . $resultado['estado_anterior'] . ' → ' . $resultado['estado_nuevo'],
+                'Empleados'
+            );
+        }
+
+        if (!$cambioReal) {
+            $this->jsonResponse(true, $resultado, 'El empleado ya estaba en ese estado.');
+        }
+
+        $cerradas = (int) ($resultado['asignaciones_cerradas'] ?? 0);
+        $this->jsonResponse(
+            true,
+            $resultado,
+            $cerradas > 0
+                ? 'Estado actualizado. Se cerraron ' . $cerradas . ' asignación(es).'
+                : 'Estado actualizado correctamente.'
+        );
+    }
+
+    /** Alias heredado: todo cambio de estado pasa por el historial. */
+    public function toggleStatus(): void
+    {
+        $this->cambiarEstado();
+    }
+
+    /** Cierra anticipadamente un reposo. Ruta: empleado/cerrarReposo (POST, JSON). */
+    public function cerrarReposo(): void
+    {
+        $this->cerrarReposoDeEmpleado();
+    }
+
+    /** Anula un reposo. Ruta: empleado/anularReposo (POST, JSON). */
+    public function anularReposo(): void
+    {
+        $this->anularReposoDeEmpleado();
+    }
+
+    /**
  * Actualiza un empleado (modal de edición).
  * Ruta: empleados/update (POST, JSON).
  * Responde 400, 404, 405, 422 (validación o cédula duplicada) o 500.
@@ -269,6 +546,10 @@ class EmpleadoController extends CrudController
         $actual = $model->getById($id);
         if ($actual === null) {
             $this->jsonResponse(false, null, 'El empleado seleccionado ya no existe.', 404);
+        }
+
+        if (strtoupper((string) ($actual['estado'] ?? '')) !== 'ACTIVO') {
+            $this->jsonResponse(false, null, 'No se puede modificar un empleado inactivo. Debe activarlo primero.', 422);
         }
 
         $data = $this->extractData($_POST);
@@ -299,6 +580,14 @@ class EmpleadoController extends CrudController
 
         try {
             $model->update($id, $data);
+        } catch (\PDOException $e) {
+            if ($fotoNueva !== null) {
+                $this->borrarFoto($fotoNueva);
+            }
+            if ($e->getCode() === '23000' || ($e->errorInfo[1] ?? 0) === 1062) {
+                $this->jsonResponse(false, ['numero_documento' => 'Ya existe un empleado registrado con esa cédula.'], 'Hay errores en el formulario.', 422);
+            }
+            $this->jsonError($e, 'Empleados');
         } catch (DocumentoDuplicadoException | Throwable $e) {
             if ($fotoNueva !== null) {
                 $this->borrarFoto($fotoNueva);
@@ -351,6 +640,14 @@ class EmpleadoController extends CrudController
 
         try {
             $model->create($data);
+        } catch (\PDOException $e) {
+            if ($data['foto'] !== null) {
+                $this->borrarFoto($data['foto']);
+            }
+            if ($e->getCode() === '23000' || ($e->errorInfo[1] ?? 0) === 1062) {
+                $this->jsonResponse(false, ['numero_documento' => 'Ya existe un empleado registrado con esa cédula.'], 'Hay errores en el formulario.', 422);
+            }
+            $this->jsonError($e, 'Empleados');
         } catch (DocumentoDuplicadoException | Throwable $e) {
             if ($data['foto'] !== null) {
                 $this->borrarFoto($data['foto']);
@@ -590,7 +887,7 @@ protected function extractData(array $source): array
             $errores['sexo'] = 'Selecciona el sexo.';
         }
 
-        $this->validarFechaNacimiento($data, $errores, 'fecha_nacimiento', 18, 75);
+        $this->validarFechaNacimiento($data, $errores, 'fecha_nacimiento', 18, 100);
         /* $ignorarId no es null cuando viene de update(): el empleado ya existía y se
         registra antes de que estos dos campos existieran, así que los tiene en NULL y no
         pueden exigirse. En el alta (store) sí se exigen. Si vienen informados, se
@@ -600,12 +897,28 @@ protected function extractData(array $source): array
         $this->validarNacionalidad($data, $errores, $exigir);
 
         // ----- Laboral -----
-        if ($data['id_cargo'] <= 0) {
-            $errores['id_cargo'] = 'Selecciona un cargo.';
+        $validatorLaboral = Validator::make([
+            'id_cargo'      => $data['id_cargo'],
+            'fecha_ingreso' => $data['fecha_ingreso'],
+        ], [
+            'id_cargo'      => 'required|integer|min_value:1',
+            'fecha_ingreso' => 'required|date|date_not_future',
+        ], [
+            'id_cargo.required'             => 'Selecciona un cargo.',
+            'id_cargo.min_value'            => 'Selecciona un cargo.',
+            'fecha_ingreso.required'        => 'Indica una fecha de ingreso válida.',
+            'fecha_ingreso.date'            => 'Indica una fecha de ingreso válida.',
+            'fecha_ingreso.date_not_future' => 'La fecha de ingreso no puede ser futura.',
+        ]);
+        if (!$validatorLaboral->passes()) {
+            $errores = array_merge($errores, $validatorLaboral->errors());
         }
 
-        if (!$this->fechaValida($data['fecha_ingreso'])) {
-            $errores['fecha_ingreso'] = 'Indica una fecha de ingreso válida.';
+        if (empty($errores['fecha_ingreso']) && !empty($data['fecha_nacimiento']) && $this->fechaValida($data['fecha_nacimiento'])) {
+            $fechaMinimaIngreso = date('Y-m-d', strtotime($data['fecha_nacimiento'] . ' +18 years'));
+            if ($data['fecha_ingreso'] < $fechaMinimaIngreso) {
+                $errores['fecha_ingreso'] = 'La fecha de ingreso debe ser posterior a la mayoría de edad (18 años).';
+            }
         }
 
         if ($data['id_turno'] !== null && !$this->modelo()->existeTurno((int) $data['id_turno'])) {

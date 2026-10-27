@@ -15,7 +15,7 @@
  * - array $stats ['porRatificar' => int, 'yaRatificados' => int, 'avance' => int]
  * - array $ratificaciones cada uno: ['id','nombre','cedula','iniciales','avatar_color',
  * 'avatar_img' (opcional),'grado_actual','seccion','turno',
- * 'estado' => 'ratificado'|'pendiente']
+ * 'proximo_grado','estado' => 'ratificado'|'pendiente']
  * - array $grados lista de grados para el filtro
  * - array $secciones lista de secciones para el filtro
  * - array $turnos lista de turnos para el filtro
@@ -146,16 +146,6 @@ ob_start();
       </option>
     <?php endforeach; ?>
   </select>
-
-  <label for="filtroTurno" class="visually-hidden">Turno</label>
-  <select id="filtroTurno" name="turno" class="form-select" aria-label="Filtrar por turno">
-    <option value="">Turno (Todos)</option>
-    <?php foreach ($turnos as $turno): ?>
-      <option value="<?= htmlspecialchars($turno) ?>" <?= (string) ($filters['turno'] ?? '') === (string) $turno ? 'selected' : '' ?>>
-        <?= htmlspecialchars($turno) ?>
-      </option>
-    <?php endforeach; ?>
-  </select>
   <?php
   $panelFilters           = ob_get_clean();
   $panelSearchName        = 'q';
@@ -163,22 +153,16 @@ ob_start();
   $panelSearchPlaceholder = 'Buscar por nombre o cédula...';
 
   // ---------- Data panel: colgroup ----------
-  // Anchos fijos: Estudiante / Grado / Sección / Turno / Próximo / Estado / Acción.
+  // Anchos fijos: Estudiante / Grado / Sección / Próximo / Estado / Acción.
   ob_start();
   ?>
-  <?php /* Seis columnas, seis anchos y suman 100. Sobraba una: la de Próximo
-           grado, que se quitó con la columna. Con table-layout: fixed el
-           navegador usa los primeros anchos, así que con un col de más las
-           columnas se comprimían al 84% y el botón de acción acababa encima
-           de la celda de Estado. Estado toma el ancho que necesita para los
-           dos badges apilados. */ ?>
   <colgroup>
-    <col style="width: 28%;">
+    <col style="width: 30%;">
     <col style="width: 14%;">
-    <col style="width: 10%;">
-    <col style="width: 12%;">
-    <col style="width: 17%;">
-    <col style="width: 19%;">
+    <col style="width: 11%;">
+    <col style="width: 16%;">
+    <col style="width: 13%;">
+    <col style="width: 16%;">
   </colgroup>
   <?php
   $panelColgroup = ob_get_clean();
@@ -190,7 +174,7 @@ ob_start();
     <th scope="col">Estudiante</th>
     <th scope="col">Grado actual</th>
     <th scope="col">Sección</th>
-    <th scope="col">Turno</th>
+    <th scope="col">Próximo grado</th>
     <th scope="col">Estado</th>
     <th scope="col" class="text-center">Acción</th>
   </tr>
@@ -239,11 +223,14 @@ ob_start();
       </td>
       <td class="text-support"><?= htmlspecialchars($item['grado_actual'] ?? '') ?></td>
       <td class="text-support"><?= htmlspecialchars($item['seccion'] ?? '') ?></td>
-      <?php /* El turno va a la vista y no solo al filtro. Con el filtro por turno
- pero sin la columna, elegir "Mañana" dividía la lista en dos grupos
- indistinguibles: no había forma de ver qué tenía cada alumno ni
- comprobar que el filtro hacía lo que decía.*/ ?>
-      <td class="text-support"><?= htmlspecialchars($item['turno'] ?? '') ?></td>
+      <td class="fw-semibold">
+        <div><?= htmlspecialchars($item['proximo_grado'] ?? '—') ?></div>
+        <?php if (!empty($item['promocion_badge'])): ?>
+          <span class="badge <?= ($item['promocion_tipo'] ?? '') === 'promovido' ? 'bg-success-subtle text-success border border-success-subtle' : (($item['promocion_tipo'] ?? '') === 'no_promovido' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle') ?> py-0 px-2 mt-1" style="font-size: 0.75rem;">
+            <?= htmlspecialchars($item['promocion_badge']) ?>
+          </span>
+        <?php endif; ?>
+      </td>
       <td>
         <?php
           /* Se muestra el proceso que corresponde a ESTE estudiante, ya evaluado
@@ -259,14 +246,12 @@ ob_start();
           $etiqueta = $etiquetas[$estadoItem] ?? $etiquetas['pendiente'];
           $badgeLabel  = $etiqueta[0];
           $badgeStatus = $etiqueta[1];
+          if ($estadoItem === 'pendiente' && ($item['promocion_tipo'] ?? '') === 'sin_literal') {
+              $badgeLabel  = 'Sin literal';
+              $badgeStatus = 'pending';
+          }
           include __DIR__ . '/../../components/status-badge.php';
         ?>
-        <?php /* Aquí NO va la insignia de promoción. Cuando el alumno está
-                 pendiente, su texto es «Pendiente», o sea que se leía la misma
-                 palabra dos veces en la misma celda y a un lado del badge de
-                 estado. Ese dato sigue en el botón (data-promocion-badge) y en
-                 el detalle; la decisión de promoción vive en Resultados y
-                 Promoción, que es donde se toma. */ ?>
       </td>
       <td class="text-center">
         <div class="data-panel__actions">
@@ -285,6 +270,13 @@ ob_start();
             <button type="button" class="action-btn action-btn--view btn-ver-ratificacion"
                     data-id="<?= $estudianteId ?>" title="Ver detalle de la ratificación">
               <i class="bi bi-eye"></i>
+            </button>
+          <?php elseif (($item['promocion_tipo'] ?? '') === 'sin_literal'): ?>
+            <button type="button"
+                    class="btn btn-secondary rounded-pill px-4 py-1 fw-semibold disabled"
+                    disabled
+                    title="El estudiante no tiene literal cargado por la docente. No se puede ratificar sin resultado.">
+              Ratificar
             </button>
           <?php else: ?>
             <button type="button"
@@ -371,5 +363,9 @@ $pageModals = ob_get_clean();
  Los dos archivos se cargan en las dos pantallas porque el sub-modal de
  familiares es el MISMO (inscripcion/modal-agregar-familiar.php) y sus reglas son
  las mismas; lo que cambia es la configuración que le pasa cada uno.*/
-$extraScripts = ['/js/modules/estudiantes/familiares.js', '/js/modules/ratificacion/ratificacion.js', '/js/modules/estudiantes/recaudos.js'];
+$extraScripts = [
+    '/js/modules/estudiantes/familiares.js',
+    '/js/modules/ratificacion/ratificacion.js',
+    '/js/modules/estudiantes/recaudos.js',
+];
 require __DIR__ . '/../../layouts/app.php';

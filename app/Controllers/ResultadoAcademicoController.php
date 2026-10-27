@@ -112,31 +112,28 @@ class ResultadoAcademicoController extends BaseController
             $this->redirect('index');
         }
 
-        /* Filtro de arranque de la tabla. El panel del docente enlaza a
-           ?estado=pendiente para dejar al usuario sobre lo que le falta, y este es
-           el único punto donde ese parámetro se lee. Se traduce al valor que ya
-           usa el filtro del cliente y se whitelist: es una comodidad de navegación,
-           no un dato, así que lo que no se reconoce cae en «todos» en vez de
-           devolver un error. */
-        $filtrosIniciales = ['pendiente' => 'PENDIENTE', 'cargados' => 'CARGADOS', 'confirmados' => 'CONFIRMADOS'];
+        $filtrosIniciales = ['pendiente' => 'PENDIENTE', 'cargados' => 'CARGADOS'];
         $estadoSolicitado = strtolower(trim((string) ($_GET['estado'] ?? '')));
         $filtroEstadoInicial = $filtrosIniciales[$estadoSolicitado] ?? 'todos';
 
         $flash = $this->getFlashMessages();
+        $esDocenteAsignada = ($rol === 'docente') && $this->modelo()->esDocenteAsignada($idUsuario, $idEstructura);
         $data = [
-            'detalle'       => $detalle,
-            'rolUsuario'    => $rol,
-            'esDirectivo'   => $rol === 'directivo',
+            'detalle'             => $detalle,
+            'rolUsuario'          => $rol,
+            'esDirectivo'         => $rol === 'directivo',
+            'esDocenteAsignada'   => $esDocenteAsignada,
             /* El coordinador ve la nómina y el resultado pero no propone: el
                literal lo pone el docente de la sección. Sin esto la vista le
                pintaría un botón de guardar sobre una ruta que ya no le
                pertenece, y el error le saltaría al pulsarlo. */
-            'esConsulta'    => $this->esRolConsulta(),
-            'literales'     => ResultadoAcademicoModel::LITERALES_VALIDOS,
+            'esConsulta'          => $this->esRolConsulta(),
+            'anioCerrado'         => strtoupper((string) ($detalle['estado_anio'] ?? '')) === 'CERRADO',
+            'literales'           => ResultadoAcademicoModel::LITERALES_VALIDOS,
             'filtroEstadoInicial' => $filtroEstadoInicial,
-            'flash_error'   => $flash['error'],
-            'flash_success' => $flash['success'],
-            'flash_info'    => $flash['info'],
+            'flash_error'         => $flash['error'],
+            'flash_success'       => $flash['success'],
+            'flash_info'          => $flash['info'],
         ];
 
         extract($data);
@@ -200,6 +197,14 @@ class ResultadoAcademicoController extends BaseController
                 );
             }
 
+            if (!$res['ok']) {
+                if ($esAjax) {
+                    $this->jsonResponse(false, null, $res['mensaje'], 422);
+                }
+                $this->setFlash('error', $res['mensaje']);
+                $this->redirect('seccion', ['id' => $idEstructura]);
+            }
+
             if ($esAjax) {
                 $this->jsonResponse(true, null, $res['mensaje'], 200);
             }
@@ -226,19 +231,27 @@ class ResultadoAcademicoController extends BaseController
             $this->redirect('index');
         }
 
+        $esAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
         $rol = sigde_rol_clave($_SESSION['rol'] ?? '');
         /* Confirmar es escribir: solo lo hace el directivo. El rol llega normalizado
            desde sigde_rol_clave, y la comparación es exacta a propósito: una
            variante mal guardada en la base no debe abrir la puerta. */
         if ($rol !== 'directivo') {
+            if ($esAjax) {
+                $this->jsonResponse(false, null, 'Solo el personal directivo está autorizado para confirmar oficialmente los resultados académicos.', 403);
+                return;
+            }
             $this->setFlash('error', 'Solo el personal directivo está autorizado para confirmar oficialmente los resultados académicos.');
             $this->redirect('index');
+            return;
         }
 
         $idEstructura = (int) ($_POST['id_estructura_academica'] ?? 0);
         if ($idEstructura <= 0) {
             $this->setFlash('error', 'Estructura académica inválida.');
             $this->redirect('index');
+            return;
         }
 
         $estudiantesData = $_POST['estudiantes'] ?? [];
@@ -247,7 +260,6 @@ class ResultadoAcademicoController extends BaseController
         }
 
         $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
-        $esAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
 
         try {
             $res = $this->modelo()->confirmarResultados($idEstructura, $estudiantesData, $idUsuario, $rol);
@@ -272,6 +284,14 @@ class ResultadoAcademicoController extends BaseController
                     ),
                     'Resultado académico'
                 );
+            }
+
+            if (!$res['ok']) {
+                if ($esAjax) {
+                    $this->jsonResponse(false, null, $res['mensaje'], 422);
+                }
+                $this->setFlash('error', $res['mensaje']);
+                $this->redirect('seccion', ['id' => $idEstructura]);
             }
 
             if ($esAjax) {

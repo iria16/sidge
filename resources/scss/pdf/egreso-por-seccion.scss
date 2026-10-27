@@ -1,0 +1,26 @@
+/* ── Cuadernillo de Certificados de Educación Primaria por sección ────────────
+   Repite el certificado de egreso en hojas Carta verticales, una por estudiante.
+   Comparte el cuerpo, el membrete con escudo y la doble firma con las
+   constancias; aquí solo se declara el lienzo y el salto entre estudiantes.   */
+
+@import 'base';
+
+@page {
+  size: letter portrait;
+  margin: 0;
+}
+
+body {
+  font-family: 'Times New Roman', 'Times-Roman', Times, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+}
+
+.page-container {
+  position: relative;
+}
+
+.doc-title {
+  margin-bottom: 16pt;
+  line-height: 1.25;
+}

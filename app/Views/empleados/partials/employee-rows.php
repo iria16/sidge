@@ -58,26 +58,23 @@ foreach ($empleados as $e):
     </td>
     <td class="text-center">
       <div class="data-panel__actions">
-        <button type="button"
-                class="action-btn action-btn--view ver-empleado"
-                data-empleado-id="<?= (int) $e['id_empleado'] ?>"
-                title="Ver detalle">
-          <i class="bi bi-eye" aria-hidden="true"></i>
-        </button>
-        <button type="button"
-                class="action-btn action-btn--edit editar-empleado"
-                data-empleado-id="<?= (int) $e['id_empleado'] ?>"
-                title="Editar empleado">
-          <i class="bi bi-pencil" aria-hidden="true"></i>
-        </button>
-        <div class="form-check form-switch table-switch mb-0" title="<?= $esInactivo ? 'Activar' : 'Desactivar' ?> empleado">
-          <input class="form-check-input toggle-estado"
-                 type="checkbox"
-                 role="switch"
-                 data-empleado-id="<?= (int) $e['id_empleado'] ?>"
-                 <?= $esInactivo ? '' : 'checked' ?>
-                 aria-label="Activar o desactivar a <?= htmlspecialchars((string) $e['nombre_completo']) ?>">
-        </div>
+        <a href="<?= BASE_URL ?>empleado/expediente?id=<?= (int) $e['id_empleado'] ?>"
+           class="action-btn action-btn--view"
+           title="Abrir expediente">
+          <i class="bi bi-folder2-open" aria-hidden="true"></i>
+        </a>
+        <?php if (!empty($puedeGestionar)): ?>
+          <div class="form-check form-switch table-switch mb-0" title="<?= $esInactivo ? 'Activar' : 'Desactivar' ?> empleado">
+            <input class="form-check-input toggle-estado"
+                   type="checkbox"
+                   role="switch"
+                   data-empleado-id="<?= (int) $e['id_empleado'] ?>"
+                   data-empleado-nombre="<?= htmlspecialchars((string) $e['nombre_completo']) ?>"
+                   data-empleado-estado="<?= htmlspecialchars((string) $e['estado']) ?>"
+                   <?= $esInactivo ? '' : 'checked' ?>
+                   aria-label="Activar o desactivar a <?= htmlspecialchars((string) $e['nombre_completo']) ?>">
+          </div>
+        <?php endif; ?>
       </div>
     </td>
   </tr>

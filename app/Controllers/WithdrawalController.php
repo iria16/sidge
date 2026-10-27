@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\WithdrawalModel;
+use App\Support\AniosEscolares;
+use App\Support\Validator;
 use App\Traits\TextoTrait;
 use PDO;
 
@@ -49,11 +51,12 @@ class WithdrawalController extends CrudController
 
     protected function getFiltersFromRequest(): array
     {
+        $anioActivo = AniosEscolares::idEnCurso($this->conexion());
         $filters = [
             // Casting a (string) para cumplir estrictamente con strict_types
             'motivo' => trim((string) ($_GET['motivo'] ?? '')),
             'estado' => trim((string) ($_GET['estado'] ?? '')),
-            'anio'   => trim((string) ($_GET['anio'] ?? '')),
+            'anio'   => $anioActivo > 0 ? (string) $anioActivo : trim((string) ($_GET['anio'] ?? '')),
             'q'      => trim((string) ($_GET['q'] ?? '')),
         ];
         $turno = $this->turnoSecretariaActual();
@@ -70,9 +73,10 @@ class WithdrawalController extends CrudController
 
         // Solo la secretaria registra retiros: los candidatos se piden solo en ese caso.
         $esSecretaria = $rol === 'secretaria';
+        $idAnio       = !empty($filters['anio']) ? (int) $filters['anio'] : null;
 
         return [
-            'stats'          => $model->getStats($filters['id_turno'] ?? null),
+            'stats'          => $model->getStats($filters['id_turno'] ?? null, $idAnio),
             'solicitudes'    => $items,
             'aniosEscolares' => $model->getYears(),
             'motivos'        => $model->getReasons(),
@@ -125,31 +129,42 @@ class WithdrawalController extends CrudController
     }
 
     /**
- * Datos del retiro tal como los manda el modal de la secretaria (contrato de CrudController::store()).
-*/
+     * Datos del retiro tal como los manda el modal de la secretaria (contrato de CrudController::store()).
+     */
     protected function extractData(array $source): array
     {
         return [
-            'id_matricula'     => (int) ($source['id_matricula'] ?? 0),
-            'id_motivo_retiro' => (int) ($source['id_motivo_retiro'] ?? 0),
-            // Quién registra la solicitud: sin esto el retiro no sabe quién lo pidió.
-            'id_usuario'       => (int) ($this->idUsuarioActual() ?? 0),
-            // Uso correcto de capitalizarOracion (el trait ya quita HTML, recorta y colapsa espacios)
-            'observaciones'    => mb_substr($this->capitalizarOracion((string) ($source['observaciones'] ?? '')), 0, 500),
+            'id_matricula'             => (int) ($source['id_matricula'] ?? 0),
+            'id_motivo_retiro'         => (int) ($source['id_motivo_retiro'] ?? 0),
+            'id_persona_representante' => ((int) ($source['id_persona_representante'] ?? 0)) ?: null,
+            'fecha_retiro'             => !empty($source['fecha_retiro']) ? trim((string) $source['fecha_retiro']) : null,
+            'id_usuario'               => (int) ($this->idUsuarioActual() ?? 0),
+            'observaciones'            => mb_substr($this->capitalizarOracion((string) ($source['observaciones'] ?? '')), 0, 500),
         ];
     }
 
     /**
- * Devuelve los errores por campo del alta.
- * Los que requieren BD (motivo inexistente, retiro duplicado) se los pregunta al modelo.
-*/
+     * Devuelve los errores por campo del alta.
+     * Los que requieren BD (motivo inexistente, retiro duplicado) se los pregunta al modelo.
+     */
     protected function validate(array $data, ?int $id = null): array
     {
         $errores = [];
 
-        if ($data['id_matricula'] <= 0) {
-            $errores['id_matricula'] = 'Seleccione el estudiante.';
+        $v = Validator::make($data, [
+            'id_matricula'             => 'required|integer|min_value:1',
+            'id_motivo_retiro'         => 'required|integer|min_value:1',
+            'id_persona_representante' => 'required|integer|min_value:1',
+            'fecha_retiro'             => 'required|date|date_not_future',
+            'observaciones'            => 'string|max_len:500',
+        ]);
+
+        if (!$v->passes()) {
+            foreach ($v->errors() as $campo => $mensajes) {
+                $errores[$campo] = $mensajes[0];
+            }
         }
+
         $turno = $this->turnoSecretariaActual();
         if ($turno !== null
             && $data['id_matricula'] > 0
@@ -157,22 +172,69 @@ class WithdrawalController extends CrudController
             $errores['id_matricula'] = 'El estudiante no pertenece a su turno asignado.';
         } elseif ($data['id_matricula'] > 0) {
             /* La elegibilidad se comprueba AQUÍ, en el servidor, y no solo en el buscador:
- antes el formulario mostraba "elegible=false" para un egresado o un retirado,
- pero un POST directo se saltaba esa regla y creaba la solicitud igual. El
- motivo lo pone el modelo, que es donde vive la máquina de estados.*/
+               antes el formulario mostraba "elegible=false" para un egresado o un retirado,
+               pero un POST directo se saltaba esa regla y creaba la solicitud igual. El
+               motivo lo pone el modelo, que es donde vive la máquina de estados.*/
             $bloqueo = $this->modelo()->bloqueoParaRetiro($data['id_matricula']);
             if ($bloqueo !== '') {
                 $errores['id_matricula'] = $bloqueo;
             }
         }
 
-        if ($data['id_motivo_retiro'] <= 0) {
-            $errores['id_motivo_retiro'] = 'Seleccione el motivo del retiro.';
-        } elseif (!$this->modelo()->existeMotivo($data['id_motivo_retiro'])) {
+        if ($data['id_motivo_retiro'] > 0 && !$this->modelo()->existeMotivo($data['id_motivo_retiro'])) {
             $errores['id_motivo_retiro'] = 'El motivo seleccionado no es válido.';
         }
 
+        if ($data['id_matricula'] > 0 && !empty($data['id_persona_representante'])) {
+            if (!$this->modelo()->esRepresentanteOAutorizado($data['id_matricula'], (int) $data['id_persona_representante'])) {
+                $errores['id_persona_representante'] = 'La persona seleccionada no está autorizada para retirar al estudiante.';
+            }
+        }
+
         return $errores;
+    }
+
+    /**
+     * Registra una solicitud de retiro garantizando la captura de colisiones concurrentes (SQLSTATE 23000 / 1062).
+     */
+    public function store(): void
+    {
+        if ($this->idUsuarioActual() === null) {
+            $this->jsonResponse(false, null, 'Sesión no válida.', 401);
+            return;
+        }
+
+        $source = $_POST;
+        $data = $this->extractData($source);
+        $errores = $this->validate($data);
+
+        if (!empty($errores)) {
+            $this->jsonResponse(false, $errores, 'Corrige los errores antes de continuar.', 422);
+            return;
+        }
+
+        try {
+            $ok = $this->modelo()->create($data);
+            if ($ok) {
+                $this->jsonResponse(true, null, 'Solicitud de retiro registrada correctamente.');
+            } else {
+                $this->jsonResponse(false, null, 'No se pudo registrar la solicitud de retiro.', 500);
+            }
+        } catch (\PDOException $e) {
+            $codigo = (int) ($e->errorInfo[1] ?? 0);
+            if ($e->getCode() === '23000' || $codigo === 1062) {
+                $this->jsonResponse(
+                    false,
+                    ['id_matricula' => 'Ya existe una solicitud de retiro registrada para esta matrícula.'],
+                    'Solicitud duplicada.',
+                    422
+                );
+                return;
+            }
+            $this->jsonError($e, static::class);
+        } catch (\Throwable $e) {
+            $this->jsonError($e, static::class);
+        }
     }
 
     /**
@@ -220,19 +282,27 @@ class WithdrawalController extends CrudController
             return; // Detiene la ejecución
         }
 
-        $model = $this->modelo();
+        // 2. Control de autorización (solo directivo y admin)
+        $rol = sigde_rol_clave($_SESSION['rol'] ?? '');
+        if ($rol !== 'directivo' && $rol !== 'admin') {
+            $this->jsonResponse(false, null, 'Solo el personal directivo puede resolver solicitudes de retiro.', 403);
+            return;
+        }
 
         $id     = (int) ($_POST['id'] ?? 0);
         $estado = strtoupper(trim((string) ($_POST['estado'] ?? '')));
 
-        if ($id <= 0) {
-            $this->jsonResponse(false, null, 'ID inválido.', 400);
+        $v = Validator::make(['id' => $id, 'estado' => $estado], [
+            'id'     => 'required|integer|min_value:1',
+            'estado' => 'required|in:PENDIENTE,APROBADO,RECHAZADO',
+        ]);
+
+        if (!$v->passes()) {
+            $this->jsonResponse(false, $v->errors(), 'Parámetros inválidos.', 422);
             return;
         }
-        if (!in_array($estado, self::ESTADOS, true)) {
-            $this->jsonResponse(false, null, 'Estado de retiro no válido.', 422);
-            return;
-        }
+
+        $model = $this->modelo();
 
         try {
             $ok = $model->updateStatus($id, $estado, (int) ($this->idUsuarioActual() ?? 0));

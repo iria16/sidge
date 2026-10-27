@@ -31,34 +31,34 @@
 }
 
 .nomina-tabla {
-  table-layout: auto;
+  table-layout: fixed;
+  width: 100%;
 
-  th {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
+  &.data-panel__table thead th {
+    white-space: normal;
   }
 
   td {
     white-space: normal;
     overflow-wrap: break-word;
     word-break: break-word;
-    vertical-align: top;
+    vertical-align: middle;
   }
 
   .nomina-col--n,
   .nomina-col--dia,
   .nomina-col--edad,
-  .nomina-col--sexo {
-    width: 3.5rem;
+  .nomina-col--sexo,
+  .nomina-col--fecha_nac,
+  .nomina-col--literal,
+  .nomina-col--promocion,
+  .nomina-col--boleta {
     text-align: center;
     white-space: nowrap;
   }
 
   .nomina-col--cedula,
   .nomina-col--cedula_rep,
-  .nomina-col--fecha_nac,
   .nomina-col--edad_cumple,
   .nomina-col--telefonos_rep {
     white-space: nowrap;
@@ -75,11 +75,81 @@
     white-space: nowrap;
   }
 
+  .nomina-col--direccion,
+  .nomina-col--autorizados {
+    white-space: normal;
+    min-width: 170px;
+  }
+
   /* Separador fino entre un estudiante y el siguiente: lo lleva la primera fila
      de cada grupo (clase nomina-grupo-inicio), menos la del primer grupo, que ya
      la separa del encabezado. */
   tbody tr.nomina-grupo-inicio:not(:first-child) > td {
     border-top: 1px solid $border-color;
+  }
+}
+
+/* Anchos proporcionales por pestaña (suman 100% en cada vista) */
+.nomina-hoja--nomina .nomina-tabla {
+  .nomina-col--n          { width: 8%; }
+  .nomina-col--cedula     { width: 20%; }
+  .nomina-col--estudiante { width: 34%; }
+  .nomina-col--sexo       { width: 10%; }
+  .nomina-col--fecha_nac  { width: 18%; }
+  .nomina-col--edad       { width: 10%; }
+}
+
+.nomina-hoja--contacto .nomina-tabla {
+  .nomina-col--estudiante    { width: 36%; }
+  .nomina-col--representante { width: 36%; }
+  .nomina-col--telefonos_rep { width: 28%; }
+}
+
+.nomina-hoja--cumpleaneros .nomina-tabla {
+  .nomina-col--dia         { width: 12%; }
+  .nomina-col--estudiante  { width: 63%; }
+  .nomina-col--edad_cumple { width: 25%; }
+}
+
+.nomina-hoja--boletas .nomina-tabla {
+  .nomina-col--n          { width: 8%; }
+  .nomina-col--cedula     { width: 18%; }
+  .nomina-col--estudiante { width: 32%; }
+  .nomina-col--literal    { width: 12%; }
+  .nomina-col--promocion  { width: 16%; }
+  .nomina-col--boleta     { width: 14%; }
+
+  /* En tablet la tabla ya no tiene 968 px: la decisión necesita espacio para
+     «No promovido» y el botón de la boleta se reduce a un icono. */
+  @include media-breakpoint-down(lg) {
+    .nomina-col--estudiante { width: 29%; }
+    .nomina-col--promocion  { width: 18%; }
+    .nomina-col--boleta     { width: 15%; }
+  }
+
+  /* En teléfono se conserva el scroll interno, pero con ancho suficiente para
+     que cédula, decisión y encabezados no se partan a la mitad. */
+  @include media-breakpoint-down(md) {
+    min-width: 680px;
+
+    .nomina-col--n          { width: 7%; }
+    .nomina-col--cedula     { width: 19%; }
+    .nomina-col--estudiante { width: 26%; }
+    .nomina-col--literal    { width: 12%; }
+    .nomina-col--promocion  { width: 19%; }
+    .nomina-col--boleta     { width: 17%; }
+  }
+}
+
+/* El panel de tablet mide 712 px. Con el padding de escritorio, la cédula y el
+   estado no caben aunque el ancho de columna sea correcto. */
+@include media-breakpoint-down(lg) {
+  .nomina-tabla {
+    thead th,
+    tbody td {
+      padding-left: $sigde-table-mobile-padding-x;
+      padding-right: $sigde-table-mobile-padding-x;
+    }
   }
 }
 
