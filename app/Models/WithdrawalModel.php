@@ -253,16 +253,24 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
         return (int) $stmt->fetchColumn();
     }
 
-    public function getStats(?int $idTurno = null): array
+    public function getStats(?int $idTurno = null, ?int $idAnioEscolar = null): array
     {
         $sql = 'SELECT r.estado_solicitud, COUNT(*) AS total
                   FROM retiro r
                   INNER JOIN matricula m ON m.id_matricula = r.id_matricula
                   LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica';
+        $where = [];
         $params = [];
         if ($idTurno !== null) {
-            $sql .= ' WHERE ea.id_turno = :turno';
+            $where[] = 'ea.id_turno = :turno';
             $params['turno'] = $idTurno;
+        }
+        if ($idAnioEscolar !== null) {
+            $where[] = 'ea.id_anio_escolar = :anio';
+            $params['anio'] = $idAnioEscolar;
+        }
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
         }
         $sql .= ' GROUP BY r.estado_solicitud';
         $stmt = $this->pdo->prepare($sql);
