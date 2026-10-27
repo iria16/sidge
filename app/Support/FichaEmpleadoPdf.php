@@ -62,11 +62,11 @@ class FichaEmpleadoPdf
             $fechaExpedicion = new DateTimeImmutable('now', $tz);
         }
 
-        // Logos oficiales
-        $logoMin = Configuracion::logoEstrictoConstancia('ministerio_logo', 140, 56);
-        $ministerioLogo = $config['ministerioLogo'] ?? $logoMin['uri'] ?? Configuracion::dataUriPublico('ministerio_logo');
-        $logoPla = Configuracion::logoEstrictoConstancia('plantel_logo', 56, 56);
-        $plantelLogo = $config['plantelLogo'] ?? $logoPla['uri'] ?? Configuracion::dataUriPublico('plantel_logo');
+        // Logos oficiales idénticos a ConstanciaPdf
+        $logoMin = Configuracion::logoEstrictoConstancia('ministerio_logo', 140, 42);
+        $ministerioLogo = $logoMin['uri'] ?? null;
+        $logoPla = Configuracion::logoEstrictoConstancia('plantel_logo', 50, 58);
+        $plantelLogo = $logoPla['uri'] ?? null;
 
         // Firma y sello institucional
         $firmaUri = $config['firmaUri'] ?? Configuracion::dataUriPrivado('director_firma');

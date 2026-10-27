@@ -368,6 +368,8 @@ class EmpleadoController extends CrudController
             $nombreArchivo = 'ficha_empleado_' . $docLimpio . '.pdf';
             $descargar     = ($_GET['descargar'] ?? '') === '1';
 
+            header_remove('X-Frame-Options');
+            header('X-Frame-Options: SAMEORIGIN');
             header('Content-Type: application/pdf');
             header('Content-Disposition: ' . ($descargar ? 'attachment' : 'inline') . '; filename="' . $nombreArchivo . '"');
             header('Content-Length: ' . (string) strlen($pdfContent));

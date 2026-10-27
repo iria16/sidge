@@ -343,15 +343,7 @@ $rutasPermitidas = [
         'seccion'               => ['docente'],
         'guardarEnlaceWhatsapp' => ['docente'],
     ],
-    // Módulo de reportes y estadísticas oficiales (Directivo y Coordinador).
-    'reporte' => [
-        'index'        => ['directivo', 'coordinador'],
-        'estudiantes'  => ['directivo', 'coordinador'],
-        'distribucion' => ['directivo', 'coordinador'],
-        'personal'     => ['directivo', 'coordinador'],
-        'personalPdf'  => ['directivo', 'coordinador'],
-        'preview'      => ['directivo', 'coordinador'],
-    ],
+    // Módulo de estadísticas oficiales (Directivo y Coordinador).
     'estadistica' => [
         'index' => ['directivo', 'coordinador'],
     ],

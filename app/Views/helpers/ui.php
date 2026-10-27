@@ -189,7 +189,6 @@ if (!function_exists('sigde_nav_sections')) {
                 'roles' => ['directivo', 'coordinador'],
                 'items' => [
                     ['id' => 'estadisticas', 'label' => 'Estadísticas', 'icon' => 'bi-bar-chart', 'href' => BASE_URL . 'estadistica/index', 'roles' => ['directivo', 'coordinador']],
-                    ['id' => 'reportes',     'label' => 'Reportes',     'icon' => 'bi-file-earmark-bar-graph', 'href' => BASE_URL . 'reporte/index', 'roles' => ['directivo', 'coordinador']],
                 ],
             ],
             [

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\RecuperacionAccesoModel;
-use App\Support\Validator;
 use App\Traits\DetalleJsonTrait;
 use App\Traits\ListableIndexTrait;
 use PDO;
@@ -89,28 +88,19 @@ class RecuperacionAccesoController extends BaseController
      */
     public function updateEstado(): void
     {
-        $validator = Validator::make($_POST, [
-            'id'     => 'required|integer|min_value:1',
-            'accion' => 'required|string|in:aprobar,rechazar',
-        ], [
-            'id.required'     => 'ID de solicitud requerido.',
-            'id.min_value'    => 'ID de solicitud inválido.',
-            'accion.required' => 'Acción requerida.',
-            'accion.in'       => 'Acción inválida.',
-        ]);
+        $id     = (int) ($_POST['id'] ?? 0);
+        $accion = (string) ($_POST['accion'] ?? '');
 
-        if (!$validator->passes()) {
-            $this->jsonResponse(false, $validator->errors(), implode(' ', $validator->errors()), 422);
+        if ($id <= 0 || !in_array($accion, ['aprobar', 'rechazar'], true)) {
+            $this->jsonResponse(false, null, 'Solicitud o acción inválida.', 422);
         }
-
-        $id     = (int) $_POST['id'];
-        $accion = (string) $_POST['accion'];
 
         $model = $this->modelo();
 
         try {
+            $adminId = (int) ($this->idUsuarioActual() ?? 0);
             if ($accion === 'aprobar') {
-                $resultado = $model->aprobarSolicitud($id, $this->idUsuarioActual());
+                $resultado = $model->aprobarSolicitud($id, $adminId);
 
                 if ($resultado === null) {
                     $this->jsonResponse(false, null, 'La solicitud ya fue atendida o no existe.', 409);
@@ -119,7 +109,7 @@ class RecuperacionAccesoController extends BaseController
                 $this->jsonResponse(true, $resultado, 'Solicitud aprobada. Contraseña provisional generada.');
             }
 
-            $rechazada = $model->rechazarSolicitud($id, $this->idUsuarioActual());
+            $rechazada = $model->rechazarSolicitud($id, $adminId);
 
             if (!$rechazada) {
                 $this->jsonResponse(false, null, 'La solicitud ya fue atendida o no existe.', 409);
@@ -152,23 +142,17 @@ class RecuperacionAccesoController extends BaseController
      */
     public function resetPassword(): void
     {
-        $validator = Validator::make($_POST, [
-            'usuario_id' => 'required|integer|min_value:1',
-        ], [
-            'usuario_id.required'  => 'Debes seleccionar un usuario.',
-            'usuario_id.min_value' => 'Debes seleccionar un usuario.',
-        ]);
+        $usuarioId = (int) ($_POST['usuario_id'] ?? 0);
 
-        if (!$validator->passes()) {
-            $this->jsonResponse(false, $validator->errors(), implode(' ', $validator->errors()), 422);
+        if ($usuarioId <= 0) {
+            $this->jsonResponse(false, null, 'Debes seleccionar un usuario.', 422);
         }
-
-        $usuarioId = (int) $_POST['usuario_id'];
 
         $model = $this->modelo();
 
         try {
-            $claveProvisional = $model->resetPassword($usuarioId, $this->idUsuarioActual());
+            $adminId           = (int) ($this->idUsuarioActual() ?? 0);
+            $claveProvisional = $model->resetPassword($usuarioId, $adminId);
             $usuario           = $model->getUsuarioBasico($usuarioId);
 
             $this->jsonResponse(true, [

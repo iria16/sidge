@@ -97,41 +97,7 @@ $direccionCompleta = !empty($dirPartes) ? implode(', ', $dirPartes) : '—';
 <body>
 
   <!-- Encabezado Institucional de 3 columnas (20% / 60% / 20%) -->
-  <table class="header-table">
-    <tr>
-      <td class="col-min-logo">
-        <?php if (!empty($ministerioLogo)): ?>
-          <img src="<?= $ministerioLogo ?>" alt="Ministerio del Poder Popular para la Educación">
-        <?php endif; ?>
-      </td>
-      <td class="col-box-center">
-        <div class="membrete-texto">
-          <div class="membrete-linea">REPÚBLICA BOLIVARIANA DE VENEZUELA</div>
-          <div class="membrete-linea">MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</div>
-          <div class="membrete-linea"><?= htmlspecialchars(mb_strtoupper($nombrePlantel, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
-          <?php if (!empty($plantelDea) || !empty($codigoDependencia)): ?>
-            <div class="membrete-codigos">
-              <?php
-                $cods = [];
-                if (!empty($plantelDea)) {
-                    $cods[] = 'CÓDIGO DEA: ' . htmlspecialchars(mb_strtoupper($plantelDea, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-                }
-                if (!empty($codigoDependencia)) {
-                    $cods[] = 'CÓDIGO DEP.: ' . htmlspecialchars(mb_strtoupper($codigoDependencia, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-                }
-                echo implode(' · ', $cods);
-              ?>
-            </div>
-          <?php endif; ?>
-        </div>
-      </td>
-      <td class="col-plantel-logo">
-        <?php if (!empty($plantelLogo)): ?>
-          <img src="<?= $plantelLogo ?>" alt="Plantel Educativo">
-        <?php endif; ?>
-      </td>
-    </tr>
-  </table>
+  <?php include __DIR__ . '/../partials/pdf-encabezado.php'; ?>
 
   <!-- Título del Documento -->
   <div class="doc-title">EXPEDIENTE OFICIAL DE PERSONAL<br><span style="font-size: 10pt; font-weight: normal; letter-spacing: 0;">FICHA INTEGRAL DEL EMPLEADO</span></div>
