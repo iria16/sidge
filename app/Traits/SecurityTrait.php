@@ -142,6 +142,33 @@ trait SecurityTrait
     }
 
     /**
+     * Responde un error HTTP con la vista compartida y corta la ejecución.
+     *
+     * Centraliza el HTML de error: ningún controlador debe escribir etiquetas
+     * a mano ni hacer `echo` de una página. Es `never` para que el flujo no
+     * continúe después de responder el error.
+     */
+    protected function renderHttpError(
+        int $codigo,
+        string $errorTitulo,
+        string $errorMensaje
+    ): never {
+        http_response_code($codigo);
+
+        require __DIR__ . '/../Views/shared/http-error.php';
+
+        exit;
+    }
+
+    /**
+     * Atajo de renderHttpError(403) para negar el acceso.
+     */
+    protected function prohibido(string $errorMensaje = 'No tiene permisos para realizar esta acción.'): never
+    {
+        $this->renderHttpError(403, '403 · Acceso denegado', $errorMensaje);
+    }
+
+    /**
  * Redirige a una ruta del sistema (BASE_URL + $url) y corta la ejecución.
  * Es `never`: PHP y el análisis estático saben que nada se ejecuta después de llamarlo.
 */

@@ -218,6 +218,11 @@
   font-size: 0.85rem;
 }
 
+.resultado-resumen-box {
+  background-color: $surface-soft;
+  border-color: $border-color-soft !important;
+}
+
 // Selector de literal en forma de pastilla sólida.
 .select-literal-pill {
   appearance: none;

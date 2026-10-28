@@ -39,6 +39,13 @@ class ResultadoAcademicoModel extends BaseModel
     public const LITERALES_VALIDOS = ['A', 'B', 'C', 'D', 'E'];
 
     /**
+     * Regla normativa de la escala cualitativa. La vista y el JS la reciben
+     * desde aquí para no duplicarla en tres sitios.
+     */
+    public const LITERALES_PROMUEVEN = ['A', 'B', 'C', 'D'];
+    public const LITERALES_EXIGEN_OBSERVACION = ['E'];
+
+    /**
      * Días de antelación al cierre del año escolar en los que se abre la ventana
      * para la carga de literales finales por parte del docente.
      */
@@ -56,7 +63,7 @@ class ResultadoAcademicoModel extends BaseModel
         }
 
         $lit = strtoupper(trim($literal));
-        if (in_array($lit, ['A', 'B', 'C', 'D'], true)) {
+        if (in_array($lit, self::LITERALES_PROMUEVEN, true)) {
             return self::ESTADO_PROMOVIDO;
         }
 
@@ -363,6 +370,8 @@ class ResultadoAcademicoModel extends BaseModel
             $omitidosConfirmados = 0;
             $omitidosAjenos      = 0;
             $omitidosLiterales   = 0;
+            $guardadosIds        = [];
+            $errores             = [];
 
             foreach ($datosEstudiantes as $idEstudiante => $data) {
                 $idEstudiante = (int) $idEstudiante;
@@ -371,12 +380,14 @@ class ResultadoAcademicoModel extends BaseModel
                 // Defensa PHP 1: Verificar que el estudiante pertenece a la nómina activa de la sección
                 if (!isset($nominaValida[$idEstudiante]) || $nominaValida[$idEstudiante]['id_matricula'] !== $idMat) {
                     $omitidosAjenos++;
+                    $errores[$idEstudiante] = 'El estudiante no pertenece a esta sección.';
                     continue;
                 }
 
                 // Defensa PHP 2: Bloqueo universal de registros ya confirmados por la Dirección
                 if (!empty($nominaValida[$idEstudiante]['confirmado'])) {
                     $omitidosConfirmados++;
+                    $errores[$idEstudiante] = 'Ya fue confirmado por la Dirección.';
                     continue;
                 }
 
@@ -386,6 +397,7 @@ class ResultadoAcademicoModel extends BaseModel
 
                 if ($literal !== null && !in_array($literal, self::LITERALES_VALIDOS, true)) {
                     $omitidosLiterales++;
+                    $errores[$idEstudiante] = 'El literal no es válido.';
                     continue;
                 }
 
@@ -406,6 +418,7 @@ class ResultadoAcademicoModel extends BaseModel
                 ]);
 
                 $guardados++;
+                $guardadosIds[] = $idEstudiante;
 
                 if ($literal === 'E') {
                     $noPromovidos++;
@@ -445,6 +458,8 @@ class ResultadoAcademicoModel extends BaseModel
                     'omitidos_confirmados' => $omitidosConfirmados,
                     'omitidos_ajenos'      => $omitidosAjenos,
                     'omitidos_literales'   => $omitidosLiterales,
+                    'guardados_ids'        => $guardadosIds,
+                    'errores'              => $errores,
                 ],
             ];
         } catch (Throwable $e) {
@@ -841,7 +856,7 @@ class ResultadoAcademicoModel extends BaseModel
             return null;
         }
 
-        if (in_array($literal, ['A', 'B', 'C', 'D'], true)) {
+        if (in_array($literal, self::LITERALES_PROMUEVEN, true)) {
             return $idGradoSiguiente ?: $idGradoActual;
         }
 
@@ -850,6 +865,34 @@ class ResultadoAcademicoModel extends BaseModel
         }
 
         return null;
+    }
+
+    /**
+     * Decide si el dashboard del docente muestra la tarjeta de literales.
+     *
+     * Se muestra siempre que ya haya al menos un literal registrado, o cuando
+     * la fecha actual está dentro de los días previos al cierre del año escolar.
+     * Si el cierre es nulo o inválido, la condición por fecha no aplica.
+     */
+    public function debeMostrarAvanceLiterales(int $registrados, ?string $fechaCierre): bool
+    {
+        if ($registrados > 0) {
+            return true;
+        }
+
+        if ($fechaCierre === null || trim($fechaCierre) === '') {
+            return false;
+        }
+
+        $tsCierre = strtotime($fechaCierre);
+        if ($tsCierre === false) {
+            return false;
+        }
+
+        $tsInicioVentana = strtotime('-' . self::DIAS_AVISO_CIERRE_LITERALES . ' days', $tsCierre);
+        $hoy = strtotime(date('Y-m-d'));
+
+        return $hoy >= $tsInicioVentana;
     }
 
     /**

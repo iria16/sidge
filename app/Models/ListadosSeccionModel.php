@@ -251,4 +251,36 @@ class ListadosSeccionModel extends Model
         $stmt->execute(['id_anio' => $idAnioActivo]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Id del año escolar en curso (0 si no hay ninguno abierto).
+     */
+    public function getAnioEnCursoId(): int
+    {
+        return AniosEscolares::idEnCurso($this->pdo);
+    }
+
+    /**
+     * Indica si el usuario tiene una asignación vigente sobre la sección.
+     * Lo usa el controlador para acotar a un docente a sus propias secciones.
+     */
+    public function usuarioTieneSeccion(int $idUsuario, int $idEstructura): bool
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT 1 FROM asignacion_docente ad
+             INNER JOIN docente doc ON doc.id_docente = ad.id_docente
+             INNER JOIN empleado emp ON emp.id_empleado = doc.id_empleado
+             INNER JOIN usuario u ON u.id_persona = emp.id_persona
+             WHERE u.id_usuario = :id_usuario
+               AND ad.id_estructura_academica = :id_estructura
+               AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
+             LIMIT 1"
+        );
+        $stmt->execute([
+            'id_usuario'    => $idUsuario,
+            'id_estructura' => $idEstructura,
+        ]);
+
+        return (bool) $stmt->fetchColumn();
+    }
 }

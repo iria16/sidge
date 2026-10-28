@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Http\BinaryResponse;
 use App\Models\BitacoraModel;
 use App\Models\EstudianteModel;
 use App\Models\TeacherAssignmentModel;
@@ -231,10 +232,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
         }
 
         if ($ficha === null) {
-            header('HTTP/1.1 404 Not Found');
-            echo '<!DOCTYPE html><meta charset="utf-8"><title>No encontrado</title>'
-               . '<p>No encontramos ese expediente.</p>';
-            exit;
+            $this->renderHttpError(404, '404 · No encontrado', 'No encontramos ese expediente.');
         }
 
         /* El representante no se repite en la lista de autorizados: la vista
@@ -431,11 +429,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
 
         if ($formato === 'pdf') {
             if (!$tieneSeccion) {
-                http_response_code(404);
-                header('Content-Type: text/html; charset=UTF-8');
-                echo '<!DOCTYPE html><meta charset="utf-8"><title>Sin sección</title>'
-                   . '<p>No tienes una sección asignada en el período escolar en curso.</p>';
-                exit;
+                $this->renderHttpError(404, '404 · Sin sección', 'No tienes una sección asignada en el período escolar en curso.');
             }
 
             if ($vista === 'boletas') {
@@ -454,14 +448,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
                 ? 'inline'
                 : 'attachment';
 
-            header_remove('X-Frame-Options');
-            header('X-Frame-Options: SAMEORIGIN');
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: ' . $disposicion . '; filename="' . $nombre . '"');
-            header('Content-Length: ' . strlen($pdf));
-            header('X-Content-Type-Options: nosniff');
-            echo $pdf;
-            exit;
+            BinaryResponse::pdf($pdf, $nombre, $disposicion === 'inline')->send();
         }
 
         $vistas          = self::VISTAS_NOMINA;
@@ -635,11 +622,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
     /** Responde 422 y corta la ejecución. */
     private function rechazarSolicitud(string $mensaje): never
     {
-        http_response_code(422);
-        header('Content-Type: text/html; charset=UTF-8');
-        echo '<!DOCTYPE html><meta charset="utf-8"><title>Solicitud no válida</title><p>'
-           . htmlspecialchars($mensaje, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>';
-        exit;
+        $this->renderHttpError(422, '422 · Solicitud no válida', $mensaje);
     }
 
     /** acta-3A-2025-2026.pdf: vista, grado (número) + sección, año escolar. */

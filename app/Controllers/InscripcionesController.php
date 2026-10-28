@@ -103,6 +103,8 @@ class InscripcionesController extends CrudController
     {
         $model            = $this->modelo();
         $anioSeleccionado = $model->getAnioSeleccionado();
+        $anioActivo       = $model->getAnioActivo();
+        $anioInicio       = (int) substr((string) ($anioActivo['anio_inicio'] ?? date('Y')), 0, 4);
 
         /* Los filtros de grado y sección son los que ese AÑO tuvo, no el catálogo
  completo: el catálogo es global y ofrecería combinaciones que en ese período
@@ -149,10 +151,10 @@ class InscripcionesController extends CrudController
             'parroquias'      => $model->getParroquias(),
             // Estados para la cascada del familiar; municipio y parroquia llegan por AJAX.
             'estados'         => $model->getEstados(),
-            'anioActivo'      => $model->getAnioActivo(),
-            'anioEnCurso'     => \App\Support\AniosEscolares::nombreEnCurso($this->conexion()),
-            'minDateEstudiante' => ((int) substr((string) ($model->getAnioActivo()['anio_inicio'] ?? date('Y')), 0, 4) - 14) . '-01-01',
-            'maxDateEstudiante' => ((int) substr((string) ($model->getAnioActivo()['anio_inicio'] ?? date('Y')), 0, 4) - 6) . '-12-31',
+            'anioActivo'      => $anioActivo,
+            'anioEnCurso'     => (string) ($anioActivo['nombre'] ?? ''),
+            'minDateEstudiante' => ($anioInicio - 14) . '-01-01',
+            'maxDateEstudiante' => ($anioInicio - 6) . '-12-31',
         ];
     }
 

@@ -93,9 +93,18 @@ class InstitucionModel extends CatalogoModel
      */
     public function create(array $data): bool
     {
+        return $this->createAndGetId($data) > 0;
+    }
+
+    /**
+     * Inserta la institución y devuelve su id autogenerado.
+     * Lo usa la alta rápida del wizard, que necesita el id para la fila.
+     */
+    public function createAndGetId(array $data): int
+    {
         $tipo = trim((string) ($data['tipo'] ?? ''));
 
-        return $this->pdo->prepare(
+        $this->pdo->prepare(
             'INSERT INTO institucion
                 (nombre, id_tipo_institucion, es_extranjera, id_estado_geo,
                  id_municipio, id_parroquia, pais_id, ciudad_extranjera,
@@ -105,6 +114,8 @@ class InstitucionModel extends CatalogoModel
                  :id_municipio, :id_parroquia, :pais_id, :ciudad_extranjera,
                  :direccion_extranjera, :referencia_plantel, :codigo_dea)'
         )->execute($this->datosDeAlta($data, $tipo));
+
+        return (int) $this->pdo->lastInsertId();
     }
 
     /**

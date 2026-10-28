@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Models\AcademicYearModel;
 use App\Models\WithdrawalModel;
-use App\Support\AniosEscolares;
 use App\Support\Validator;
 use App\Traits\TextoTrait;
 use PDO;
@@ -51,7 +51,7 @@ class WithdrawalController extends CrudController
 
     protected function getFiltersFromRequest(): array
     {
-        $anioActivo = AniosEscolares::idEnCurso($this->conexion());
+        $anioActivo = (new AcademicYearModel($this->conexion()))->getActiveId();
         $filters = [
             // Casting a (string) para cumplir estrictamente con strict_types
             'motivo' => trim((string) ($_GET['motivo'] ?? '')),

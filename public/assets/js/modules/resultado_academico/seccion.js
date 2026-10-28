@@ -156,10 +156,14 @@
     var fila = select.closest('tr');
     var inputEstado = document.getElementById('input_estado_' + studentId);
     var inputGrado = document.getElementById('input_grado_' + studentId);
+    var inputLiteral = document.getElementById('input_literal_' + studentId);
     var badgeEstado = document.getElementById('badge_estado_' + studentId);
     var proyeccion = document.getElementById('proyeccion_grado_' + studentId);
 
     select.setAttribute('data-literal', literal);
+    // El select es solo interfaz: el literal que viaja en el POST va en el
+    // hidden, porque para el directivo el select está deshabilitado.
+    if (inputLiteral) inputLiteral.value = literal;
     if (fila) {
       fila.setAttribute('data-tiene-literal', literal === '' ? '0' : '1');
     }

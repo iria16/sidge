@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Config\Database;
 use App\Http\JsonResponse;
+use App\Models\AccesoUsuarioModel;
 use App\Traits\SecurityTrait;
 use App\Traits\TextoTrait;
 use InvalidArgumentException;
@@ -27,6 +28,9 @@ abstract class BaseController
 
     /** Conexión PDO, inicializada junto con el modelo en getModel().*/
     protected ?PDO $pdo = null;
+
+    /** Modelo de consultas de acceso; se crea la primera vez que se necesita.*/
+    private ?AccesoUsuarioModel $accesoModel = null;
 
     /** Carpeta de vistas del módulo, relativa a app/Views. Cada hijo debe asignarla.*/
     protected string $viewPath;
@@ -69,24 +73,25 @@ abstract class BaseController
         return $this->pdo;
     }
 
+    /**
+     * Modelo de consultas de acceso, reutilizando la conexión del request.
+     */
+    private function acceso(): AccesoUsuarioModel
+    {
+        if ($this->accesoModel === null) {
+            $this->accesoModel = new AccesoUsuarioModel($this->conexion());
+        }
+
+        return $this->accesoModel;
+    }
+
     protected function turnoSecretariaActual(): ?int
     {
         if (sigde_rol_clave($_SESSION['rol'] ?? '') !== 'secretaria') {
             return null;
         }
 
-        $stmt = $this->conexion()->prepare(
-            'SELECT t.id_turno
-               FROM usuario u
-               LEFT JOIN empleado e ON e.id_persona = u.id_persona
-               LEFT JOIN turno t ON t.id_turno = e.id_turno AND t.estado = \'ACTIVO\'
-              WHERE u.id_usuario = :id
-              LIMIT 1'
-        );
-        $stmt->execute(['id' => (int) ($_SESSION['usuario_id'] ?? 0)]);
-        $turno = $stmt->fetchColumn();
-
-        return $turno === false || $turno === null ? 0 : (int) $turno;
+        return $this->acceso()->turnoDeSecretaria((int) ($_SESSION['usuario_id'] ?? 0));
     }
 
     /**
@@ -112,20 +117,9 @@ abstract class BaseController
             return null;
         }
 
-        $stmt = $this->conexion()->prepare(
-            'SELECT d.id_docente
-               FROM usuario u
-               INNER JOIN empleado e ON e.id_persona = u.id_persona
-               INNER JOIN docente d ON d.id_empleado = e.id_empleado
-              WHERE u.id_usuario = :id
-              LIMIT 1'
-        );
-        $stmt->execute(['id' => (int) ($_SESSION['usuario_id'] ?? 0)]);
-        $id = $stmt->fetchColumn();
-
         // Si es rol docente pero aún no tiene perfil asignado, devuelve 0 para que
         // la consulta permanezca acotada y no muestre secciones ajenas.
-        return $id === false ? 0 : (int) $id;
+        return $this->acceso()->docenteIdDeUsuario((int) ($_SESSION['usuario_id'] ?? 0));
     }
 
     protected function secretariaTieneAccesoAEstudiante(int $idEstudiante): bool
@@ -138,18 +132,7 @@ abstract class BaseController
             return false;
         }
 
-        $stmt = $this->conexion()->prepare(
-            'SELECT ea.id_turno
-               FROM matricula m
-               LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
-              WHERE m.id_estudiante = :id
-              ORDER BY m.id_anio_escolar DESC, m.id_matricula DESC
-              LIMIT 1'
-        );
-        $stmt->execute(['id' => $idEstudiante]);
-
-        $idTurno = $stmt->fetchColumn();
-        return $idTurno !== false && $idTurno !== null && (int) $idTurno === $turno;
+        return $this->acceso()->turnoDeEstudiante($idEstudiante) === $turno;
     }
 
     protected function secretariaTieneAccesoAEstructura(int $idEstructura): bool
@@ -162,14 +145,7 @@ abstract class BaseController
             return false;
         }
 
-        $stmt = $this->conexion()->prepare(
-            'SELECT COUNT(*)
-               FROM estructura_academica
-              WHERE id_estructura_academica = :id AND id_turno = :turno'
-        );
-        $stmt->execute(['id' => $idEstructura, 'turno' => $turno]);
-
-        return (int) $stmt->fetchColumn() > 0;
+        return $this->acceso()->estructuraPerteneceATurno($idEstructura, $turno);
     }
 
     /**

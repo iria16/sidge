@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
+use App\Models\ParentescoModel;
 use App\Support\Documento;
 
 /**
@@ -399,11 +400,8 @@ trait FamiliaresValidacionTrait
     private function existeParentesco(string $nombre): bool
     {
         if ($this->nombresParentescoCache === null) {
-            $stmt = $this->conexion()->query("SELECT nombre FROM parentesco WHERE estado = 'ACTIVO'");
-            $this->nombresParentescoCache = [];
-            foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $activo) {
-                $this->nombresParentescoCache[(string) $activo] = true;
-            }
+            $nombres = (new ParentescoModel($this->conexion()))->nombresActivos();
+            $this->nombresParentescoCache = array_fill_keys($nombres, true);
         }
 
         return isset($this->nombresParentescoCache[$nombre]);

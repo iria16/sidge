@@ -29,27 +29,10 @@ $breadcrumbs = $esDocente
         ['label' => 'Promoción académica', 'href' => null],
     ];
 
-$totalSecciones    = count($secciones);
-$totalEstudiantes  = 0;
-$totalCargados     = 0;
-$totalPendientes   = 0;
-$totalPromovidos   = 0;
-$totalNoPromovidos = 0;
-
-foreach ($secciones as $sec) {
-    $totalEstudiantes  += (int) ($sec['total_estudiantes'] ?? 0);
-    $totalCargados     += (int) ($sec['total_cargados'] ?? 0);
-    $totalPendientes   += (int) ($sec['total_pendientes'] ?? 0);
-    $totalPromovidos   += (int) ($sec['total_promovidos'] ?? 0);
-    $totalNoPromovidos += (int) ($sec['total_no_promovidos'] ?? 0);
-}
-
-$totalCargados = min($totalCargados, $totalEstudiantes);
-$porcentajeCargado = $totalEstudiantes > 0
-    ? (int) round(($totalCargados / $totalEstudiantes) * 100)
-    : 0;
-
-$nombrePeriodo = $nombreAnioActivo !== '' ? $nombreAnioActivo : 'En curso';
+$resumen        = \App\Support\ResultadoAcademicoVista::resumenSecciones($secciones);
+$seccionesFilas = $resumen['filas'];
+$totalSecciones = $resumen['total_secciones'];
+$nombrePeriodo  = $nombreAnioActivo !== '' ? $nombreAnioActivo : 'En curso';
 
 ob_start();
 ?>
@@ -106,53 +89,7 @@ ob_start();
   <?php endif; ?>
 
   <?php if ($totalSecciones > 0): ?>
-    <div class="row g-3 mb-4">
-      <div class="col-12 col-sm-6 col-xl-3">
-        <?php
-        $statLabel     = 'Estudiantes en nómina';
-        $statValue     = number_format($totalEstudiantes, 0, ',', '.');
-        $statIcon      = 'bi-people-fill';
-        $statTone      = 'primary';
-        $statTrend     = $totalSecciones . ' sección' . ($totalSecciones === 1 ? '' : 'es');
-        $statTrendType = 'neutral';
-        include __DIR__ . '/../components/stat-card.php';
-        ?>
-      </div>
-      <div class="col-12 col-sm-6 col-xl-3">
-        <?php
-        $statLabel     = 'Literales cargados';
-        $statValue     = number_format($totalCargados, 0, ',', '.');
-        $statIcon      = 'bi-check2-circle';
-        $statTone      = 'success';
-        $statTrend     = $porcentajeCargado . '% de la nómina';
-        $statTrendType = $porcentajeCargado === 100 ? 'up' : 'neutral';
-        $statProgress  = $porcentajeCargado;
-        include __DIR__ . '/../components/stat-card.php';
-        ?>
-      </div>
-      <div class="col-12 col-sm-6 col-xl-3">
-        <?php
-        $statLabel     = 'Sin literal';
-        $statValue     = number_format($totalPendientes, 0, ',', '.');
-        $statIcon      = 'bi-pencil-square';
-        $statTone      = $totalPendientes === 0 ? 'success' : 'warning';
-        $statTrend     = $totalPendientes === 0 ? 'Carga completa' : 'Bloquean el cierre del año';
-        $statTrendType = $totalPendientes === 0 ? 'up' : 'neutral';
-        include __DIR__ . '/../components/stat-card.php';
-        ?>
-      </div>
-      <div class="col-12 col-sm-6 col-xl-3">
-        <?php
-        $statLabel     = 'Promovidos';
-        $statValue     = number_format($totalPromovidos, 0, ',', '.');
-        $statIcon      = 'bi-award-fill';
-        $statTone      = 'success';
-        $statTrend     = $totalNoPromovidos . ' no promovido' . ($totalNoPromovidos === 1 ? '' : 's');
-        $statTrendType = 'neutral';
-        include __DIR__ . '/../components/stat-card.php';
-        ?>
-      </div>
-    </div>
+    <?php include __DIR__ . '/partials/resumen-cards.php'; ?>
 
     <div class="content-card">
       <div class="content-card__header">
@@ -182,62 +119,7 @@ ob_start();
             </tr>
           </thead>
           <tbody>
-            <?php foreach ($secciones as $sec): ?>
-              <?php
-              $idSec         = (int) ($sec['id'] ?? 0);
-              $nEstudiantes  = (int) ($sec['total_estudiantes'] ?? 0);
-              $nCargados     = (int) ($sec['total_cargados'] ?? 0);
-              $nPendientes   = (int) ($sec['total_pendientes'] ?? 0);
-              $nPromovidos   = (int) ($sec['total_promovidos'] ?? 0);
-              $nNoPromovidos = (int) ($sec['total_no_promovidos'] ?? 0);
-              $docente       = trim((string) ($sec['docente_nombre'] ?? ''));
-
-              if ($nEstudiantes === 0) {
-                  $badgeStatus = 'inactive';
-                  $badgeTexto  = 'Sin estudiantes';
-              } elseif ($nPendientes === 0) {
-                  $badgeStatus = 'active';
-                  $badgeTexto  = 'Carga completa';
-              } elseif ($nCargados === 0) {
-                  $badgeStatus = 'pending';
-                  $badgeTexto  = 'Sin iniciar';
-              } else {
-                  $badgeStatus = 'info';
-                  $badgeTexto  = 'En progreso';
-              }
-              ?>
-              <tr>
-                <td>
-                  <strong class="text-primary">
-                    <?= htmlspecialchars((string) ($sec['grado'] ?? '')) ?>
-                    <?= htmlspecialchars((string) ($sec['seccion'] ?? '')) ?>
-                  </strong>
-                  <span class="text-secondary small d-block">
-                    Período <?= htmlspecialchars((string) ($sec['anio_escolar'] ?? '')) ?>
-                  </span>
-                </td>
-                <td><?= htmlspecialchars((string) ($sec['turno'] ?? '')) ?></td>
-                <?php if (!$esDocente): ?>
-                  <td><?= htmlspecialchars($docente !== '' ? $docente : 'Sin asignar') ?></td>
-                <?php endif; ?>
-                <td class="text-center fw-semibold"><?= $nEstudiantes ?></td>
-                <td class="text-center text-success fw-semibold"><?= $nCargados ?></td>
-                <td class="text-center <?= $nPendientes > 0 ? 'text-warning' : 'text-secondary' ?> fw-semibold"><?= $nPendientes ?></td>
-                <td class="text-center text-success fw-semibold"><?= $nPromovidos ?></td>
-                <td class="text-center text-danger fw-semibold"><?= $nNoPromovidos ?></td>
-                <td>
-                  <?php
-                  $badgeLabel = $badgeTexto;
-                  include __DIR__ . '/../components/status-badge.php';
-                  ?>
-                </td>
-                <td class="text-end">
-                  <a href="<?= BASE_URL ?>resultadoAcademico/seccion?id=<?= $idSec ?>" class="btn btn-sm btn-outline-primary text-nowrap">
-                    <?= $esDocente ? 'Registrar literales' : 'Ver sección' ?>
-                  </a>
-                </td>
-              </tr>
-            <?php endforeach; ?>
+            <?php include __DIR__ . '/partials/secciones-rows.php'; ?>
           </tbody>
         </table>
       </div>
@@ -274,5 +156,7 @@ $pageContent = ob_get_clean();
 ob_start();
 include __DIR__ . '/modals/guia-modal.php';
 $pageModals = ob_get_clean();
+
+$extraScripts = ['/js/modules/resultado_academico/index.js'];
 
 include __DIR__ . '/../layouts/app.php';

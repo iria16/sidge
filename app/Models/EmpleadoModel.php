@@ -388,6 +388,32 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
         return $row;
     }
 
+    /**
+     * Nombre corto (nombre y apellido) de un empleado.
+     *
+     * Se usa en textos de bitácora y avisos donde el nombre completo sobra. El
+     * CONCAT_WS es el mismo del listado para que el mismo empleado se lea igual
+     * en la pantalla, en el detalle y en la auditoría.
+     */
+    public function getNombreCorto(int $idEmpleado): ?string
+    {
+        if ($idEmpleado <= 0) {
+            return null;
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS nombre
+               FROM empleado e
+               INNER JOIN persona p ON p.id_persona = e.id_persona
+              WHERE e.id_empleado = :id
+              LIMIT 1"
+        );
+        $stmt->execute(['id' => $idEmpleado]);
+        $nombre = $stmt->fetchColumn();
+
+        return $nombre === false || trim((string) $nombre) === '' ? null : (string) $nombre;
+    }
+
     public function getMunicipiosPorEstado(int $id_estado): array
     {
         $stmt = $this->pdo->prepare(

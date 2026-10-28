@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\BitacoraModel;
+use App\Http\BinaryResponse;
 use App\Models\ConstanciaModel;
-use App\Support\Configuracion;
 use App\Support\ConstanciaPdf;
 use DomainException;
 use InvalidArgumentException;
@@ -35,14 +34,6 @@ class ConstanciasController extends BaseController
     protected string $viewPath  = 'constancias';
     protected string $routeName = 'constancias';
 
-    private const TIPOS_PERMITIDOS = [
-        'estudio'     => 'Estudio',
-        'inscripcion' => 'Inscripción / Ratificación',
-        'prosecucion' => 'Prosecución',
-        'retiro'      => 'Retiro',
-        'egreso'      => 'Educación Primaria',
-    ];
-
     private function modelo(): ConstanciaModel
     {
         /** @var ConstanciaModel $model */
@@ -61,22 +52,7 @@ class ConstanciasController extends BaseController
      */
     private function tiposPermitidosPorRol(): array
     {
-        $rol = sigde_rol_clave($_SESSION['rol'] ?? '');
-
-        // Por regla general del módulo de constancias, todos los tipos son de secretaría
-        // Si en el futuro otro rol tiene acceso a estudio/inscripción, se evalúa aquí:
-        $tipos = [
-            'estudio'     => 'Estudio',
-            'inscripcion' => 'Inscripción / Ratificación',
-        ];
-
-        if ($rol === 'secretaria') {
-            $tipos['prosecucion'] = 'Prosecución';
-            $tipos['retiro']      = 'Retiro';
-            $tipos['egreso']      = 'Educación Primaria';
-        }
-
-        return $tipos;
+        return ConstanciaModel::tiposPermitidosPorRol(sigde_rol_clave($_SESSION['rol'] ?? ''));
     }
 
     /**
@@ -89,7 +65,6 @@ class ConstanciasController extends BaseController
             $tiposDisponibles = $this->tiposPermitidosPorRol();
             if (empty($tiposDisponibles)) {
                 $this->prohibido('No tiene permisos para acceder al módulo de constancias.');
-                return;
             }
 
             // Tipo solicitado por GET o primer tipo disponible por defecto
@@ -122,7 +97,7 @@ class ConstanciasController extends BaseController
                 'total_paginas' => max(1, (int) ceil($total / $perPage)),
             ];
 
-            $directorConfigurado = Configuracion::estaConfiguradoDirector();
+            $directorConfigurado = $model->estaConfiguradoDirector();
             $flash = $this->getFlashMessages();
 
             require __DIR__ . '/../Views/constancias/index.php';
@@ -167,10 +142,7 @@ class ConstanciasController extends BaseController
 
         // Validación de permisos por rol
         if (!array_key_exists($tipo, $tiposDisponibles)) {
-            http_response_code(403);
-            header('Content-Type: text/plain; charset=utf-8');
-            echo 'No tiene permisos para emitir este tipo de constancia.';
-            exit;
+            $this->prohibido('No tiene permisos para emitir este tipo de constancia.');
         }
 
         if ($id <= 0) {
@@ -230,10 +202,7 @@ class ConstanciasController extends BaseController
         } else {
             // estudio
             if (!$model->esElegibleParaEstudio($id)) {
-                http_response_code(403);
-                header('Content-Type: text/plain; charset=utf-8');
-                echo 'Solo se puede emitir constancia de estudio a estudiantes activos.';
-                exit;
+                $this->prohibido('Solo se puede emitir constancia de estudio a estudiantes activos.');
             }
             $idEstudianteAuditoria = $id;
             $estudiante = $model->getEstudianteParaConstancia($id, null);
@@ -249,10 +218,9 @@ class ConstanciasController extends BaseController
             $this->redirect('index?tipo=' . urlencode($tipo));
         }
 
-        Configuracion::setPdo($this->conexion());
-        $config = Configuracion::getAll();
+        $config = $model->getConfiguracion();
 
-        if (!Configuracion::estaConfiguradoDirector()) {
+        if (!$model->estaConfiguradoDirector()) {
             $this->setFlash('error', 'No se puede emitir la constancia: solicite al administrador que complete los datos del director(a) en Datos Institucionales.');
             $this->redirect('index?tipo=' . urlencode($tipo));
         }
@@ -277,7 +245,7 @@ class ConstanciasController extends BaseController
                 $accionBitacora = ($tipo === 'egreso')
                     ? sprintf('EMISIÓN DE CERTIFICADO DE EDUCACIÓN PRIMARIA: %s (%s)', $estudiante['nombre_completo'] ?? 'Estudiante', $estudiante['numero_documento'] ?? 'Sin doc')
                     : sprintf('EMISIÓN DE CONSTANCIA (%s): %s (%s)', mb_strtoupper($tipo), $estudiante['nombre_completo'] ?? 'Estudiante', $estudiante['numero_documento'] ?? 'Sin doc');
-                (new BitacoraModel($this->conexion()))->registrar($idUsuario, $accionBitacora, 'Constancias');
+                $model->registrarEmision($idUsuario, $accionBitacora);
             }
 
             $nombreLimpio = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) ($estudiante['nombre_completo'] ?? 'estudiante'));
@@ -287,15 +255,7 @@ class ConstanciasController extends BaseController
                        || (isset($_POST['descargar']) && $_POST['descargar'] === '1');
             $disposition = $esDescarga ? 'attachment' : 'inline';
 
-            header_remove('X-Frame-Options');
-            header('X-Frame-Options: SAMEORIGIN');
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: ' . $disposition . '; filename="' . $filename . '"');
-            header('Content-Length: ' . strlen($pdf));
-            header('Cache-Control: private, max-age=0, must-revalidate');
-            header('Pragma: public');
-            echo $pdf;
-            exit;
+            BinaryResponse::pdf($pdf, $filename, $disposition === 'inline')->send();
         } catch (DomainException $e) {
             $this->setFlash('error', $e->getMessage());
             $this->redirect('index?tipo=' . urlencode($tipo));
@@ -315,10 +275,7 @@ class ConstanciasController extends BaseController
     {
         $tiposDisponibles = $this->tiposPermitidosPorRol();
         if (!array_key_exists('egreso', $tiposDisponibles)) {
-            http_response_code(403);
-            header('Content-Type: text/plain; charset=utf-8');
-            echo 'No tiene permisos para emitir Certificados de Educación Primaria por lote.';
-            exit;
+            $this->prohibido('No tiene permisos para emitir Certificados de Educación Primaria por lote.');
         }
 
         $filters = [
@@ -335,9 +292,8 @@ class ConstanciasController extends BaseController
             return;
         }
 
-        Configuracion::setPdo($this->conexion());
-        $config = Configuracion::getAll();
-        if (!Configuracion::estaConfiguradoDirector()) {
+        $config = $model->getConfiguracion();
+        if (!$model->estaConfiguradoDirector()) {
             $this->setFlash('error', 'No se pueden emitir los certificados: solicite al administrador que complete los datos del director(a) en Datos Institucionales.');
             $this->redirect('index?tipo=egreso');
             return;
@@ -368,10 +324,9 @@ class ConstanciasController extends BaseController
 
             if ($idUsuario > 0) {
                 $seccionTexto = $filters['seccion'] !== '' ? " (Sección {$filters['seccion']})" : '';
-                (new BitacoraModel($this->conexion()))->registrar(
+                $model->registrarEmision(
                     $idUsuario,
-                    sprintf('EMISIÓN POR LOTE DE CERTIFICADOS DE EDUCACIÓN PRIMARIA: %d estudiantes%s', count($estudiantesData), $seccionTexto),
-                    'Constancias'
+                    sprintf('EMISIÓN POR LOTE DE CERTIFICADOS DE EDUCACIÓN PRIMARIA: %d estudiantes%s', count($estudiantesData), $seccionTexto)
                 );
             }
 
@@ -384,15 +339,7 @@ class ConstanciasController extends BaseController
                        || (isset($_POST['descargar']) && $_POST['descargar'] === '1');
             $disposition = $esDescarga ? 'attachment' : 'inline';
 
-            header_remove('X-Frame-Options');
-            header('X-Frame-Options: SAMEORIGIN');
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: ' . $disposition . '; filename="' . $filename . '"');
-            header('Content-Length: ' . strlen($pdf));
-            header('Cache-Control: private, max-age=0, must-revalidate');
-            header('Pragma: public');
-            echo $pdf;
-            exit;
+            BinaryResponse::pdf($pdf, $filename, $disposition === 'inline')->send();
         } catch (Throwable $e) {
             $this->handleError($e, static::class . '@emitirLote');
         }

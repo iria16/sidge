@@ -446,16 +446,7 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
             $accion = mb_substr($accion, 0, $limite - 1, 'UTF-8') . '…';
         }
 
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO bitacora (id_usuario, fecha, hora, accion, modulo, direccion_ip)
-             VALUES (:usuario, CURDATE(), CURTIME(), :accion, :modulo, :ip)'
-        );
-        $stmt->execute([
-            'usuario' => $idUsuario,
-            'accion' => $accion,
-            'modulo' => 'Años escolares',
-            'ip' => $ip ?? ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'),
-        ]);
+        (new BitacoraModel($this->pdo))->registrar($idUsuario, $accion, 'Años escolares', $ip);
     }
 
     /**
@@ -480,6 +471,11 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
     public function getActiveId(): int
     {
         return AniosEscolares::idEnCurso($this->pdo);
+    }
+
+    public function getActiveName(): string
+    {
+        return AniosEscolares::nombreEnCurso($this->pdo);
     }
 
     private function filters(array $filters): array

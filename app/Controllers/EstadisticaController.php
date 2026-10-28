@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\DirectivoDashboardModel;
-use App\Models\ReporteModel;
-use App\Support\AniosEscolares;
+use App\Models\EstadisticaModel;
 use PDO;
 use Throwable;
 use function App\Traits\sigde_rol_clave;
@@ -24,12 +22,12 @@ class EstadisticaController extends BaseController
 
     protected function createModel(PDO $pdo): object
     {
-        return new DirectivoDashboardModel($pdo);
+        return new EstadisticaModel($pdo);
     }
 
-    private function modelo(): DirectivoDashboardModel
+    private function modelo(): EstadisticaModel
     {
-        /** @var DirectivoDashboardModel $model */
+        /** @var EstadisticaModel $model */
         $model = $this->getModel();
         return $model;
     }
@@ -54,77 +52,18 @@ class EstadisticaController extends BaseController
         $this->validarAcceso();
 
         try {
-            $pdo = $this->conexion();
-            $dashboardModel = $this->modelo();
-            $reporteModel = new ReporteModel($pdo);
+            $model = $this->modelo();
 
-            $anios = $reporteModel->getAniosEscolares();
-            $idAnioActivo = AniosEscolares::idEnCurso($pdo);
+            $anios = $model->getAniosEscolares();
+            $idAnio = $model->resolverAnio(
+                $anios,
+                isset($_GET['anio']) ? (int) $_GET['anio'] : null
+            );
+            $nombrePeriodo = $model->nombrePeriodo($anios, $idAnio);
+            $vista = $model->normalizarVista(isset($_GET['vista']) ? (string) $_GET['vista'] : null);
 
-            $idAnio = isset($_GET['anio']) && (int) $_GET['anio'] > 0
-                ? (int) $_GET['anio']
-                : $idAnioActivo;
-
-            if ($idAnio <= 0 && $anios !== []) {
-                $idAnio = (int) $anios[0]['id_anio_escolar'];
-            }
-
-            $nombrePeriodo = '';
-            foreach ($anios as $a) {
-                if ((int) $a['id_anio_escolar'] === $idAnio) {
-                    $nombrePeriodo = (string) $a['nombre_periodo'];
-                    break;
-                }
-            }
-
-            // Vista activa: matricula | rendimiento | edades | cobertura | personal | salud | tallas
-            $vistasPermitidas = ['matricula', 'rendimiento', 'edades', 'cobertura', 'personal', 'salud', 'tallas'];
-            $vista = isset($_GET['vista']) && in_array($_GET['vista'], $vistasPermitidas, true)
-                ? $_GET['vista']
-                : 'matricula';
-
-            // Datos de tabla según vista seleccionada
-            $filas = [];
-            $metricasSalud = [];
-            $tiposSangre = [];
-            $filasAntropometricas = [];
-            $distribucionTallas = [];
-            switch ($vista) {
-                case 'salud':
-                    $salud = $dashboardModel->getEstadisticasSalud($idAnio);
-                    $metricasSalud = $salud['resumen'];
-                    $tiposSangre = $salud['tipos_sangre'];
-                    $filas = $salud['por_grado'];
-                    $filasAntropometricas = $dashboardModel->getEstadisticasAntropometricas($idAnio)['por_grado'];
-                    break;
-
-                case 'tallas':
-                    $tallas = $dashboardModel->getEstadisticasTallas($idAnio);
-                    $distribucionTallas = $tallas['por_prenda'];
-                    $filas = $tallas['por_grado'];
-                    break;
-
-                case 'personal':
-                    $filas = $dashboardModel->getEstadisticasPersonal();
-                    break;
-
-                case 'rendimiento':
-                    $filas = $dashboardModel->getResultadosPorSeccion($idAnio);
-                    break;
-
-                case 'edades':
-                    $filas = $dashboardModel->getDistribucionPorEdadYSexo($idAnio);
-                    break;
-
-                case 'cobertura':
-                    $filas = $reporteModel->getDistribucionAcademica($idAnio);
-                    break;
-
-                case 'matricula':
-                default:
-                    $filas = $dashboardModel->getMatriculaPorGradoYSexo($idAnio);
-                    break;
-            }
+            $datos = $model->getDatosVista($vista, $idAnio);
+            extract($datos);
 
             require __DIR__ . '/../Views/estadisticas/index.php';
         } catch (Throwable $e) {

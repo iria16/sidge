@@ -56,13 +56,24 @@ class TituloModel extends CatalogoModel
      */
     public function create(array $data): bool
     {
-        return $this->pdo->prepare(
+        return $this->createAndGetId($data) > 0;
+    }
+
+    /**
+     * Inserta el título y devuelve su id autogenerado.
+     * Lo usa la alta rápida del wizard, que necesita el id para la fila.
+     */
+    public function createAndGetId(array $data): int
+    {
+        $this->pdo->prepare(
             'INSERT INTO titulo (nombre, id_grado_academico)
              VALUES (:nombre, :id_grado_academico)'
         )->execute([
             'nombre'             => trim((string) ($data['nombre'] ?? '')),
             'id_grado_academico' => (int) ($data['id_grado_academico'] ?? 0),
         ]);
+
+        return (int) $this->pdo->lastInsertId();
     }
 
     /**

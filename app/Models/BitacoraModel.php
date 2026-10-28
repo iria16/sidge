@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Interfaces\Listable;
+use App\Support\ClientIp;
 use App\Traits\AvatarTrait;
 use DateTime;
 use PDO;
@@ -41,7 +42,7 @@ class BitacoraModel extends Model implements Listable
                 'id'     => $idUsuario,
                 'accion' => mb_substr($accion, 0, 100),
                 'modulo' => mb_substr($modulo, 0, 50),
-                'ip'     => mb_substr((string) ($ip ?? ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0')), 0, 45),
+                'ip'     => mb_substr($ip ?? ClientIp::get(), 0, 45),
             ]);
         } catch (Throwable $e) {
             error_log('BitacoraModel: no se pudo registrar la acción: ' . $e->getMessage());

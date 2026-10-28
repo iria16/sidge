@@ -65,63 +65,16 @@ $filtrosVista       = $vistas[$vista]['filtros'] ?? ['q'];
 $placeholderBuscar  = 'Nombre, apellido o representante';
 $tieneSelectFiltro  = in_array('sexo', $filtrosVista, true) || in_array('mes', $filtrosVista, true);
 $textoSeccion       = $seccion ? trim($seccion['grado'] . ' "' . $seccion['seccion'] . '"') : '';
-$enlaceWaSeccion    = trim((string) ($seccion['enlace_whatsapp'] ?? ''));
-$nombreDocenteWa    = trim((string) ($seccion['docente_nombre'] ?? ($_SESSION['nombre'] ?? '')));
-$articuloDocente    = (($seccion['docente_sexo'] ?? '') === 'F') ? 'la docente' : 'el docente';
-$identificacionDoc  = $nombreDocenteWa !== ''
-    ? $articuloDocente . ' ' . $nombreDocenteWa
-    : $articuloDocente;
-$nombreEscuelaWa    = $nombreEscuelaWa ?? $nombreEscuela;
-$saludoWa           = $saludoWa ?? 'Buen día';
-$mensajeWa          = $saludoWa . ', le escribe ' . $identificacionDoc . ', de ' . $textoSeccion . ' de la ' . $nombreEscuelaWa . '.';
-$mensajeInvitacionWa = $enlaceWaSeccion !== ''
-    ? $mensajeWa . ' Le comparto el enlace para unirse al grupo oficial de WhatsApp de la sección: ' . $enlaceWaSeccion
-    : '';
 $fmtFecha           = static fn(?string $f): string => $f ? date('d/m/Y', strtotime($f)) : '';
 
-/** Teléfono + botón de WhatsApp individual (+ botón de invitar al grupo si aplica). */
-$telefonoConWa = static function (string $tel, bool $incluirInvitacionGrupo = false) use ($e, $mensajeWa, $mensajeInvitacionWa): string {
-    $html   = '<span class="nomina-tel">' . $e($tel) . '</span>';
-    $enlace = enlaceWhatsapp($tel, $mensajeWa);
-    if ($enlace !== '') {
-        $html .= ' <a class="btn btn-sm btn-outline-success nomina-wa" href="' . $e($enlace) . '"'
-               . ' target="_blank" rel="noopener noreferrer" title="Escribir mensaje directo por WhatsApp"'
-               . ' aria-label="Escribir por WhatsApp a ' . $e($tel) . '">'
-               . '<i class="bi bi-whatsapp" aria-hidden="true"></i></a>';
-        if ($incluirInvitacionGrupo && $mensajeInvitacionWa !== '') {
-            $enlaceInv = enlaceWhatsapp($tel, $mensajeInvitacionWa);
-            if ($enlaceInv !== '') {
-                $html .= ' <a class="btn btn-sm btn-outline-primary nomina-wa nomina-wa--invitar" href="' . $e($enlaceInv) . '"'
-                       . ' data-tel="' . $e($tel) . '"'
-                       . ' target="_blank" rel="noopener noreferrer" title="Enviar invitación al grupo de WhatsApp de la sección"'
-                       . ' aria-label="Invitar al grupo de WhatsApp a ' . $e($tel) . '">'
-                       . '<i class="bi bi-person-plus" aria-hidden="true"></i></a>';
-            }
-        }
-    }
-
-    return $html;
+/** Teléfono en lista sencilla sin WhatsApp */
+$telefonoConWa = static function (string $tel, bool $incluirInvitacionGrupo = false) use ($e): string {
+    return '<span class="nomina-tel">' . $e($tel) . '</span>';
 };
 
-/* Teléfono de una persona autorizada, para la columna de autorizados.
- *
- * El ícono va a la DERECHA del número, dentro de una columna de ancho fijo, y no
- * pegado al número como en telefonoConWa(): así los números quedan en línea recta
- * aunque unos tengan WhatsApp y otros no. Un fijo (0212) no lleva ícono, pero sí
- * el hueco, para que los números empezen todos en la misma columna. */
-$telefonoAutConWa = static function (string $tel) use ($e, $mensajeWa): string {
-    $enlace = enlaceWhatsapp($tel, $mensajeWa);
-    $boton  = $enlace !== ''
-        ? '<a class="btn btn-sm btn-outline-success nomina-wa nomina-tel-ico__boton" href="' . $e($enlace) . '"'
-          . ' target="_blank" rel="noopener noreferrer" title="Escribir mensaje directo por WhatsApp"'
-          . ' aria-label="Escribir por WhatsApp a ' . $e($tel) . '">'
-          . '<i class="bi bi-whatsapp" aria-hidden="true"></i></a>'
-        : '';
-
-    return '<div class="nomina-tel-linea">'
-         . '<span class="nomina-tel-num">' . $e($tel) . '</span>'
-         . '<span class="nomina-tel-ico">' . $boton . '</span>'
-         . '</div>';
+/** Teléfono de persona autorizada en lista sencilla */
+$telefonoAutConWa = static function (string $tel) use ($e): string {
+    return '<div class="nomina-tel-linea"><span class="nomina-tel-num">' . $e($tel) . '</span></div>';
 };
 
 ob_start();
@@ -137,15 +90,9 @@ $pageSubheading   = $seccion
     : 'Sin sección asignada';
 $idEstructura     = (int) ($seccion['id_estructura_academica'] ?? 0);
 
-if (!$tieneSeccion) {
+if (!$tieneSeccion || in_array($vista, ['nomina', 'contacto', 'cumpleaneros'], true)) {
     $pageHeaderActions = '';
 } else {
-    /* Un solo botón para todas las pestañas, y hace lo mismo en todas: no
-       descarga nada, muestra el documento en el modal para que el docente lo
-       revise y solo entonces aparezca el enlace de descarga. En «Boletas» el
-       PDF lo arma el módulo de certificados, así que su URL no lleva filtros;
-       en el resto sale por esta misma vista con sus filtros puestos, y
-       data-filtros le dice a docente.js qué filtros son válidos. */
     $urlBaseDocumento = $vista === 'boletas'
         ? BASE_URL . 'certificadoCalificaciones/generarPorSeccion?id_estructura=' . $idEstructura
         : $urlNomina(['formato' => 'pdf']);
@@ -177,53 +124,7 @@ include __DIR__ . '/../components/page-header.php';
     <?php endforeach; ?>
   </nav>
 
-  <?php if ($vista === 'contacto'): ?>
-    <section class="card border-0 shadow-sm mb-3" id="tarjetaGrupoWhatsapp">
-      <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3 py-3">
-        <?php if ($enlaceWaSeccion !== ''): ?>
-          <div class="d-flex align-items-start gap-3">
-            <span class="text-success fs-4 lh-1 mt-1" aria-hidden="true"><i class="bi bi-whatsapp"></i></span>
-            <div>
-              <h2 class="h6 mb-1">Grupo de WhatsApp de la sección</h2>
-              <p class="text-muted small mb-0">
-                Usa el botón <i class="bi bi-person-plus text-primary"></i> junto al teléfono de cada representante en la tabla para enviarle la invitación por WhatsApp, o copia el enlace aquí.
-              </p>
-            </div>
-          </div>
-          <div class="d-flex flex-wrap align-items-center gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary" id="btnCopiarEnlaceWhatsapp"
-                    data-enlace="<?= $e($enlaceWaSeccion) ?>">
-              <i class="bi bi-clipboard me-1" aria-hidden="true"></i><span>Copiar enlace</span>
-            </button>
-            <a class="btn btn-sm btn-success" href="<?= $e($enlaceWaSeccion) ?>"
-               target="_blank" rel="noopener noreferrer">
-              <i class="bi bi-whatsapp me-1" aria-hidden="true"></i>Abrir grupo
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-primary"
-                    data-bs-toggle="modal" data-bs-target="#modalEnlaceWhatsapp">
-              <i class="bi bi-pencil me-1" aria-hidden="true"></i>Editar enlace
-            </button>
-          </div>
-        <?php else: ?>
-          <div class="d-flex align-items-start gap-3">
-            <span class="text-success fs-4 lh-1 mt-1" aria-hidden="true"><i class="bi bi-whatsapp"></i></span>
-            <div>
-              <h2 class="h6 mb-1">Grupo de WhatsApp de la sección</h2>
-              <p class="text-muted small mb-0">
-                Aún no has registrado un grupo. Para configurarlo: 1) Crea el grupo en WhatsApp, 2) Copia el enlace de invitación del grupo y 3) Pégalo aquí para poder invitar a los representantes desde la lista.
-              </p>
-            </div>
-          </div>
-          <div>
-            <button type="button" class="btn btn-sm btn-outline-success"
-                    data-bs-toggle="modal" data-bs-target="#modalEnlaceWhatsapp">
-              <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>Agregar enlace del grupo
-            </button>
-          </div>
-        <?php endif; ?>
-      </div>
-    </section>
-  <?php endif; ?>
+  
 
   <?php /* ── Filtros automáticos propios de cada vista (main.js) ──────────
            Se dibuja solo si la vista trae algún filtro. El acta no trae ninguno:
@@ -503,7 +404,7 @@ include __DIR__ . '/../components/page-header.php';
 <?php
 $pageContent = ob_get_clean();
 
-if ($tieneSeccion) {
+if ($tieneSeccion && !in_array($vista, ['nomina', 'contacto', 'cumpleaneros'], true)) {
     /* Vista previa del documento en modal, para todas las pestañas por igual:
        «Visualizar documento» no baja nada, arma el PDF de la vista en curso y
        lo enseña aquí. Recién entonces aparece el enlace de descarga, que es el
@@ -544,53 +445,7 @@ if ($tieneSeccion) {
     $pageModals = ($pageModals ?? '') . ob_get_clean();
 }
 
-if ($tieneSeccion && $vista === 'contacto') {
-    $enlaceWaActual = trim((string) ($seccion['enlace_whatsapp'] ?? ''));
 
-    ob_start();
-    ?>
-    <form id="formEnlaceWhatsapp" action="<?= BASE_URL ?>docente/guardarEnlaceWhatsapp" method="post" novalidate>
-      <div class="mb-3">
-        <label for="inputEnlaceWhatsapp" class="form-label fw-semibold">
-          Enlace de invitación de WhatsApp
-        </label>
-        <input type="url" class="form-control" id="inputEnlaceWhatsapp" name="enlace_whatsapp"
-               maxlength="120" value="<?= $e($enlaceWaActual) ?>"
-               placeholder="https://chat.whatsapp.com/...">
-        <div class="invalid-feedback" id="errorEnlaceWhatsapp">
-          El enlace debe comenzar por https://chat.whatsapp.com/ seguido del código de invitación, sin espacios.
-        </div>
-        <div class="form-text mt-2">
-          En WhatsApp abre la información del grupo, toca <strong>Enlace de invitación</strong>, copia el enlace y pégalo aquí.
-        </div>
-      </div>
-    </form>
-    <?php
-    $modalBody = ob_get_clean();
-
-    ob_start();
-    ?>
-    <?php if ($enlaceWaActual !== ''): ?>
-      <button type="button" class="btn btn-outline-danger me-auto" id="btnQuitarEnlaceWhatsapp">
-        <i class="bi bi-trash me-1" aria-hidden="true"></i>Quitar enlace
-      </button>
-    <?php endif; ?>
-    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-    <button type="submit" form="formEnlaceWhatsapp" class="btn btn-primary" id="btnGuardarEnlaceWhatsapp">
-      Guardar enlace
-    </button>
-    <?php
-    $modalFooter   = ob_get_clean();
-    $modalId       = 'modalEnlaceWhatsapp';
-    $modalTitle    = $enlaceWaActual !== '' ? 'Editar enlace del grupo de WhatsApp' : 'Agregar enlace del grupo de WhatsApp';
-    $modalSubtitle = $textoSeccion . ' · ' . ($seccion['anio_escolar'] ?? '');
-    $modalSize     = 'md';
-    $modalCentered = true;
-
-    ob_start();
-    require __DIR__ . '/../components/modal.php';
-    $pageModals = ($pageModals ?? '') . ob_get_clean();
-}
 
 /* docente.js: búsqueda de la sección y botón del acta. */
 $extraScripts = array_merge($extraScripts ?? [], ['/js/modules/docente/docente.js']);

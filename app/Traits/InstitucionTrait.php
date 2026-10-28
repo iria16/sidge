@@ -224,8 +224,9 @@ trait InstitucionTrait
             );
         }
 
+        $idInstitucion = 0;
         try {
-            $ok = $model->create([
+            $idInstitucion = $model->createAndGetId([
                 'nombre'               => $nombre,
                 'tipo'                 => $tipo,
                 'es_extranjera'        => $esExtranjera ? 1 : 0,
@@ -242,12 +243,12 @@ trait InstitucionTrait
             $this->jsonError($e, static::class);
         }
 
-        if (!$ok) {
+        if ($idInstitucion <= 0) {
             $this->jsonResponse(false, null, 'No se pudo guardar la institución.', 500);
         }
 
         $this->jsonResponse(true, [
-            'id'     => (int) $this->pdo->lastInsertId(),
+            'id'     => $idInstitucion,
             'nombre' => $nombre,
         ], 'Institución registrada correctamente.');
     }

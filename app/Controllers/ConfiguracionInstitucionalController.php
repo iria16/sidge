@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Http\BinaryResponse;
 use App\Models\ConfiguracionInstitucionalModel;
 use App\Support\Configuracion;
 use PDO;
@@ -55,8 +56,7 @@ class ConfiguracionInstitucionalController extends BaseController
                     'permisos' => 'Acceso denegado. Se requiere rol de administrador.',
                 ]);
             }
-            http_response_code(403);
-            die('<h1>403 - Acceso denegado</h1>');
+            $this->renderHttpError(403, '403 · Acceso denegado', 'No tienes permiso para realizar esta acción.');
         }
     }
 
@@ -548,14 +548,12 @@ class ConfiguracionInstitucionalController extends BaseController
 
         $clave = $this->normalizarEspacios((string) ($_GET['id'] ?? ''));
         if (!in_array($clave, ['director_firma', 'institucion_sello', 'cdce_director_firma', 'cdce_institucion_sello'], true)) {
-            http_response_code(404);
-            die('<h1>404 - Recurso no encontrado</h1>');
+            $this->renderHttpError(404, '404 · Recurso no encontrado', 'El recurso solicitado no existe.');
         }
 
         $nombreArchivo = $this->modelo()->get($clave);
         if ($nombreArchivo === '') {
-            http_response_code(404);
-            die('<h1>404 - Imagen no configurada</h1>');
+            $this->renderHttpError(404, '404 · Imagen no configurada', 'La imagen solicitada no está configurada.');
         }
 
         $subcarpeta = match ($clave) {
@@ -571,21 +569,15 @@ class ConfiguracionInstitucionalController extends BaseController
             . DIRECTORY_SEPARATOR . $nombreLimpio;
 
         if (!is_file($rutaCompleta)) {
-            http_response_code(404);
-            die('<h1>404 - Archivo no encontrado en el servidor</h1>');
+            $this->renderHttpError(404, '404 · Archivo no encontrado', 'El archivo no se encontró en el servidor.');
         }
 
-        // Transmisión con cabeceras estrictas de seguridad y no-caché
-        header('Content-Type: image/png');
-        header('X-Content-Type-Options: nosniff');
-        header('X-Frame-Options: SAMEORIGIN');
-        header('Cache-Control: private, no-cache, no-store, must-revalidate');
-        header('Pragma: no-cache');
-        header('Expires: 0');
-        header('Content-Length: ' . (string) filesize($rutaCompleta));
+        $contenido = file_get_contents($rutaCompleta);
+        if ($contenido === false) {
+            $this->renderHttpError(404, '404 · Archivo no encontrado', 'No se pudo leer el archivo solicitado.');
+        }
 
-        readfile($rutaCompleta);
-        exit;
+        BinaryResponse::file($contenido, 'image/png', $nombreLimpio, true)->send();
     }
 }
 

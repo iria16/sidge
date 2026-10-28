@@ -39,80 +39,6 @@ ob_start();
   include __DIR__ . '/../components/page-header.php';
   ?>
 
-  <!-- ---------- Stat Cards: 4 KPIs Principales ---------- -->
-  <div class="row g-3 mb-4">
-    <!-- Card 1: Matrícula -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $statLabel     = 'Matrícula cursando';
-      $statValue     = number_format((int) ($metricasMatricula['total_estudiantes'] ?? 0), 0, ',', '.') . ' estud.';
-      $statIcon      = 'bi-people';
-      $statTone      = 'primary';
-      $statVariant   = 'default';
-      $statTrend     = ($metricasMatricula['total_estudiantes'] ?? 0) > 0 ? 'En curso' : 'Sin matrícula';
-      $statTrendType = 'neutral';
-      $statMeta      = 'Varones: ' . ($metricasMatricula['varones'] ?? 0) . ' (' . ($metricasMatricula['porcentaje_varones'] ?? 0) . '%) · Hembras: ' . ($metricasMatricula['hembras'] ?? 0) . ' (' . ($metricasMatricula['porcentaje_hembras'] ?? 0) . '%)';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 2: Capacidad -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $porcOcup      = (int) ($metricasCapacidad['porcentaje_ocupacion'] ?? 0);
-      $statLabel     = 'Capacidad institucional';
-      $statValue     = $porcOcup . '% ocupación';
-      $statIcon      = 'bi-pie-chart';
-      $statTone      = 'info';
-      $statVariant   = 'default';
-      $statTrend     = ($metricasCapacidad['cupos_disponibles'] ?? 0) . ' cupos libres';
-      $statTrendType = 'neutral';
-      $statMeta      = ($metricasCapacidad['cupos_ocupados'] ?? 0) . ' de ' . ($metricasCapacidad['cupos_totales'] ?? 0) . ' cupos configurados';
-      $statProgress  = $porcOcup;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 3: Rendimiento -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $porcCarga     = (int) ($resumenRendimiento['porcentaje_carga'] ?? 0);
-      $statLabel     = 'Carga de literales';
-      $statValue     = $porcCarga . '% completado';
-      $statIcon      = 'bi-mortarboard';
-      $statTone      = $porcCarga === 100 ? 'success' : ($porcCarga > 0 ? 'info' : 'warning');
-      $statVariant   = 'default';
-      $statTrend     = ($resumenRendimiento['total_promovidos'] ?? 0) . ' promovidos';
-      $statTrendType = 'up';
-      $statMeta      = ($resumenRendimiento['total_cargados'] ?? 0) . ' evaluados · ' . ($resumenRendimiento['total_pendientes'] ?? 0) . ' sin literal';
-      $statProgress  = $porcCarga;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-
-    <!-- Card 4: Personal -->
-    <div class="col-sm-6 col-xl-3">
-      <?php
-      $reposos       = (int) ($metricasPersonal['en_reposo_hoy'] ?? 0);
-      $statLabel     = 'Personal escolar';
-      $statValue     = number_format((int) ($metricasPersonal['empleados_activos'] ?? 0), 0, ',', '.') . ' activos';
-      $statIcon      = 'bi-person-badge';
-      $statTone      = $reposos > 0 ? 'warning' : 'success';
-      $statVariant   = $reposos > 0 ? 'alert' : 'default';
-      $statTrend     = $reposos > 0 ? ($reposos . ' en reposo hoy') : 'Nómina operativa';
-      $statTrendType = $reposos > 0 ? 'down' : 'up';
-      $statMeta      = ($metricasPersonal['docentes_activos'] ?? 0) . ' docentes · ' . ($metricasPersonal['administrativos'] ?? 0) . ' admin · ' . ($metricasPersonal['obreros'] ?? 0) . ' obreros';
-      $statProgress  = null;
-      $statHref      = '';
-      include __DIR__ . '/../components/stat-card.php';
-      ?>
-    </div>
-  </div>
-
   <?php
   // ---------- Data Panel: Filtros de Período y Vista ----------
   $panelFormAction = BASE_URL . 'estadistica/index';
@@ -148,10 +74,8 @@ ob_start();
     <option value="personal" <?= $vista === 'personal' ? 'selected' : '' ?>>Vista: Talento Humano y Personal Escolar</option>
   </select>
   <?php
-  $panelFilters           = ob_get_clean();
-  $panelSearchName        = 'q';
-  $panelSearchValue       = $q;
-  $panelSearchPlaceholder = 'Buscar en la tabla...';
+  $panelFilters    = ob_get_clean();
+  $panelHideSearch = true;
 
   // ---------- Tabla y Cabeceras según la vista ----------
   ob_start();

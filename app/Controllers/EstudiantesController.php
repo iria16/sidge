@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Http\BinaryResponse;
 use App\Models\EstudianteModel;
 use App\Models\RatificacionModel;
 use App\Models\InscripcionesModel;
@@ -280,12 +281,10 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
                 ? $model->getById($id, $anioConsulta, $turno, $this->docenteActualId())
                 : null;
             if (!$estudiante) {
-                http_response_code(404);
-                throw new \RuntimeException('No se encontró el expediente solicitado.');
+                $this->renderHttpError(404, '404 · Expediente no encontrado', 'No se encontró el expediente solicitado.');
             }
             if ($esSecretaria && ($estudiante['estado'] ?? '') !== 'activo') {
-                http_response_code(403);
-                throw new \RuntimeException('Solo la Dirección puede exportar expedientes de estudiantes retirados o egresados.');
+                $this->renderHttpError(403, '403 · Acceso denegado', 'Solo la Dirección puede exportar expedientes de estudiantes retirados o egresados.');
             }
 
             $ratificacionModel = new RatificacionModel($this->conexion());
@@ -325,13 +324,8 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
             );
 
             $nombreArchivo = 'expediente-' . preg_replace('/[^A-Za-z0-9-]+/', '-', strtolower((string) ($estudiante['nombre'] ?? 'estudiante'))) . '.pdf';
-            header_remove('X-Frame-Options');
-            header('X-Frame-Options: SAMEORIGIN');
-            header('Content-Type: application/pdf');
             $disposition = (($_GET['descargar'] ?? '') === '1') ? 'attachment' : 'inline';
-            header("Content-Disposition: {$disposition}; filename=\"{$nombreArchivo}\"");
-            echo $pdfContent;
-            exit;
+            BinaryResponse::pdf($pdfContent, $nombreArchivo, $disposition === 'inline')->send();
         } catch (Throwable $e) {
             $this->handleError($e, static::class);
         }

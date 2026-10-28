@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Models\AcademicYearModel;
 use App\Models\BitacoraModel;
 use App\Models\ResultadoAcademicoModel;
-use App\Support\AniosEscolares;
 use PDO;
 use Throwable;
 use function App\Traits\sigde_rol_clave;
@@ -48,8 +48,8 @@ class ResultadoAcademicoController extends BaseController
         $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
         $rol = sigde_rol_clave($_SESSION['rol'] ?? '');
 
-        $idAnioActivo = AniosEscolares::idEnCurso($this->conexion()) ?: 0;
-        $academicYearModel = new \App\Models\AcademicYearModel($this->conexion());
+        $academicYearModel = new AcademicYearModel($this->conexion());
+        $idAnioActivo = $academicYearModel->getActiveId();
 
         if ($rol === 'docente') {
             // El docente únicamente puede visualizar el período escolar activo
@@ -66,7 +66,7 @@ class ResultadoAcademicoController extends BaseController
 
         $secciones = $this->modelo()->getSeccionesPorAnio($idAnio, $idUsuario, $rol);
 
-        $nombreAnioActivo = AniosEscolares::nombreEnCurso($this->conexion()) ?: 'En curso';
+        $nombreAnioActivo = $academicYearModel->getActiveName() ?: 'En curso';
         $nombreUsuarioActual = $_SESSION['nombre'] ?? '';
 
         $flash = $this->getFlashMessages();
@@ -130,6 +130,8 @@ class ResultadoAcademicoController extends BaseController
             'esConsulta'          => $this->esRolConsulta(),
             'anioCerrado'         => strtoupper((string) ($detalle['estado_anio'] ?? '')) === 'CERRADO',
             'literales'           => ResultadoAcademicoModel::LITERALES_VALIDOS,
+            'literalesPromueven'  => ResultadoAcademicoModel::LITERALES_PROMUEVEN,
+            'literalesExigenObservacion' => ResultadoAcademicoModel::LITERALES_EXIGEN_OBSERVACION,
             'filtroEstadoInicial' => $filtroEstadoInicial,
             'flash_error'         => $flash['error'],
             'flash_success'       => $flash['success'],
@@ -179,6 +181,13 @@ class ResultadoAcademicoController extends BaseController
                 'omitidos'            => 0,
             ];
 
+            /* La nómina se guarda por AJAX: el front necesita saber qué filas
+               quedaron bien y cuáles no para pintar el estado de cada una. */
+            $datosAjax = [
+                'guardados_ids' => $r['guardados_ids'] ?? [],
+                'errores'       => $r['errores'] ?? [],
+            ];
+
             /* Cada guardado de literales queda en la bitácora: quién lo hizo,
                sobre qué sección, y cuántas filas de cada tipo. */
             if ($res['ok'] && $idUsuario > 0) {
@@ -199,14 +208,14 @@ class ResultadoAcademicoController extends BaseController
 
             if (!$res['ok']) {
                 if ($esAjax) {
-                    $this->jsonResponse(false, null, $res['mensaje'], 422);
+                    $this->jsonResponse(false, $datosAjax, $res['mensaje'], 422);
                 }
                 $this->setFlash('error', $res['mensaje']);
                 $this->redirect('seccion', ['id' => $idEstructura]);
             }
 
             if ($esAjax) {
-                $this->jsonResponse(true, null, $res['mensaje'], 200);
+                $this->jsonResponse(true, $datosAjax, $res['mensaje'], 200);
             }
 
             $tipoFlash = ($r['guardados'] ?? 0) > 0 ? 'success' : 'info';

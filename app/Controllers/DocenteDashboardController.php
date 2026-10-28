@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Models\EstudianteModel;
 use App\Models\ResultadoAcademicoModel;
 use App\Models\TeacherAssignmentModel;
+use App\Support\Saludo;
 use PDO;
 use Throwable;
 use function App\Traits\sigde_rol_clave;
@@ -43,23 +44,11 @@ class DocenteDashboardController extends BaseController
             exit;
         }
 
-        // 2. Fijar zona horaria de Venezuela para consistencia de fechas y cumpleaños
-        date_default_timezone_set('America/Caracas');
+        // 2. Zona horaria de Venezuela y saludo según la hora de Caracas
+        $saludo = Saludo::actual();
 
         $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
         $nombreDocente = trim((string) ($_SESSION['nombre'] ?? 'Docente'));
-
-        /* Saludo según la hora de Caracas. La zona ya quedó fijada arriba, así que
-           la hora que se mira es la del sitio y no la del servidor: un docente en
-           Venezuela no debe leer "Buenas noches" porque la máquina esté en UTC.
-           Los cortes son los mismos que usa el saludo de WhatsApp del módulo de
-           listados (antes de las 12, antes de las 19, después). */
-        $horaCaracas = (int) (new \DateTimeImmutable('now'))->format('G');
-        $saludo = match (true) {
-            $horaCaracas < 12 => 'Buenos días',
-            $horaCaracas < 19 => 'Buenas tardes',
-            default           => 'Buenas noches',
-        };
 
         // 3. Resolver la sección activa del docente en el año escolar en curso
         $seccionActiva = null;
@@ -119,10 +108,11 @@ class DocenteDashboardController extends BaseController
             'pct_nuevos'      => 0.0,
         ];
 
+        $resultadoModel = new ResultadoAcademicoModel($this->conexion());
+
         if ($tieneSeccion && $idEstructura > 0) {
             /** @var EstudianteModel $estudianteModel */
             $estudianteModel = $this->getModel();
-            $resultadoModel  = new ResultadoAcademicoModel($this->conexion());
 
             try {
                 // Bloque 1: Resumen para stat-cards
@@ -145,26 +135,10 @@ class DocenteDashboardController extends BaseController
         }
 
         // 4. Determinar si se muestra la stat-card de literales finales
-        // Regla híbrida:
-        // - Si el docente ya propuso/registró al menos 1 literal, se muestra siempre.
-        // - O si la fecha de hoy se encuentra dentro de los N días previos al cierre del año escolar
-        //   (sin límite superior: si el año escolar sigue ACTIVO, se mantiene visible incluso tras anio_cierre).
-        // - Si anio_cierre es NULL o inválido, la condición por fecha se evalúa como false de forma segura.
-        $mostrarLiterales = false;
-        $registrados = (int) ($literales['registrados'] ?? 0);
-
-        if ($registrados > 0) {
-            $mostrarLiterales = true;
-        } elseif (!empty($seccionActiva['anio_cierre'])) {
-            $tsCierre = strtotime((string) $seccionActiva['anio_cierre']);
-            if ($tsCierre !== false) {
-                $tsInicioVentana = strtotime('-' . ResultadoAcademicoModel::DIAS_AVISO_CIERRE_LITERALES . ' days', $tsCierre);
-                $hoy = strtotime(date('Y-m-d'));
-                if ($hoy >= $tsInicioVentana) {
-                    $mostrarLiterales = true;
-                }
-            }
-        }
+        $mostrarLiterales = $resultadoModel->debeMostrarAvanceLiterales(
+            (int) ($literales['registrados'] ?? 0),
+            $tieneSeccion ? ($seccionActiva['anio_cierre'] ?? null) : null
+        );
 
         // 5. Renderizar vista app/Views/docente/dashboard.php
         $data = [

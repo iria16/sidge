@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Exceptions\DocumentoDuplicadoException;
+use App\Http\BinaryResponse;
 use App\Interfaces\Creatable;
 use App\Interfaces\Updatable;
 use App\Models\BitacoraModel;
@@ -214,18 +215,19 @@ class EmpleadoController extends CrudController
             );
         }
 
+        $idTitulo = 0;
         try {
-            $ok = $model->create(['nombre' => $nombre, 'id_grado_academico' => $grado]);
+            $idTitulo = $model->createAndGetId(['nombre' => $nombre, 'id_grado_academico' => $grado]);
         } catch (Throwable $e) {
             $this->jsonError($e, 'Empleados');
         }
 
-        if (!$ok) {
+        if ($idTitulo <= 0) {
             $this->jsonResponse(false, null, 'No se pudo guardar el título.', 500);
         }
 
         $this->jsonResponse(true, [
-            'id'     => (int) $this->pdo->lastInsertId(),
+            'id'     => $idTitulo,
             'nombre' => $nombre,
         ], 'Título registrado correctamente.');
     }
@@ -330,8 +332,7 @@ class EmpleadoController extends CrudController
         $id = (int) ($_GET['id'] ?? 0);
 
         if ($id <= 0) {
-            http_response_code(404);
-            throw new RuntimeException('ID de empleado inválido.');
+            $this->renderHttpError(404, '404 · Empleado no encontrado', 'ID de empleado inválido.');
         }
 
         try {
@@ -339,8 +340,7 @@ class EmpleadoController extends CrudController
             $empleado = $model->getById($id);
 
             if ($empleado === null) {
-                http_response_code(404);
-                throw new RuntimeException('El empleado solicitado no existe.');
+                $this->renderHttpError(404, '404 · Empleado no encontrado', 'El empleado solicitado no existe.');
             }
 
             $formacion    = $model->getFormacionAcademica($id);
@@ -368,14 +368,7 @@ class EmpleadoController extends CrudController
             $nombreArchivo = 'ficha_empleado_' . $docLimpio . '.pdf';
             $descargar     = ($_GET['descargar'] ?? '') === '1';
 
-            header_remove('X-Frame-Options');
-            header('X-Frame-Options: SAMEORIGIN');
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: ' . ($descargar ? 'attachment' : 'inline') . '; filename="' . $nombreArchivo . '"');
-            header('Content-Length: ' . (string) strlen($pdfContent));
-
-            echo $pdfContent;
-            exit;
+            BinaryResponse::pdf($pdfContent, $nombreArchivo, !$descargar)->send();
         } catch (Throwable $e) {
             $this->handleError($e, 'Empleados');
         }

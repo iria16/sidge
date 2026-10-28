@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Http\BinaryResponse;
 use App\Models\BitacoraModel;
 use PDO;
 use Throwable;
@@ -82,10 +83,7 @@ class BitacoraController extends ReadOnlyController
             $filters   = $this->getFiltersFromRequest();
             $registros = $this->modelo()->getAllForExport($filters);
 
-            header('Content-Type: text/csv; charset=UTF-8');
-            header('Content-Disposition: attachment; filename="bitacora_' . date('Y-m-d_His') . '.csv"');
-
-            $out = fopen('php://output', 'w');
+            $out = fopen('php://temp', 'r+');
             // BOM UTF-8 para que Excel no rompa los acentos.
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Fecha', 'Hora', 'Usuario', 'Usuario (login)', 'Acción', 'Módulo', 'IP']);
@@ -102,8 +100,12 @@ class BitacoraController extends ReadOnlyController
                 ]);
             }
 
+            rewind($out);
+            $csv = (string) stream_get_contents($out);
             fclose($out);
-            exit;
+
+            $filename = 'bitacora_' . date('Y-m-d_His') . '.csv';
+            BinaryResponse::file($csv, 'text/csv; charset=UTF-8', $filename)->send();
         } catch (Throwable $e) {
             $this->handleError($e, 'Bitácora del Sistema');
         }

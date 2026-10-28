@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
+use App\Models\NacionalidadModel;
+use App\Models\UbicacionModel;
 use App\Support\CedulaEscolar;
 use App\Support\Documento;
 
@@ -302,10 +304,7 @@ trait PersonaValidacionTrait
      */
     private function nacionalidadActiva(int $id): bool
     {
-        $stmt = $this->conexion()->prepare("SELECT 1 FROM nacionalidad WHERE id_nacionalidad = ? AND estado = 'ACTIVO'");
-        $stmt->execute([$id]);
-
-        return (bool) $stmt->fetchColumn();
+        return (new NacionalidadModel($this->conexion()))->estaActiva($id);
     }
 
     /**
@@ -322,17 +321,9 @@ trait PersonaValidacionTrait
             return $cache[$idParroquia];
         }
 
-        $stmt = $this->conexion()->prepare(
-            'SELECT m.id_estado
-               FROM parroquia p
-              INNER JOIN municipio m ON m.id_municipio = p.id_municipio
-              WHERE p.id_parroquia = :id
-              LIMIT 1'
-        );
-        $stmt->execute(['id' => $idParroquia]);
-        $fila = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $ubicacion = (new UbicacionModel($this->conexion()))->ubicacionDeParroquia($idParroquia);
 
-        return $cache[$idParroquia] = $fila === false ? null : (int) $fila['id_estado'];
+        return $cache[$idParroquia] = $ubicacion === null ? null : $ubicacion['estado'];
     }
 
     /**

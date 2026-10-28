@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Http\BinaryResponse;
 use App\Models\ListadosSeccionModel;
 use App\Models\TeacherAssignmentModel;
-use App\Support\AniosEscolares;
 use App\Support\Configuracion;
+use App\Support\ListadoCsv;
 use App\Support\ListadoPdf;
 use PDO;
 use function App\Traits\sigde_rol_clave;
@@ -81,27 +82,12 @@ class ListadosSeccionController extends BaseController
 
         // Si es docente, comprobar que sea la sección asignada y pertenezca al período activo
         if ($rol === 'docente') {
-            $idAnioActivo = AniosEscolares::idEnCurso($this->conexion()) ?: 0;
+            $idAnioActivo = $this->listadosModel()->getAnioEnCursoId();
             if ((int) $seccion['id_anio_escolar'] !== (int) $idAnioActivo) {
                 return null;
             }
 
-            $stmtDoc = $this->conexion()->prepare(
-                "SELECT 1 FROM asignacion_docente ad
-                 INNER JOIN docente doc ON doc.id_docente = ad.id_docente
-                 INNER JOIN empleado emp ON emp.id_empleado = doc.id_empleado
-                 INNER JOIN usuario u ON u.id_persona = emp.id_persona
-                 WHERE u.id_usuario = :id_usuario
-                   AND ad.id_estructura_academica = :id_estructura
-                   AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
-                 LIMIT 1"
-            );
-            $stmtDoc->execute([
-                'id_usuario'    => $idUsuario,
-                'id_estructura' => $idEstructura,
-            ]);
-
-            if (!$stmtDoc->fetchColumn()) {
+            if (!$this->listadosModel()->usuarioTieneSeccion($idUsuario, $idEstructura)) {
                 return null;
             }
         }
@@ -183,7 +169,7 @@ class ListadosSeccionController extends BaseController
             ], 'Datos de sección cargados exitosamente.');
         }
 
-        $config = Configuracion::getAll($this->conexion());
+        $config = Configuracion::getAll();
         $flash  = $this->getFlashMessages();
 
         $data = [
@@ -213,8 +199,7 @@ class ListadosSeccionController extends BaseController
     {
         $seccion = $this->resolverSeccionObjetivo();
         if (!$seccion) {
-            http_response_code(403);
-            die("<h1>403 - Acceso no autorizado o sección no encontrada</h1>");
+            $this->prohibido('No tiene una sección activa asignada o no cuenta con permisos para consultarla.');
         }
 
         $idEstructura = (int) $seccion['id'];
@@ -245,7 +230,7 @@ class ListadosSeccionController extends BaseController
         ];
 
         $estudiantes = $this->listadosModel()->getEstudiantesSeccion($idEstructura, $genero, $orden);
-        $config = Configuracion::getAll($this->conexion());
+        $config = Configuracion::getAll();
 
         $pdfBytes = ListadoPdf::generar(
             $config,
@@ -262,15 +247,9 @@ class ListadosSeccionController extends BaseController
 
         $filename = "{$tipoSlug}_{$gradoSlug}_{$secSlug}_{$anioSlug}.pdf";
 
-        $disposition = (isset($_GET['inline']) && (string) $_GET['inline'] === '1') ? 'inline' : 'attachment';
-        header('Content-Type: application/pdf');
-        header('Content-Disposition: ' . $disposition . '; filename="' . $filename . '"');
-        header('Content-Length: ' . strlen($pdfBytes));
-        header('Cache-Control: private, max-age=0, must-revalidate');
-        header('Pragma: public');
+        $inline = isset($_GET['inline']) && (string) $_GET['inline'] === '1';
 
-        echo $pdfBytes;
-        exit;
+        BinaryResponse::pdf($pdfBytes, $filename, $inline)->send();
     }
 
     /**
@@ -280,8 +259,7 @@ class ListadosSeccionController extends BaseController
     {
         $seccion = $this->resolverSeccionObjetivo();
         if (!$seccion) {
-            http_response_code(403);
-            die("<h1>403 - Acceso no autorizado</h1>");
+            $this->prohibido('No tiene una sección activa asignada o no cuenta con permisos para consultarla.');
         }
 
         $idEstructura = (int) $seccion['id'];
@@ -303,76 +281,13 @@ class ListadosSeccionController extends BaseController
 
         $estudiantes = $this->listadosModel()->getEstudiantesSeccion($idEstructura, $genero, $orden);
 
-        $delimitador = ';';
-        $salida = fopen('php://memory', 'w');
-
-        // BOM UTF-8 para que Excel abra acentos y caracteres especiales sin distorsión
-        fprintf($salida, chr(0xEF) . chr(0xBB) . chr(0xBF));
-
-        if ($formato === 'asistencia') {
-            fputcsv($salida, ['N°', 'Estudiante (Apellidos y Nombres)', 'Documento Identidad', 'Representante Legal', 'C.I. Representante', 'Firma', 'Observaciones'], $delimitador);
-            foreach ($estudiantes as $idx => $e) {
-                fputcsv($salida, [
-                    $idx + 1,
-                    $e['apellidos_nombres'],
-                    $e['documento_etiqueta'],
-                    $e['rep_apellidos_nombres'] ?: 'Sin asignar',
-                    $e['rep_documento_etiqueta'],
-                    '',
-                    ''
-                ], $delimitador);
-            }
-        } elseif ($formato === 'contactos') {
-            fputcsv($salida, ['N°', 'Estudiante', 'Documento', 'Representante Legal', 'Parentesco', 'Teléfono Celular', 'Teléfono Alternativo', 'Correo Electrónico'], $delimitador);
-            foreach ($estudiantes as $idx => $e) {
-                $telAlt = trim((string) ($e['numero_telefono_alternativo'] ?? ''));
-                if ($telAlt !== '' && !empty($e['codigo_telefono_alternativo'])) {
-                    $telAlt = "{$e['codigo_telefono_alternativo']}-{$telAlt}";
-                }
-                fputcsv($salida, [
-                    $idx + 1,
-                    $e['apellidos_nombres'],
-                    $e['documento_etiqueta'],
-                    $e['rep_apellidos_nombres'] ?: 'Sin asignar',
-                    $e['parentesco'],
-                    $e['telefono_completo'],
-                    $telAlt ?: 'No registrado',
-                    $e['correo_electronico'] ?: 'No registrado'
-                ], $delimitador);
-            }
-        } else {
-            // nomina
-            fputcsv($salida, ['N°', 'Cédula / Documento', 'Apellidos y Nombres', 'Edad', 'Género', 'Representante Legal', 'C.I. Representante', 'Teléfono Celular', 'Autorizado Retiro'], $delimitador);
-            foreach ($estudiantes as $idx => $e) {
-                fputcsv($salida, [
-                    $idx + 1,
-                    $e['documento_etiqueta'],
-                    $e['apellidos_nombres'],
-                    $e['edad'],
-                    $e['genero'],
-                    $e['rep_apellidos_nombres'] ?: 'Sin asignar',
-                    $e['rep_documento_etiqueta'],
-                    $e['telefono_completo'],
-                    !empty($e['es_autorizado_retiro']) ? 'SÍ' : 'NO'
-                ], $delimitador);
-            }
-        }
-
-        fseek($salida, 0);
-        $csvContent = stream_get_contents($salida);
-        fclose($salida);
+        $csvContent = ListadoCsv::generar($estudiantes, $formato);
 
         $gradoSlug = preg_replace('/[^a-zA-Z0-9_-]/', '_', (string) ($seccion['grado'] ?? 'Grado'));
         $secSlug   = preg_replace('/[^a-zA-Z0-9_-]/', '_', (string) ($seccion['seccion'] ?? 'Seccion'));
         $anioSlug  = preg_replace('/[^a-zA-Z0-9_-]/', '_', (string) ($seccion['anio_escolar'] ?? 'Periodo'));
         $filename  = "Reporte_{$formato}_{$gradoSlug}_{$secSlug}_{$anioSlug}.csv";
 
-        header('Content-Type: text/csv; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Content-Length: ' . strlen($csvContent));
-        header('Cache-Control: private, max-age=0, must-revalidate');
-
-        echo $csvContent;
-        exit;
+        BinaryResponse::file($csvContent, 'text/csv; charset=UTF-8', $filename)->send();
     }
 }

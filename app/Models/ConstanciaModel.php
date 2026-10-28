@@ -1398,4 +1398,67 @@ class ConstanciaModel extends BaseModel
 
         return $row;
     }
+
+    /**
+     * Tipos de constancia que puede emitir un rol.
+     *
+     * Estudio e Inscripción están abiertos a los roles con acceso al módulo;
+     * Prosecución, Retiro y Egreso son exclusivos de secretaría. La regla vive
+     * aquí y no en el controlador para que una nueva vista no la reimplemente.
+     *
+     * @return array<string, string> clave técnica => etiqueta visible
+     */
+    public static function tiposPermitidosPorRol(string $rol): array
+    {
+        $tipos = [
+            'estudio'     => 'Estudio',
+            'inscripcion' => 'Inscripción / Ratificación',
+        ];
+
+        if ($rol === 'secretaria') {
+            $tipos['prosecucion'] = 'Prosecución';
+            $tipos['retiro']      = 'Retiro';
+            $tipos['egreso']      = 'Educación Primaria';
+        }
+
+        return $tipos;
+    }
+
+    /**
+     * Carga la configuración institucional reutilizando la conexión del request.
+     * Configuracion guarda el PDO en estático; inyectarlo aquí evita que abra
+     * una segunda conexión y mantiene el PDO fuera del controlador.
+     *
+     * @return array<string, string>
+     */
+    public function getConfiguracion(): array
+    {
+        \App\Support\Configuracion::setPdo($this->pdo);
+
+        return \App\Support\Configuracion::getAll();
+    }
+
+    /**
+     * Indica si el director está configurado. Sin nombre, cédula y cargo no se
+     * puede emitir un documento legal.
+     */
+    public function estaConfiguradoDirector(): bool
+    {
+        \App\Support\Configuracion::setPdo($this->pdo);
+
+        return \App\Support\Configuracion::estaConfiguradoDirector();
+    }
+
+    /**
+     * Registra en bitácora la emisión de una constancia (individual o por lote).
+     * Si no hay usuario en sesión no escribe nada: la bitácora exige un actor.
+     */
+    public function registrarEmision(int $idUsuario, string $accion): void
+    {
+        if ($idUsuario <= 0) {
+            return;
+        }
+
+        (new BitacoraModel($this->pdo))->registrar($idUsuario, $accion, 'Constancias');
+    }
 }

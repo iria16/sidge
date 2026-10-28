@@ -59,7 +59,7 @@ foreach ($iter as $v) {
            ($extraScripts = ['/js/.../familiares.js', '/js/.../enrollments.js']).
            Con preg_match solo se registraba el primero y los otros dos nunca
            se comprobaban: un archivo faltante pasaba el control sin avisar.*/
-        if (preg_match_all("#'(/js/[a-z0-9-]+(?:/[a-z0-9-]+)*\.js)'#i", $linea, $m)) {
+        if (preg_match_all("#'(/js/[a-z0-9_-]+(?:/[a-z0-9_-]+)*\.js)'#i", $linea, $m)) {
             foreach ($m[1] as $ruta) {
                 $modulos[$ruta] = true;
             }

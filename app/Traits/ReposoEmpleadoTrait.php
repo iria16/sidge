@@ -82,7 +82,30 @@ trait ReposoEmpleadoTrait
             $this->jsonResponse(false, $errores, 'Revisa los datos del reposo.', 422);
         }
 
-        $this->jsonResponse(...$this->guardarReposoEnTransaccion($datos));
+        try {
+            $resultado = $this->reposo()->registrarConBloqueo($datos, $this->idUsuarioActual());
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Empleados');
+        }
+
+        if (!$resultado['ok']) {
+            if ($resultado['motivo'] === 'no_existe') {
+                $this->jsonResponse(false, null, 'El empleado no existe.', 404);
+            }
+
+            if ($resultado['motivo'] === 'inactivo') {
+                $this->jsonResponse(false, null, 'Solo se pueden registrar reposos para empleados activos.', 422);
+            }
+
+            $this->jsonResponse(
+                false,
+                ['fecha_inicio' => 'Este empleado ya tiene un reposo que se superpone con esas fechas.'],
+                'El reposo se superpone con otro ya registrado.',
+                409
+            );
+        }
+
+        $this->jsonResponse(true, ['id_reposo' => $resultado['id_reposo']], 'Reposo registrado correctamente.', 200);
     }
 
     /**
@@ -109,7 +132,7 @@ trait ReposoEmpleadoTrait
             $this->jsonResponse(false, null, 'No se indica qué reposo se está editando.', 400);
         }
 
-        $anterior = $this->reposoDe($idReposo);
+        $anterior = $this->reposo()->getPorId($idReposo);
 
         if ($anterior === null) {
             $this->jsonResponse(false, null, 'Ese reposo no está registrado.', 404);
@@ -126,7 +149,22 @@ trait ReposoEmpleadoTrait
             $this->jsonResponse(false, $errores, 'Revisa los datos del reposo.', 422);
         }
 
-        $this->jsonResponse(...$this->actualizarReposoEnTransaccion($idReposo, $datos));
+        try {
+            $resultado = $this->reposo()->actualizarConBloqueo($idReposo, $datos, $this->idUsuarioActual());
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Empleados');
+        }
+
+        if (!$resultado['ok']) {
+            $this->jsonResponse(
+                false,
+                ['fecha_inicio' => 'Este empleado ya tiene un reposo que se superpone con esas fechas.'],
+                'El reposo se superpone con otro ya registrado.',
+                409
+            );
+        }
+
+        $this->jsonResponse(true, ['id_reposo' => $idReposo], 'Reposo actualizado correctamente.', 200);
     }
 
     /**
@@ -147,7 +185,7 @@ trait ReposoEmpleadoTrait
             $this->jsonResponse(false, ['fecha_fin' => 'Indica una fecha de cierre válida.'], 'Fecha de cierre no válida.', 422);
         }
 
-        $anterior = $this->reposoDe($idReposo);
+        $anterior = $this->reposo()->getPorId($idReposo);
         if ($anterior === null) {
             $this->jsonResponse(false, null, 'Ese reposo no está registrado.', 404);
         }
@@ -186,7 +224,7 @@ trait ReposoEmpleadoTrait
             $this->jsonResponse(false, null, 'Reposo no válido.', 400);
         }
 
-        $anterior = $this->reposoDe($idReposo);
+        $anterior = $this->reposo()->getPorId($idReposo);
         if ($anterior === null) {
             $this->jsonResponse(false, null, 'Ese reposo no está registrado.', 404);
         }
@@ -247,136 +285,6 @@ trait ReposoEmpleadoTrait
         ]);
     }
 
-    /**
-     * Guarda el reposo y devuelve QUÉ PASÓ, sin responderle nada a quien lo pidió.
-     *
-     * @return array{0: bool, 1: mixed, 2: string, 3: int} Los cuatro argumentos de
-     *         jsonResponse(): ok, data, mensaje y código.
-     */
-    private function guardarReposoEnTransaccion(array $datos): array
-    {
-        $pdo = $this->conexion();
-        $pdo->beginTransaction();
-
-        try {
-            /* El bloqueo va sobre el empleado, no sobre reposo_empleado: es el empleado la
-             fila que las dos personas compiten por. Además, validamos que el empleado esté
-             ACTIVO para poder registrar un nuevo reposo (no aplica para editar/cerrar). */
-            $bloqueo = $pdo->prepare(
-                'SELECT e.id_empleado, p.estado
-                   FROM empleado e
-                  INNER JOIN persona p ON p.id_persona = e.id_persona
-                  WHERE e.id_empleado = :id
-                  FOR UPDATE'
-            );
-            $bloqueo->execute(['id' => $datos['id_empleado']]);
-            $empleado = $bloqueo->fetch(PDO::FETCH_ASSOC);
-
-            if ($empleado === false) {
-                $pdo->rollBack();
-
-                return [false, null, 'El empleado no existe.', 404];
-            }
-
-            if (strtoupper((string) ($empleado['estado'] ?? '')) !== 'ACTIVO') {
-                $pdo->rollBack();
-
-                return [false, null, 'Solo se pueden registrar reposos para empleados activos.', 422];
-            }
-
-            /* El solapamiento se comprueba DESPUÉS del bloqueo. Antes habría sido una
-             comprobación sin garantía: entre la comprobación y el INSERT, la otra
-             persona pudo escribir. */
-            $model = new ReposoEmpleadoModel($pdo);
-            $solape = $model->haySolapamiento(
-                $datos['id_empleado'],
-                $datos['fecha_inicio'],
-                $datos['fecha_fin']
-            );
-
-            if ($solape !== null) {
-                $pdo->rollBack();
-
-                return [
-                    false,
-                    ['fecha_inicio' => 'Este empleado ya tiene un reposo que se superpone con esas fechas.'],
-                    'El reposo se superpone con otro ya registrado.',
-                    409,
-                ];
-            }
-
-            $idReposo = $model->crearDentroDeTransaccion($datos);
-
-            $this->registrarEnBitacora(
-                'REPOSO ' . $this->nombreDeEmpleado($datos['id_empleado']) . ' · desde ' . $datos['fecha_inicio'],
-                'Reposos'
-            );
-
-            $pdo->commit();
-        } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-            $this->jsonError($e, 'Empleados');
-        }
-
-        return [true, ['id_reposo' => $idReposo], 'Reposo registrado correctamente.', 200];
-    }
-
-    /**
-     * Edita el reposo dentro de la transacción y devuelve qué pasó.
-     *
-     * El id del reposo va aparte de $datos porque es el que se está editando, no un campo
-     * más del formulario.
-     *
-     * @return array{0: bool, 1: mixed, 2: string, 3: int}
-     */
-    private function actualizarReposoEnTransaccion(int $idReposo, array $datos): array
-    {
-        $pdo = $this->conexion();
-        $pdo->beginTransaction();
-
-        try {
-            $bloqueo = $pdo->prepare('SELECT id_empleado FROM empleado WHERE id_empleado = :id FOR UPDATE');
-            $bloqueo->execute(['id' => $datos['id_empleado']]);
-
-            $model = new ReposoEmpleadoModel($pdo);
-            $solape = $model->haySolapamiento(
-                $datos['id_empleado'],
-                $datos['fecha_inicio'],
-                $datos['fecha_fin'],
-                $idReposo
-            );
-
-            if ($solape !== null) {
-                $pdo->rollBack();
-
-                return [
-                    false,
-                    ['fecha_inicio' => 'Este empleado ya tiene un reposo que se superpone con esas fechas.'],
-                    'El reposo se superpone con otro ya registrado.',
-                    409,
-                ];
-            }
-
-            $model->update($idReposo, $datos);
-
-            $this->registrarEnBitacora(
-                'EDICIÓN REPOSO ' . $this->nombreDeEmpleado($datos['id_empleado'])
-                . ' · ' . $datos['fecha_inicio'] . ($datos['fecha_fin'] === '' ? ' (abierto)' : ' a ' . $datos['fecha_fin']),
-                'Reposos'
-            );
-
-            $pdo->commit();
-        } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-            $this->jsonError($e, 'Empleados');
-        }
-
-        return [true, ['id_reposo' => $idReposo], 'Reposo actualizado correctamente.', 200];
-    }
 
     /**
      * Normaliza el POST de un reposo.
@@ -457,49 +365,18 @@ trait ReposoEmpleadoTrait
         return new ReposoEmpleadoModel($this->conexion());
     }
 
-    /** Un reposo por id, o null si no existe. */
-    private function reposoDe(int $idReposo): ?array
-    {
-        $stmt = $this->conexion()->prepare(
-            'SELECT id_reposo, id_empleado, fecha_inicio, fecha_fin, motivo
-               FROM reposo_empleado
-              WHERE id_reposo = :id
-              LIMIT 1'
-        );
-        $stmt->execute(['id' => $idReposo]);
-        $fila = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-        if ($fila === false) {
-            return null;
-        }
-
-        $fila['id_reposo']   = (int) $fila['id_reposo'];
-        $fila['id_empleado'] = (int) $fila['id_empleado'];
-
-        return $fila;
-    }
-
     /**
      * Nombre del empleado, solo para el texto de la bitácora.
      *
-     * Se arma con el mismo CONCAT_WS que usa EmpleadoModel::getAll() para que el mismo
-     * empleado se lea igual en el listado, en la pantalla y en la bitácora. Y es solo el
-     * nombre: el motivo del reposo no entra ahí, porque la bitácora se exporta y puede
-     * decir cosas de salud.
+     * Lo resuelve EmpleadoModel::getNombreCorto() con el mismo CONCAT_WS del
+     * listado, para que el mismo empleado se lea igual en la pantalla y en la
+     * auditoría. El motivo del reposo no entra aquí: la bitácora se exporta y
+     * puede decir cosas de salud.
      */
     private function nombreDeEmpleado(int $idEmpleado): string
     {
-        $stmt = $this->conexion()->prepare(
-            'SELECT CONCAT_WS(\' \', p.primer_nombre, p.primer_apellido) AS nombre
-               FROM empleado e
-               INNER JOIN persona p ON p.id_persona = e.id_persona
-              WHERE e.id_empleado = :id
-              LIMIT 1'
-        );
-        $stmt->execute(['id' => $idEmpleado]);
-        $nombre = $stmt->fetchColumn();
-
-        return $nombre === false ? 'empleado #' . $idEmpleado : (string) $nombre;
+        return (new EmpleadoModel($this->conexion()))->getNombreCorto($idEmpleado)
+            ?? ('empleado #' . $idEmpleado);
     }
 
     /**

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Interfaces\Creatable;
 use App\Interfaces\Updatable;
 use PDO;
+use Throwable;
 
 /**
  * Reposos del personal: empleados y docentes.
@@ -269,5 +270,141 @@ class ReposoEmpleadoModel extends BaseModel implements Creatable, Updatable
         $this->create($data);
 
         return (int) $this->pdo->lastInsertId();
+    }
+
+    /**
+     * Registra un reposo con bloqueo del empleado, control de solapamiento y
+     * bitácora dentro de la misma transacción.
+     *
+     * El bloqueo va antes de comprobar el solapamiento porque el motor corre en
+     * REPEATABLE READ: consultar primero fijaría una vista vieja. Así dos altas
+     * simultáneas sobre el mismo empleado se serializan.
+     *
+     * No responde HTTP: devuelve qué pasó. El controlador traduce `motivo` al
+     * código y mensaje que correspondan.
+     *
+     * @param array{id_empleado:int,fecha_inicio:string,fecha_fin:string,motivo:string} $datos
+     * @return array{ok:bool,motivo?:string,id_reposo?:int}
+     */
+    public function registrarConBloqueo(array $datos, ?int $idUsuario = null): array
+    {
+        $this->pdo->beginTransaction();
+
+        try {
+            $bloqueo = $this->pdo->prepare(
+                'SELECT e.id_empleado, p.estado
+                   FROM empleado e
+                  INNER JOIN persona p ON p.id_persona = e.id_persona
+                  WHERE e.id_empleado = :id
+                  FOR UPDATE'
+            );
+            $bloqueo->execute(['id' => (int) $datos['id_empleado']]);
+            $empleado = $bloqueo->fetch(PDO::FETCH_ASSOC);
+
+            if ($empleado === false) {
+                $this->pdo->rollBack();
+
+                return ['ok' => false, 'motivo' => 'no_existe'];
+            }
+
+            if (strtoupper((string) ($empleado['estado'] ?? '')) !== 'ACTIVO') {
+                $this->pdo->rollBack();
+
+                return ['ok' => false, 'motivo' => 'inactivo'];
+            }
+
+            if ($this->haySolapamiento(
+                (int) $datos['id_empleado'],
+                (string) $datos['fecha_inicio'],
+                (string) $datos['fecha_fin']
+            ) !== null) {
+                $this->pdo->rollBack();
+
+                return ['ok' => false, 'motivo' => 'solape'];
+            }
+
+            $idReposo = $this->crearDentroDeTransaccion($datos);
+
+            $this->registrarBitacora(
+                $idUsuario,
+                'REPOSO ' . $this->nombreCortoEmpleado((int) $datos['id_empleado'])
+                . ' · desde ' . $datos['fecha_inicio']
+            );
+
+            $this->pdo->commit();
+
+            return ['ok' => true, 'id_reposo' => $idReposo];
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Edita un reposo vigente con bloqueo del empleado y control de
+     * solapamiento, excluyendo el propio registro de la comparación.
+     *
+     * @param array{id_empleado:int,fecha_inicio:string,fecha_fin:string,motivo:string} $datos
+     * @return array{ok:bool,motivo?:string,id_reposo?:int}
+     */
+    public function actualizarConBloqueo(int $idReposo, array $datos, ?int $idUsuario = null): array
+    {
+        $this->pdo->beginTransaction();
+
+        try {
+            $bloqueo = $this->pdo->prepare(
+                'SELECT id_empleado FROM empleado WHERE id_empleado = :id FOR UPDATE'
+            );
+            $bloqueo->execute(['id' => (int) $datos['id_empleado']]);
+
+            if ($this->haySolapamiento(
+                (int) $datos['id_empleado'],
+                (string) $datos['fecha_inicio'],
+                (string) $datos['fecha_fin'],
+                $idReposo
+            ) !== null) {
+                $this->pdo->rollBack();
+
+                return ['ok' => false, 'motivo' => 'solape'];
+            }
+
+            $this->update($idReposo, $datos);
+
+            $this->registrarBitacora(
+                $idUsuario,
+                'EDICIÓN REPOSO ' . $this->nombreCortoEmpleado((int) $datos['id_empleado'])
+                . ' · ' . $datos['fecha_inicio']
+                . ($datos['fecha_fin'] === '' ? ' (abierto)' : ' a ' . $datos['fecha_fin'])
+            );
+
+            $this->pdo->commit();
+
+            return ['ok' => true, 'id_reposo' => $idReposo];
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+    /** Nombre corto para el texto de bitácora; fallback si el empleado no tiene nombre. */
+    private function nombreCortoEmpleado(int $idEmpleado): string
+    {
+        return (new EmpleadoModel($this->pdo))->getNombreCorto($idEmpleado) ?? ('empleado #' . $idEmpleado);
+    }
+
+    /** Bitácora dentro de la transacción; se omite si no hay usuario en sesión. */
+    private function registrarBitacora(?int $idUsuario, string $accion): void
+    {
+        if ($idUsuario === null || $idUsuario <= 0) {
+            return;
+        }
+
+        (new BitacoraModel($this->pdo))->registrar($idUsuario, $accion, 'Reposos');
     }
 }
