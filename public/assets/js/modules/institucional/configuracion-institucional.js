@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', function () {
   initValidacionesEnTiempoReal();
   initSubidaImagenes();
   initQuitarImagenes();
-  initRestablecerOficial();
 });
 
 /**
@@ -783,6 +782,48 @@ function actualizarPreviewEnVista(clave, previewUrl, esPrivado) {
 
   // Elemento privado (firma o sello)
   var esFirmaKey = (clave === 'director_firma' || clave === 'cdce_director_firma');
+  var wrapper = document.getElementById('wrapper-' + clave);
+
+  var titulo = 'Firma Digitalizada';
+  var altText = 'Firma Digitalizada';
+  if (clave === 'director_firma') {
+    titulo = 'Firma Digitalizada';
+    altText = 'Firma del Director';
+  } else if (clave === 'institucion_sello') {
+    titulo = 'Sello del Plantel';
+    altText = 'Sello de la Institución';
+  } else if (clave === 'cdce_director_firma') {
+    titulo = 'Firma Director(a) CDCE';
+    altText = 'Firma del Director CDCE';
+  } else if (clave === 'cdce_institucion_sello') {
+    titulo = 'Sello CDCE Estadal';
+    altText = 'Sello CDCE Estadal';
+  }
+
+  if (wrapper) {
+    wrapper.innerHTML =
+      '<div class="border rounded p-3 bg-white h-100 d-flex flex-column justify-content-between">' +
+        '<div>' +
+          '<div class="d-flex justify-content-between align-items-center mb-2">' +
+            '<span class="fw-semibold text-dark small">' + titulo + '</span>' +
+            '<span id="badge-' + clave + '" class="badge bg-success">Configurada</span>' +
+          '</div>' +
+          '<div class="private-preview-box transparency-pattern mb-2" id="box-' + clave + '">' +
+            '<img id="preview-' + clave + '" src="' + urlConBusting + '" alt="' + altText + '">' +
+          '</div>' +
+        '</div>' +
+        '<div class="d-flex gap-1 mt-2">' +
+          '<button type="button" class="btn btn-sm btn-outline-primary flex-fill d-inline-flex align-items-center justify-content-center gap-1 btn-abrir-subida" data-clave="' + clave + '" data-titulo="' + altText + '" data-privado="1">' +
+            '<i class="bi bi-upload"></i> Cambiar' +
+          '</button>' +
+          '<button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen" id="btn-quitar-' + clave + '" data-clave="' + clave + '" data-titulo="' + altText + '" data-privado="1">' +
+            '<i class="bi bi-trash"></i>' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
   var box = document.getElementById('box-' + clave);
   var badge = document.getElementById('badge-' + clave);
 
@@ -801,27 +842,6 @@ function actualizarPreviewEnVista(clave, previewUrl, esPrivado) {
     imgPrivada.alt = esFirmaKey ? 'Firma Digitalizada' : 'Sello Oficial';
     box.appendChild(imgPrivada);
   }
-
-  // Asegurar que exista el botón de retirar si no existía antes
-  var btnQuitar = document.getElementById('btn-quitar-' + clave);
-  if (!btnQuitar && box) {
-    var contenedorBotones = box.parentElement.querySelector('.d-flex.gap-1') || box.parentElement.querySelector('.d-flex');
-    if (contenedorBotones) {
-      var nuevoBtn = document.createElement('button');
-      nuevoBtn.type = 'button';
-      nuevoBtn.id = 'btn-quitar-' + clave;
-      nuevoBtn.className = 'btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen';
-      nuevoBtn.dataset.clave = clave;
-      nuevoBtn.dataset.titulo = esFirmaKey ? 'Firma Digitalizada' : 'Sello Oficial';
-      nuevoBtn.dataset.privado = '1';
-
-      var icono = document.createElement('i');
-      icono.className = 'bi bi-trash';
-      nuevoBtn.appendChild(icono);
-
-      contenedorBotones.appendChild(nuevoBtn);
-    }
-  }
 }
 
 /**
@@ -829,6 +849,53 @@ function actualizarPreviewEnVista(clave, previewUrl, esPrivado) {
  */
 function restablecerPlaceholderPrivado(clave) {
   var esFirmaKey = (clave === 'director_firma' || clave === 'cdce_director_firma');
+  var wrapper = document.getElementById('wrapper-' + clave);
+
+  var titulo = 'Firma Digitalizada';
+  var iconClass = 'bi-pen';
+  var uploadTitle = 'Firma';
+  var badgeText = 'Sin Firma';
+
+  if (clave === 'director_firma') {
+    titulo = 'Firma Digitalizada';
+    iconClass = 'bi-pen';
+    uploadTitle = 'Firma del Director';
+    badgeText = 'Sin Firma';
+  } else if (clave === 'institucion_sello') {
+    titulo = 'Sello del Plantel';
+    iconClass = 'bi-award';
+    uploadTitle = 'Sello del Plantel';
+    badgeText = 'Sin Sello';
+  } else if (clave === 'cdce_director_firma') {
+    titulo = 'Firma Director(a) CDCE';
+    iconClass = 'bi-pen';
+    uploadTitle = 'Firma del Director CDCE';
+    badgeText = 'Sin Firma';
+  } else if (clave === 'cdce_institucion_sello') {
+    titulo = 'Sello CDCE Estadal';
+    iconClass = 'bi-award';
+    uploadTitle = 'Sello CDCE Estadal';
+    badgeText = 'Sin Sello';
+  }
+
+  if (wrapper) {
+    wrapper.innerHTML =
+      '<div class="compact-signature-slot">' +
+        '<div class="compact-signature-slot__info">' +
+          '<i class="bi ' + iconClass + ' compact-signature-slot__icon" aria-hidden="true"></i>' +
+          '<div>' +
+            '<div class="compact-signature-slot__title">' + titulo + '</div>' +
+            '<span id="badge-' + clave + '" class="badge bg-secondary">' + badgeText + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div id="box-' + clave + '" class="d-none"></div>' +
+        '<button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-abrir-subida" data-clave="' + clave + '" data-titulo="' + uploadTitle + '" data-privado="1">' +
+          '<i class="bi bi-upload"></i> Cargar' +
+        '</button>' +
+      '</div>';
+    return;
+  }
+
   var box = document.getElementById('box-' + clave);
   var badge = document.getElementById('badge-' + clave);
   var btnQuitar = document.getElementById('btn-quitar-' + clave);
@@ -855,7 +922,7 @@ function restablecerPlaceholderPrivado(clave) {
     icono.className = 'bi ' + (esFirmaKey ? 'bi-pen' : 'bi-award') + ' fs-5 d-block mb-1 text-muted';
 
     var span = document.createElement('span');
-    span.style.fontSize = '0.75rem';
+    span.className = 'small';
     span.textContent = esFirmaKey
       ? 'Sin firma cargada'
       : 'Sin sello cargado';
@@ -874,7 +941,6 @@ function restablecerPlaceholderCintillo() {
   var badge = document.getElementById('badge-plantel_cintillo');
   var btnSubir = document.getElementById('btn-subir-plantel_cintillo');
   var btnQuitar = document.getElementById('btn-quitar-plantel_cintillo');
-  var btnOficial = document.getElementById('btn-oficial-plantel_cintillo');
 
   if (badge) {
     badge.className = 'badge bg-secondary';
@@ -888,7 +954,6 @@ function restablecerPlaceholderCintillo() {
     var div = document.createElement('div');
     div.className = 'text-center text-secondary small py-1';
     div.id = 'placeholder-plantel_cintillo';
-    div.style.fontSize = '0.75rem';
 
     var icon = document.createElement('i');
     icon.className = 'bi bi-slash-circle me-1 text-muted';
@@ -905,22 +970,20 @@ function restablecerPlaceholderCintillo() {
     btnSubir.innerHTML = '<i class="bi bi-upload"></i> Cargar Franja';
   }
   if (btnQuitar) btnQuitar.classList.add('d-none');
-  if (btnOficial) btnOficial.classList.remove('d-none');
 }
 
 /**
- * Muestra dinámicamente la franja tricolor en el contenedor tras subida o restablecimiento oficial.
+ * Muestra dinámicamente la franja tricolor en el contenedor tras subida.
  */
-function mostrarCintilloEnVista(previewUrl, esOficial) {
+function mostrarCintilloEnVista(previewUrl) {
   var box = document.getElementById('box-plantel_cintillo');
   var badge = document.getElementById('badge-plantel_cintillo');
   var btnSubir = document.getElementById('btn-subir-plantel_cintillo');
   var btnQuitar = document.getElementById('btn-quitar-plantel_cintillo');
-  var btnOficial = document.getElementById('btn-oficial-plantel_cintillo');
 
   if (badge) {
-    badge.className = esOficial ? 'badge bg-info text-dark border' : 'badge bg-success';
-    badge.textContent = esOficial ? 'Oficial' : 'Personalizada';
+    badge.className = 'badge bg-success';
+    badge.textContent = 'Personalizada';
   }
 
   var urlConBusting = previewUrl + (previewUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
@@ -940,60 +1003,5 @@ function mostrarCintilloEnVista(previewUrl, esOficial) {
     btnSubir.innerHTML = '<i class="bi bi-upload"></i> Cambiar Imagen';
   }
   if (btnQuitar) btnQuitar.classList.remove('d-none');
-  if (btnOficial) {
-    if (esOficial) {
-      btnOficial.classList.add('d-none');
-    } else {
-      btnOficial.classList.remove('d-none');
-    }
-  }
 }
 
-/**
- * Gestiona el botón para restablecer la franja tricolor oficial del sistema.
- */
-function initRestablecerOficial() {
-  document.addEventListener('click', async function (e) {
-    var btn = e.target.closest('.btn-restablecer-oficial');
-    if (!btn) return;
-
-    var confirmado = await SIGDEUI.confirmar({
-      titulo: '¿Restablecer Franja Tricolor Oficial?',
-      texto: 'Esta acción volverá a activar la franja tricolor oficial por defecto en el pie de página de las constancias.',
-      confirmar: 'Sí, restablecer'
-    });
-
-    if (!confirmado) return;
-
-    var csrfToken = document.querySelector('input[name="csrf"]')?.value || '';
-    var fd = new FormData();
-    fd.append('clave', 'plantel_cintillo');
-    fd.append('csrf', csrfToken);
-
-    var url = (window.BASE_URL || '/') + 'configuracionInstitucional/restablecerOficial';
-
-    SIGDEUI.enviar(url, {
-      metodo: 'POST',
-      cuerpo: fd
-    })
-      .then(function (respuesta) {
-        var payload = respuesta.data;
-        if (respuesta.ok && payload && payload.ok) {
-          SIGDEUI.exito(
-            payload.mensaje || 'Franja tricolor oficial restablecida y guardada en el sistema.',
-            '¡Actualizado!'
-          );
-          var previewUrl = payload.data?.preview_url;
-          if (previewUrl) {
-            mostrarCintilloEnVista(previewUrl, true);
-          }
-          mostrarAvisoImagenActualizada('plantel_cintillo');
-          return;
-        }
-        SIGDEUI.mostrarError((payload && payload.mensaje) ? payload.mensaje : 'No se pudo restablecer la franja oficial.');
-      })
-      .catch(function () {
-        SIGDEUI.mostrarError('Error de conexión al restablecer la franja oficial.');
-      });
-  });
-}

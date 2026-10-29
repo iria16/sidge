@@ -72,28 +72,28 @@
 
     var indicador = fila.querySelector('[data-guardado-indicador]');
     if (indicador) {
-      var clases = 'badge border px-1 py-1 indicador-guardado ';
+      var clases = 'indicador-guardado ms-1 ';
       var icono = '';
       var titulo = 'Sin guardar';
 
       if (estado === 'guardado') {
-        clases += 'bg-light text-success';
+        clases += 'text-success';
         icono = '<i class="bi bi-check2" aria-hidden="true"></i>';
         titulo = 'Guardado';
       } else if (estado === 'guardando') {
-        clases += 'bg-light text-primary';
-        icono = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        clases += 'text-primary';
+        icono = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 0.8rem; height: 0.8rem;"></span>';
         titulo = 'Guardando';
       } else if (estado === 'error') {
-        clases += 'bg-light text-danger';
+        clases += 'text-danger';
         icono = '<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>';
         titulo = 'Error al guardar';
       } else if (estado === 'pendiente') {
-        clases += 'bg-light text-warning';
-        icono = '<i class="bi bi-pencil" aria-hidden="true"></i>';
+        clases += 'text-warning';
+        icono = '<i class="bi bi-pencil-fill" aria-hidden="true"></i>';
         titulo = 'Cambio sin guardar';
       } else {
-        clases += 'bg-light text-secondary';
+        clases += 'text-muted';
         icono = '<i class="bi bi-dash" aria-hidden="true"></i>';
         titulo = 'Sin literal';
       }
@@ -159,6 +159,7 @@
     var inputLiteral = document.getElementById('input_literal_' + studentId);
     var badgeEstado = document.getElementById('badge_estado_' + studentId);
     var proyeccion = document.getElementById('proyeccion_grado_' + studentId);
+    var celdaBoleta = document.getElementById('boleta_accion_' + studentId);
 
     select.setAttribute('data-literal', literal);
     // El select es solo interfaz: el literal que viaja en el POST va en el
@@ -173,30 +174,39 @@
       if (inputGrado) inputGrado.value = '';
       if (fila) fila.setAttribute('data-estado-actual', 'PENDIENTE');
       if (badgeEstado) {
-        badgeEstado.innerHTML = '<span class="decision-badge decision-badge--pendiente"><i class="bi bi-clock-fill" aria-hidden="true"></i> PENDIENTE</span>';
+        badgeEstado.innerHTML = '<span class="decision-badge decision-badge--pendiente"><i class="bi bi-clock-fill" aria-hidden="true"></i> Pendiente</span>';
       }
       if (proyeccion) {
-        proyeccion.innerHTML = '<div class="text-muted"><i class="bi bi-dash-circle me-1"></i>Por evaluar</div>';
+        proyeccion.innerHTML = '<div class="text-muted"><i class="bi bi-dash text-secondary"></i> Sin evaluar</div>';
+      }
+      if (celdaBoleta) {
+        celdaBoleta.innerHTML = '<span class="text-muted small" title="Requiere asignar literal">—</span>';
       }
     } else if (promueve(literal)) {
       if (inputEstado) inputEstado.value = 'PROMOVIDO';
       if (inputGrado) inputGrado.value = String(idGradoSiguiente || idGradoActual);
       if (fila) fila.setAttribute('data-estado-actual', 'PROMOVIDO');
       if (badgeEstado) {
-        badgeEstado.innerHTML = '<span class="decision-badge decision-badge--promovido"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> PROMOVIDO</span>';
+        badgeEstado.innerHTML = '<span class="decision-badge decision-badge--promovido"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Promovido</span>';
       }
       if (proyeccion) {
-        proyeccion.innerHTML = '<div class="text-primary"><i class="bi bi-arrow-right me-1"></i>Avanza: <strong>' + escapeHtml(textoGradoAvanza) + '</strong></div>';
+        proyeccion.innerHTML = '<div class="text-secondary"><i class="bi bi-arrow-right-short text-success"></i> Avanza: <strong>' + escapeHtml(textoGradoAvanza) + '</strong></div>';
+      }
+      if (celdaBoleta && !celdaBoleta.querySelector('.btn-preview-certificado')) {
+        celdaBoleta.innerHTML = '<span class="text-warning small fst-italic" title="Guarde los cambios para emitir la boleta"><i class="bi bi-exclamation-circle me-1"></i>Por guardar</span>';
       }
     } else {
       if (inputEstado) inputEstado.value = 'NO_PROMOVIDO';
       if (inputGrado) inputGrado.value = String(idGradoActual);
       if (fila) fila.setAttribute('data-estado-actual', 'NO_PROMOVIDO');
       if (badgeEstado) {
-        badgeEstado.innerHTML = '<span class="decision-badge decision-badge--no-promovido"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> NO PROMOVIDO</span>';
+        badgeEstado.innerHTML = '<span class="decision-badge decision-badge--no-promovido"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> No promovido</span>';
       }
       if (proyeccion) {
-        proyeccion.innerHTML = '<div class="text-danger"><i class="bi bi-arrow-repeat me-1"></i>Permanece: <strong>' + escapeHtml(gradoNombre) + '</strong></div>';
+        proyeccion.innerHTML = '<div class="text-secondary"><i class="bi bi-arrow-repeat text-danger"></i> Permanece: <strong>' + escapeHtml(gradoNombre) + '</strong></div>';
+      }
+      if (celdaBoleta && !celdaBoleta.querySelector('.btn-preview-certificado')) {
+        celdaBoleta.innerHTML = '<span class="text-warning small fst-italic" title="Guarde los cambios para emitir la boleta"><i class="bi bi-exclamation-circle me-1"></i>Por guardar</span>';
       }
     }
 
@@ -381,7 +391,7 @@
         if (Object.keys(errores).length) {
           SIGDEUI.mostrarAviso('warning', 'Revisa los literales', sobre.mensaje || 'Hay filas con error.');
         } else {
-          SIGDEUI.exito(sobre.mensaje || 'Literales guardados correctamente.', '¡Listo!');
+          SIGDEUI.exito(sobre.mensaje || 'Literales guardados correctamente.', '¡Listo!').then(function () { window.location.reload(); });
         }
 
         actualizarContadores();
@@ -400,4 +410,65 @@
 
   actualizarContadores();
   aplicarFiltro();
+
+  /* Vista previa interactiva de Certificados de Calificaciones */
+  var modalCertificado = document.getElementById('modalVistaPreviaCertificado');
+  var iframeCertificado = document.getElementById('iframeVistaPreviaCertificado');
+  var btnDescargarCertificado = document.getElementById('btnDescargarCertificadoPdf');
+  var btnImprimirCertificado = document.getElementById('btnImprimirCertificado');
+
+  if (modalCertificado && iframeCertificado) {
+    var modalTitleEl = modalCertificado.querySelector('.modal-title');
+    var modalSubtitleEl = modalCertificado.querySelector('.modal-header__subtitle, .modal-subtitle, .app-modal__subtitle, small.text-muted');
+
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.btn-preview-certificado');
+      if (!btn) return;
+
+      var urlPreview = btn.getAttribute('data-url-preview') || '';
+      var urlDownload = btn.getAttribute('data-url-download') || urlPreview;
+      var titulo = btn.getAttribute('data-titulo') || 'Certificado de Calificaciones';
+      var subtitulo = btn.getAttribute('data-subtitulo') || '';
+
+      if (!urlPreview) return;
+
+      if (modalTitleEl) {
+        modalTitleEl.textContent = titulo;
+      }
+      if (modalSubtitleEl) {
+        modalSubtitleEl.textContent = subtitulo;
+      }
+
+      iframeCertificado.src = urlPreview;
+
+      if (btnDescargarCertificado) {
+        btnDescargarCertificado.setAttribute('href', urlDownload);
+      }
+
+      if (window.bootstrap && bootstrap.Modal) {
+        var modal = bootstrap.Modal.getInstance(modalCertificado) || new bootstrap.Modal(modalCertificado);
+        modal.show();
+      } else if (window.SIGDEUI && SIGDEUI.mostrarModal) {
+        SIGDEUI.mostrarModal(modalCertificado);
+      }
+    });
+
+    if (btnImprimirCertificado) {
+      btnImprimirCertificado.addEventListener('click', function () {
+        try {
+          iframeCertificado.contentWindow.focus();
+          iframeCertificado.contentWindow.print();
+        } catch (err) {
+          var url = btnDescargarCertificado ? btnDescargarCertificado.getAttribute('href') : null;
+          if (url && url !== '#') {
+            window.open(url, '_blank');
+          }
+        }
+      });
+    }
+
+    modalCertificado.addEventListener('hidden.bs.modal', function () {
+      iframeCertificado.src = 'about:blank';
+    });
+  }
 })();

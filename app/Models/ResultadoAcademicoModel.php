@@ -13,19 +13,20 @@ use Throwable;
 /**
  * ResultadoAcademicoModel
  * -----------------------------------------------------------------------------
- * Gestiona el registro, propuesta y confirmación formal de los resultados
- * académicos anuales (Promoción y No Promoción) de los estudiantes.
+ * Modelo de los resultados académicos de fin de año (Promoción y No Promoción).
  *
- * Flujo en dos fases:
- *  1. Fase Docente: Carga del literal cualitativo (A, B, C, D, E) y propuesta inicial
- *     (estado_resultado = PENDIENTE, registrando propuesto_por y fecha_propuesta).
- *  2. Fase Directiva: Validación y confirmación oficial del resultado (PROMOVIDO /
- *     NO_PROMOVIDO, registrando confirmado_por y fecha_confirmacion).
+ * El docente registra el literal (A-E) y el estado se deriva de él:
+ *  - A-D         = PROMOVIDO
+ *  - E           = NO_PROMOVIDO
+ *  - Sin literal = PENDIENTE
+ *
+ * Al cerrar el año escolar los literales quedan bloqueados: solo se
+ * consulta y se guarda sobre el período en curso.
  *
  * Reglas de negocio:
- *  - Ningún resultado pendiente se interpreta como promoción o no promoción.
- *  - La ratificación y egreso se basan en resultados académicos confirmados.
- *  - El retiro de un estudiante es independiente y mantiene el resultado pendiente.
+ *  - Solo el docente asignado a la sección puede modificar sus literales.
+ *  - Literal válido: A, B, C, D o E.
+ *  - El literal E exige una observación.
  */
 class ResultadoAcademicoModel extends BaseModel
 {
@@ -306,6 +307,14 @@ class ResultadoAcademicoModel extends BaseModel
             return ['ok' => false, 'mensaje' => 'No tiene permisos para modificar esta sección o la sección no existe.'];
         }
 
+        // Candado de cierre: con el año cerrado los literales no se modifican
+        if (strtoupper((string) ($detalle['estado_anio'] ?? '')) === 'CERRADO') {
+            return [
+                'ok'      => false,
+                'mensaje' => 'El año escolar está cerrado: los literales ya no se pueden modificar.',
+            ];
+        }
+
         $idAnioEscolar = (int) $detalle['id_anio_escolar'];
         $idGradoActual = (int) $detalle['id_grado'];
         $idGradoSiguiente = $this->calcularSiguienteGradoId($idGradoActual);
@@ -398,6 +407,15 @@ class ResultadoAcademicoModel extends BaseModel
                 if ($literal !== null && !in_array($literal, self::LITERALES_VALIDOS, true)) {
                     $omitidosLiterales++;
                     $errores[$idEstudiante] = 'El literal no es válido.';
+                    continue;
+                }
+
+                // Defensa 4: el literal E exige una observación
+                if ($literal !== null
+                    && in_array($literal, self::LITERALES_EXIGEN_OBSERVACION, true)
+                    && $obs === null) {
+                    $omitidosLiterales++;
+                    $errores[$idEstudiante] = 'El literal E exige una observación.';
                     continue;
                 }
 

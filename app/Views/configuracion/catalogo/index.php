@@ -12,6 +12,8 @@ declare(strict_types=1);
  * @var array  $elementos       cada uno: ['id','nombre','estado' => 'ACTIVO'|'INACTIVO']
  * @var array  $filters         ['estado' => ..., 'q' => ...] (valores actuales del GET)
  * @var array  $paginacion      ['desde','hasta','total','pagina_actual','total_paginas']
+ * @var array  $estadosGeo      estados disponibles para los catálogos de instituciones
+ * @var array  $tiposInstitucion tipos de institución disponibles (vacío en catálogos simples)
  */
 
 $pageTitle  = 'Gestión de Catálogos del Sistema';
@@ -48,40 +50,7 @@ ob_start();
   include __DIR__ . '/../../components/page-header.php';
 ?>
 
-<!-- ---------- Selector de catálogo (equivalente a los stat cards de cuentas) ---------- -->
-<div class="row g-3 mb-3">
-  <div class="col-12">
-    <div class="data-panel">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 p-3">
-        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 360px;">
-          <label for="tipoCatalogo" class="text-support small text-nowrap mb-0">Seleccionar tipo de catálogo:</label>
-          <select id="tipoCatalogo" name="tipo" class="form-select form-select-sm">
-            <?php foreach ($tiposCatalogo as $tipo): ?>
-              <option value="<?= htmlspecialchars($tipo['clave']) ?>" <?= $tipo['clave'] === $catalogoActivo ? 'selected' : '' ?>>
-                <?= htmlspecialchars($tipo['nombre']) ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-
-        <div class="d-flex align-items-center gap-3 ps-3 border-start">
-          <div class="stat-card__icon stat-card__icon--primary d-flex align-items-center justify-content-center">
-            <i class="bi <?= htmlspecialchars($catalogoInfo['icono']) ?>" aria-hidden="true"></i>
-          </div>
-          <div class="d-flex flex-column justify-content-center">
-            <div class="stat-card__label mb-0">Catálogo activo</div>
-            <div class="content-card__title mb-0"><?= htmlspecialchars($catalogoInfo['nombre']) ?></div>
-          </div>
-          <span id="catalogoTotalBadge"
-                class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2 fw-semibold"
-                data-total="<?= (int) $catalogoInfo['total'] ?>">
-            <?= (int) $catalogoInfo['total'] ?> registro<?= $catalogoInfo['total'] === 1 ? '' : 's' ?>
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<?php include __DIR__ . '/partials/selector-catalogo.php'; ?>
 
 <?php
   // ---------- Data panel: filtros ----------
@@ -90,144 +59,30 @@ ob_start();
   $panelFormAction = BASE_URL . 'catalogo/index';
 
   ob_start();
-  ?>
-  <input type="hidden" name="tipo" value="<?= htmlspecialchars($catalogoActivo) ?>">
-
-  <label for="filtroEstado" class="visually-hidden">Estado</label>
-  <select id="filtroEstado" name="estado" class="form-select">
-    <option value="" <?= empty($filters['estado']) ? 'selected' : '' ?>>Estado (Todos)</option>
-    <option value="activo"   <?= ($filters['estado'] ?? '') === 'activo'   ? 'selected' : '' ?>>Activo</option>
-    <option value="inactivo" <?= ($filters['estado'] ?? '') === 'inactivo' ? 'selected' : '' ?>>Inactivo</option>
-  </select>
-  <?php
+  include __DIR__ . '/partials/panel-filtros.php';
   $panelFilters           = ob_get_clean();
   $panelSearchName        = 'q';
   $panelSearchValue       = $filters['q'] ?? '';
   $panelSearchPlaceholder = 'Buscar por nombre...';
 
-  // ---------- Data panel: colgroup ----------
+  // ---------- Data panel: colgroup / thead / tbody ----------
   // Sin <colgroup>, table-layout: fixed reparte el ancho en partes iguales
   // (720px / 3 = 240px) y Nombre, la columna con más texto, quedaría igual de
-  // angosta que Estado o Acciones. Anchos en px (suman el min-width: 720px de
-  // _tables.scss): en móvil hay scroll horizontal y en escritorio el espacio
-  // sobrante se reparte entre las columnas.
-  // Orden: Nombre / Estado / Acciones.
+  // angosta que Estado o Acciones.
   ob_start();
-  ?>
-  <colgroup>
-    <?php if (empty($tiposInstitucion)): ?>
-      <col style="width: 55%; min-width: 280px;">
-    <?php else: ?>
-      <col style="width: 45%; min-width: 280px;">
-      <col style="width: 25%; min-width: 140px;">
-    <?php endif; ?>
-    <col style="width: 15%; min-width: 120px;">
-    <col style="width: 15%; min-width: 120px;">
-  </colgroup>
-  <?php
+  include __DIR__ . '/partials/panel-colgroup.php';
   $panelColgroup = ob_get_clean();
 
-  // ---------- Data panel: thead ----------
   ob_start();
-  ?>
-  <tr>
-    <th scope="col">Nombre</th>
-    <?php if (!empty($tiposInstitucion)): ?><th scope="col">Tipo</th><?php endif; ?>
-    <th scope="col" class="text-center">Estado</th>
-    <th scope="col" class="text-center">Acciones</th>
-  </tr>
-  <?php
+  include __DIR__ . '/partials/panel-head.php';
   $panelTableHead = ob_get_clean();
 
-  // ---------- Data panel: tbody ----------
   // id="catalogoTablaBody": permite que catalogo.js ubique el <tbody> con
   // certeza (por ejemplo para insertar la fila de "sin resultados" cuando,
   // tras un toggle de estado con un filtro aplicado, la última fila visible
   // se remueve dinámicamente sin recargar la página).
   ob_start();
-  ?>
-  <?php foreach ($elementos as $el):
-    // La BD guarda el estado en MAYÚSCULA ('ACTIVO' / 'INACTIVO'),
-    // ver comentario de CatalogoModel. strtoupper() evita que esto
-    // se rompa si algún día se guarda distinto.
-    $esInactivo = strtoupper($el['estado']) !== 'ACTIVO';
-  ?>
-    <tr class="<?= $esInactivo ? 'is-muted' : '' ?>">
-      <td class="fw-semibold celda-texto-largo" style="white-space: normal !important; overflow-wrap: break-word; word-break: normal;">
-        <?= htmlspecialchars($el['nombre']) ?>
-        <?php if (!empty($estadosGeo)): ?>
-          <!-- Ubicacion y codigo DEA van bajo el nombre, en letra pequena, y no
-               como columnas: con cuatro columnas de datos mas acciones la
-               tabla se aprieta en pantalla de portatil. -->
-          <div class="text-support" style="font-size: 0.75rem">
-            <?php
-              $estadoNombre = '';
-              foreach ($estadosGeo as $opcionEstado) {
-                  if ((int) $opcionEstado['id_estado'] === (int) ($el['id_estado_geo'] ?? 0)) {
-                      $estadoNombre = $opcionEstado['nombre'];
-                      break;
-                  }
-              }
-              echo htmlspecialchars($estadoNombre !== '' ? $estadoNombre : 'Sin ubicación');
-              if (!empty($el['codigo_dea'])) {
-                  echo ' · DEA ' . htmlspecialchars((string) $el['codigo_dea']);
-              }
-            ?>
-          </div>
-        <?php endif; ?>
-      </td>
-      <?php if (!empty($tiposInstitucion)): ?>
-        <td style="white-space: nowrap;"><?= htmlspecialchars(\App\Support\Instituciones::etiquetaPorCatalogo(
-                isset($el['id_tipo_institucion']) ? (int) $el['id_tipo_institucion'] : null
-            )) ?></td>
-      <?php endif; ?>
-      <td class="text-center">
-        <?php
-          $badgeLabel  = $esInactivo ? 'Inactivo' : 'Activo';
-          $badgeStatus = $esInactivo ? 'inactive' : 'active';
-          include __DIR__ . '/../../components/status-badge.php';
-        ?>
-      </td>
-      <td class="text-center">
-        <div class="data-panel__actions">
-          <button type="button"
-                  class="action-btn action-btn--edit editar-elemento"
-                  data-elemento-id="<?= (int) $el['id'] ?>"
-                  data-elemento-nombre="<?= htmlspecialchars($el['nombre']) ?>"
-                  <?php if (!empty($tiposInstitucion)): ?>data-elemento-tipo="<?= htmlspecialchars(
-                        isset($el['id_tipo_institucion']) ? (string) $el['id_tipo_institucion'] : ''
-                      ) ?>"
-                  data-elemento-estado="<?= (int) ($el['id_estado_geo'] ?? 0) ?>"
-                  data-elemento-municipio="<?= (int) ($el['id_municipio'] ?? 0) ?>"
-                  data-elemento-parroquia="<?= (int) ($el['id_parroquia'] ?? 0) ?>"
-                  data-elemento-dea="<?= htmlspecialchars((string) ($el['codigo_dea'] ?? '')) ?>"
-                  data-elemento-pais="<?= (int) ($el['pais_id'] ?? 0) ?>"
-                  data-elemento-extranjera="<?= !empty($el['es_extranjera']) ? '1' : '0' ?>"<?php endif; ?>
-                  title="<?= $esInactivo ? 'No se puede editar un elemento inactivo' : 'Editar elemento' ?>"
-                  <?= $esInactivo ? 'disabled' : '' ?>>
-            <i class="bi bi-pencil" aria-hidden="true"></i>
-          </button>
-          <div class="form-check form-switch table-switch mb-0" title="<?= $esInactivo ? 'Activar' : 'Desactivar' ?> elemento">
-            <input class="form-check-input toggle-estado"
-                   type="checkbox"
-                   role="switch"
-                   data-elemento-id="<?= (int) $el['id'] ?>"
-                   <?= $esInactivo ? '' : 'checked' ?>
-                   aria-label="Activar o desactivar <?= htmlspecialchars($el['nombre']) ?>">
-          </div>
-        </div>
-      </td>
-    </tr>
-  <?php endforeach; ?>
-
-  <?php if (empty($elementos)): ?>
-    <tr class="catalogo-empty-row">
-      <td colspan="3" class="text-center text-support py-4">
-        No se encontraron elementos con los filtros seleccionados.
-      </td>
-    </tr>
-  <?php endif; ?>
-  <?php
+  include __DIR__ . '/partials/panel-rows.php';
   $panelTableBody = ob_get_clean();
   $panelTableBodyId = 'catalogoTablaBody';
 

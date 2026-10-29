@@ -291,9 +291,11 @@ del código, no supuestas):
 | `.transparency-pattern`, `.image-preview-box`, `.cintillo-preview-box`, `.private-preview-box` | `_configuracion-institucional.scss` | Cajas de previsualización de imágenes |
 | `.nomina-*` (23 clases) | `_docente-nomina.scss` | Nómina del docente |
 | `.secretaria-progress`, `.cupos-tabla`, `.cupos-tabla__*` | `_secretaria-dashboard.scss` | Barra de avance y tabla de cupos del dashboard de Secretaría |
+| `.badge-promocion`, `.ratificar-alerta-barra`, `.ratificar-editar-datos`, `.ratificar-bloque-oculto` | `_ratificacion.scss` | Insignia de promoción y estilos del modal de ratificación |
+| `.catalogo-ubicacion` | `_catalogo.scss` | Ubicación y código DEA bajo el nombre en el catálogo |
 | `.table` | `_tables.scss` | Estilo de tablas |
-| `.ancho-<N>` | `base/_columnas.scss` | Ancho de columna de tabla. Hoy: 12, 13, 14, 15, 16, 17, 18, 19, 22, 30 |
-| `.ancho-<N>px` | `base/_columnas.scss` | Ancho fijo en píxeles, cuando el reparto depende del contenido. Hoy: 120, 150, 170 |
+| `.ancho-<N>` | `base/_columnas.scss` | Ancho de columna de tabla. Hoy: 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 25, 28, 30, 34, 36, 38, 40, 45, 55 |
+| `.ancho-<N>px` | `base/_columnas.scss` | Ancho fijo en píxeles, cuando el reparto depende del contenido. Hoy: 120, 140, 150, 160, 170, 190, 210, 220, 240, 280 |
 
 ### 5.3 Paleta y tokens (`resources/scss/_variables.scss`)
 

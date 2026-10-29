@@ -3,16 +3,13 @@ declare(strict_types=1);
 
 /**
  * Vista: resultado_academico/seccion.php
- * Carga de propuesta pedagógica y confirmación oficial de resultados de la sección.
+ * Carga de literales de promoción (solo docente).
  *
  * @var array  $detalle
  * @var string $rolUsuario
- * @var bool   $esDirectivo
- * @var bool   $esConsulta
  * @var array  $literales
  * @var array  $literalesPromueven
  * @var array  $literalesExigenObservacion
- * @var bool   $esDocenteAsignada
  * @var bool   $anioCerrado
  * @var string $filtroEstadoInicial
  * @var string|null $flash_error
@@ -35,20 +32,14 @@ $idGradoSiguiente = $resumen['id_grado_siguiente'];
 $textoGradoAvanza = $resumen['texto_grado_avanza'];
 
 $pageTitle       = "Literales Finales - {$gradoNombre} \"{$seccionNombre}\"";
-$pageDescription = "Turno {$turnoNombre} · Carga oficial de calificaciones cualitativas · Docente: {$docenteNombre}";
-$currentNav      = $esDocente ? 'mi-seccion-promocion' : 'promocion';
+$pageDescription = "Turno {$turnoNombre} · Carga oficial de calificaciones cualitativas";
+$currentNav      = 'mi-seccion-promocion';
 
-$breadcrumbs = $esDocente
-    ? [
-        ['label' => 'Mi sección', 'href' => null],
-        ['label' => 'Resultados y Promoción', 'href' => BASE_URL . 'resultadoAcademico/index'],
-        ['label' => "{$gradoNombre} \"{$seccionNombre}\"", 'href' => null],
-    ]
-    : [
-        ['label' => 'Gestión de estudiantes', 'href' => null],
-        ['label' => 'Promoción Académica', 'href' => BASE_URL . 'resultadoAcademico/index'],
-        ['label' => "{$gradoNombre} \"{$seccionNombre}\"", 'href' => null],
-    ];
+$breadcrumbs = [
+    ['label' => 'Mi sección', 'href' => null],
+    ['label' => 'Resultados y Promoción', 'href' => BASE_URL . 'resultadoAcademico/index'],
+    ['label' => "{$gradoNombre} \"{$seccionNombre}\"", 'href' => null],
+];
 
 ob_start();
 
@@ -59,6 +50,15 @@ ob_start();
     <i class="bi bi-arrow-left" aria-hidden="true"></i>
     <span>Volver</span>
   </a>
+  <?php if ($resumen['con_literal'] > 0): ?>
+    <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm btn-preview-certificado"
+            data-url-preview="<?= BASE_URL ?>certificadoCalificaciones/generarPorSeccion?id_estructura=<?= $idEstructura ?>"
+            data-titulo="Certificados de Calificaciones"
+            data-subtitulo="<?= htmlspecialchars($gradoNombre . ' "' . $seccionNombre . '" · Turno ' . $turnoNombre . ' · Período ' . $anioNombre) ?>">
+      <i class="bi bi-eye me-1" aria-hidden="true"></i>
+      <span>Visualizar Certificados de la Sección</span>
+    </button>
+  <?php endif; ?>
 </div>
 <?php
 $pageHeaderActions = ob_get_clean();
@@ -93,12 +93,11 @@ $pageContent = ob_get_clean();
 
 ob_start();
 include __DIR__ . '/modals/guia-modal.php';
-include __DIR__ . '/modals/confirmar-modal.php';
+include __DIR__ . '/modals/preview-modal.php';
 $pageModals = ob_get_clean();
 
 $extraScripts = [
     '/js/modules/resultado_academico/seccion.js',
-    '/js/modules/resultado_academico/modal-confirmar.js',
 ];
 
 require __DIR__ . '/../layouts/app.php';

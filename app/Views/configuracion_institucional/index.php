@@ -62,21 +62,89 @@ ob_start();
 
   <?php include __DIR__ . '/partials/banner-identidad.php'; ?>
 
-  <!-- Dashboard de Configuración Institucional (2 Columnas) -->
-  <div class="row g-4">
+  <!-- Navegación por Pestañas -->
+  <ul class="nav nav-tabs institutional-tabs mb-4" id="configInstitucionalTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active"
+              id="tab-plantel-btn"
+              data-bs-toggle="tab"
+              data-bs-target="#tab-plantel"
+              type="button"
+              role="tab"
+              aria-controls="tab-plantel"
+              aria-selected="true">
+        <i class="bi bi-building"></i>
+        <span>Plantel</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link"
+              id="tab-autoridades-btn"
+              data-bs-toggle="tab"
+              data-bs-target="#tab-autoridades"
+              type="button"
+              role="tab"
+              aria-controls="tab-autoridades"
+              aria-selected="false">
+        <i class="bi bi-person-vcard-fill"></i>
+        <span>Autoridades</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link"
+              id="tab-ubicacion-btn"
+              data-bs-toggle="tab"
+              data-bs-target="#tab-ubicacion"
+              type="button"
+              role="tab"
+              aria-controls="tab-ubicacion"
+              aria-selected="false">
+        <i class="bi bi-geo-alt-fill"></i>
+        <span>Ubicación y membrete</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link"
+              id="tab-recursos-btn"
+              data-bs-toggle="tab"
+              data-bs-target="#tab-recursos"
+              type="button"
+              role="tab"
+              aria-controls="tab-recursos"
+              aria-selected="false">
+        <i class="bi bi-images"></i>
+        <span>Logos y recursos</span>
+      </button>
+    </li>
+  </ul>
 
-    <!-- COLUMNA IZQUIERDA: Membrete Oficial y Ubicación Territorial -->
-    <div class="col-lg-6 d-flex flex-column gap-4">
-      <?php include __DIR__ . '/partials/tarjeta-membrete.php'; ?>
-      <?php include __DIR__ . '/partials/tarjeta-ubicacion.php'; ?>
+  <!-- Contenido de las Pestañas -->
+  <div class="tab-content" id="configInstitucionalTabContent">
+    <!-- Pestaña 1: Plantel -->
+    <div class="tab-pane fade show active" id="tab-plantel" role="tabpanel" aria-labelledby="tab-plantel-btn" tabindex="0">
+      <?php include __DIR__ . '/partials/tarjeta-plantel.php'; ?>
     </div>
 
-    <!-- COLUMNA DERECHA: Autoridad Directiva y Recursos Gráficos -->
-    <div class="col-lg-6 d-flex flex-column gap-4">
-      <?php include __DIR__ . '/partials/tarjeta-directiva.php'; ?>
+    <!-- Pestaña 2: Autoridades -->
+    <div class="tab-pane fade" id="tab-autoridades" role="tabpanel" aria-labelledby="tab-autoridades-btn" tabindex="0">
+      <div class="d-flex flex-column gap-3">
+        <?php include __DIR__ . '/partials/tarjeta-directiva.php'; ?>
+        <?php include __DIR__ . '/partials/directiva-cdce.php'; ?>
+      </div>
+    </div>
+
+    <!-- Pestaña 3: Ubicación y membrete -->
+    <div class="tab-pane fade" id="tab-ubicacion" role="tabpanel" aria-labelledby="tab-ubicacion-btn" tabindex="0">
+      <div class="d-flex flex-column gap-3">
+        <?php include __DIR__ . '/partials/tarjeta-membrete.php'; ?>
+        <?php include __DIR__ . '/partials/tarjeta-ubicacion.php'; ?>
+      </div>
+    </div>
+
+    <!-- Pestaña 4: Logos y recursos -->
+    <div class="tab-pane fade" id="tab-recursos" role="tabpanel" aria-labelledby="tab-recursos-btn" tabindex="0">
       <?php include __DIR__ . '/partials/tarjeta-recursos.php'; ?>
     </div>
-
   </div>
 </div>
 <?php

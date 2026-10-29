@@ -1,269 +1,136 @@
 <?php
+
+declare(strict_types=1);
+
 /**
- * Vista: Gestión de Grados y Secciones (estructura académica)
- * Usa los componentes: page-header, stat-card, data-panel, modal (structure-modal.php)
-*/
+ * Vista: configuracion_academica/estructuraAcademica/index.php
+ * Gestión de Grados y Secciones — estructura académica por año.
+ *
+ * Espera del controlador:
+ * @var array  $stats          ['total','grados','secciones','capacidad']
+ * @var array  $estructuras    filas del listado
+ * @var array  $anios          años disponibles para el filtro
+ * @var array  $aniosEditables años donde se puede escribir (solo el activo)
+ * @var string $anioActivo     nombre del año escolar activo
+ * @var bool   $anioEsLectura  el año consultado no admite escritura
+ * @var array  $filters        ['anio','grado','seccion','turno','q']
+ * @var array  $grados         opciones de grado
+ * @var array  $secciones      opciones de sección
+ * @var array  $turnos         opciones de turno
+ * @var array  $paginacion     ['desde','hasta','total','pagina_actual','total_paginas']
+ * @var bool   $esConsulta     el rol solo consulta
+ */
 
 $pageTitle       = 'Gestión de Grados y Secciones';
 $pageDescription = 'Administre la distribución de grados, secciones y turnos académicos.';
 $currentNav      = 'estructura-academica';
 $extraScripts    = ['/js/modules/academica/academic-structure.js'];
-$breadcrumbs     = [
+
+$breadcrumbs = [
     ['label' => 'Configuración académica', 'href' => null],
     ['label' => 'Estructura académica',     'href' => null],
 ];
 
-$stats       = $stats ?? ['total' => 0, 'grados' => 0, 'secciones' => 0, 'capacidad' => 0];
-$estructuras = $estructuras ?? [];
-$anios       = $anios ?? [];
-$anioActivo  = $anioActivo ?? 'No hay un año escolar activo';
-/* El año que se está mirando y si admite escritura. $anioEsLectura sale del
- controlador con el mismo criterio que aplican store() y update() (solo el ACTIVO se
- toca), para que la vista no tenga que deducirlo comparando estados por su cuenta.*/
-$anioEsLectura = $anioEsLectura ?? true;
+$stats          = $stats ?? ['total' => 0, 'grados' => 0, 'secciones' => 0, 'capacidad' => 0];
+$estructuras    = $estructuras ?? [];
+$anios          = $anios ?? [];
+$anioActivo     = $anioActivo ?? 'No hay un año escolar activo';
+$anioEsLectura  = $anioEsLectura ?? true;
+$filters        = $filters ?? [];
 $anioConsultado = isset($filters['anio']) ? (int) $filters['anio'] : 0;
-$grados      = $grados ?? [];
-$secciones   = $secciones ?? [];
-$turnos      = $turnos ?? [];
-$paginacion  = $paginacion ?? [
+$grados         = $grados ?? [];
+$secciones      = $secciones ?? [];
+$turnos         = $turnos ?? [];
+$esConsulta     = $esConsulta ?? false;
+$paginacion     = $paginacion ?? [
     'desde' => 0, 'hasta' => 0, 'total' => 0, 'pagina_actual' => 1, 'total_paginas' => 1,
 ];
 
 /* El coordinador consulta la estructura pero no la modifica: crearla o cambiarla
-  es decisión de la dirección. Entra en la misma condición que un año cerrado,
-  que ya tenía resuelto el "no mostrar un botón que el servidor va a rechazar",
-  en vez de abrir un segundo camino para lo mismo. */
-$soloLectura = ($anioEsLectura ?? false) || !empty($esConsulta);
+   es decisión de la dirección. Entra en la misma condición que un año cerrado,
+   que ya tenía resuelto el "no mostrar un botón que el servidor va a rechazar",
+   en vez de abrir un segundo camino para lo mismo. */
+$soloLectura = $anioEsLectura || $esConsulta;
 
 ob_start();
 
-// ---------- Page header ----------
-ob_start();
-?>
-<?php /* Un año CERRADO es historial: se consulta, no se escribe. El botón se esconde en
- vez de deshabilitarse para que no quede a la vista una acción que nunca va a
- funcionar. La misma condición la repite el servidor en store().*/ ?>
-<?php if (!$soloLectura): ?>
-  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaEstructuraModal">
-    <i class="bi bi-plus-lg"></i> Nuevo Registro
-  </button>
-<?php endif; ?>
-<?php
-$pageHeaderActions = ob_get_clean();
-$pageHeading       = 'Gestión de Grados y Secciones';
-$pageSubheading    = $pageDescription;
-include __DIR__ . '/../../components/page-header.php';
-?>
-
-<!-- ---------- Stat cards ---------- -->
-<div class="row g-3 mb-4">
-  <div class="col-sm-6 col-lg-4">
-    <?php
-      $statLabel     = 'Grados y secciones';
-      $statValue     = (int) $stats['total'];
-      $statIcon      = 'bi-diagram-3';
-      $statTone      = 'primary';
-      $statTrend     = 'Configurados';
-      $statTrendType = 'neutral';
-      include __DIR__ . '/../../components/stat-card.php';
-    ?>
-  </div>
-  <div class="col-sm-6 col-lg-4">
-    <?php
-      $statLabel     = 'Secciones disponibles';
-      $statValue     = (int) $stats['secciones'];
-      $statIcon      = 'bi-collection';
-      $statTone      = 'success';
-      $statTrend     = 'Activos';
-      $statTrendType = 'neutral';
-      include __DIR__ . '/../../components/stat-card.php';
-    ?>
-  </div>
-  <div class="col-sm-6 col-lg-4">
-    <?php
-      $statLabel     = 'Cupos configurados';
-      $statValue     = (int) $stats['capacidad'];
-      $statIcon      = 'bi-people';
-      $statTone      = 'warning';
-      $statTrend     = 'Capacidad';
-      $statTrendType = 'neutral';
-      include __DIR__ . '/../../components/stat-card.php';
-    ?>
-  </div>
-</div>
-
-<?php
-// ---------- Data panel: filtros ----------
-$panelFormAction = BASE_URL . 'academicStructure/index';
-
-ob_start();
-?>
-  <div class="data-panel__active-year" role="status" aria-label="Año escolar activo: <?= htmlspecialchars($anioActivo) ?>">
-    <i class="bi bi-calendar3" aria-hidden="true"></i>
-    <strong><?= htmlspecialchars($anioActivo) ?></strong>
-  </div>
-  <input type="hidden" name="anio" value="<?= (int) $anioConsultado ?>">
-
-<label for="filtroGrado" class="visually-hidden">Grado</label>
-<select id="filtroGrado" name="grado" class="form-select" aria-label="Filtrar por grado">
-  <option value="">Grado (Todos)</option>
-  <?php foreach ($grados as $grado): ?>
-    <option value="<?= (int) $grado['id'] ?>" <?= (string) ($filters['grado'] ?? '') === (string) $grado['id'] ? 'selected' : '' ?>>
-      <?= htmlspecialchars($grado['nombre']) ?>
-    </option>
-  <?php endforeach; ?>
-</select>
-
-<label for="filtroSeccion" class="visually-hidden">Sección</label>
-<select id="filtroSeccion" name="seccion" class="form-select" aria-label="Filtrar por sección">
-  <option value="">Sección (Todas)</option>
-  <?php foreach ($secciones as $seccion): ?>
-    <option value="<?= (int) $seccion['id'] ?>" <?= (string) ($filters['seccion'] ?? '') === (string) $seccion['id'] ? 'selected' : '' ?>>
-      <?= htmlspecialchars($seccion['nombre']) ?>
-    </option>
-  <?php endforeach; ?>
-</select>
-
-<label for="filtroTurno" class="visually-hidden">Turno</label>
-<select id="filtroTurno" name="turno" class="form-select" aria-label="Filtrar por turno">
-  <option value="">Turno (Todos)</option>
-  <?php foreach ($turnos as $turno): ?>
-    <option value="<?= (int) $turno['id'] ?>" <?= (string) ($filters['turno'] ?? '') === (string) $turno['id'] ? 'selected' : '' ?>>
-      <?= htmlspecialchars($turno['nombre']) ?>
-    </option>
-  <?php endforeach; ?>
-</select>
-<?php
-$panelFilters           = ob_get_clean();
-$panelSearchName        = 'q';
-$panelSearchValue       = $filters['q'] ?? '';
-$panelSearchPlaceholder = 'Buscar por grado o sección...';
-
-// ---------- Data panel: colgroup ----------
-// Anchos fijos: Grado / Sección / Turno / Matriculados / Capacidad / Acciones.
-ob_start();
-?>
-<colgroup>
-  <col style="width: 24%;">
-  <col style="width: 14%;">
-  <col style="width: 16%;">
-  <col style="width: 16%;">
-  <col style="width: 14%;">
-  <col style="width: 16%;">
-</colgroup>
-<?php
-$panelColgroup = ob_get_clean();
-
-// ---------- Data panel: thead ----------
-ob_start();
-?>
-<tr>
-  <th scope="col">Grado</th>
-  <th scope="col">Sección</th>
-  <th scope="col">Turno</th>
-  <th scope="col" class="text-center">Matriculados</th>
-  <th scope="col" class="text-center">Capacidad</th>
-  <th scope="col" class="text-center">Acciones</th>
-</tr>
-<?php
-$panelTableHead = ob_get_clean();
-
-// ---------- Data panel: tbody ----------
-ob_start();
-foreach ($estructuras as $estructura):
-?>
-  <tr>
-    <td class="fw-semibold"><?= htmlspecialchars($estructura['grado']) ?></td>
-    <td><?= htmlspecialchars($estructura['seccion']) ?></td>
-    <td><?= htmlspecialchars($estructura['turno']) ?></td>
-    <?php
-    /* Matriculados y capacidad van juntos porque la comparación es el dato: una sección
- con más alumnos que cupos es el error que hay que ver, y antes solo se mostraba la
- capacidad, así que el desborde no se veía en ningún lado.*/
-    $matriculados = (int) $estructura['estudiantes'];
-    $capacidad    = (int) $estructura['capacidad_maxima'];
-    $sobrecupo    = $matriculados > $capacidad;
-    ?>
-    <td class="text-center fw-semibold <?= $sobrecupo ? 'text-danger' : '' ?>"
-        title="<?= $sobrecupo ? 'La sección tiene más estudiantes que cupos' : 'Estudiantes matriculados' ?>">
-      <?= $matriculados ?>
-    </td>
-    <td class="text-center"><?= $capacidad ?></td>
-    <td class="text-center">
-      <div class="data-panel__actions">
-        <?php /* En un año cerrado no hay pencil. Se oculta y no se deshabilita: un
- botón atenuado invita a pulsarlo, y el servidor lo rechaza con 409.
- Antes de este filtro, además, ni siquiera había forma de abrir la
- edición, porque el listado siempre enseñaba el año activo.*/ ?>
-        <?php if ($soloLectura): ?>
-          <span class="action-btn" aria-hidden="true"
-                title="<?= !empty($esConsulta) ? 'Solo consulta: su rol no modifica la estructura' : 'Año cerrado: solo consulta' ?>">
-            <i class="bi bi-lock-fill"></i>
-          </span>
-        <?php else: ?>
-        <button type="button"
-          class="action-btn action-btn--edit editar-estructura"
-          data-id="<?= (int) $estructura['id'] ?>"
-          data-anio="<?= (int) $estructura['id_anio_escolar'] ?>"
-          data-grado="<?= (int) $estructura['id_grado'] ?>"
-          data-seccion="<?= (int) $estructura['id_seccion'] ?>"
-          data-turno="<?= (int) $estructura['id_turno'] ?>"
-          data-capacidad="<?= (int) $estructura['capacidad_maxima'] ?>"
-          /* El número de ocupados también viaja en el botón: es el dato que el modal
- necesita para poder avisar "esta acción afectará a N alumnos" sin tener
- que pedirlo por AJAX en el momento en que se abre. El backend lo vuelve a
- calcular al confirmar, porque entre abrir y guardar alguien puede
- haberse matriculado.*/
-          data-ocupados="<?= (int) $estructura['estudiantes'] ?>"
-          title="Editar estructura">
-          <i class="bi bi-pencil"></i>
-        </button>
-        <?php endif; ?>
-      </div>
-    </td>
-  </tr>
-<?php endforeach; ?>
-<?php if (!$estructuras): ?>
-  <tr>
-    <td colspan="6" class="text-center text-support py-4">
-      No se encontraron estructuras académicas.
-    </td>
-  </tr>
-<?php endif; ?>
-<?php
-$panelTableBody = ob_get_clean();
-
-$panelSummary = 'Mostrando ' . (int) $paginacion['desde'] . ' a ' . (int) $paginacion['hasta']
-              . ' de ' . (int) $paginacion['total'] . ' registros';
-$panelPagination = [
-    'pagina_actual' => $paginacion['pagina_actual'],
-    'total_paginas' => $paginacion['total_paginas'],
-];
-
-include __DIR__ . '/../../components/data-panel.php';
-?>
-
-<?php /* Los modales solo sirven para escribir. En consulta no se incluyen: si
-  estuvieran, el JavaScript los abriría y mandaría un POST que la ruta
-  rechaza con 403. */ ?>
-<?php if (!$soloLectura): ?>
-  <?php
-  $modalId       = 'nuevaEstructuraModal';
-  $modalTitle    = 'Nuevo Registro';
-  $modalSubtitle = 'Configure una nueva sección académica.';
-  $formId        = 'formNuevaEstructura';
-  $editMode      = false;
-  include __DIR__ . '/structure-modal.php';
-
-  $modalId       = 'editarEstructuraModal';
-  $modalTitle    = 'Editar Registro';
-  $modalSubtitle = 'Actualice la configuración académica.';
-  $formId        = 'formEditarEstructura';
-  $editMode      = true;
-  include __DIR__ . '/structure-modal.php';
+  // ---------- Page header ----------
+  ob_start();
   ?>
-<?php endif; ?>
+  <?php /* Un año CERRADO es historial: se consulta, no se escribe. El botón se esconde en
+   vez de deshabilitarse para que no quede a la vista una acción que nunca va a
+   funcionar. La misma condición la repite el servidor en store().*/ ?>
+  <?php if (!$soloLectura): ?>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaEstructuraModal">
+      <i class="bi bi-plus-lg"></i> Nuevo Registro
+    </button>
+  <?php endif; ?>
+  <?php
+  $pageHeaderActions = ob_get_clean();
+  $pageHeading       = 'Gestión de Grados y Secciones';
+  $pageSubheading    = $pageDescription;
+  include __DIR__ . '/../../components/page-header.php';
+?>
+
+<?php include __DIR__ . '/partials/stat-cards.php'; ?>
+
+<?php
+  // ---------- Data panel: filtros ----------
+  $panelFormAction = BASE_URL . 'academicStructure/index';
+
+  ob_start();
+  include __DIR__ . '/partials/panel-filtros.php';
+  $panelFilters           = ob_get_clean();
+  $panelSearchName        = 'q';
+  $panelSearchValue       = (string) ($filters['q'] ?? '');
+  $panelSearchPlaceholder = 'Buscar por grado o sección...';
+
+  // ---------- Data panel: colgroup / thead / tbody ----------
+  ob_start();
+  include __DIR__ . '/partials/panel-colgroup.php';
+  $panelColgroup = ob_get_clean();
+
+  ob_start();
+  include __DIR__ . '/partials/panel-head.php';
+  $panelTableHead = ob_get_clean();
+
+  ob_start();
+  include __DIR__ . '/partials/panel-rows.php';
+  $panelTableBody = ob_get_clean();
+
+  $panelSummary = 'Mostrando ' . (int) $paginacion['desde'] . ' a ' . (int) $paginacion['hasta']
+                . ' de ' . (int) $paginacion['total'] . ' registros';
+  $panelPagination = [
+      'pagina_actual' => $paginacion['pagina_actual'],
+      'total_paginas' => $paginacion['total_paginas'],
+  ];
+
+  include __DIR__ . '/../../components/data-panel.php';
+?>
 
 <?php
 $pageContent = ob_get_clean();
+
+// ---------- Modales ----------
+/* Los modales solo sirven para escribir. En consulta no se incluyen: si
+   estuvieran, el JavaScript los abriría y mandaría un POST que la ruta
+   rechaza con 403. */
+ob_start();
+if (!$soloLectura) {
+    $modalId       = 'nuevaEstructuraModal';
+    $modalTitle    = 'Nuevo Registro';
+    $modalSubtitle = 'Configure una nueva sección académica.';
+    $formId        = 'formNuevaEstructura';
+    $editMode      = false;
+    include __DIR__ . '/structure-modal.php';
+
+    $modalId       = 'editarEstructuraModal';
+    $modalTitle    = 'Editar Registro';
+    $modalSubtitle = 'Actualice la configuración académica.';
+    $formId        = 'formEditarEstructura';
+    $editMode      = true;
+    include __DIR__ . '/structure-modal.php';
+}
+$pageModals = ob_get_clean();
+
 require __DIR__ . '/../../layouts/app.php';

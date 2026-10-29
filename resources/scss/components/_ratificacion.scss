@@ -1,0 +1,26 @@
+// ==========================================================================
+// Ratificación de matrícula
+// ==========================================================================
+
+// Insignia de promoción que acompaña al próximo grado en el listado.
+.badge-promocion {
+  font-size: 0.75rem;
+}
+
+// Barra vertical que marca cada sección del modal de ratificación.
+.ratificar-alerta-barra {
+  width: 4px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+// Enlace para editar los datos del estudiante desde el modal.
+.ratificar-editar-datos {
+  color: $primary;
+}
+
+// Bloques que el JS muestra u oculta según la encuesta. No usa d-none porque
+// esa utilidad lleva !important y el JS alterna con style.display.
+.ratificar-bloque-oculto {
+  display: none;
+}

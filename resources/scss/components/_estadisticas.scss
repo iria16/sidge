@@ -1,0 +1,286 @@
+// resources/scss/components/_estadisticas.scss
+// Estilos del Módulo de Estadísticas Institucionales y Control de Hermanos
+
+.estadisticas-filter-bar {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.estadisticas-tabs {
+  border-bottom: 2px solid #e2e8f0;
+  gap: 0.5rem;
+
+  .nav-link {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      color: #1e3a8a;
+      border-color: #cbd5e1;
+    }
+
+    &.active {
+      color: #1e3a8a;
+      border-bottom-color: #1e3a8a;
+      background-color: transparent;
+    }
+  }
+}
+
+.sibling-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--diff-grades {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+
+  &--same-grade {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+  }
+
+  &--single {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+}
+
+.sibling-detail-box {
+  background-color: #f8fafc;
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.sibling-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0;
+  border-bottom: 1px dashed #e2e8f0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.stats-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 1rem;
+
+  &__title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0;
+  }
+}
+
+.stats-metric-tile {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.025em;
+  }
+
+  &__value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 0.25rem;
+  }
+
+  &__meta {
+    font-size: 0.8125rem;
+    color: #64748b;
+    margin-top: auto;
+    padding-top: 0.5rem;
+  }
+}
+
+.stats-chart-wrapper {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  height: 100%;
+}
+
+// -------------------------------------------------------------
+// Contenedor y Tablas Estadísticas
+// -------------------------------------------------------------
+.stats-table-wrapper {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table.table,
+  .table {
+    table-layout: auto !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    margin-bottom: 0;
+
+    thead th {
+      white-space: normal !important;
+      word-break: normal !important;
+      overflow-wrap: break-word !important;
+      vertical-align: middle !important;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #475569;
+      background-color: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0.75rem 0.65rem;
+      line-height: 1.25;
+    }
+
+    tbody td {
+      white-space: normal !important;
+      word-break: normal !important;
+      overflow-wrap: break-word !important;
+      vertical-align: middle !important;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #f1f5f9;
+      padding: 0.75rem 0.65rem;
+      color: #1e293b;
+    }
+  }
+
+  // Tabla: Control de Hermanos
+  .tabla-hermanos {
+    min-width: 820px !important;
+
+    .col-num {
+      width: 44px;
+      text-align: center;
+    }
+    .col-rep {
+      min-width: 220px;
+    }
+    .col-cedula {
+      width: 115px;
+      white-space: nowrap !important;
+    }
+    .col-telefono {
+      width: 130px;
+      white-space: nowrap !important;
+    }
+    .col-hijos {
+      width: 110px;
+      text-align: center;
+      white-space: nowrap !important;
+    }
+    .col-situacion {
+      width: 155px;
+      text-align: center;
+      white-space: nowrap !important;
+    }
+    .col-accion {
+      width: 145px;
+      text-align: center;
+      white-space: nowrap !important;
+    }
+  }
+
+  // Tabla: Antropometría
+  .tabla-antropometria {
+    min-width: 700px !important;
+
+    .col-grado {
+      min-width: 95px;
+    }
+    .col-stat {
+      width: 11%;
+      text-align: center;
+      white-space: nowrap !important;
+    }
+    .col-metric {
+      width: 18%;
+      text-align: center;
+      line-height: 1.25;
+    }
+    .col-pct {
+      width: 13%;
+      text-align: right;
+      white-space: nowrap !important;
+    }
+  }
+
+  // Tabla: Tallas
+  .tabla-tallas {
+    min-width: 660px !important;
+
+    .col-grado { min-width: 95px; }
+    .col-tot { width: 14%; text-align: center; }
+    .col-item { width: 12%; text-align: center; }
+    .col-all { width: 14%; text-align: center; font-weight: 700; }
+    .col-cob { width: 12%; text-align: right; }
+  }
+
+  // Tabla: Matrícula y Aulas
+  .tabla-matricula-aulas {
+    min-width: 820px !important;
+
+    .col-grado { min-width: 110px; }
+    .col-sec { width: 75px; text-align: center; }
+    .col-turno { width: 85px; }
+    .col-cap { width: 105px; text-align: center; }
+    .col-m { width: 90px; text-align: center; }
+    .col-f { width: 90px; text-align: center; }
+    .col-tot { width: 110px; text-align: center; font-weight: 700; }
+    .col-cupos { width: 110px; text-align: center; font-weight: 700; }
+    .col-ocup { width: 95px; text-align: right; }
+  }
+}

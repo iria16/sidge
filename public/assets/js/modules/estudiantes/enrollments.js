@@ -511,21 +511,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
       /* Se manda el bloque entero. El servidor ignora el que no aplica y
          limpia esos datos al guardar, así que mandar de más no rompe nada. */
-      if (extranjera) {
-        if (!pais) {
-          SIGDEUI.mostrarAviso('warning', 'País requerido', 'Selecciona el país de la institución.');
-          return;
-        }
-      }
+
 
       var payloadInst = {
         nombre: nombre,
         tipo: tipo,
         es_extranjera: extranjera ? '1' : '0'
       };
-      if (extranjera) {
-        payloadInst.pais_id = pais;
-      } else {
+      if (!extranjera) {
         payloadInst.id_estado_geo = estado;
         payloadInst.id_municipio = municipio;
         payloadInst.id_parroquia = parroquia;

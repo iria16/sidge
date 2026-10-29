@@ -9,6 +9,8 @@ use App\Support\Validator;
 use PDO;
 use Throwable;
 
+use function App\Traits\sigde_rol_clave;
+
 /**
  * Gestión de años escolares (configuracion_academica/anios_escolares), consumida por academic-years.js.
  * Las transiciones de estado son acciones explícitas: iniciar() y cerrar().
@@ -46,8 +48,10 @@ class AcademicYearController extends CrudController
     protected function getExtraIndexData(array $items, array $filters): array
     {
         return [
-            'stats' => $this->modelo()->getStats(),
-            'anios' => $items,
+            'stats'         => $this->modelo()->getStats(),
+            'anios'         => $items,
+            'puedeReabrir'  => function_exists('App\Traits\sigde_rol_clave')
+                && sigde_rol_clave($_SESSION['rol'] ?? '') === 'directivo',
         ];
     }
 

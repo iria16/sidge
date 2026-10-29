@@ -10,7 +10,7 @@
     "sass:watch": "sass --watch resources/scss/app.scss:public/assets/css/app.css",
     "sass:build:pdf": "sass resources/scss/pdf/constancia.scss public/assets/css/pdf/constancia.css --style=expanded --no-source-map && sass resources/scss/pdf/ficha-estudiante.scss public/assets/css/pdf/ficha-estudiante.css --style=expanded --no-source-map && sass resources/scss/pdf/nomina-seccion.scss public/assets/css/pdf/nomina-seccion.css --style=expanded --no-source-map && sass resources/scss/pdf/reporte-personal.scss public/assets/css/pdf/reporte-personal.css --style=expanded --no-source-map && sass resources/scss/pdf/reporte-oficial.scss public/assets/css/pdf/reporte-oficial.css --style=expanded --no-source-map",
     "sass:watch:pdf": "sass --watch resources/scss/pdf/constancia.scss:public/assets/css/pdf/constancia.css resources/scss/pdf/ficha-estudiante.scss:public/assets/css/pdf/ficha-estudiante.css resources/scss/pdf/nomina-seccion.scss:public/assets/css/pdf/nomina-seccion.css resources/scss/pdf/reporte-personal.scss:public/assets/css/pdf/reporte-personal.css resources/scss/pdf/reporte-oficial.scss:public/assets/css/pdf/reporte-oficial.css",
-    "copy:vendor-js": "mkdir -p public/assets/js/vendor && cp node_modules/bootstrap/dist/js/bootstrap.bundle.min.js public/assets/js/vendor/ && cp node_modules/sweetalert2/dist/sweetalert2.all.min.js public/assets/js/vendor/",
+    "copy:vendor-js": "mkdir -p public/assets/js/vendor && cp node_modules/bootstrap/dist/js/bootstrap.bundle.min.js public/assets/js/vendor/ && cp node_modules/sweetalert2/dist/sweetalert2.all.min.js public/assets/js/vendor/ && cp node_modules/chart.js/dist/chart.umd.js public/assets/js/vendor/chart.js",
     "copy:vendor-icons": "mkdir -p public/assets/vendor/bootstrap-icons && cp -r node_modules/bootstrap-icons/font/* public/assets/vendor/bootstrap-icons/",
     "verificar:ids": "php scripts/verificar-ids.php",
     "verificar:vistas": "php scripts/verificar-vistas.php",
@@ -22,6 +22,7 @@
   "dependencies": {
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
+    "chart.js": "4.4.8",
     "sweetalert2": "^11.26.25"
   },
   "devDependencies": {

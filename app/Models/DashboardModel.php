@@ -101,6 +101,45 @@ class DashboardModel extends Model
     }
 
     /**
+     * Cobertura de cuentas de usuario sobre el personal activo.
+     *
+     * @return array{
+     *   total_empleados: int,
+     *   con_cuenta: int,
+     *   sin_cuenta: int,
+     *   porcentaje: int
+     * }
+     */
+    public function getCoberturaPersonal(): array
+    {
+        $totalEmpleados = 0;
+        $conCuenta = 0;
+        try {
+            $totalEmpleados = (int) $this->pdo->query(
+                "SELECT COUNT(*) FROM empleado WHERE fecha_egreso IS NULL"
+            )->fetchColumn();
+
+            $conCuenta = (int) $this->pdo->query(
+                "SELECT COUNT(DISTINCT e.id_empleado)
+                   FROM empleado e
+                  INNER JOIN usuario u ON u.id_persona = e.id_persona
+                  WHERE e.fecha_egreso IS NULL"
+            )->fetchColumn();
+        } catch (Throwable $e) {
+            error_log('DashboardModel::getCoberturaPersonal: ' . $e->getMessage());
+        }
+
+        $porcentaje = $totalEmpleados > 0 ? (int) round(($conCuenta / $totalEmpleados) * 100) : 0;
+
+        return [
+            'total_empleados' => $totalEmpleados,
+            'con_cuenta'      => $conCuenta,
+            'sin_cuenta'      => max(0, $totalEmpleados - $conCuenta),
+            'porcentaje'      => $porcentaje,
+        ];
+    }
+
+    /**
      * Lista de ítems para el bloque "Requiere atención".
      * Solo retorna filas con valor > 0.
      *
@@ -116,6 +155,50 @@ class DashboardModel extends Model
     public function getAtencionRequerida(): array
     {
         $items = [];
+
+        // 0. Solicitudes de recuperación de acceso pendientes (recuperacionAcceso/index)
+        try {
+            $recuperaciones = (int) $this->pdo->query(
+                "SELECT COUNT(*) FROM recuperacion_acceso WHERE estado_recuperacion = 'PENDIENTE'"
+            )->fetchColumn();
+
+            if ($recuperaciones > 0) {
+                $items[] = [
+                    'id'           => 'recuperaciones_pendientes',
+                    'texto'        => $recuperaciones === 1
+                        ? 'Solicitud de recuperación de acceso pendiente'
+                        : 'Solicitudes de recuperación de acceso pendientes',
+                    'conteo'       => $recuperaciones,
+                    'nivel'        => 'danger',
+                    'url'          => BASE_URL . 'recuperacionAcceso/index',
+                    'texto_enlace' => 'Resolver solicitudes',
+                ];
+            }
+        } catch (Throwable $e) {
+            error_log('DashboardModel::getAtencionRequerida recuperaciones: ' . $e->getMessage());
+        }
+
+        // 0.1 Cuentas bloqueadas por seguridad (cuentaUsuario/index)
+        try {
+            $bloqueadas = (int) $this->pdo->query(
+                "SELECT COUNT(*) FROM usuario WHERE (bloqueado_hasta IS NOT NULL AND bloqueado_hasta > NOW()) OR intentos_fallidos >= 3"
+            )->fetchColumn();
+
+            if ($bloqueadas > 0) {
+                $items[] = [
+                    'id'           => 'cuentas_bloqueadas',
+                    'texto'        => $bloqueadas === 1
+                        ? 'Cuenta de usuario bloqueada por seguridad'
+                        : 'Cuentas de usuario bloqueadas por seguridad',
+                    'conteo'       => $bloqueadas,
+                    'nivel'        => 'danger',
+                    'url'          => BASE_URL . 'cuentaUsuario/index',
+                    'texto_enlace' => 'Desbloquear cuentas',
+                ];
+            }
+        } catch (Throwable $e) {
+            error_log('DashboardModel::getAtencionRequerida bloqueadas: ' . $e->getMessage());
+        }
 
         // 1. Empleados activos sin cuenta de usuario (cuentaUsuario/create)
         try {

@@ -772,8 +772,8 @@ class DirectivoDashboardModel extends Model
                         COUNT(DISTINCT m.id_estudiante) AS total_estudiantes,
                         COUNT(DISTINCT CASE WHEN ra.literal IS NOT NULL THEN ra.id_estudiante END) AS total_cargados,
                         COUNT(DISTINCT CASE WHEN m.id_estudiante IS NOT NULL AND ra.literal IS NULL THEN m.id_estudiante END) AS total_pendientes,
-                        COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'PROMOVIDO' THEN ra.id_estudiante END) AS total_promovidos,
-                        COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'NO_PROMOVIDO' THEN ra.id_estudiante END) AS total_no_promovidos,
+                        COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'PROMOVIDO' OR (ra.literal IN ('A','B','C','D') AND ra.estado_resultado = 'PENDIENTE') THEN ra.id_estudiante END) AS total_promovidos,
+                        COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'NO_PROMOVIDO' OR (ra.literal = 'E' AND ra.estado_resultado = 'PENDIENTE') THEN ra.id_estudiante END) AS total_no_promovidos,
                         MAX(NULLIF(TRIM(CONCAT_WS(' ', p_doc.primer_nombre, p_doc.primer_apellido)), '')) AS docente_nombre
                    FROM estructura_academica ea
                    INNER JOIN anio_escolar ae ON ae.id_anio_escolar = ea.id_anio_escolar
@@ -808,9 +808,11 @@ class DirectivoDashboardModel extends Model
             $fila['total_promovidos']  = (int) $fila['total_promovidos'];
             $fila['total_no_promovidos'] = (int) $fila['total_no_promovidos'];
             $fila['docente_nombre']    = trim((string) ($fila['docente_nombre'] ?? ''));
+            $fila['turno']             = trim((string) ($fila['turno'] ?? ''));
+            // Sección sin estudiantes: avance "—", no 0%
             $fila['porcentaje_carga']  = $fila['total_estudiantes'] > 0
                 ? (int) round(($fila['total_cargados'] / $fila['total_estudiantes']) * 100)
-                : 0;
+                : -1; // -1 indica "sin estudiantes"
         }
         unset($fila);
 
@@ -866,40 +868,110 @@ class DirectivoDashboardModel extends Model
         ];
     }
 
+    /** @var array<int, int> Caché de retiros pendientes indexada por id_anio_escolar */
+    private array $retirosPendientesCache = [];
+
     /**
-     * Alertas accionables para Dirección: secciones con estudiantes y sin docente,
-     * y secciones con estudiantes sin literal. Se derivan del mismo avance para no
-     * duplicar SQL.
+     * Retorna el número de solicitudes de retiro en estado PENDIENTE
+     * para el año escolar indicado (o el activo).
+     */
+    public function getRetirosPendientes(?int $idAnio = null): int
+    {
+        $idAnioResuelto = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
+
+        if ($idAnioResuelto <= 0) {
+            return 0;
+        }
+
+        if (isset($this->retirosPendientesCache[$idAnioResuelto])) {
+            return $this->retirosPendientesCache[$idAnioResuelto];
+        }
+
+        try {
+            $sql = "SELECT COUNT(DISTINCT r.id_retiro)
+                      FROM retiro r
+                     INNER JOIN matricula m ON m.id_matricula = r.id_matricula
+                     WHERE r.estado_solicitud = 'PENDIENTE'
+                       AND m.id_anio_escolar = :anio";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(['anio' => $idAnioResuelto]);
+            $total = (int) $stmt->fetchColumn();
+
+            $this->retirosPendientesCache[$idAnioResuelto] = $total;
+
+            return $total;
+        } catch (Throwable $e) {
+            error_log('DirectivoDashboardModel::getRetirosPendientes: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Alertas accionables para Dirección y Coordinación: retiros pendientes de resolución
+     * (solo para directivo), secciones con estudiantes y sin docente, y literales pendientes.
      *
      * @return list<array<string, mixed>>
      */
-    public function getAlertas(?int $idAnio = null): array
+    public function getAlertas(?int $idAnio = null, ?string $rol = null): array
     {
         $alertas = [];
 
-        foreach ($this->getResultadosPorSeccion($idAnio) as $seccion) {
-            $etiqueta = trim($seccion['grado'] . ' ' . $seccion['seccion']);
-
-            if ($seccion['docente_nombre'] === '' && $seccion['total_estudiantes'] > 0) {
+        // 1. Solicitudes de retiro pendientes de resolución (exclusivo de Dirección)
+        if ($rol === null || $rol === 'directivo') {
+            $retirosPendientes = $this->getRetirosPendientes($idAnio);
+            if ($retirosPendientes > 0) {
                 $alertas[] = [
-                    'tipo'    => 'sin_docente',
-                    'nivel'   => 'warning',
-                    'id'      => $seccion['id'],
-                    'seccion' => $etiqueta,
-                    'detalle' => 'La sección no tiene docente asignado.',
+                    'tipo'     => 'retiros_pendientes',
+                    'nivel'    => 'warning',
+                    'cantidad' => $retirosPendientes,
+                    'seccion'  => 'Retiros',
+                    'detalle'  => $retirosPendientes . ' solicitud' . ($retirosPendientes === 1 ? '' : 'es') . ' de retiro escolar pendiente' . ($retirosPendientes === 1 ? '' : 's') . ' por resolver.',
                 ];
             }
+        }
 
-            if ($seccion['total_pendientes'] > 0) {
-                $alertas[] = [
-                    'tipo'    => 'sin_literal',
-                    'nivel'   => 'info',
-                    'id'      => $seccion['id'],
-                    'seccion' => $etiqueta,
-                    'detalle' => $seccion['total_pendientes'] . ' estudiante'
-                        . ($seccion['total_pendientes'] === 1 ? '' : 's')
-                        . ' sin literal.',
-                ];
+        // 2. Aulas sin docente titular y seguimiento condicional de literales (Acción ejecutiva de Dirección)
+        if ($rol === null || $rol === 'directivo') {
+            $anioInfo = $this->getAnioActivo();
+            $fechaCierre = $anioInfo['fecha_fin'] ?? null;
+            $enVentanaCierre = false;
+            if ($fechaCierre !== null && trim($fechaCierre) !== '') {
+                $tsCierre = strtotime($fechaCierre);
+                if ($tsCierre !== false) {
+                    // Ventana de cierre: 60 días previos a la fecha de fin de año
+                    $tsInicioVentana = strtotime('-60 days', $tsCierre);
+                    $enVentanaCierre = time() >= $tsInicioVentana;
+                }
+            }
+
+            foreach ($this->getResultadosPorSeccion($idAnio) as $seccion) {
+                $etiqueta = trim($seccion['grado'] . ' ' . $seccion['seccion']);
+
+                if ($seccion['docente_nombre'] === '' && $seccion['total_estudiantes'] > 0) {
+                    // Si no hay docente, la alerta prioritaria y raíz es asignar titular
+                    $alertas[] = [
+                        'tipo'     => 'sin_docente',
+                        'nivel'    => 'warning',
+                        'id'       => $seccion['id'],
+                        'seccion'  => $etiqueta,
+                        'detalle'  => 'La sección ' . $etiqueta . ' no tiene docente asignado.',
+                    ];
+                } elseif ($seccion['docente_nombre'] !== '' && $seccion['total_pendientes'] > 0) {
+                    // Solo alertar de literales si la sección SÍ tiene docente Y (ya empezó la carga o estamos en fin de ciclo)
+                    if ($seccion['total_cargados'] > 0 || $enVentanaCierre) {
+                        $alertas[] = [
+                            'tipo'     => 'sin_literal',
+                            'nivel'    => 'info',
+                            'id'       => $seccion['id'],
+                            'seccion'  => $etiqueta,
+                            'cantidad' => $seccion['total_pendientes'],
+                            'detalle'  => $seccion['total_pendientes'] . ' estudiante'
+                                . ($seccion['total_pendientes'] === 1 ? '' : 's')
+                                . ' sin literal en ' . $etiqueta . '.',
+                        ];
+                    }
+                }
             }
         }
 

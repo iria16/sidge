@@ -100,23 +100,7 @@ $provDea          = (string) ($selDea     ?? '');
   </div>
 </div>
 
-<div data-bloque="extranjera" class="<?= $provExtranjera ? '' : 'd-none' ?>">
-  <div class="mb-3">
-    <label for="<?= htmlspecialchars($provPrefijo) ?>Pais" class="form-label">
-      País <span class="text-danger">*</span>
-    </label>
-    <select id="<?= htmlspecialchars($provPrefijo) ?>Pais" name="pais_id" class="form-select" <?= $provExtranjera ? 'required' : '' ?>>
-      <option value="">Seleccione el país...</option>
-      <?php foreach ($provPaises as $opcionPais): ?>
-        <option value="<?= (int) $opcionPais['id_pais'] ?>"<?= $provPais === (int) $opcionPais['id_pais'] ? ' selected' : '' ?>><?= htmlspecialchars($opcionPais['nombre']) ?></option>
-      <?php endforeach; ?>
-    </select>
-    <div class="invalid-feedback">Selecciona el país de la institución.</div>
-    <div class="text-support mt-1" style="font-size: 0.75rem">
-      Solo se requiere el país para instituciones extranjeras.
-    </div>
-  </div>
-</div>
+
 
 <script>
 (function () {
@@ -143,14 +127,7 @@ $provDea          = (string) ($selDea     ?? '');
       }
     }
 
-    if (bExt) {
-      bExt.classList.toggle('d-none', !esExt);
-      var selPais = bExt.querySelector('select[name="pais_id"]');
-      if (selPais) {
-        selPais.required = esExt;
-        if (!esExt) selPais.value = '';
-      }
-    }
+
   }
 
   interruptor.addEventListener('change', actualizarVisibilidad);

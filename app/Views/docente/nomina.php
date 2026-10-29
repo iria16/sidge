@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: docente/nomina.php  ·  /docente/nomina
  * Listados de solo lectura de la sección del docente.
@@ -9,7 +12,7 @@
  *
  * @var array|null $seccion        Sección resuelta en el servidor (sesión).
  * @var bool       $tieneSeccion
- * @var string     $vista          nomina | contacto | cumpleaneros
+ * @var string     $vista          nomina | contacto | cumpleaneros | boletas
  * @var array      $vistas         Definición de las vistas permitidas.
  * @var array      $columnas       clave => encabezado, en orden.
  * @var array      $filas          Resultado de EstudianteModel::nominaSeccion().
@@ -18,6 +21,7 @@
  * @var int        $mesActual      Mes en curso (1..12) en America/Caracas.
  * @var string     $nombreEscuela
  */
+
 require_once __DIR__ . '/../helpers/ui.php';
 
 $e = static fn($v): string => htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -77,34 +81,46 @@ $telefonoAutConWa = static function (string $tel) use ($e): string {
     return '<div class="nomina-tel-linea"><span class="nomina-tel-num">' . $e($tel) . '</span></div>';
 };
 
-ob_start();
 $pageTitle        = 'Listados de la sección';
 $currentNav       = 'mi-seccion-listados';
 $breadcrumbs      = [
     ['label' => 'Mi sección', 'href' => null],
     ['label' => 'Listados', 'href' => null],
 ];
+$extraScripts     = ['/js/modules/docente/docente.js'];
+
 $pageHeading      = 'Listados de la sección';
 $pageSubheading   = $seccion
     ? $seccion['grado'] . ' · Sección ' . $seccion['seccion'] . ' · ' . $seccion['turno'] . ' · ' . $seccion['anio_escolar']
     : 'Sin sección asignada';
 $idEstructura     = (int) ($seccion['id_estructura_academica'] ?? 0);
 
-if (!$tieneSeccion || in_array($vista, ['nomina', 'contacto', 'cumpleaneros'], true)) {
-    $pageHeaderActions = '';
+if ($tieneSeccion) {
+    if (!in_array($vista, ['nomina', 'contacto', 'cumpleaneros'], true)) {
+        $urlBaseDocumento = $vista === 'boletas'
+            ? BASE_URL . 'certificadoCalificaciones/generarPorSeccion?id_estructura=' . $idEstructura
+            : $urlNomina(['formato' => 'pdf']);
+        $pageHeaderActions = '<button type="button" class="btn btn-primary" id="btnVistaPreviaDocumento"'
+            . ' data-base-pdf="' . $e($urlBaseDocumento) . '"'
+            . ' data-filtros="' . $e(implode(',', $filtrosVista)) . '">'
+            . '<i class="bi bi-eye me-1" aria-hidden="true"></i>Visualizar documento</button>';
+    } else {
+        $pageHeaderActions = '<a href="' . $e($urlNomina(['formato' => 'pdf'])) . '"'
+            . ' id="btnExportarNominaPdf"'
+            . ' data-filtros="' . $e(implode(',', $filtrosVista)) . '"'
+            . ' target="_blank" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">'
+            . '<i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>'
+            . '<span>Exportar PDF</span></a>';
+    }
 } else {
-    $urlBaseDocumento = $vista === 'boletas'
-        ? BASE_URL . 'certificadoCalificaciones/generarPorSeccion?id_estructura=' . $idEstructura
-        : $urlNomina(['formato' => 'pdf']);
-    $pageHeaderActions = '<button type="button" class="btn btn-primary" id="btnVistaPreviaDocumento"'
-        . ' data-base-pdf="' . $e($urlBaseDocumento) . '"'
-        . ' data-filtros="' . $e(implode(',', $filtrosVista)) . '">'
-        . '<i class="bi bi-eye me-1" aria-hidden="true"></i>Visualizar documento</button>';
+    $pageHeaderActions = '';
 }
-include __DIR__ . '/../components/page-header.php';
-?>
 
-<?php if (!$tieneSeccion): ?>
+ob_start();
+
+include __DIR__ . '/../components/page-header.php';
+
+if (!$tieneSeccion): ?>
   <div class="alert alert-warning d-flex align-items-start gap-3 shadow-sm" role="status">
     <i class="bi bi-exclamation-triangle fs-4 flex-shrink-0" aria-hidden="true"></i>
     <div>
@@ -114,58 +130,9 @@ include __DIR__ . '/../components/page-header.php';
   </div>
 <?php else: ?>
 
-  <?php /* ── Chips de vista ─────────────────────────────────────────────── */ ?>
-  <nav class="nomina-chips mb-3" aria-label="Tipo de listado">
-    <?php foreach ($vistas as $clave => $def): ?>
-      <a class="nomina-chip <?= $clave === $vista ? 'is-active' : '' ?>"
-         href="<?= $e($urlNomina(['vista' => $clave])) ?>"
-         data-filtros="<?= $e(implode(',', $def['filtros'] ?? ['q'])) ?>"
-         <?= $clave === $vista ? 'aria-current="page"' : '' ?>><?= $e($def['etiqueta']) ?></a>
-    <?php endforeach; ?>
-  </nav>
+  <?php include __DIR__ . '/partials/chips.php'; ?>
 
-  
-
-  <?php /* ── Filtros automáticos propios de cada vista (main.js) ──────────
-           Se dibuja solo si la vista trae algún filtro. El acta no trae ninguno:
-           sin esta comprobación la tarjeta salía vacía, con el hueco de los
-           filtros, que es lo que veía el docente al entrar a esa pestaña. */ ?>
-<?php if ($filtrosVista !== []): ?>
-  <form class="card border-0 shadow-sm mb-3 auto-filters" id="filtrosListadoNomina" method="get" action="<?= BASE_URL ?>docente/nomina">
-    <input type="hidden" name="vista" value="<?= $e($vista) ?>">
-    <div class="card-body">
-      <div class="row g-2 align-items-end">
-        <?php if (in_array('sexo', $filtrosVista, true)): ?>
-          <div class="col-12 col-md-4 col-lg-3">
-            <label for="sexo" class="form-label small fw-semibold">Sexo</label>
-            <select class="form-select" id="sexo" name="sexo">
-              <option value="">Todos</option>
-              <option value="F" <?= $filtros['sexo'] === 'F' ? 'selected' : '' ?>>Femenino</option>
-              <option value="M" <?= $filtros['sexo'] === 'M' ? 'selected' : '' ?>>Masculino</option>
-            </select>
-          </div>
-        <?php endif; ?>
-        <?php if (in_array('mes', $filtrosVista, true)): ?>
-          <div class="col-12 col-md-4 col-lg-3">
-            <label for="mes" class="form-label small fw-semibold">Mes de cumpleaños</label>
-            <select class="form-select" id="mes" name="mes">
-              <?php foreach ($meses as $num => $nombreMes): ?>
-                <option value="<?= (int) $num ?>" <?= $filtros['mes'] === $num ? 'selected' : '' ?>><?= $e($nombreMes) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-        <?php endif; ?>
-        <?php if (in_array('q', $filtrosVista, true)): ?>
-          <div class="<?= $tieneSelectFiltro ? 'col-12 col-md-8 col-lg-9' : 'col-12' ?>">
-            <label for="q" class="form-label small fw-semibold">Buscar</label>
-            <input type="search" class="form-control" id="q" name="q" maxlength="60"
-                   value="<?= $e($filtros['q']) ?>" placeholder="<?= $e($placeholderBuscar) ?>">
-          </div>
-        <?php endif; ?>
-      </div>
-    </div>
-  </form>
-<?php endif; ?>
+  <?php include __DIR__ . '/partials/filters.php'; ?>
 
   <?php /* ── Tabla única ─────────────────────────────────────────────────── */ ?>
   <?php /* Los autorizados NO se aplanan: el modelo ya devuelve una lista de
@@ -185,225 +152,20 @@ include __DIR__ . '/../components/page-header.php';
         <span class="small text-muted"><?= count($filas) ?> estudiante<?= count($filas) === 1 ? '' : 's' ?></span>
       </div>
       <div class="table-responsive">
-        <table class="table align-middle mb-0 data-panel__table nomina-tabla" id="nominaTabla">
-        <thead>
-          <tr>
-            <?php /* Encabezados de texto. El orden de los listados es fijo y lo
-                    aplica el servidor: alfabético por apellido, que es como se
-                    lee un listado y como se entrega en el PDF. */ ?>
-            <?php foreach ($columnas as $clave => $titulo): ?>
-              <th scope="col" class="nomina-col--<?= $e($clave) ?>"><?= $e($titulo) ?></th>
-            <?php endforeach; ?>
-          </tr>
-        </thead>
-        <tbody id="nominaCuerpo">
-        <?php if ($filas === []): ?>
-          <tr>
-            <td colspan="<?= count($columnas) ?>" class="text-center text-muted py-4">
-              No hay estudiantes que coincidan con los filtros.
-            </td>
-          </tr>
-        <?php else: ?>
-          <?php /* GRUPOS: una celda de estudiante y una de representante por alumno,
-                   con rowspan sobre el número de autorizados. El nombre del alumno
-                   y el del representante salen una sola vez, arriba de su grupo. */ ?>
-          <?php foreach ($filas as $i => $f):
-              $esAutorizados = ($vista === 'autorizados');
-              $autorizados = $f['autorizados'] ?? [];
-              $nFilas = count($autorizados) > 0 ? count($autorizados) : 1;
-              /* Cada persona autorizada ocupa una fila; el alumno sin ninguno
-                 ocupa una sola, que dice que solo el representante puede retirar. */
-              $grupos = $autorizados !== [] ? $autorizados : [null];
-              foreach ($grupos as $k => $aut):
-                  $primera = ($k === 0);
-              ?>
-            <tr<?= $primera && $esAutorizados ? ' class="nomina-grupo-inicio"' : '' ?>>
-              <?php foreach ($columnas as $clave => $titulo):
-                  /* Solo el estudiante se agrupa: la columna Representante legal ya
-                     no está en esta vista. */
-                  $celdaGrupo = $esAutorizados && $clave === 'estudiante';
-                  $salta = $celdaGrupo && !$primera;
-                  if ($salta) { continue; }
-                  $atributos = $celdaGrupo
-                      ? ' rowspan="' . $nFilas . '" class="nomina-col--' . $e($clave) . '"'
-                      : ' class="nomina-col--' . $e($clave) . '"';
-                  ?>
-                <td<?= $atributos ?>>
-                  <?php switch ($clave):
-                    case 'n': ?>
-                      <?= $i + 1 ?>
-                      <?php break;
-                    case 'cedula': ?>
-                      <?= $f['documento'] !== '' ? $e($f['documento']) : '—' ?>
-                      <?php break;
-                    case 'estudiante': ?>
-                      <?= $e($f['estudiante']) ?>
-                      <?php break;
-                    case 'sexo': ?>
-                      <?= $f['sexo'] === 'F' ? 'F' : 'M' ?>
-                      <?php break;
-                    case 'fecha_nac': ?>
-                      <?= $e($fmtFecha($f['fecha_nacimiento'])) ?>
-                      <?php break;
-                    case 'edad': ?>
-                      <?= (int) $f['edad'] ?>
-                      <?php break;
-                    case 'representante': ?>
-                      <?php if (!empty($f['representante'])): ?>
-                        <div><?= $e($f['representante']) ?></div>
-                        <?php if (!empty($f['parentesco'])): ?>
-                          <div class="text-muted small">(<?= $e($f['parentesco']) ?>)</div>
-                        <?php endif; ?>
-                      <?php else: ?>
-                        <span class="text-muted">Sin representante</span>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'cedula_rep': ?>
-                      <?= $f['rep_documento'] !== '' ? $e($f['rep_documento']) : '—' ?>
-                      <?php break;
-                    case 'firma': ?>
-                      <span class="nomina-firma" aria-label="Espacio para firmar"></span>
-                      <?php break;
-                    case 'telefonos_rep': ?>
-                      <?php if ($f['rep_telefonos'] === []): ?>
-                        <span class="text-muted">Sin teléfono</span>
-                      <?php else: ?>
-                        <?php foreach ($f['rep_telefonos'] as $tel): ?>
-                          <div><?= $telefonoConWa($tel, true) ?></div>
-                        <?php endforeach; ?>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'direccion':
-                    case 'direccion_rep': ?>
-                      <?php if (($f['rep_direccion'] ?? '') === ''): ?>
-                        <span class="text-muted">Sin dirección</span>
-                      <?php else: ?>
-                        <div class="celda-wrap"><?= $e($f['rep_direccion']) ?></div>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'autorizados':
-                    case 'autorizado': ?>
-                      <?php
-                      $auts = $f['autorizados'] ?? [];
-                      if ($aut !== null) {
-                          $auts = [$aut];
-                      }
-                      if ($auts === []): ?>
-                        <span class="text-muted small">Solo el representante</span>
-                      <?php else: ?>
-                        <div class="d-flex flex-column gap-1 celda-wrap">
-                          <?php foreach ($auts as $a): ?>
-                            <div class="small">
-                              <strong><?= $e($a['nombre']) ?></strong>
-                              <?php if (!empty($a['parentesco'])): ?>
-                                <span class="text-muted">(<?= $e($a['parentesco']) ?>)</span>
-                              <?php endif; ?>
-                              <?php if (!empty($a['telefonos'])): ?>
-                                <div class="text-secondary small">
-                                  <?= $e(implode(' · ', $a['telefonos'])) ?>
-                                </div>
-                              <?php endif; ?>
-                            </div>
-                          <?php endforeach; ?>
-                        </div>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'parentesco_aut': ?>
-                      <?php if ($aut === null): ?>
-                        <span class="text-muted">—</span>
-                      <?php elseif ($aut['parentesco'] !== ''): ?>
-                        <?= $e($aut['parentesco']) ?>
-                      <?php else: ?>
-                        <span class="text-muted">—</span>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'telefono_aut': ?>
-                      <?php if ($aut === null || $aut['telefonos'] === []): ?>
-                        <div class="nomina-tel-linea">
-                          <span class="nomina-tel-num text-muted">Sin teléfono</span>
-                          <span class="nomina-tel-ico"></span>
-                        </div>
-                      <?php else: ?>
-                        <?php foreach ($aut['telefonos'] as $tel): ?>
-                          <?= $telefonoAutConWa($tel) ?>
-                        <?php endforeach; ?>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'dia': ?>
-                      <?= (int) $f['dia_cumple'] ?>
-                      <?php break;
-                    case 'edad_cumple': ?>
-                      <?= (int) $f['edad_cumple'] ?> años
-                      <?php /* Si el mes ya pasó, el cumpleaños también: se marca para
-                               que el listado no insinúe que está por llegar. */ ?>
-                      <?php if (!empty($f['cumple_ya_paso'])): ?>
-                        <span class="nomina-cumple-ok">Ya cumplió</span>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'literal': ?>
-                      <?php if (!empty($f['literal'])):
-                        $lit = strtoupper((string) $f['literal']);
-                        $badgeClass = match ($lit) {
-                            'A' => 'bg-success',
-                            'B' => 'bg-primary',
-                            'C' => 'bg-info text-dark',
-                            'D' => 'bg-warning text-dark',
-                            'E' => 'bg-danger',
-                            default => 'bg-secondary',
-                        };
-                      ?>
-                        <span class="badge <?= $badgeClass ?> px-2 py-1 fw-bold fs-6">
-                          <?= $e($lit) ?>
-                        </span>
-                      <?php else: ?>
-                        <span class="badge bg-light text-muted border py-1 px-2">Sin registrar</span>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'promocion': ?>
-                      <?php
-                      $st = (string) ($f['estado_resultado'] ?? 'PENDIENTE');
-                      if ($st === 'PROMOVIDO'): ?>
-                        <span class="status-badge status-badge--active">Promovido</span>
-                      <?php elseif ($st === 'NO_PROMOVIDO'): ?>
-                        <span class="status-badge status-badge--inactive">No promovido</span>
-                      <?php else: ?>
-                        <span class="status-badge status-badge--pending">Pendiente</span>
-                      <?php endif; ?>
-                      <?php break;
-                    case 'boleta': ?>
-                      <?php if (!empty($f['literal'])): ?>
-                        <?php
-                        $urlBoletaInd = BASE_URL . 'certificadoCalificaciones/generarIndividual?id_estudiante=' . (int) $f['id_estudiante'] . '&id_estructura=' . $idEstructura;
-                        $nomEstudiante = trim(($f['primer_apellido'] ?? '') . ' ' . ($f['segundo_apellido'] ?? '') . ', ' . ($f['primer_nombre'] ?? '') . ' ' . ($f['segundo_nombre'] ?? ''));
-                        ?>
-                        <button type="button"
-                                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-preview-boleta-individual"
-                                data-url-pdf="<?= $e($urlBoletaInd) ?>"
-                                data-estudiante="<?= $e($nomEstudiante) ?>"
-                                title="Visualizar Certificado de Calificaciones">
-                          <i class="bi bi-eye" aria-hidden="true"></i>
-                          <span>Visualizar certificado</span>
-                        </button>
-                      <?php else: ?>
-                        <span class="text-muted small">Requiere literal</span>
-                      <?php endif; ?>
-                      <?php break;
-                  endswitch; ?>
-                </td>
-              <?php endforeach; ?>
-            </tr>
-              <?php endforeach; /* una fila por persona autorizada */ ?>
-          <?php endforeach; /* un grupo por estudiante */ ?>
-        <?php endif; ?>
-        </tbody>
-      </table>
+
+        <?php include __DIR__ . '/partials/table-head.php'; ?>
+        <?php include __DIR__ . '/partials/table-body.php'; ?>
+
       </div>
     </div>
   </section>
+
 <?php endif; ?>
+
 <?php
 $pageContent = ob_get_clean();
 
+$pageModals = '';
 if ($tieneSeccion && !in_array($vista, ['nomina', 'contacto', 'cumpleaneros'], true)) {
     /* Vista previa del documento en modal, para todas las pestañas por igual:
        «Visualizar documento» no baja nada, arma el PDF de la vista en curso y
@@ -442,10 +204,8 @@ if ($tieneSeccion && !in_array($vista, ['nomina', 'contacto', 'cumpleaneros'], t
 
     ob_start();
     require __DIR__ . '/../components/modal.php';
-    $pageModals = ($pageModals ?? '') . ob_get_clean();
+    $pageModals = ob_get_clean();
 }
-
-
 
 /* docente.js: búsqueda de la sección y botón del acta. */
 $extraScripts = array_merge($extraScripts ?? [], ['/js/modules/docente/docente.js']);

@@ -327,10 +327,9 @@ $rutasPermitidas = [
         'emitirLote'  => ['secretaria'],
     ],
     'resultadoAcademico' => [
-        'index'            => ['directivo', 'coordinador', 'docente'],
-        'seccion'          => ['directivo', 'coordinador', 'docente'],
-        'guardarPropuesta' => ['directivo', 'coordinador', 'docente'],
-        'confirmar'        => ['directivo'],
+        'index'            => ['docente'],
+        'seccion'          => ['docente'],
+        'guardarPropuesta' => ['docente'],
     ],
     'certificadoCalificaciones' => [
         'generarIndividual' => ['docente'],
@@ -346,6 +345,9 @@ $rutasPermitidas = [
     // Módulo de estadísticas oficiales (Directivo y Coordinador).
     'estadistica' => [
         'index' => ['directivo', 'coordinador'],
+        'exportarHermanosExcel' => ['directivo', 'coordinador'],
+        'exportarHermanosPdf' => ['directivo', 'coordinador'],
+        'exportarMatriculaExcel' => ['directivo', 'coordinador'],
     ],
 ];
 

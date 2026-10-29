@@ -1,16 +1,21 @@
 <?php
+
+declare(strict_types=1);
+
 /**
- * Modal crear/editar de la Estructura Académica, compartido entre nuevaEstructuraModal y
- * editarEstructuraModal.
+ * Modal reutilizable: estructuraAcademica/structure-modal.php
+ * Alta y edición de la Estructura Académica. Se incluye dos veces desde index.php.
  *
- * Variables desde la vista index:
- * - $modalId, $modalTitle, $modalSubtitle, $formId, $editMode
- * - $aniosEditables, $grados, $secciones, $turnos (catálogos [id, nombre])
- *
- * El año se toma de $aniosEditables y no de $anios: el filtro necesita ofrecer también los años
- * cerrados, porque un período anterior se consulta aunque no se pueda escribir en él, pero en
- * el modal cualquier año distinto del ACTIVO lo va a rechazar el servidor con un 422.
-*/
+ * @var string $modalId
+ * @var string $modalTitle
+ * @var string $modalSubtitle
+ * @var string $formId
+ * @var bool   $editMode
+ * @var array  $aniosEditables  [id, nombre]
+ * @var array  $grados          [id, nombre]
+ * @var array  $secciones       [id, nombre]
+ * @var array  $turnos          [id, nombre]
+ */
 $editMode = $editMode ?? false;
 $formId = $formId ?? 'formNuevaEstructura';
 $aniosEditables = $aniosEditables ?? [];

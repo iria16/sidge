@@ -117,7 +117,6 @@ final class ResultadoAcademicoVista
         $total            = count($estudiantes);
         $conLiteral       = 0;
         $sinLiteral       = 0;
-        $confirmados      = 0;
         $promovidos       = 0;
         $noPromovidos     = 0;
         $pendientes       = 0;
@@ -129,14 +128,10 @@ final class ResultadoAcademicoVista
                 $estado = ResultadoAcademicoModel::ESTADO_PENDIENTE;
             }
 
-            $estaConfirmado = !empty($est['fecha_confirmacion']) || !empty($est['confirmado_por']);
             if ($literal !== '') {
                 $conLiteral++;
             } else {
                 $sinLiteral++;
-            }
-            if ($estaConfirmado) {
-                $confirmados++;
             }
 
             if ($estado === ResultadoAcademicoModel::ESTADO_PROMOVIDO
@@ -179,8 +174,6 @@ final class ResultadoAcademicoVista
                 'propuesto_por'   => $propuestoPor,
                 'fecha_carga'     => $fechaCarga,
                 'cargado_por'     => $propuestoPor !== '' ? $propuestoPor : 'Docente',
-                'esta_confirmado' => $estaConfirmado,
-                'bloquear'        => $estaConfirmado || !$esDocente,
             ];
         }
 
@@ -189,7 +182,6 @@ final class ResultadoAcademicoVista
             'total'                => $total,
             'con_literal'          => $conLiteral,
             'sin_literal'          => $sinLiteral,
-            'confirmados'          => $confirmados,
             'promovidos'           => $promovidos,
             'no_promovidos'        => $noPromovidos,
             'pendientes'           => $pendientes,

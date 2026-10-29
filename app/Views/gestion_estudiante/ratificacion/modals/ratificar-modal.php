@@ -33,7 +33,7 @@ ob_start();
   
   <div class="mb-4">
     <div class="d-flex align-items-center mb-3">
-      <div class="bg-warning rounded" style="width: 4px; height: 16px; margin-right: 8px;"></div>
+      <div class="bg-warning rounded ratificar-alerta-barra"></div>
       <h6 class="mb-0 fw-bold">Estado Actual</h6>
     </div>
     
@@ -63,7 +63,7 @@ ob_start();
       </div>
 
       <div class="mt-3 pt-3 border-top">
-        <button type="button" class="btn btn-link p-0 text-decoration-none shadow-none btn-editar-datos" style="color: #0b2253;">
+        <button type="button" class="btn btn-link p-0 text-decoration-none shadow-none btn-editar-datos ratificar-editar-datos">
           <i class="bi bi-pencil me-1"></i> Editar datos del estudiante o familiares
         </button>
       </div>
@@ -72,7 +72,7 @@ ob_start();
 
   <div class="mb-4">
     <div class="d-flex align-items-center mb-3">
-      <div class="bg-warning rounded" style="width: 4px; height: 16px; margin-right: 8px;"></div>
+      <div class="bg-warning rounded ratificar-alerta-barra"></div>
       <h6 class="mb-0 fw-bold">Encuesta de Ratificación</h6>
     </div>
 
@@ -103,7 +103,7 @@ ob_start();
           <label class="form-check-label" for="tieneCanaimaSi">Sí</label>
         </div>
 
-        <div id="bloqueSerialCanaima" class="mt-2" style="display: none;">
+        <div id="bloqueSerialCanaima" class="mt-2 ratificar-bloque-oculto">
           <label class="form-label text-muted small mb-1" for="serialCanaima">Serial de la Canaima *</label>
           <input type="text" class="form-control" id="serialCanaima" name="serial_canaima"
                  maxlength="50" placeholder="Ej.: CAN-2023-XXXXX">
@@ -121,7 +121,7 @@ ob_start();
           <label class="form-check-label" for="tieneIngresoSigeSi">Sí</label>
         </div>
 
-        <div id="bloqueDetallesSige" class="mt-2 row g-3" style="display: none;">
+        <div id="bloqueDetallesSige" class="mt-2 row g-3 ratificar-bloque-oculto">
           <div class="col-md-6">
             <label class="form-label text-muted small mb-1" for="fechaIngresoSige">Fecha de Ingreso al SIGE</label>
             <input type="date" class="form-control" id="fechaIngresoSige" name="fecha_ingreso_sige">
@@ -138,7 +138,7 @@ ob_start();
 
   <div>
     <div class="d-flex align-items-center mb-3">
-      <div class="bg-warning rounded" style="width: 4px; height: 16px; margin-right: 8px;"></div>
+      <div class="bg-warning rounded ratificar-alerta-barra"></div>
       <h6 class="mb-0 fw-bold">Nueva Matrícula</h6>
     </div>
     <?php /* El AÑO es fijo y lo imprime el servidor: es el año escolar activo, el
@@ -235,7 +235,7 @@ $modalBody = ob_get_clean();
 ob_start();
 ?>
 <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
-<button type="submit" form="formRatificar" class="btn btn-primary" style="background-color: #0b2253; border-color: #0b2253;">
+<button type="submit" form="formRatificar" class="btn btn-primary">
   <i class="bi bi-person-check me-1"></i> Ratificar Matrícula
 </button>
 <?php

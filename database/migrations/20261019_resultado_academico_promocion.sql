@@ -1,6 +1,7 @@
 -- ============================================================================
 -- MIGRACIÓN: Gestión de Resultado Académico Anual (Promoción y No Promoción)
 -- Archivo: database/migrations/20261019_resultado_academico_promocion.sql
+-- Modificado: 2026-10-29 - Eliminada la fase de confirmación directiva
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `resultado_academico` (
@@ -12,14 +13,12 @@ CREATE TABLE IF NOT EXISTS `resultado_academico` (
   `literal` ENUM('A', 'B', 'C', 'D', 'E') NULL DEFAULT NULL COMMENT 'Calificación cualitativa oficial de Educación Primaria',
   `estado_resultado` ENUM('PENDIENTE', 'PROMOVIDO', 'NO_PROMOVIDO') NOT NULL DEFAULT 'PENDIENTE' COMMENT 'Estado del resultado anual',
   `id_grado_destino` INT(11) NULL DEFAULT NULL COMMENT 'Grado sugerido para la siguiente matrícula (siguiente si promovido, mismo si no)',
-  `observaciones` TEXT NULL DEFAULT NULL COMMENT 'Observaciones pedagógicas del docente o directivo',
-  
-  -- Auditoría y trazabilidad en dos fases (Docente propone / Directivo confirma)
-  `propuesto_por` INT(11) NULL DEFAULT NULL COMMENT 'Usuario del docente que cargó la propuesta',
+  `observaciones` TEXT NULL DEFAULT NULL COMMENT 'Observaciones pedagógicas del docente',
+
+  -- Auditoría: docente que cargó el literal
+  `propuesto_por` INT(11) NULL DEFAULT NULL COMMENT 'Usuario del docente que cargó el literal',
   `fecha_propuesta` DATETIME NULL DEFAULT NULL,
-  `confirmado_por` INT(11) NULL DEFAULT NULL COMMENT 'Usuario del directivo que validó y confirmó',
-  `fecha_confirmacion` DATETIME NULL DEFAULT NULL,
-  
+
   `fecha_creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `fecha_actualizacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -34,6 +33,5 @@ CREATE TABLE IF NOT EXISTS `resultado_academico` (
   CONSTRAINT `fk_res_acad_estructura` FOREIGN KEY (`id_estructura_academica`) REFERENCES `estructura_academica` (`id_estructura_academica`) ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT `fk_res_acad_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT `fk_res_acad_grado_destino` FOREIGN KEY (`id_grado_destino`) REFERENCES `grado` (`id_grado`) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT `fk_res_acad_propuesto` FOREIGN KEY (`propuesto_por`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT `fk_res_acad_confirmado` FOREIGN KEY (`confirmado_por`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE ON DELETE SET NULL
+  CONSTRAINT `fk_res_acad_propuesto` FOREIGN KEY (`propuesto_por`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

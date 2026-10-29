@@ -78,10 +78,6 @@ trait InstitucionTrait
         $idEstadoGeo  = (int) ($_POST['id_estado_geo'] ?? 0);
         $idMunicipio  = (int) ($_POST['id_municipio'] ?? 0);
         $idParroquia  = (int) ($_POST['id_parroquia'] ?? 0);
-        $paisId       = (int) ($_POST['pais_id'] ?? 0);
-        $ciudad       = trim((string) ($_POST['ciudad_extranjera'] ?? ''));
-        $direccion    = trim((string) ($_POST['direccion_extranjera'] ?? ''));
-        $referencia   = trim((string) ($_POST['referencia_plantel'] ?? ''));
         $codigoDea    = mb_strtoupper(trim((string) ($_POST['codigo_dea'] ?? '')), 'UTF-8');
 
         if ($nombre === '') {
@@ -139,33 +135,12 @@ trait InstitucionTrait
         //              ciudad y dirección. La referencia del plantel es
         //              opcional. El DEA se ignora siempre.
         if ($esExtranjera) {
-            if ($paisId <= 0) {
-                $this->jsonResponse(
-                    false,
-                    ['pais_id' => 'Selecciona el país de la institución.'],
-                    'Falta el país de la institución.',
-                    422
-                );
-            }
-
-            if (!$model->existePais($paisId)) {
-                $this->jsonResponse(
-                    false,
-                    ['pais_id' => 'El país seleccionado no existe.'],
-                    'País no válido.',
-                    422
-                );
-            }
-
-            // Para institución extranjera solo se exige nombre y país.
-            // Se ignoran DEA, ciudad, dirección y ubicación venezolana.
+            // Para institución extranjera solo se exige nombre y tipo.
+            // Se ignoran DEA y ubicación venezolana.
             $idEstadoGeo = 0;
             $idMunicipio = 0;
             $idParroquia = 0;
             $codigoDea   = '';
-            $ciudad      = '';
-            $direccion   = '';
-            $referencia  = '';
         } else {
             $errores = $this->validarCadenaNacional($model, $idEstadoGeo, $idMunicipio, $idParroquia);
 
@@ -233,10 +208,6 @@ trait InstitucionTrait
                 'id_estado_geo'        => $idEstadoGeo,
                 'id_municipio'         => $idMunicipio,
                 'id_parroquia'         => $idParroquia,
-                'pais_id'              => $paisId,
-                'ciudad_extranjera'    => $ciudad,
-                'direccion_extranjera' => $direccion,
-                'referencia_plantel'   => $referencia,
                 'codigo_dea'           => $codigoDea,
             ]);
         } catch (Throwable $e) {

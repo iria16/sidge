@@ -1,81 +1,76 @@
 <?php
-
 declare(strict_types=1);
 
 /**
  * Partial: dashboard/secretaria/partials/indicadores.php
+ * Tres indicadores clave consolidados para Secretaría (solo totales agregados).
  *
- * @var callable $formatear
- * @var array|null $anioActivo
- * @var array|null $estadisticasEstudiantes
- * @var array|null $estadisticasInscripciones
- * @var array|null $estadisticasRatificacion
- * @var int|null $porRatificar
- * @var int|null $cuposDisponibles
- * @var string $metaContexto
+ * Variables esperadas:
+ * @var array|null  $anioActivo
+ * @var string|null $turnoNombre
+ * @var array|null  $estadisticasEstudiantes
+ * @var array|null  $estadisticasInscripciones
+ * @var array|null  $estadisticasRatificacion
  */
+
+$activos            = (int) ($estadisticasEstudiantes['activos'] ?? 0);
+$nuevosIngresos     = (int) ($estadisticasInscripciones['inscritosAnio'] ?? 0);
+$porRatificar       = (int) ($estadisticasRatificacion['porRatificar'] ?? 0);
+$yaRatificados      = (int) ($estadisticasRatificacion['yaRatificados'] ?? 0);
+$avanceRatificacion = (int) ($estadisticasRatificacion['avance'] ?? 0);
+$textoTurno         = $turnoNombre !== null && $turnoNombre !== '' ? 'Turno ' . $turnoNombre : 'turno asignado';
 ?>
-<section aria-labelledby="headingIndicadores" class="mb-4">
-  <h2 id="headingIndicadores" class="visually-hidden">Indicadores de Secretaría</h2>
-  <div class="row g-3">
-    <div class="col-12 col-sm-6 col-xl-3">
-      <?php
-      $statLabel = 'Estudiantes activos';
-      $statValue = $formatear($estadisticasEstudiantes, 'activos');
-      $statIcon = 'bi-people';
-      $statTone = 'primary';
-      $statVariant = '';
-      $statMeta = $metaContexto;
-      $statHref = BASE_URL . 'estudiantes/index';
-      include __DIR__ . '/../../../components/stat-card.php';
-      ?>
-    </div>
-
-    <div class="col-12 col-sm-6 col-xl-3">
-      <?php
-      $statLabel = 'Nuevos ingresos';
-      $statValue = $formatear($estadisticasInscripciones, 'inscritosAnio');
-      $statIcon = 'bi-person-plus';
-      $statTone = 'info';
-      $statVariant = '';
-      $statMeta = $anioActivo === null
-          ? 'Sin año escolar activo'
-          : 'Inscritos en el período actual';
-      $statHref = BASE_URL . 'inscripciones/index';
-      include __DIR__ . '/../../../components/stat-card.php';
-      ?>
-    </div>
-
-    <div class="col-12 col-sm-6 col-xl-3">
-      <?php
-      $statLabel = 'Por ratificar';
-      $statValue = $formatear($estadisticasRatificacion, 'porRatificar');
-      $statIcon = 'bi-arrow-repeat';
-      $statTone = $porRatificar === null ? 'info' : ((int) $porRatificar > 0 ? 'warning' : 'success');
-      $statVariant = $porRatificar !== null && (int) $porRatificar > 0 ? 'alert' : '';
-      $statMeta = $anioActivo === null
-          ? 'Sin año escolar activo'
-          : ($estadisticasRatificacion === null
-              ? 'No disponible'
-              : $formatear($estadisticasRatificacion, 'yaRatificados') . ' ratificados (' . (int) ($estadisticasRatificacion['avance'] ?? 0) . '%)');
-      $statHref = BASE_URL . 'ratificacion/index';
-      include __DIR__ . '/../../../components/stat-card.php';
-      ?>
-    </div>
-
-    <div class="col-12 col-sm-6 col-xl-3">
-      <?php
-      $statLabel = 'Cupos disponibles';
-      $statValue = $formatear($estadisticasInscripciones, 'cuposDisponibles');
-      $statIcon = 'bi-check-circle';
-      $statTone = $cuposDisponibles === null ? 'info' : ((int) $cuposDisponibles > 0 ? 'success' : 'warning');
-      $statVariant = '';
-      $statMeta = $anioActivo === null
-          ? 'Sin año escolar activo'
-          : ($cuposDisponibles === null ? 'No disponible' : 'Disponibilidad en su turno');
-      $statHref = BASE_URL . 'inscripciones/index';
-      include __DIR__ . '/../../../components/stat-card.php';
-      ?>
-    </div>
+<div class="row g-3 mb-4">
+  <!-- Card 1: Matrícula Activa en Turno (Solo total) -->
+  <div class="col-sm-6 col-lg-4">
+    <?php
+    $statLabel     = 'Matrícula activa en turno';
+    $statValue     = number_format($activos, 0, ',', '.') . ' estud.';
+    $statIcon      = 'bi-people';
+    $statTone      = 'primary';
+    $statVariant   = 'default';
+    $statTrend     = $activos > 0 ? 'Activa' : '';
+    $statTrendType = 'neutral';
+    $statMeta      = 'Estudiantes cursando en ' . $textoTurno;
+    $statProgress  = null;
+    $statHref      = '';
+    include __DIR__ . '/../../../components/stat-card.php';
+    ?>
   </div>
-</section>
+
+  <!-- Card 2: Nuevos Ingresos Formalizados (Solo total) -->
+  <div class="col-sm-6 col-lg-4">
+    <?php
+    $statLabel     = 'Nuevos ingresos formalizados';
+    $statValue     = number_format($nuevosIngresos, 0, ',', '.') . ' estud.';
+    $statIcon      = 'bi-person-plus';
+    $statTone      = 'info';
+    $statVariant   = 'default';
+    $statTrend     = $nuevosIngresos > 0 ? 'Inscritos' : '';
+    $statTrendType = 'neutral';
+    $statMeta      = 'Inscripciones de nuevo ingreso registradas en el período';
+    $statProgress  = null;
+    $statHref      = '';
+    include __DIR__ . '/../../../components/stat-card.php';
+    ?>
+  </div>
+
+  <!-- Card 3: Por Ratificar (Continuidad escolar) -->
+  <div class="col-sm-6 col-lg-4">
+    <?php
+    $statLabel     = 'Por ratificar';
+    $statValue     = number_format($porRatificar, 0, ',', '.') . ' estud.';
+    $statIcon      = 'bi-arrow-repeat';
+    $statTone      = $porRatificar > 0 ? 'warning' : 'success';
+    $statVariant   = $porRatificar > 0 ? 'alert' : 'default';
+    $statTrend     = $porRatificar > 0 ? 'Pendiente' : 'Al día';
+    $statTrendType = $porRatificar > 0 ? 'warning' : 'positive';
+    $statMeta      = $porRatificar > 0
+        ? number_format($yaRatificados, 0, ',', '.') . ' ratificados (' . $avanceRatificacion . '% avance)'
+        : 'Continuidad escolar al día';
+    $statProgress  = null;
+    $statHref      = '';
+    include __DIR__ . '/../../../components/stat-card.php';
+    ?>
+  </div>
+</div>

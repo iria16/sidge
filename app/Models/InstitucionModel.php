@@ -107,12 +107,10 @@ class InstitucionModel extends CatalogoModel
         $this->pdo->prepare(
             'INSERT INTO institucion
                 (nombre, id_tipo_institucion, es_extranjera, id_estado_geo,
-                 id_municipio, id_parroquia, pais_id, ciudad_extranjera,
-                 direccion_extranjera, referencia_plantel, codigo_dea)
+                 id_municipio, id_parroquia, codigo_dea)
              VALUES
                 (:nombre, :id_tipo_institucion, :es_extranjera, :id_estado_geo,
-                 :id_municipio, :id_parroquia, :pais_id, :ciudad_extranjera,
-                 :direccion_extranjera, :referencia_plantel, :codigo_dea)'
+                 :id_municipio, :id_parroquia, :codigo_dea)'
         )->execute($this->datosDeAlta($data, $tipo));
 
         return (int) $this->pdo->lastInsertId();
@@ -174,16 +172,11 @@ class InstitucionModel extends CatalogoModel
             'id_estado_geo'       => null,
             'id_municipio'        => null,
             'id_parroquia'        => null,
-            'pais_id'             => null,
-            'ciudad_extranjera'   => null,
-            'direccion_extranjera' => null,
-            'referencia_plantel'  => null,
             'codigo_dea'          => null,
         ];
 
         if ($esExtranjera) {
-            $base['pais_id'] = $this->enteroONulo($data['pais_id'] ?? null);
-            // Ciudad, dirección y referencia se omiten: instituciones extranjeras solo registran país
+            // Institución extranjera: solo registra nombre, tipo y es_extranjera = 1
             return $base;
         }
 

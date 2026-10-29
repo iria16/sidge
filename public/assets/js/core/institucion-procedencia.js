@@ -38,12 +38,6 @@
 
     if (bloqueExtranjera) {
       bloqueExtranjera.classList.toggle('d-none', !esExtranjera);
-
-      var selectPais = bloqueExtranjera.querySelector('select[name="pais_id"]');
-      if (selectPais) {
-        selectPais.required = esExtranjera;
-        if (!esExtranjera) selectPais.value = '';
-      }
     }
   }
 

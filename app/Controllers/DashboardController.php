@@ -91,11 +91,12 @@ class DashboardController extends BaseController
 
         $model = new \App\Models\DashboardModel($this->conexion());
 
-        $anioActivo       = $model->getAnioActivo();
-        $indicadores      = $model->getMetricasUsuarios();
-        $requiereAtencion = $model->getAtencionRequerida();
-        $actividad        = $model->getActividadBitacora(30);
-        $usuariosPorRol   = $model->getUsuariosPorRol();
+        $anioActivo        = $model->getAnioActivo();
+        $indicadores       = $model->getMetricasUsuarios();
+        $requiereAtencion  = $model->getAtencionRequerida();
+        $actividad         = $model->getActividadBitacora(30);
+        $usuariosPorRol    = $model->getUsuariosPorRol();
+        $coberturaPersonal = $model->getCoberturaPersonal();
 
         require_once __DIR__ . '/../Views/dashboard/admin/index.php';
     }
@@ -148,17 +149,20 @@ class DashboardController extends BaseController
         $nombreUsuario = trim((string) ($_SESSION['nombre'] ?? ($rol === 'directivo' ? 'Directora' : 'Coordinación')));
 
         $model = new DirectivoDashboardModel($this->conexion());
+        $anioActivo = $model->getAnioActivo();
+        $idAnio = $anioActivo !== null ? (int) $anioActivo['id'] : null;
 
         return [
             'saludo'             => $saludo,
             'nombreUsuario'      => $nombreUsuario,
-            'anioActivo'         => $model->getAnioActivo(),
-            'metricasMatricula'  => $model->getMetricasMatricula(),
-            'metricasCapacidad'  => $model->getMetricasCapacidad(),
+            'anioActivo'         => $anioActivo,
+            'metricasMatricula'  => $model->getMetricasMatricula($idAnio),
+            'metricasCapacidad'  => $model->getMetricasCapacidad($idAnio),
             'metricasPersonal'   => $model->getMetricasPersonal(),
-            'distribucionGrados' => $model->getMatriculaPorGradoYSexo(),
-            'avanceResultados'   => $model->getResultadosPorSeccion(),
-            'alertas'            => $model->getAlertas(),
+            'distribucionGrados' => $model->getMatriculaPorGradoYSexo($idAnio),
+            'avanceResultados'   => $model->getResultadosPorSeccion($idAnio),
+            'alertas'            => $model->getAlertas($idAnio, $rol),
+            'retirosPendientes'  => $rol === 'directivo' ? $model->getRetirosPendientes($idAnio) : 0,
         ];
     }
 

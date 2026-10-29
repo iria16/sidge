@@ -313,12 +313,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
             'columnas' => ['dia', 'estudiante', 'edad_cumple'],
             'filtros'  => ['mes', 'orden', 'q'],
         ],
-        'boletas' => [
-            'etiqueta' => 'Certificados de Calificaciones',
-            'titulo'   => 'Certificados de Calificaciones',
-            'columnas' => ['n', 'cedula', 'estudiante', 'literal', 'promocion', 'boleta'],
-            'filtros'  => ['orden', 'q'],
-        ],
+
     ];
 
     /** Opciones de ordenamiento permitidas por cada vista (pantalla y PDF). */
@@ -340,10 +335,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
             'edad_desc'      => 'Edad que cumple (mayor a menor)',
             'apellidos_asc'  => 'Apellidos (A–Z)',
         ],
-        'boletas' => [
-            'apellidos_asc'  => 'Apellidos (A–Z)',
-            'apellidos_desc' => 'Apellidos (Z–A)',
-        ],
+
     ];
 
     /** Encabezado visible de cada columna (pantalla y PDF). */
@@ -432,10 +424,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
                 $this->renderHttpError(404, '404 · Sin sección', 'No tienes una sección asignada en el período escolar en curso.');
             }
 
-            if ($vista === 'boletas') {
-                header('Location: ' . BASE_URL . 'certificadoCalificaciones/generarPorSeccion?id_estructura=' . (int) $base['idEstructura']);
-                exit;
-            }
+
 
             try {
                 $pdf = NominaPdf::generar($config, $seccion, $vista, $definicion['titulo'], $columnas, $filas, $filtros);

@@ -32,7 +32,7 @@
             /* «Visualizar documento» es un botón, no un enlace: lleva la ruta
                en data-base-pdf. Los chips siguen siendo enlaces, así que cada
                uno recibe su filtro en el atributo que corresponda. */
-            var enlaces = document.querySelectorAll('#btnVistaPreviaDocumento, .nomina-chip');
+            var enlaces = document.querySelectorAll('#btnExportarNominaPdf, .nomina-chip');
             enlaces.forEach(function (enlace) {
                 var esBoton = enlace.tagName === 'BUTTON';
                 var actual = esBoton ? enlace.getAttribute('data-base-pdf') : enlace.getAttribute('href');
@@ -73,129 +73,6 @@
         document.addEventListener('data-panel:updated', function (ev) {
             if (!ev.detail || ev.detail.form !== formListado) { return; }
             sincronizarEnlaces(ev.detail.url || window.location.href);
-        });
-    }
-
-    /* ── Vista previa y descarga del documento (todas las pestañas) ────── */
-    var btnVistaPrevia    = document.getElementById('btnVistaPreviaDocumento');
-    var modalDocumento    = document.getElementById('modalVistaPreviaDocumento');
-    var contenedorPreview = document.getElementById('contenedorPreviewDocumento');
-    var iframeDocumento   = document.getElementById('iframeVistaPreviaDocumento');
-    var btnDescargar      = document.getElementById('btnDescargarDocumentoPdf');
-    var btnImprimir       = document.getElementById('btnImprimirDocumentoPdf');
-    var modalTitleEl      = modalDocumento ? modalDocumento.querySelector('.modal-title') : null;
-    var modalSubtitleEl   = modalDocumento ? modalDocumento.querySelector('.modal-subtitle, .app-modal__subtitle, small.text-muted') : null;
-    var tituloBase        = modalTitleEl ? modalTitleEl.textContent : '';
-    var subtituloBase     = modalSubtitleEl ? modalSubtitleEl.textContent : '';
-
-    /* Un solo manejador para todas las pestañas. «Visualizar documento» arma el
-       PDF de la vista en curso y lo abre en el modal; el enlace de descarga solo
-       aparece después, que es cuando el docente ya lo vio. */
-    if (btnVistaPrevia && modalDocumento && iframeDocumento && btnDescargar) {
-        btnVistaPrevia.addEventListener('click', function () {
-            if (modalTitleEl) { modalTitleEl.textContent = tituloBase; }
-            if (modalSubtitleEl) { modalSubtitleEl.textContent = subtituloBase; }
-
-            var basePdf = btnVistaPrevia.getAttribute('data-base-pdf') || window.location.pathname;
-            var urlPdf;
-            try {
-                urlPdf = new URL(basePdf, window.location.origin);
-            } catch (err) {
-                return;
-            }
-
-            urlPdf.searchParams.set('formato', 'pdf');
-            urlPdf.searchParams.delete('descargar');
-
-            iframeDocumento.src = urlPdf.pathname + urlPdf.search;
-
-            if (contenedorPreview) {
-                contenedorPreview.classList.remove('d-none');
-            }
-
-            /* La vista previa se abre en modal, no sobre la página: el docente
-               puede revisarla y cerrar sin perder los filtros aplicados. El
-               enlace de descarga solo se destapa cuando ya la vio. */
-            SIGDEUI.mostrarModal(modalDocumento);
-
-            urlPdf.searchParams.set('descargar', '1');
-            btnDescargar.setAttribute('href', urlPdf.pathname + urlPdf.search);
-            btnDescargar.classList.remove('d-none');
-
-            if (btnImprimir) {
-                btnImprimir.classList.remove('d-none');
-            }
-        });
-    }
-
-    /* Imprimir desde la vista previa. Se imprime el iframe y no una descarga
-       aparte, para que salga el mismo documento que el docente acaba de ver.
-       El respaldo es el mismo: si el navegador no deja llamar a print() sobre
-       un iframe de otro origen, se abre el PDF en otra pestaña y se imprime
-       desde ahí. */
-    if (btnImprimir && iframeDocumento) {
-        btnImprimir.addEventListener('click', function () {
-            try {
-                iframeDocumento.contentWindow.focus();
-                iframeDocumento.contentWindow.print();
-            } catch (e) {
-                var urlImprimir = btnDescargar ? btnDescargar.getAttribute('href') : null;
-                window.open(urlImprimir || '#', '_blank');
-            }
-        });
-    }
-
-    /* Vista previa individual de boleta/certificado por estudiante.
-       Abre el modal de vista previa antes de imprimir o descargar. */
-    document.addEventListener('click', function (e) {
-        var btn = e.target.closest('.btn-preview-boleta-individual');
-        if (!btn || !modalDocumento || !iframeDocumento || !btnDescargar) {
-            return;
-        }
-
-        var basePdf = btn.getAttribute('data-url-pdf');
-        if (!basePdf) {
-            return;
-        }
-
-        var estudiante = btn.getAttribute('data-estudiante') || '';
-
-        if (modalTitleEl) {
-            modalTitleEl.textContent = 'Certificado de Calificaciones';
-        }
-        if (modalSubtitleEl) {
-            modalSubtitleEl.textContent = estudiante ? (estudiante + ' · ' + subtituloBase) : subtituloBase;
-        }
-
-        var urlPdf;
-        try {
-            urlPdf = new URL(basePdf, window.location.origin);
-        } catch (err) {
-            return;
-        }
-
-        urlPdf.searchParams.delete('descargar');
-        iframeDocumento.src = urlPdf.pathname + urlPdf.search;
-
-        if (contenedorPreview) {
-            contenedorPreview.classList.remove('d-none');
-        }
-
-        SIGDEUI.mostrarModal(modalDocumento);
-
-        urlPdf.searchParams.set('descargar', '1');
-        btnDescargar.setAttribute('href', urlPdf.pathname + urlPdf.search);
-        btnDescargar.classList.remove('d-none');
-
-        if (btnImprimir) {
-            btnImprimir.classList.remove('d-none');
-        }
-    });
-
-    /* Limpiar iframe al cerrar el modal para liberar memoria y recursos */
-    if (modalDocumento && iframeDocumento) {
-        modalDocumento.addEventListener('hidden.bs.modal', function () {
-            iframeDocumento.src = 'about:blank';
         });
     }
 

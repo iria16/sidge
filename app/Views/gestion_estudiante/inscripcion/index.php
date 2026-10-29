@@ -1,14 +1,16 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Vista: gestion_estudiante/inscripcion/index.php
- * Gestión de Inscripciones — ingreso de nuevos estudiantes y ratificaciones
- * anuales para el periodo escolar vigente.
+ * Gestión de Inscripciones — ingreso de nuevos estudiantes al plantel.
  *
  * Armada con los mismos componentes que el resto de módulos:
  * components/page-header.php, components/stat-card.php,
  * components/avatar.php, components/status-badge.php y
  * components/data-panel.php. El wizard vive en enrollment-modal.php y su
- * JS en public/assets/js/enrollments.js ($extraScripts).
+ * JS en public/assets/js/modules/estudiantes/enrollments.js ($extraScripts).
  *
  * El filtrado y la paginación los aplica automáticamente main.js sobre el
  * form del panel (initAutoFilters), igual que en el resto de módulos: por
@@ -39,7 +41,7 @@
  * @var array $secciones
  * @var array $filters
  * @var array $paginacion
-*/
+ */
 
 $pageTitle       = 'Gestión de Inscripciones';
 /* Esta pantalla es SOLO del primer ingreso. La inscripción ocurre una sola vez en
@@ -98,55 +100,7 @@ ob_start();
   include __DIR__ . '/../../components/page-header.php';
 ?>
 
-<!-- ---------- Stat cards ---------- -->
-<div class="row g-3 mb-4">
-  <?php
-    $statCards = [
-        [
-            /* Dice "ingresos" y no "inscritos" a propósito: la inscripción es un
- registro único por alumno, así que este número cuenta a quién le
- tocó pasar por aquí este año, no cuántos alumnos hay en el
- plantel. Con "inscritos" se leía como el total de alumnos, que es
- un número distinto y mucho más grande.*/
-            'label'     => 'Ingresos de este año escolar',
-            'value'     => number_format((int) $stats['inscritosAnio'], 0, ',', '.'),
-            'icon'      => 'bi-people-fill',
-            'tone'      => 'info',
-            'trend'     => $trendInscritos > 0 ? '+' . $trendInscritos . '%' : '',
-            'trendType' => 'up',
-        ],
-        [
-            'label'     => 'Cupos disponibles',
-            'value'     => number_format((int) $stats['cuposDisponibles'], 0, ',', '.'),
-            'icon'      => 'bi-check-circle-fill',
-            'tone'      => 'success',
-            'trend'     => 'Disponibles',
-            'trendType' => 'neutral',
-        ],
-        [
-            'label'     => 'Inscripciones este mes',
-            'value'     => number_format((int) $stats['inscripcionesMes'], 0, ',', '.'),
-            'icon'      => 'bi-calendar-check-fill',
-            'tone'      => 'primary',
-            'trend'     => 'Del mes en curso',
-            'trendType' => 'neutral',
-        ],
-    ];
-    foreach ($statCards as $card):
-  ?>
-    <div class="col-sm-6 col-lg-4">
-      <?php
-        $statLabel     = $card['label'];
-        $statValue     = $card['value'];
-        $statIcon      = $card['icon'];
-        $statTone      = $card['tone'];
-        $statTrend     = $card['trend'];
-        $statTrendType = $card['trendType'];
-        include __DIR__ . '/../../components/stat-card.php';
-      ?>
-    </div>
-  <?php endforeach; ?>
-</div>
+<?php include __DIR__ . '/partials/stat-cards.php'; ?>
 
 <?php
   /* ---------- Panel de datos: filtros ----------
@@ -156,104 +110,23 @@ ob_start();
   $panelFormAction = BASE_URL . 'inscripciones/index';
 
   ob_start();
-  ?>
-  <label for="filtroGrado" class="visually-hidden">Grado</label>
-  <select id="filtroGrado" name="grado" class="form-select" aria-label="Filtrar por grado">
-    <option value="">Grado (Todos)</option>
-    <?php foreach ($grados as $grado): ?>
-      <option value="<?= htmlspecialchars($grado) ?>" <?= (string) ($filters['grado'] ?? '') === (string) $grado ? 'selected' : '' ?>>
-        <?= htmlspecialchars($grado) ?>
-      </option>
-    <?php endforeach; ?>
-  </select>
-
-  <label for="filtroSeccion" class="visually-hidden">Sección</label>
-  <select id="filtroSeccion" name="seccion" class="form-select" aria-label="Filtrar por sección">
-    <option value="">Sección (Todas)</option>
-    <?php foreach ($secciones as $seccion): ?>
-      <option value="<?= htmlspecialchars($seccion) ?>" <?= (string) ($filters['seccion'] ?? '') === (string) $seccion ? 'selected' : '' ?>>
-        <?= htmlspecialchars($seccion) ?>
-      </option>
-    <?php endforeach; ?>
-  </select>
-
-  <?php
+  include __DIR__ . '/partials/panel-filtros.php';
   $panelFilters           = ob_get_clean();
   $panelSearchName        = 'q';
   $panelSearchValue       = (string) ($filters['q'] ?? '');
   $panelSearchPlaceholder = 'Buscar por nombre o cédula...';
 
-  // ---------- Data panel: colgroup ----------
-  // Anchos fijos: Estudiante / Grado / Sección / Fecha / Acción.
+  // ---------- Data panel: colgroup / thead / tbody ----------
   ob_start();
-  ?>
-  <colgroup>
-    <col style="width: 34%;">
-    <col style="width: 18%;">
-    <col style="width: 16%;">
-    <col style="width: 18%;">
-    <col style="width: 14%;">
-  </colgroup>
-  <?php
+  include __DIR__ . '/partials/panel-colgroup.php';
   $panelColgroup = ob_get_clean();
 
-  // ---------- Data panel: thead ----------
   ob_start();
-  ?>
-  <tr>
-    <th scope="col">Estudiante</th>
-    <th scope="col">Grado</th>
-    <th scope="col">Sección</th>
-    <th scope="col">Fecha inscripción</th>
-    <th scope="col" class="text-center">Acción</th>
-  </tr>
-  <?php
+  include __DIR__ . '/partials/panel-head.php';
   $panelTableHead = ob_get_clean();
 
-  // ---------- Data panel: tbody ----------
   ob_start();
-  foreach ($inscripciones as $inscripcion):
-    $inscripcionId = (int) ($inscripcion['id'] ?? 0);
-  ?>
-    <tr>
-      <td>
-        <div class="avatar-group">
-          <?php
-            $avatarSize     = 'md';
-            $avatarTone     = $inscripcion['avatar_color'] ?? 'primary';
-            $avatarSrc      = $inscripcion['avatar_img'] ?? '';
-            $avatarAlt      = $inscripcion['nombre'] ?? '';
-            $avatarInitials = $inscripcion['iniciales'] ?? 'ES';
-            include __DIR__ . '/../../components/avatar.php';
-          ?>
-          <div>
-            <div class="avatar-group__name"><?= htmlspecialchars($inscripcion['nombre'] ?? '') ?></div>
-            <div class="avatar-group__meta"><?= htmlspecialchars($inscripcion['cedula'] ?? '') ?></div>
-          </div>
-        </div>
-      </td>
-      <td class="text-support"><?= htmlspecialchars($inscripcion['grado'] ?? '') ?></td>
-      <td class="text-support"><?= htmlspecialchars($inscripcion['seccion'] ?? '') ?></td>
-      <td class="text-support"><?= htmlspecialchars($inscripcion['fecha_inscripcion'] ?? '') ?></td>
-      <td class="text-center">
-        <div class="data-panel__actions">
-          <button type="button" class="action-btn action-btn--view btn-ver-inscripcion"
-                  title="Ver inscripción"
-                  data-id="<?= $inscripcionId ?>">
-            <i class="bi bi-eye" aria-hidden="true"></i>
-          </button>
-        </div>
-      </td>
-    </tr>
-  <?php endforeach; ?>
-  <?php if (!$inscripciones): ?>
-    <tr>
-      <td colspan="5" class="text-center text-support py-4">
-        No se encontraron inscripciones con los filtros seleccionados.
-      </td>
-    </tr>
-  <?php endif; ?>
-  <?php
+  include __DIR__ . '/partials/panel-rows.php';
   $panelTableBody = ob_get_clean();
 
   $panelSummary = 'Mostrando ' . (int) $paginacion['desde'] . ' a ' . (int) $paginacion['hasta']
@@ -269,20 +142,10 @@ ob_start();
 <?php
 $pageContent = ob_get_clean();
 
+// ---------- Modales ----------
 ob_start();
 include __DIR__ . '/enrollment-modal.php';
-
-// Modal "Visualizar Inscripción": se construye sobre components/modal.php
-// (clases .app-modal) igual que los demás modales de detalle del portal, y su
-// cuerpo se puebla por AJAX en enrollments.js sobre #modalVerInscripcionBody.
-$modalBody     = '<div id="modalVerInscripcionBody"></div>';
-$modalFooter   = '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>';
-$modalId       = 'modalVerInscripcion';
-$modalTitle    = 'Detalle de Inscripción';
-$modalSubtitle = 'Resumen de la inscripción registrada.';
-$modalSize     = 'lg';
-include __DIR__ . '/../../components/modal.php';
-
+include __DIR__ . '/modals/ver-inscripcion-modal.php';
 $pageModals = ob_get_clean();
 
 require __DIR__ . '/../../layouts/app.php';

@@ -1,13 +1,20 @@
 <?php
+
+declare(strict_types=1);
+
 /**
- * Partial: assignment-modal.php
- * Modal crear/editar de la Asignación Docente (compartido entre los
- * modales nuevaAsignacionModal y editarAsignacionModal).
+ * Modal reutilizable: asignacionDocente/assignment-modal.php
+ * Alta y edición de la Asignación Docente. Se incluye dos veces desde index.php.
  *
- * Variables desde la vista index:
- * - $modalId, $modalTitle, $modalSubtitle, $formId
- * - $estructuras, $docentes, $tiposAsignacion ([id, nombre])
-*/
+ * @var string $modalId
+ * @var string $modalTitle
+ * @var string $modalSubtitle
+ * @var string $formId
+ * @var bool   $editMode
+ * @var array  $estructuras      [id, nombre]
+ * @var array  $docentes         [id, nombre]
+ * @var array  $tiposAsignacion  [id, nombre]
+ */
 $formId = $formId ?? 'formNuevaAsignacion';
 $isEdit = isset($editMode) ? (bool) $editMode : str_starts_with($formId, 'formEditar');
 $estructuras = $estructuras ?? [];
@@ -17,7 +24,7 @@ $prefix = $isEdit ? 'editar' : 'nuevo';
 ob_start();
 ?>
 <form id="<?= htmlspecialchars($formId) ?>" novalidate>
-  <input type="hidden" name="csrf" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+  <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrfToken()) ?>">
   <?php if ($isEdit): ?>
     <input type="hidden" name="id_estructura_academica" id="editarAsignacionEstructura">
     <input type="hidden" name="id_asignacion" id="editarAsignacionId">

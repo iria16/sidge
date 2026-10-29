@@ -466,10 +466,8 @@ function initWizardRegistro() {
     var esExtranjera = !!document.querySelector('#nuevaInstitucionExtranjera:checked');
 
     if (esExtranjera) {
-      var pais = (document.getElementById('nuevaInstitucionPais') || {}).value || '';
       return {
-        es_extranjera: '1',
-        pais_id: pais
+        es_extranjera: '1'
       };
     }
 

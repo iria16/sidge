@@ -287,10 +287,6 @@ class CatalogoController extends CrudController
             $data['id_estado_geo']  = (int) ($source['id_estado_geo'] ?? 0);
             $data['id_municipio']   = (int) ($source['id_municipio'] ?? 0);
             $data['id_parroquia']   = (int) ($source['id_parroquia'] ?? 0);
-            $data['pais_id']        = (int) ($source['pais_id'] ?? 0);
-            $data['ciudad_extranjera']    = trim((string) ($source['ciudad_extranjera'] ?? ''));
-            $data['direccion_extranjera'] = trim((string) ($source['direccion_extranjera'] ?? ''));
-            $data['referencia_plantel']   = trim((string) ($source['referencia_plantel'] ?? ''));
             $data['codigo_dea']     = mb_strtoupper(trim((string) ($source['codigo_dea'] ?? '')), 'UTF-8');
         }
 
@@ -424,19 +420,7 @@ class CatalogoController extends CrudController
      */
     private function validarExtranjera(CatalogoModel $model, array $data, array $errors): array
     {
-        /** @var InstitucionModel $model */
-
-        $pais = (int) ($data['pais_id'] ?? 0);
-        if ($pais <= 0) {
-            $errors['pais_id'] = 'Selecciona el país de la institución.';
-        } elseif (!$model->existePais($pais)) {
-            $errors['pais_id'] = 'El país seleccionado no existe.';
-        }
-
-        // Ciudad y dirección son opcionales para instituciones extranjeras
-        // según especificación del ajuste
-
-        // El código o referencia del plantel de origen es opcional: no se valida.
+        // Institución extranjera no requiere validación geográfica nacional ni país
         return $errors;
     }
 

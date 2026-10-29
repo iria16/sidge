@@ -64,20 +64,7 @@ ob_start();
     <div class="invalid-feedback">Escribe el nombre de la institución.</div>
   </div>
 
-  <!-- Bloque Extranjera: Selector de País (obligatorio si es_extranjera) -->
-  <div class="col-12 d-none" id="bloqueInstPais">
-    <label class="label-sigde" for="nuevaInstPais">País *</label>
-    <select class="form-select" id="nuevaInstPais" name="pais_id">
-      <option value="">Seleccione el país...</option>
-      <?php foreach ($listaPaises as $p): ?>
-        <option value="<?= (int) $p['id_pais'] ?>"><?= htmlspecialchars($p['nombre']) ?></option>
-      <?php endforeach; ?>
-    </select>
-    <div class="invalid-feedback">Seleccione el país de la institución extranjera.</div>
-    <div class="text-support mt-1" style="font-size: 0.75rem">
-      Para instituciones extranjeras solo se requiere indicar el país de procedencia.
-    </div>
-  </div>
+
 
   <!-- Bloque Nacional: Código DEA y Cascada Estado -> Municipio -> Parroquia -->
   <div class="col-12" id="bloqueInstNacional">

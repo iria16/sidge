@@ -383,8 +383,11 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
                       FROM asignacion_docente ad
                       JOIN estructura_academica asignada ON asignada.id_estructura_academica = ad.id_estructura_academica
                       JOIN anio_escolar asignada_anio ON asignada_anio.id_anio_escolar = asignada.id_anio_escolar
+                      JOIN turno asignado_turno ON asignado_turno.id_turno = asignada.id_turno
                      WHERE ad.id_docente = :docente
                        AND asignada_anio.estado = \'ACTIVO\'
+                       AND asignado_turno.estado = \'ACTIVO\'
+                       AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
                 )',
                 Matriculas::condicionCursando('m'),
             ],
@@ -406,7 +409,11 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
                FROM asignacion_docente ad
                INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ad.id_estructura_academica
                INNER JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar
-              WHERE ad.id_docente = :docente AND a.estado = \'ACTIVO\'
+               INNER JOIN turno t ON t.id_turno = ea.id_turno
+              WHERE ad.id_docente = :docente
+                AND a.estado = \'ACTIVO\'
+                AND t.estado = \'ACTIVO\'
+                AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
               ORDER BY ad.id_estructura_academica'
         );
         $stmt->execute(['docente' => $idDocente]);

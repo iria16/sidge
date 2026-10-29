@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Partial: configuracion_institucional/partials/tarjeta-ubicacion.php
- * Tarjeta 2: ubicación territorial, dependencia y nivel educativo.
+ * Bloque: Ubicación territorial, dependencia y nivel educativo (Pestaña Ubicación y membrete).
  *
  * @var array<string, string> $config
  * @var string $valEstado
@@ -12,78 +12,98 @@ declare(strict_types=1);
  * @var string $valNivel
  * @var string $valCodigoNivel
  */
+
+$ubicacionConfigurada = !empty($valEstado) && !empty($valMunicipio) && !empty($valParroquia);
 ?>
-      <!-- Tarjeta 2: Ubicación Territorial y Dependencia -->
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-          <h5 class="card-title fw-bold mb-0 text-primary d-flex align-items-center gap-2">
-            <i class="bi bi-geo-alt-fill" aria-hidden="true"></i> Ubicación Territorial y Dependencia
-          </h5>
-          <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#modalEditarPlantel">
-            <i class="bi bi-pencil-square" aria-hidden="true"></i>
-            <span>Editar</span>
-          </button>
-        </div>
-        <div class="card-body p-4">
-          <div class="row g-3">
-            <div class="col-sm-6">
-              <div class="p-3 bg-light rounded border h-100">
-                <div class="text-muted small fw-semibold text-uppercase">Estado CDCE</div>
-                <div class="fw-bold text-dark mt-1" id="view-cdce_estado">
-                  <?php echo e($valEstado); ?>
-                </div>
-              </div>
-            </div>
+<div class="config-accordion-item">
+  <div class="config-accordion-header"
+       data-bs-toggle="collapse"
+       data-bs-target="#collapseUbicacionDatos"
+       aria-expanded="false"
+       aria-controls="collapseUbicacionDatos">
+    <div>
+      <div class="config-accordion-title">
+        <i class="bi bi-geo-alt-fill text-primary" aria-hidden="true"></i>
+        <span>Ubicación Territorial y Dependencia</span>
+      </div>
+      <p class="config-accordion-desc">
+        Estado CDCE, municipio, parroquia, lugar de expedición y registro de dependencia del plantel.
+      </p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="badge <?= $ubicacionConfigurada ? 'bg-success' : 'bg-warning text-dark' ?>">
+        <?= $ubicacionConfigurada ? 'Configurado' : 'Pendiente' ?>
+      </span>
+      <i class="bi bi-chevron-down config-accordion-chevron" aria-hidden="true"></i>
+    </div>
+  </div>
 
-            <div class="col-sm-6">
-              <div class="p-3 bg-light rounded border h-100">
-                <div class="text-muted small fw-semibold text-uppercase">Municipio del Plantel</div>
-                <div class="fw-bold text-dark mt-1" id="view-plantel_municipio">
-                  <?php echo e($valMunicipio); ?>
-                </div>
-              </div>
-            </div>
+  <div class="collapse config-accordion-body border-top" id="collapseUbicacionDatos">
+    <div class="d-flex justify-content-end mb-3">
+      <button type="button"
+              class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm px-3"
+              data-bs-toggle="modal"
+              data-bs-target="#modalEditarPlantel">
+        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+        <span>Editar Ubicación</span>
+      </button>
+    </div>
 
-            <div class="col-sm-6">
-              <div class="p-3 bg-light rounded border h-100">
-                <div class="text-muted small fw-semibold text-uppercase">Parroquia del Plantel</div>
-                <div class="fw-bold text-dark mt-1" id="view-plantel_parroquia">
-                  <?php echo e($valParroquia); ?>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-sm-6">
-              <div class="p-3 bg-light rounded border h-100">
-                <div class="text-muted small fw-semibold text-uppercase">Lugar de Expedición</div>
-                <div class="fw-bold text-dark mt-1" id="view-lugar_expedicion">
-                  <?php echo e($config['lugar_expedicion'] ?? 'Carabobo'); ?>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-sm-6">
-              <div class="p-3 bg-light rounded border h-100">
-                <div class="text-muted small fw-semibold text-uppercase">Código Dependencia</div>
-                <div class="mt-1">
-                  <span class="badge bg-white text-dark border font-monospace px-2 py-1 fs-6" id="view-plantel_codigo_dependencia">
-                    <?php echo e($config['plantel_codigo_dependencia'] ?? '006562012'); ?>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-sm-6">
-              <div class="p-3 bg-light rounded border h-100">
-                <div class="text-muted small fw-semibold text-uppercase">Nivel Educativo y MPPE</div>
-                <div class="d-flex align-items-center gap-2 mt-1">
-                  <span class="fw-bold text-dark" id="view-nivel_educativo"><?php echo e($valNivel); ?></span>
-                  <span class="badge bg-primary text-white font-monospace px-2 py-1" id="view-nivel_codigo">
-                    <?php echo e($valCodigoNivel); ?>
-                  </span>
-                </div>
-              </div>
-            </div>
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <div class="config-info-tile">
+          <div class="config-info-tile__label">Estado CDCE</div>
+          <div class="config-info-tile__value" id="view-cdce_estado">
+            <?= e($valEstado) ?>
           </div>
         </div>
       </div>
+
+      <div class="col-12 col-md-6">
+        <div class="config-info-tile">
+          <div class="config-info-tile__label">Municipio del Plantel</div>
+          <div class="config-info-tile__value" id="view-plantel_municipio">
+            <?= e($valMunicipio) ?>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="config-info-tile">
+          <div class="config-info-tile__label">Parroquia del Plantel</div>
+          <div class="config-info-tile__value" id="view-plantel_parroquia">
+            <?= e($valParroquia) ?>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="config-info-tile">
+          <div class="config-info-tile__label">Lugar de Expedición</div>
+          <div class="config-info-tile__value" id="view-lugar_expedicion">
+            <?= e($config['lugar_expedicion'] ?? 'Carabobo') ?>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="config-info-tile">
+          <div class="config-info-tile__label">Código de Dependencia</div>
+          <div class="config-info-tile__value font-monospace" id="view-plantel_codigo_dependencia">
+            <?= e($config['plantel_codigo_dependencia'] ?? '006562012') ?>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="config-info-tile">
+          <div class="config-info-tile__label">Nivel Educativo (MPPE)</div>
+          <div class="config-info-tile__value">
+            <span id="view-nivel_educativo"><?= e($valNivel) ?></span>
+            <span class="badge bg-primary text-white font-monospace ms-1" id="view-nivel_codigo"><?= e($valCodigoNivel) ?></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

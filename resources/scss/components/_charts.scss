@@ -1,0 +1,61 @@
+// ==========================================================================
+// SIGDE - Variables y estilos para gráficas institucionales (Chart.js)
+// Todas las series derivan de la paleta institucional ($primary, $info, $secondary).
+// Se leen en JavaScript mediante getComputedStyle(document.documentElement).
+// ==========================================================================
+
+:root {
+  // 1. Primario institucional (Azul noche profundo)
+  --chart-1: #{$primary};
+
+  // 2. Información / Acento (Azul brillante)
+  --chart-2: #{$info};
+
+  // 3. Neutro pizarra (Gris azulado frío)
+  --chart-3: #{$secondary};
+
+  // 4. Índigo armónico (mezcla 45% $primary + 55% $info)
+  --chart-4: #{mix($primary, $info, 45%)};
+
+  // 5. Azul acero suave (mezcla 50% $info + 50% $secondary)
+  --chart-5: #{mix($info, $secondary, 50%)};
+
+  // 6. Gris azulado oscuro (mezcla 35% $primary + 65% $secondary)
+  --chart-6: #{mix($primary, $secondary, 35%)};
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  min-height: 260px;
+  max-height: 320px;
+
+  &--donut {
+    max-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__empty {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--bs-secondary, #8a90a3);
+    text-align: center;
+    padding: 1.5rem;
+
+    i {
+      font-size: 2.25rem;
+      margin-bottom: 0.5rem;
+      opacity: 0.65;
+    }
+
+    p {
+      margin-bottom: 0;
+      font-size: 0.88rem;
+    }
+  }
+}

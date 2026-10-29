@@ -155,6 +155,6 @@ class DocenteDashboardController extends BaseController
         ];
 
         extract($data);
-        require __DIR__ . '/../Views/docente/dashboard.php';
+        require __DIR__ . '/../Views/dashboard/docente/index.php';
     }
 }
