@@ -939,6 +939,10 @@ c.numero_telefono_principal,
         $sumaEdades = 0;
         $edadMin = null;
         $edadMax = null;
+        $conTelefono = 0;
+        $sinTelefono = 0;
+        $conRepresentante = 0;
+        $totalAutorizados = 0;
 
         foreach ($filas as $f) {
             $sexo = strtoupper((string) ($f['sexo'] ?? ''));
@@ -951,6 +955,19 @@ c.numero_telefono_principal,
             $sumaEdades += $edad;
             $edadMin = $edadMin === null ? $edad : min($edadMin, $edad);
             $edadMax = $edadMax === null ? $edad : max($edadMax, $edad);
+
+            $tel = trim((string) ($f['numero_telefono_principal'] ?? ''));
+            if ($tel !== '') {
+                $conTelefono++;
+            } else {
+                $sinTelefono++;
+            }
+
+            if (!empty($f['id_representante'])) {
+                $conRepresentante++;
+            }
+
+            $totalAutorizados += (int) ($f['autorizados_adicionales'] ?? 0);
         }
 
         $sinEspecificar = max(0, $total - ($varones + $hembras));
@@ -958,6 +975,7 @@ c.numero_telefono_principal,
         $pctHembras = $total > 0 ? round(($hembras / $total) * 100, 1) : 0.0;
         $pctSinEspecificar = $total > 0 ? round(($sinEspecificar / $total) * 100, 1) : 0.0;
         $promedio   = $total > 0 ? round($sumaEdades / $total, 1) : 0.0;
+        $pctTelefono = $total > 0 ? (int) round(($conTelefono / $total) * 100) : 0;
 
         return [
             'total'               => $total,
@@ -970,6 +988,11 @@ c.numero_telefono_principal,
             'edad_promedio'       => $promedio,
             'edad_min'            => $edadMin,
             'edad_max'            => $edadMax,
+            'con_telefono'        => $conTelefono,
+            'sin_telefono'        => $sinTelefono,
+            'pct_telefono'        => $pctTelefono,
+            'con_representante'   => $conRepresentante,
+            'autorizados'         => $totalAutorizados,
         ];
     }
 

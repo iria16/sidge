@@ -187,3 +187,4 @@ declare(strict_types=1);
 <?php endforeach; /* un grupo por estudiante */ ?>
 <?php endif; ?>
         </tbody>
+      </table>

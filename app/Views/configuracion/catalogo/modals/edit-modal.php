@@ -68,7 +68,6 @@ ob_start();
         $selEstado       = (int) ($el['id_estado_geo'] ?? 0);
         $selMunicipio    = (int) ($el['id_municipio'] ?? 0);
         $selParroquia    = (int) ($el['id_parroquia'] ?? 0);
-        $selPais         = (int) ($el['pais_id'] ?? 0);
         $selDea          = (string) ($el['codigo_dea'] ?? '');
         include __DIR__ . '/../../../components/institucion-procedencia-form.php';
         ?>

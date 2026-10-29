@@ -16,10 +16,9 @@ use PDO;
  * búsqueda por nombre) lo hereda igual que los demás catálogos.
  *
  * El tipo es el código del enum de App\Support\Instituciones
- * (titulo_academico, preescolar, escuela), guardado en `institucion.tipo`.
+ * (titulo_academico, preescolar, escuela), guardado en `institucion.id_tipo_institucion`.
  *
- * DESPUÉS DE 20261021_institucion_tipo_fk_1_datos.sql existe además
- * `institucion.id_tipo_institucion`, una FK a `tipo_institucion` con los ids
+ * `institucion.id_tipo_institucion` es una FK a `tipo_institucion` con los ids
  * 1 (Preescolar), 6 (Universidad) y 8 (Escuela). El enum NO cambia: sigue
  * siendo el que decide, y `Instituciones::idCatalogo()` traduce su código al
  * id. La tabla deja de ser un histórico y pasa a ser la que manda.
@@ -80,11 +79,8 @@ class InstitucionModel extends CatalogoModel
     /**
      * Alta de institución.
      *
-     * Escribe LAS DOS columnas de tipo a propósito: `tipo` (texto) e
-     * `id_tipo_institucion` (FK). Están las dos porque la migración se
-     * despliega en pasos y hay una ventana en la que el código nuevo ya corre
-     * y `tipo` todavía existe. Cuando el tercer script borre `tipo`, aquí se
-     * quita su línea y el resto no cambia.
+     * Escribe el tipo a través de la FK `id_tipo_institucion`. La columna
+     * histórica `tipo` (texto) fue eliminada: el catálogo manda.
      *
      * El id no se toma del formulario: sale del enum, que es quien sabe qué
      * categoría es cada tipo.
@@ -117,8 +113,7 @@ class InstitucionModel extends CatalogoModel
     }
 
     /**
-     * Edición de institución. Igual que create(), escribe las dos columnas de
-     * tipo para que no queden desincronizadas.
+     * Edición de institución. Actualiza el tipo a través de la FK.
      *
      * El padre (CatalogoModel) solo toca `nombre`, así que sin este sobrescribe
      * el tipo quedaría congelado con el valor del alta. Desde la pantalla de
@@ -285,27 +280,6 @@ class InstitucionModel extends CatalogoModel
         $stmt->execute(['id' => $idParroquia, 'padre' => $idMunicipio]);
 
         return $stmt->fetchColumn() > 0;
-    }
-
-    /**
-     * ¿Ese id de `pais` existe y está activo?
-     */
-    public function existePais(int $idPais): bool
-    {
-        $stmt = $this->pdo->prepare(
-            "SELECT COUNT(*) FROM pais WHERE id_pais = :id AND estado = 'ACTIVO'"
-        );
-        $stmt->execute(['id' => $idPais]);
-
-        return $stmt->fetchColumn() > 0;
-    }
-
-    /** Países para el <select>, en orden alfabético. */
-    public function getPaises(): array
-    {
-        return $this->pdo->query(
-            "SELECT id_pais, nombre FROM pais WHERE estado = 'ACTIVO' ORDER BY nombre ASC"
-        )->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\DocumentosObligatorios;
+
 use App\Support\AniosEscolares;
+use App\Support\Instituciones;
 use App\Support\Matriculas;
 use PDO;
 use Throwable;
@@ -608,39 +611,62 @@ class EstadisticaModel extends Model
         }
 
         try {
-            $sql = "SELECT 
-                        td.nombre AS documento, 
-                        COUNT(*) AS pendientes
+            $sql = "SELECT
+                        ed.id_estudiante,
+                        p.fecha_nacimiento,
+                        td.id_tipo_documento,
+                        td.codigo,
+                        td.nombre AS documento
                     FROM estudiante_documento ed
                     INNER JOIN tipo_documento td ON td.id_tipo_documento = ed.id_tipo_documento
                     INNER JOIN matricula m ON m.id_estudiante = ed.id_estudiante
                     INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
+                    INNER JOIN estudiante e ON e.id_estudiante = ed.id_estudiante
+                    INNER JOIN persona p ON p.id_persona = e.id_persona
                     WHERE ed.consignado = 0
                       AND m.id_anio_escolar = :anio
                       AND {$condCursando}
-                      {$filtroEa}
-                    GROUP BY td.id_tipo_documento
-                    ORDER BY pendientes DESC";
+                      {$filtroEa}";
 
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
-            $documentos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $sqlEst = "SELECT COUNT(DISTINCT ed.id_estudiante) AS total_estudiantes_adeudan
-                         FROM estudiante_documento ed
-                        INNER JOIN matricula m ON m.id_estudiante = ed.id_estudiante
-                        INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
-                        WHERE ed.consignado = 0
-                          AND m.id_anio_escolar = :anio
-                          AND {$condCursando}
-                          {$filtroEa}";
-            $stmtEst = $this->pdo->prepare($sqlEst);
-            $stmtEst->execute($params);
-            $totalEstudiantes = (int) $stmtEst->fetchColumn();
+            $servicio = new DocumentosObligatorios($this->pdo);
+            $hoy = date('Y-m-d');
+
+            $conteo = [];
+            $estudiantesAdeudan = [];
+
+            foreach ($filas as $fila) {
+                $codigo = (string) ($fila['codigo'] ?? '');
+                if ($codigo === 'cedula_alumno'
+                    && !$servicio->requiereCedulaAlumno((string) ($fila['fecha_nacimiento'] ?? ''), $hoy)) {
+                    continue;
+                }
+
+                $idDocumento = (int) $fila['id_tipo_documento'];
+                if (!isset($conteo[$idDocumento])) {
+                    $conteo[$idDocumento] = [
+                        'documento'  => (string) $fila['documento'],
+                        'pendientes' => 0,
+                    ];
+                }
+                $conteo[$idDocumento]['pendientes']++;
+
+                if ($codigo === 'cedula_alumno') {
+                    $conteo[$idDocumento]['documento'] = 'Estudiantes sin cédula (9 años o más)';
+                }
+
+                $estudiantesAdeudan[(int) $fila['id_estudiante']] = true;
+            }
+
+            $documentos = array_values($conteo);
+            usort($documentos, static fn (array $a, array $b): int => $b['pendientes'] <=> $a['pendientes']);
 
             return [
-                'documentos'              => $documentos,
-                'estudiantes_con_deuda'   => $totalEstudiantes,
+                'documentos'            => $documentos,
+                'estudiantes_con_deuda' => count($estudiantesAdeudan),
             ];
         } catch (Throwable $e) {
             error_log('EstadisticaModel::getDocumentosPendientes: ' . $e->getMessage());
@@ -724,5 +750,148 @@ class EstadisticaModel extends Model
     public function getCoberturaAulas(int $idAnio): array
     {
         return (new ReporteModel($this->pdo))->getDistribucionAcademica($idAnio);
+    }
+    /**
+     * Estadísticas de Calificaciones y Rendimiento por Grado y Sección.
+     */
+    public function getRendimientoSecciones(int $idAnio, ?int $idGrado = null, ?int $idSeccion = null): array
+    {
+        $condCursando = Matriculas::condicionCursando('m');
+        $params = [':anio' => $idAnio];
+        $filtroEa = "";
+
+        if ($idGrado !== null && $idGrado > 0) {
+            $filtroEa .= " AND ea.id_grado = :grado";
+            $params[':grado'] = $idGrado;
+        }
+        if ($idSeccion !== null && $idSeccion > 0) {
+            $filtroEa .= " AND ea.id_seccion = :seccion";
+            $params[':seccion'] = $idSeccion;
+        }
+
+        try {
+            $sql = "SELECT 
+                        ea.id_estructura_academica AS id,
+                        ea.id_grado,
+                        ea.id_seccion,
+                        g.nombre AS grado,
+                        COALESCE(s.nombre, 'U') AS seccion,
+                        COALESCE(t.nombre, 'Mañana') AS turno,
+                        ae.nombre_periodo AS anio_escolar,
+                        COUNT(DISTINCT m.id_estudiante) AS total_estudiantes,
+                        COUNT(DISTINCT CASE WHEN ra.literal IS NOT NULL AND TRIM(ra.literal) != '' THEN ra.id_estudiante END) AS total_cargados,
+                        COUNT(DISTINCT CASE WHEN m.id_estudiante IS NOT NULL AND (ra.literal IS NULL OR TRIM(ra.literal) = '') THEN m.id_estudiante END) AS total_pendientes,
+                        COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'PROMOVIDO' OR (ra.literal IN ('A','B','C','D') AND ra.estado_resultado = 'PENDIENTE') THEN ra.id_estudiante END) AS total_promovidos,
+                        COUNT(DISTINCT CASE WHEN ra.estado_resultado = 'NO_PROMOVIDO' OR (ra.literal = 'E' AND ra.estado_resultado = 'PENDIENTE') THEN ra.id_estudiante END) AS total_no_promovidos,
+                        COUNT(DISTINCT CASE WHEN ra.literal = 'A' THEN ra.id_estudiante END) AS total_a,
+                        COUNT(DISTINCT CASE WHEN ra.literal = 'B' THEN ra.id_estudiante END) AS total_b,
+                        COUNT(DISTINCT CASE WHEN ra.literal = 'C' THEN ra.id_estudiante END) AS total_c,
+                        COUNT(DISTINCT CASE WHEN ra.literal = 'D' THEN ra.id_estudiante END) AS total_d,
+                        COUNT(DISTINCT CASE WHEN ra.literal = 'E' THEN ra.id_estudiante END) AS total_e,
+                        MAX(NULLIF(TRIM(CONCAT_WS(' ', p_doc.primer_nombre, p_doc.primer_apellido)), '')) AS docente_nombre
+                    FROM estructura_academica ea
+                    INNER JOIN anio_escolar ae ON ae.id_anio_escolar = ea.id_anio_escolar
+                    INNER JOIN grado g ON g.id_grado = ea.id_grado
+                    LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
+                    LEFT JOIN turno t ON t.id_turno = ea.id_turno
+                    LEFT JOIN matricula m ON m.id_estructura_academica = ea.id_estructura_academica
+                                         AND m.id_anio_escolar = ea.id_anio_escolar
+                                         AND {$condCursando}
+                    LEFT JOIN resultado_academico ra ON ra.id_estudiante = m.id_estudiante
+                                                    AND ra.id_anio_escolar = ea.id_anio_escolar
+                    LEFT JOIN asignacion_docente ad ON ad.id_estructura_academica = ea.id_estructura_academica
+                                                   AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
+                    LEFT JOIN docente doc ON doc.id_docente = ad.id_docente
+                    LEFT JOIN empleado emp ON emp.id_empleado = doc.id_empleado
+                    LEFT JOIN persona p_doc ON p_doc.id_persona = emp.id_persona
+                    WHERE ea.id_anio_escolar = :anio
+                      {$filtroEa}
+                    GROUP BY ea.id_estructura_academica, ea.id_grado, ea.id_seccion, g.nombre, s.nombre, t.nombre, ae.nombre_periodo";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            error_log('EstadisticaModel::getRendimientoSecciones: ' . $e->getMessage());
+            return [];
+        }
+
+        foreach ($filas as &$fila) {
+            $fila['id']                = (int) $fila['id'];
+            $fila['total_estudiantes'] = (int) $fila['total_estudiantes'];
+            $fila['total_cargados']    = (int) $fila['total_cargados'];
+            $fila['total_pendientes']  = (int) $fila['total_pendientes'];
+            $fila['total_promovidos']  = (int) $fila['total_promovidos'];
+            $fila['total_no_promovidos'] = (int) $fila['total_no_promovidos'];
+            $fila['total_a']           = (int) $fila['total_a'];
+            $fila['total_b']           = (int) $fila['total_b'];
+            $fila['total_c']           = (int) $fila['total_c'];
+            $fila['total_d']           = (int) $fila['total_d'];
+            $fila['total_e']           = (int) $fila['total_e'];
+            $fila['docente_nombre']    = trim((string) ($fila['docente_nombre'] ?? ''));
+            $fila['turno']             = trim((string) ($fila['turno'] ?? ''));
+            $fila['porcentaje_carga']  = $fila['total_estudiantes'] > 0
+                ? (int) round(($fila['total_cargados'] / $fila['total_estudiantes']) * 100)
+                : -1;
+        }
+        unset($fila);
+
+        usort($filas, static function (array $a, array $b): int {
+            $ordA = Instituciones::ordinalGrado($a['grado']) ?? PHP_INT_MAX;
+            $ordB = Instituciones::ordinalGrado($b['grado']) ?? PHP_INT_MAX;
+            if ($ordA !== $ordB) {
+                return $ordA <=> $ordB;
+            }
+
+            return strcmp((string) $a['seccion'], (string) $b['seccion']);
+        });
+
+        return $filas;
+    }
+
+    /**
+     * Resumen acumulado de rendimiento y distribución de literales.
+     */
+    public function getResumenRendimiento(int $idAnio, ?int $idGrado = null, ?int $idSeccion = null): array
+    {
+        $secciones = $this->getRendimientoSecciones($idAnio, $idGrado, $idSeccion);
+        $resumen = [
+            'total_secciones'     => count($secciones),
+            'total_estudiantes'   => 0,
+            'total_cargados'      => 0,
+            'total_pendientes'    => 0,
+            'total_promovidos'    => 0,
+            'total_no_promovidos' => 0,
+            'total_a'             => 0,
+            'total_b'             => 0,
+            'total_c'             => 0,
+            'total_d'             => 0,
+            'total_e'             => 0,
+            'porcentaje_carga'    => 0,
+            'tasa_promocion'      => 0,
+        ];
+
+        foreach ($secciones as $sec) {
+            $resumen['total_estudiantes']   += $sec['total_estudiantes'];
+            $resumen['total_cargados']      += $sec['total_cargados'];
+            $resumen['total_pendientes']    += $sec['total_pendientes'];
+            $resumen['total_promovidos']    += $sec['total_promovidos'];
+            $resumen['total_no_promovidos'] += $sec['total_no_promovidos'];
+            $resumen['total_a']             += $sec['total_a'];
+            $resumen['total_b']             += $sec['total_b'];
+            $resumen['total_c']             += $sec['total_c'];
+            $resumen['total_d']             += $sec['total_d'];
+            $resumen['total_e']             += $sec['total_e'];
+        }
+
+        if ($resumen['total_estudiantes'] > 0) {
+            $resumen['porcentaje_carga'] = (int) round(($resumen['total_cargados'] / $resumen['total_estudiantes']) * 100);
+        }
+
+        if ($resumen['total_cargados'] > 0) {
+            $resumen['tasa_promocion'] = (int) round(($resumen['total_promovidos'] / $resumen['total_cargados']) * 100);
+        }
+
+        return $resumen;
     }
 }

@@ -66,7 +66,6 @@ declare(strict_types=1);
                   data-elemento-municipio="<?= (int) ($el['id_municipio'] ?? 0) ?>"
                   data-elemento-parroquia="<?= (int) ($el['id_parroquia'] ?? 0) ?>"
                   data-elemento-dea="<?= htmlspecialchars((string) ($el['codigo_dea'] ?? '')) ?>"
-                  data-elemento-pais="<?= (int) ($el['pais_id'] ?? 0) ?>"
                   data-elemento-extranjera="<?= !empty($el['es_extranjera']) ? '1' : '0' ?>"<?php endif; ?>
                   title="<?= $esInactivo ? 'No se puede editar un elemento inactivo' : 'Editar elemento' ?>"
                   <?= $esInactivo ? 'disabled' : '' ?>>

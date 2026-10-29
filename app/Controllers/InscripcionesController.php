@@ -138,9 +138,7 @@ class InscripcionesController extends CrudController
             'instituciones'   => $model->getInstituciones(),
             // Solo tipos de etapa del estudiante (preescolar o primaria).
             'tiposInstitucionEstudiante' => $model->getTiposInstitucionEstudiante(),
-            /* Ubicación y código DEA del modal de procedencia. */
             'estadosGeo'                   => (new InstitucionModel($this->conexion()))->getEstadosGeo(),
-            'paises'                       => (new InstitucionModel($this->conexion()))->getPaises(),
             'catFamiliares'   => $model->getFamiliarCatalogs(),
             /* Nacionalidad del estudiante: catálogo propio, no el del sub-modal de
                familiares. Va suelto y no dentro de catFamiliares porque lo pinta otro
@@ -554,11 +552,17 @@ class InscripcionesController extends CrudController
             $data['ult_grado_cursado'],
             $data['familiares'],
             $data['recaudos'],
-            true
+            true,
+            (string) ($data['persona']['fecha_nacimiento'] ?? ''),
+            date('Y-m-d')
         );
 
-        if ($faltantes !== []) {
-            $errores['recaudos'] = implode(' ', array_column($faltantes, 'mensaje'));
+        $bloqueantes = array_values(array_filter(
+            $faltantes,
+            static fn (array $faltante): bool => ($faltante['codigo'] ?? '') === DocumentosObligatorios::PERMISO_LOPNNA
+        ));
+        if ($bloqueantes !== []) {
+            $errores['recaudos'] = implode(' ', array_column($bloqueantes, 'mensaje'));
         }
 
         return $errores;

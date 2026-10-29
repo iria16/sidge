@@ -70,8 +70,11 @@ class EstadisticaController extends BaseController
             $grados = $model->getGradosAnio($idAnio);
             $secciones = $model->getSeccionesGrado($idAnio, $idGrado);
 
-            $pestana = isset($_GET['pestana']) ? strtolower(trim((string) $_GET['pestana'])) : 'hermanos';
-            if (!in_array($pestana, ['hermanos', 'matricula', 'salud', 'institucional'], true)) {
+            $pestana = isset($_GET['pestana']) ? strtolower(trim((string) $_GET['pestana'])) : '';
+            if ($pestana === '' && isset($_GET['vista'])) {
+                $pestana = strtolower(trim((string) $_GET['vista']));
+            }
+            if (!in_array($pestana, ['hermanos', 'matricula', 'salud', 'institucional', 'rendimiento'], true)) {
                 $pestana = 'hermanos';
             }
 
@@ -103,6 +106,10 @@ class EstadisticaController extends BaseController
             $estadisticasPersonal = $model->getEstadisticasPersonal();
             $metricasPersonal = $model->getMetricasPersonal();
             $coberturaAulas = $model->getCoberturaAulas($idAnio);
+
+            // 5. Datos de Rendimiento Académico y Calificaciones
+            $filasRendimiento = $model->getRendimientoSecciones($idAnio, $idGrado, $idSeccion);
+            $resumenRendimiento = $model->getResumenRendimiento($idAnio, $idGrado, $idSeccion);
 
             require __DIR__ . '/../Views/estadisticas/index.php';
         } catch (Throwable $e) {

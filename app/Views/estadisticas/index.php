@@ -31,10 +31,12 @@ declare(strict_types=1);
  * @var array<int, array<string, mixed>> $coberturaAulas
  * @var array<int, array<string, mixed>> $estadisticasPersonal
  * @var array<string, mixed>            $metricasPersonal
+ * @var array<int, array<string, mixed>> $filasRendimiento
+ * @var array<string, mixed>            $resumenRendimiento
  */
 
 $pageTitle       = 'Estadísticas Institucionales';
-$pageDescription = 'Control de familias y hermanos, matrícula escolar, capacidad física y talento humano del plantel.';
+$pageDescription = 'Control de familias y hermanos, matrícula escolar, calificaciones y rendimiento, capacidad física y talento humano del plantel.';
 $currentNav      = 'estadisticas';
 
 $breadcrumbs = [
@@ -114,6 +116,20 @@ ob_start();
         <span>Control Administrativo</span>
       </button>
     </li>
+
+    <li class="nav-item" role="presentation">
+      <button class="nav-link <?= $pestana === 'rendimiento' ? 'active' : '' ?>"
+              id="tab-rendimiento-btn"
+              data-bs-toggle="tab"
+              data-bs-target="#tab-rendimiento"
+              type="button"
+              role="tab"
+              aria-controls="tab-rendimiento"
+              aria-selected="<?= $pestana === 'rendimiento' ? 'true' : 'false' ?>">
+        <i class="bi bi-award-fill" aria-hidden="true"></i>
+        <span>Calificaciones y Rendimiento</span>
+      </button>
+    </li>
   </ul>
 
   <!-- Contenido de las Pestañas -->
@@ -152,6 +168,15 @@ ob_start();
          aria-labelledby="tab-institucional-btn"
          tabindex="0">
       <?php include __DIR__ . '/partials/tab-institucional.php'; ?>
+    </div>
+
+    <!-- Pestaña 5: Calificaciones y Rendimiento -->
+    <div class="tab-pane fade <?= $pestana === 'rendimiento' ? 'show active' : '' ?>"
+         id="tab-rendimiento"
+         role="tabpanel"
+         aria-labelledby="tab-rendimiento-btn"
+         tabindex="0">
+      <?php include __DIR__ . '/partials/tab-rendimiento.php'; ?>
     </div>
   </div>
 

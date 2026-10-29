@@ -11,11 +11,9 @@
  *
  * Variables en scope:
  *  - $tiposInstitucionEstudiante (App\Support\Instituciones)
- *  - $paises (lista de países para instituciones extranjeras)
  *  - $estados (lista de estados para la cascada de ubicación nacional)
  */
 $tipoProcedencia = $tiposInstitucionEstudiante ?? [];
-$listaPaises     = $paises ?? [];
 $listaEstados    = $estados ?? [];
 
 ob_start();

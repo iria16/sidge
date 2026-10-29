@@ -14,7 +14,8 @@ class RecoveryModel extends Model
      */
     public function buscarPorUsuarioOCedula(string $valor): array|false
     {
-        $sql = "SELECT u.id_usuario AS id, u.nombre_usuario, p.numero_documento
+        $sql = "SELECT u.id_usuario AS id, u.nombre_usuario, p.numero_documento,
+                       p.primer_nombre, p.primer_apellido
                 FROM usuario u
                 INNER JOIN persona p ON u.id_persona = p.id_persona
                 WHERE (u.nombre_usuario = :valor1 OR p.numero_documento = :valor2)

@@ -349,10 +349,8 @@ function initEditarElementoModal() {
     // blanco y se perderian.
     var selectEstado = modalEditarEl.querySelector('#editarElementoEstado');
     var inputDea = modalEditarEl.querySelector('#editarElementoDea');
-    var selectPais = modalEditarEl.querySelector('#editarElementoPais');
     if (selectEstado) selectEstado.value = d.elementoEstado || '';
     if (inputDea) inputDea.value = d.elementoDea || '';
-    if (selectPais) selectPais.value = d.elementoPais || '';
 
     var interruptorEditar = modalEditarEl.querySelector('[name="es_extranjera"]');
     if (interruptorEditar) {

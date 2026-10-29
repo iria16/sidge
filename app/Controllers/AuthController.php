@@ -8,6 +8,7 @@ use App\Config\Database;
 use App\Models\BitacoraModel;
 use App\Models\LoginModel;
 use App\Models\RecoveryModel;
+use App\Models\NotificacionModel;
 use App\Traits\SecurityTrait;
 use function App\Traits\sigde_rol_clave;
 use PDO;
@@ -316,6 +317,24 @@ class AuthController
         }
 
         $this->recoveryModel->crearSolicitud($usuarioId);
+
+        try {
+            $nombre = trim((string) (($usuario['primer_nombre'] ?? '') . ' ' . ($usuario['primer_apellido'] ?? '')));
+            if ($nombre === '') {
+                $nombre = (string) ($usuario['nombre_usuario'] ?? 'Un usuario');
+            }
+            $admins = (new NotificacionModel($this->db))->destinatariosPorRol('Admin');
+            (new NotificacionModel($this->db))->crear(
+                $admins,
+                'recuperacion_acceso',
+                'Solicitud de recuperación de acceso',
+                $nombre . ' solicitó restablecer su contraseña',
+                BASE_URL . 'recuperacionAcceso/index',
+                $usuarioId
+            );
+        } catch (\Throwable $e) {
+            error_log('Notificacion recuperacion: ' . $e->getMessage());
+        }
 
         $this->mostrarSwalYRedirigir('success', 'Solicitud enviada', 'El administrador ha sido notificado y atenderá su solicitud a la brevedad.', 'auth/login');
     }

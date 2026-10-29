@@ -497,13 +497,7 @@ function initWizardRegistro() {
         SIGDEUI.mostrarAviso('warning', 'Tipo requerido', 'Selecciona el tipo de institución.');
         return;
       }
-      if (extranjera) {
-        var pais = (document.getElementById('nuevaInstitucionPais') || {}).value || '';
-        if (!pais) {
-          SIGDEUI.mostrarAviso('warning', 'País requerido', 'Selecciona el país de la institución.');
-          return;
-        }
-      } else if (!estado) {
+      if (!extranjera && !estado) {
         SIGDEUI.mostrarAviso('warning', 'Ubicación requerida', 'Selecciona el estado donde está la institución.');
         return;
       }

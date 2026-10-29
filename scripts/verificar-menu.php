@@ -213,7 +213,7 @@ foreach ($roles as $rol) {
        el menú. 'auth' queda fuera a propósito: cerrar sesión y cambiar clave los
        tiene todo el mundo y no son un módulo de navegación. */
     foreach ($rutasPermitidas as $controlador => $acciones) {
-        if ($controlador === 'auth' || isset($enMenu[$controlador])) {
+        if ($controlador === 'auth' || $controlador === 'perfil' || isset($enMenu[$controlador])) {
             continue;
         }
         foreach ($acciones as $accion => $permitidos) {

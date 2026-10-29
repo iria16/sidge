@@ -48,31 +48,19 @@ Usa un usuario propio de la aplicación, no `root`: con permisos solo sobre la b
 `sidge` es imposible que una fuga borre el servidor de MySQL entero. Los comandos
 para crearlo están en `DESPLIEGUE.md`.
 
-`database/migrations/` guarda el historial de cambios de esquema, en orden de fecha. **No
-hay que ejecutarlas para instalar de cero**: `schema_actual.sql` ya está consolidado y
-trae todo. Son para subir una base que quedó en una versión anterior.
+`database/migrations/` guarda el esquema consolidado en un único archivo inicial
+(`20261030_initial_schema.sql`), que es copia de `schema_actual.sql`. **No hay que
+ejecutarlas para instalar de cero**: `schema_actual.sql` ya está consolidado y trae
+todo (esquema, datos de prueba y disparadores).
 
-Dos advertencias sobre ellas:
+`database/backups/` conserva respaldos históricos del disparador de transición de
+matrícula.
 
-- No todas son idempotentes. `20261002_ciclo_vida_anio_escolar.sql` y
-  `20261002_empleado_turno.sql` usan `ADD COLUMN` sin protección, así que fallan con
-  «Duplicate column» si se aplican sobre un esquema ya consolidado. Es lo esperado: son
-  incrementales, no de reinstalación.
-- Varias imprimen líneas con el valor de sus variables de control (`1`, `0`). No son
-  errores; el `mysql` CLI las muestra como resultado de un `SELECT`.
-
-El orden se aplica por nombre de archivo, que es una fecha en formato `AAAAMMDD_nombre`.
-
-`database/backups/` tiene el disparador de transición de matrícula tal como estaba antes
-de corregirlo. Se conserva por el mismo motivo.
-
-Para verificar que el esquema instala bien y que una migración corre, sobre una base
-temporal:
+Para verificar que el esquema instala bien, sobre una base temporal:
 
 ```bash
 mysql -u root -p -e "CREATE DATABASE sigde_prueba"
 mysql -u root -p sigde_prueba < database/schema_actual.sql
-mysql -u root -p sigde_prueba < database/migrations/20261006_trigger_transicion_orden_anio.sql
 mysql -u root -p -e "DROP DATABASE sigde_prueba"
 ```
 

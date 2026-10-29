@@ -29,11 +29,15 @@ $extraScripts    = $extraScripts ?? [];
 if (!in_array('/js/core/app-shell.js', $extraScripts, true)) {
     $extraScripts[] = '/js/core/app-shell.js';
 }
-$pageContent = $pageContent ?? '';
-$pageModals  = $pageModals ?? '';
 
 // Notificaciones solo para admin, secretaria y directivo
 $tieneNotificaciones = in_array($rolSesion, ['admin', 'secretaria', 'directivo']);
+
+if ($tieneNotificaciones && !in_array('/js/core/notifications.js', $extraScripts, true)) {
+    $extraScripts[] = '/js/core/notifications.js';
+}
+$pageContent = $pageContent ?? '';
+$pageModals  = $pageModals ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="es">

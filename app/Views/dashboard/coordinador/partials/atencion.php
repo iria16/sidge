@@ -70,7 +70,7 @@ $hayAlertas  = count($alertas) > 0 || $enReposoHoy > 0;
               $icono       = 'bi-person-x';
           } elseif ($tipo === 'sin_literal') {
               $accionTexto = 'Ver calificaciones';
-              $accionUrl   = BASE_URL . 'estadistica/index?vista=rendimiento';
+              $accionUrl   = BASE_URL . 'estadistica/index?pestana=rendimiento';
               $icono       = 'bi-award';
           }
           ?>

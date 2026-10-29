@@ -216,6 +216,20 @@ class WithdrawalController extends CrudController
         try {
             $ok = $this->modelo()->create($data);
             if ($ok) {
+                try {
+                    $estudiante = $this->modelo()->descripcionEstudiantePublica((int) $data['id_matricula']);
+                    $directivos = (new \App\Models\NotificacionModel($this->conexion()))->destinatariosPorRol('Directivo');
+                    (new \App\Models\NotificacionModel($this->conexion()))->crear(
+                        $directivos,
+                        'retiro_pendiente',
+                        'Nuevo retiro pendiente',
+                        'Nuevo retiro pendiente: ' . $estudiante,
+                        BASE_URL . 'withdrawal/index',
+                        (int) $data['id_matricula']
+                    );
+                } catch (\Throwable $e) {
+                    error_log('Notificacion retiro: ' . $e->getMessage());
+                }
                 $this->jsonResponse(true, null, 'Solicitud de retiro registrada correctamente.');
             } else {
                 $this->jsonResponse(false, null, 'No se pudo registrar la solicitud de retiro.', 500);
@@ -306,11 +320,29 @@ class WithdrawalController extends CrudController
 
         try {
             $ok = $model->updateStatus($id, $estado, (int) ($this->idUsuarioActual() ?? 0));
+            if ($ok) {
+                try {
+                    $detalle = $model->getDetail($id);
+                    $idRegistrante = (int) ($detalle['id_usuario_registro'] ?? 0);
+                    $estudiante = (string) ($detalle['estudiante'] ?? 'el estudiante');
+                    if ($idRegistrante > 0) {
+                        $verbo = $estado === 'APROBADO' ? 'aprobada' : 'rechazada';
+                        (new \App\Models\NotificacionModel($this->conexion()))->crear(
+                            $idRegistrante,
+                            'retiro_' . strtolower($estado),
+                            'Retiro ' . $verbo,
+                            'Tu solicitud de retiro de ' . $estudiante . ' fue ' . $verbo,
+                            BASE_URL . 'withdrawal/ver/' . $id,
+                            $id
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    error_log('Notificacion retiro estado: ' . $e->getMessage());
+                }
+            }
             $this->jsonResponse(
                 $ok,
                 null,
-                // El motivo real del fallo lo traduce el modelo: el throw original es un error
-                // de SQL y con el mensaje genérico no se sabe si reintentar sirve.
                 $ok ? 'Estado de la solicitud actualizado.' : ($model->ultimoError() ?: 'No se pudo actualizar la solicitud.'),
                 $ok ? 200 : 409
             );

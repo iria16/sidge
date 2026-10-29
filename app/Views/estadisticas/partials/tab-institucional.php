@@ -136,7 +136,7 @@ declare(strict_types=1);
             <th scope="col" class="text-center">Total Nómina</th>
             <th scope="col" class="text-center text-success">Activos</th>
             <th scope="col" class="text-center text-secondary">Inactivos</th>
-            <th scope="col" class="text-center text-primary">Género (V / H)</th>
+            <th scope="col" class="text-center text-primary">Género (M / F)</th>
             <th scope="col" class="text-end">En Reposo</th>
           </tr>
         </thead>
@@ -154,7 +154,7 @@ declare(strict_types=1);
                 <td class="text-center fw-bold"><?= (int) $ep['total_personal'] ?></td>
                 <td class="text-center text-success fw-medium"><?= (int) $ep['activos'] ?></td>
                 <td class="text-center <?= (int) $ep['inactivos'] > 0 ? 'text-danger fw-medium' : 'text-secondary' ?>"><?= (int) $ep['inactivos'] ?></td>
-                <td class="text-center text-secondary small"><?= (int) $ep['varones'] ?> var. / <?= (int) $ep['hembras'] ?> hem.</td>
+                <td class="text-center text-secondary small"><?= (int) $ep['varones'] ?> masc. / <?= (int) $ep['hembras'] ?> fem.</td>
                 <td class="text-end">
                   <?php if ((int) $ep['en_reposo'] > 0): ?>
                     <span class="badge bg-warning text-dark"><i class="bi bi-heart-pulse me-1"></i><?= (int) $ep['en_reposo'] ?> reposo</span>

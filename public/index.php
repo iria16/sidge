@@ -159,7 +159,7 @@ if (strpos($rutaRelativa, '../') !== false || strpos($rutaRelativa, '..\\') !== 
 $uriLimpia = trim($rutaRelativa, '/');
 $segmentos = $uriLimpia !== '' ? explode('/', $uriLimpia) : [];
 $controllerR = $segmentos[0] ?? 'auth';
-$actionR = $segmentos[1] ?? 'login';
+$actionR = $segmentos[1] ?? ($controllerR === 'auth' ? 'login' : 'index');
 $parametrosRuta = array_slice($segmentos, 2);
 
 
@@ -213,6 +213,12 @@ $rutasPermitidas = [
         'getDetalle' => ['admin'],
         'updateEstado' => ['admin'],
         'resetPassword' => ['admin']
+    ],
+    'notificacion' => [
+        'contador' => ['admin', 'secretaria', 'directivo'],
+        'listar' => ['admin', 'secretaria', 'directivo'],
+        'leer' => ['admin', 'secretaria', 'directivo'],
+        'leerTodas' => ['admin', 'secretaria', 'directivo']
     ],
     'catalogo' => [
         'index' => ['admin'],
@@ -349,6 +355,11 @@ $rutasPermitidas = [
         'exportarHermanosPdf' => ['directivo', 'coordinador'],
         'exportarMatriculaExcel' => ['directivo', 'coordinador'],
     ],
+    // Perfil institucional de usuario (todos los roles autenticados).
+    'perfil' => [
+        'index'          => ['admin', 'docente', 'coordinador', 'directivo', 'secretaria'],
+        'actualizarFoto' => ['admin', 'docente', 'coordinador', 'directivo', 'secretaria'],
+    ],
 ];
 
 // 7.1 ACCIONES QUE SOLO ACEPTAN POST
@@ -365,6 +376,7 @@ $accionesSoloPost = [
     'academicStructure' => ['store', 'update'],
     'teacherAssignment' => ['asignar', 'actualizar', 'retirar'],
     'withdrawal' => ['store', 'updateEstado'],
+    'notificacion' => ['leer', 'leerTodas'],
     'estudiantes' => ['guardarRecaudos'],
     'inscripciones' => ['store', 'guardarInstitucion'],
     'egresos' => ['graduar', 'graduarMasivo'],
@@ -372,6 +384,7 @@ $accionesSoloPost = [
     'configuracionInstitucional' => ['guardar', 'subirImagen', 'quitarImagen', 'restablecerOficial'],
     'resultadoAcademico' => ['guardarPropuesta', 'confirmar'],
     'docente' => ['guardarEnlaceWhatsapp'],
+    'perfil' => ['actualizarFoto'],
 ];
 
 if (!isset($rutasPermitidas[$controller][$action])) {

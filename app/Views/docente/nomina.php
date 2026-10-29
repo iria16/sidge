@@ -95,26 +95,8 @@ $pageSubheading   = $seccion
     : 'Sin sección asignada';
 $idEstructura     = (int) ($seccion['id_estructura_academica'] ?? 0);
 
-if ($tieneSeccion) {
-    if (!in_array($vista, ['nomina', 'contacto', 'cumpleaneros'], true)) {
-        $urlBaseDocumento = $vista === 'boletas'
-            ? BASE_URL . 'certificadoCalificaciones/generarPorSeccion?id_estructura=' . $idEstructura
-            : $urlNomina(['formato' => 'pdf']);
-        $pageHeaderActions = '<button type="button" class="btn btn-primary" id="btnVistaPreviaDocumento"'
-            . ' data-base-pdf="' . $e($urlBaseDocumento) . '"'
-            . ' data-filtros="' . $e(implode(',', $filtrosVista)) . '">'
-            . '<i class="bi bi-eye me-1" aria-hidden="true"></i>Visualizar documento</button>';
-    } else {
-        $pageHeaderActions = '<a href="' . $e($urlNomina(['formato' => 'pdf'])) . '"'
-            . ' id="btnExportarNominaPdf"'
-            . ' data-filtros="' . $e(implode(',', $filtrosVista)) . '"'
-            . ' target="_blank" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">'
-            . '<i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>'
-            . '<span>Exportar PDF</span></a>';
-    }
-} else {
-    $pageHeaderActions = '';
-}
+// Módulo de solo vista: sin botón de exportación
+$pageHeaderActions = '';
 
 ob_start();
 

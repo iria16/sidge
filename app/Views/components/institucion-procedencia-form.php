@@ -21,10 +21,9 @@
  *                        sale: {prefijo}Estado -> name="id_estado_geo".
  * - $urlCascada         endpoint de SIGDEWizardUI.initCascadaUbicacion.
  * - $estadosGeo         catálogo [id_estado, nombre]
- * - $paises             catálogo [id_pais, nombre]
  *
  * Valores precargados (opcionales):
- * - $elExtranjera, $selEstado, $selMunicipio, $selParroquia, $selPais, $selDea
+ * - $elExtranjera, $selEstado, $selMunicipio, $selParroquia, $selDea
  */
 
 declare(strict_types=1);
@@ -32,12 +31,10 @@ declare(strict_types=1);
 $provPrefijo      = $prefijo      ?? 'nuevaInstitucion';
 $provUrlCascada   = $urlCascada   ?? '';
 $provEstados      = $estadosGeo   ?? [];
-$provPaises       = $paises       ?? [];
 $provExtranjera   = !empty($elExtranjera);
 $provEstado       = (int) ($selEstado     ?? 0);
 $provMunicipio    = (int) ($selMunicipio  ?? 0);
 $provParroquia    = (int) ($selParroquia  ?? 0);
-$provPais         = (int) ($selPais       ?? 0);
 $provDea          = (string) ($selDea     ?? '');
 ?>
 <div class="mb-3">
@@ -144,6 +141,6 @@ $provDea          = (string) ($selDea     ?? '');
 </script>
 <?php
 unset(
-    $provPrefijo, $urlCascada, $provEstados, $provPaises, $provExtranjera, $provEstado,
-    $provMunicipio, $provParroquia, $provPais, $provDea
+    $provPrefijo, $urlCascada, $provEstados, $provExtranjera, $provEstado,
+    $provMunicipio, $provParroquia, $provDea
 );

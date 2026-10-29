@@ -61,7 +61,8 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  'Sin registro': las solicitudes sin autor salían con un hueco en
  vez de decir que no hay registro. NULLIF convierte el '' en NULL y el
  COALESCE vuelve a hacer su trabajo.*/
-                       COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
+                       r.id_usuario_registro AS id_usuario_registro,
+                    COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
                        COALESCE(NULLIF(CONCAT_WS(' ', ru.primer_nombre, ru.primer_apellido), ''), '') AS resuelto_por,
                        r.fecha_resolucion AS fecha_resolucion,
                        UPPER(CONCAT(LEFT(p.primer_nombre, 1), LEFT(p.primer_apellido, 1))) AS iniciales
@@ -805,6 +806,11 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     }
 
     /** Cédula del alumno de una matrícula, para que la bitácora se lea sin consultar.*/
+    public function descripcionEstudiantePublica(int $idMatricula): string
+    {
+        return $this->descripcionEstudiante($idMatricula);
+    }
+
     private function descripcionEstudiante(int $idMatricula): string
     {
         $stmt = $this->pdo->prepare(

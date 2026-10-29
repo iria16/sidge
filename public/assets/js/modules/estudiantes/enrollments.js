@@ -489,12 +489,6 @@ document.addEventListener('DOMContentLoaded', function () {
       var estado   = (elEstado && elEstado.value) || '';
       var dea      = (elDea && elDea.value || '').trim();
     var extranjera = !!document.querySelector('#nuevaInstitucionProcedenciaExtranjera:checked');
-    var municipio = (document.getElementById('nuevaInstitucionProcedenciaMunicipio') || {}).value || '';
-    var parroquia = (document.getElementById('nuevaInstitucionProcedenciaParroquia') || {}).value || '';
-    var pais      = (document.getElementById('nuevaInstitucionProcedenciaPais') || {}).value || '';
-    var ciudad    = (document.getElementById('nuevaInstitucionProcedenciaCiudadExtranjera') || {}).value || '';
-    var direccion = (document.getElementById('nuevaInstitucionProcedenciaDireccionExtranjera') || {}).value || '';
-    var referencia = (document.getElementById('nuevaInstitucionProcedenciaReferencia') || {}).value || '';
 
       if (!nombre) {
         SIGDEUI.mostrarAviso('warning', 'Nombre requerido', 'Escribe el nombre de la institución.');

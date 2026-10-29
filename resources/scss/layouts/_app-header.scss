@@ -101,30 +101,64 @@
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  border: none;
+  border: 1px solid rgba($primary, 0.08);
   border-radius: 50%;
-  background: transparent;
+  background: #ffffff;
   color: $secondary;
   font-size: 1.15rem;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
   &:hover,
-  &:focus {
+  &:focus,
+  &[aria-expanded="true"] {
     background: $primary-tint;
     color: $primary;
+    border-color: rgba($primary, 0.2);
+    box-shadow: 0 2px 6px rgba(10, 20, 64, 0.08);
   }
+
+  i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+}
+
+.app-header__notify-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.28rem;
+  border-radius: 9999px;
+  background-color: #ef4444;
+  color: #ffffff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(239, 68, 68, 0.35);
+  pointer-events: none;
+  letter-spacing: -0.02em;
 }
 
 .app-header__notify-dot {
   position: absolute;
-  top: 0.35rem;
-  right: 0.35rem;
-  width: 7px;
-  height: 7px;
+  top: 1px;
+  right: 1px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: $danger;
-  border: 1.5px solid #fff;
+  background-color: #ef4444;
+  border: 2px solid #ffffff;
+  pointer-events: none;
 }
 
 .app-header__profile {
@@ -174,11 +208,12 @@
 // ---------- Notify dropdown ----------
 // Panel de notificaciones que cuelga del botón de campana.
 .notify-dropdown {
-  width: 340px;
+  width: 360px;
+  max-width: calc(100vw - 2rem);
   padding: 0;
-  border: none;
-  border-radius: $border-radius-xl;
-  box-shadow: 0 16px 48px rgba($primary, 0.14);
+  border: 1px solid rgba(10, 20, 64, 0.08);
+  border-radius: 0.75rem;
+  box-shadow: 0 16px 40px rgba(10, 20, 64, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 
   @include media-breakpoint-down(sm) {
@@ -186,29 +221,43 @@
   }
 }
 
-// Cabecera: título + badge de cantidad
+// Cabecera: título + badge de cantidad + botón marcar todas
 .notify-dropdown__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.15rem 0.75rem;
-  border-bottom: 1px solid $primary-tint;
+  padding: 0.85rem 1.15rem;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #edf2f7;
 }
 
 .notify-dropdown__title {
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: $primary;
   margin: 0;
+}
+
+.notify-dropdown__mark-all {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $info;
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: darken($info, 12%);
+    text-decoration: underline;
+  }
 }
 
 .notify-dropdown__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.35rem;
-  height: 1.35rem;
-  padding: 0 0.4rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
   border-radius: $border-radius-pill;
   background: $danger;
   color: #fff;
@@ -219,61 +268,97 @@
 
 // Lista de ítems con scroll si hay muchos
 .notify-dropdown__list {
-  max-height: 280px;
+  max-height: 320px;
   overflow-y: auto;
 
-  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar { width: 4px; }
   &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb {
-    background: $tint-active;
+    background: #cbd5e1;
     border-radius: $border-radius-pill;
   }
 }
 
 // Ítem individual
 .notify-dropdown__item {
+  width: 100%;
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.85rem 1.15rem;
+  border: none;
+  background: #ffffff;
+  text-align: left;
   text-decoration: none;
-  transition: background-color 0.12s ease;
-  border-bottom: 1px solid rgba($primary, 0.05);
+  position: relative;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
 
-  &:last-child { border-bottom: none; }
+  &:last-child {
+    border-bottom: none;
+  }
 
   &:hover,
   &:focus {
-    background: rgba($primary, 0.03);
+    background: #f8fafc;
     outline: none;
+  }
+
+  &.is-unread {
+    background-color: rgba(59, 111, 224, 0.04);
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background-color: #3b6fe0;
+    }
+
+    &:hover {
+      background-color: rgba(59, 111, 224, 0.08);
+    }
   }
 }
 
 // Ícono circular por tipo
 .notify-dropdown__icon {
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 2.15rem;
+  height: 2.15rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   margin-top: 0.05rem;
 
+  &--primary {
+    background: rgba($primary, 0.1);
+    color: $primary;
+  }
+
   &--warning {
-    background: rgba($warning, 0.14);
-    color: darken($warning, 8%);
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
   }
 
   &--danger {
-    background: rgba($danger, 0.12);
-    color: darken($danger, 6%);
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+  }
+
+  &--success {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
   }
 
   &--info {
-    background: rgba($info, 0.12);
-    color: darken($info, 8%);
+    background: rgba(59, 111, 224, 0.12);
+    color: #2563eb;
   }
 }
 
@@ -283,11 +368,20 @@
   min-width: 0;
 }
 
+.notify-dropdown__item-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.15rem;
+  line-height: 1.3;
+}
+
 .notify-dropdown__text {
-  font-size: 0.8rem;
-  color: shade-color($dark, 5%);
+  font-size: 0.78rem;
+  color: #475569;
   line-height: 1.4;
-  margin: 0 0 0.22rem;
+  margin: 0 0 0.25rem;
+  word-break: break-word;
 
   strong {
     color: $primary;
@@ -296,8 +390,20 @@
 }
 
 .notify-dropdown__time {
-  font-size: 0.68rem;
-  color: $secondary;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.notify-dropdown__unread-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #3b6fe0;
+  margin-top: 0.45rem;
 }
 
 // Footer "Ver todas"
@@ -311,15 +417,15 @@
   font-weight: 600;
   color: $primary;
   text-decoration: none;
-  border-top: 1px solid $primary-tint;
-  background: rgba($primary, 0.02);
+  border-top: 1px solid #edf2f7;
+  background: #fafbfe;
   transition: background-color 0.12s ease, color 0.12s ease;
 
   i { font-size: 0.8rem; transition: transform 0.15s ease; }
 
   &:hover,
   &:focus {
-    background: rgba($primary, 0.05);
+    background: #f1f5f9;
     color: $info;
     outline: none;
 

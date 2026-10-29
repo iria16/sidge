@@ -110,9 +110,7 @@ class EmpleadoController extends CrudController
                sabe qué tipos hay y en qué formato los espera el modal. */
             'tiposInstitucion' => (new InstitucionModel($this->conexion()))
                 ->tiposFormulario([Instituciones::TIPO_TITULO_ACADEMICO]),
-            /* Ubicación del <select> del modal de alta rápida. */
             'estadosGeo'       => (new InstitucionModel($this->conexion()))->getEstadosGeo(),
-            'paises'           => (new InstitucionModel($this->conexion()))->getPaises(),
             'estados'          => $catalogos['estados'] ?? [],
             'turnos'           => $catalogos['turnos'] ?? [],
             /* El <select> de nacionalidad del paso 1. */
@@ -310,7 +308,6 @@ class EmpleadoController extends CrudController
             $tiposInstitucion = (new InstitucionModel($this->conexion()))
                 ->tiposFormulario([Instituciones::TIPO_TITULO_ACADEMICO]);
             $estadosGeo       = (new InstitucionModel($this->conexion()))->getEstadosGeo();
-            $paises           = (new InstitucionModel($this->conexion()))->getPaises();
             $estados          = $catalogos['estados'] ?? [];
             $turnos           = $catalogos['turnos'] ?? [];
             $nacionalidades   = $model->getNacionalidades();

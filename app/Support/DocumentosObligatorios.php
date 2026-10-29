@@ -32,6 +32,12 @@ final class DocumentosObligatorios
     public const PERMISO_LOPNNA         = 'permiso_lopnna';
     public const AUTORIZACION_RETIRO    = 'autorizacion_retiro';
     public const CEDULA_AUTORIZADA      = 'cedula_autorizada';
+    public const CEDULA_ALUMNO          = 'cedula_alumno';
+    public const PARTIDA_NACIMIENTO     = 'partida_nacimiento';
+    public const FOTO_ALUMNO           = 'foto_alumno';
+    public const FOTO_REPRESENTANTE     = 'foto_representante';
+    public const CONSTANCIA_VACUNA      = 'constancia_vacuna';
+    public const CEDULA_REPRESENTANTE   = 'cedula_representante';
 
     /**
      * Nombres de respaldo. Solo se usan si el catálogo todavía no tiene el
@@ -71,14 +77,38 @@ final class DocumentosObligatorios
         ?string $ultimoGrado,
         array $familiares,
         array $recaudos,
-        bool $incluirRegla3 = true
+        bool $incluirRegla3 = true,
+        ?string $fechaNacimientoAlumno = null,
+        ?string $fechaInscripcion = null
     ): array {
         $faltantes = [];
 
-        if (!$primerIngreso
-            && $this->esInstitucionEscuela($idInstitucion)
-            && Instituciones::esGradoDePrimaria(Instituciones::ordinalGrado($ultimoGrado))) {
+        foreach ([
+            self::PARTIDA_NACIMIENTO,
+            self::FOTO_ALUMNO,
+            self::FOTO_REPRESENTANTE,
+            self::CONSTANCIA_VACUNA,
+            self::CEDULA_REPRESENTANTE,
+        ] as $codigoObligatorio) {
+            $this->agregarSiFalta($faltantes, $codigoObligatorio, $recaudos);
+        }
+
+        $gradoOrdinal = Instituciones::ordinalGrado($ultimoGrado);
+        $requiereProsecucion = false;
+        if ($this->esInstitucionEscuela($idInstitucion)
+            && Instituciones::esGradoDePrimaria($gradoOrdinal)) {
+            if ($gradoOrdinal !== null && $gradoOrdinal >= 2) {
+                $requiereProsecucion = true;
+            } elseif ($gradoOrdinal === 1 && !$primerIngreso) {
+                $requiereProsecucion = true;
+            }
+        }
+        if ($requiereProsecucion) {
             $this->agregarSiFalta($faltantes, self::CONSTANCIA_PROSECUCION, $recaudos);
+        }
+
+        if ($this->alumnoTiene9AniosOMas($fechaNacimientoAlumno, $fechaInscripcion)) {
+            $this->agregarSiFalta($faltantes, self::CEDULA_ALUMNO, $recaudos);
         }
 
         $representante = $this->representanteLegal($familiares);
@@ -122,6 +152,20 @@ final class DocumentosObligatorios
     }
 
     /**
+     * ¿El alumno requiere cédula (9 años o más a la fecha de referencia)?
+     *
+     * Expone la regla de edad para que las estadísticas y otros consumidores no
+     * dupliquen el cálculo.
+     *
+     * @param string|null $fechaNacimiento Fecha de nacimiento del alumno.
+     * @param string|null $fechaReferencia Fecha de referencia (por defecto hoy).
+     */
+    public function requiereCedulaAlumno(?string $fechaNacimiento, ?string $fechaReferencia = null): bool
+    {
+        return $this->alumnoTiene9AniosOMas($fechaNacimiento, $fechaReferencia);
+    }
+
+    /**
      * ¿Esta persona exige autorización de retiro y cédula consignadas en recaudos?
      *
      * El representante legal siempre puede retirar, pero su cédula ya está en
@@ -137,8 +181,16 @@ final class DocumentosObligatorios
         }
         $autorizado = (int) ($persona['autorizado_retiros'] ?? 0) === 1;
         $representante = (int) ($persona['representante_principal'] ?? 0) === 1;
+        $codigo = $this->codigoParentesco((string) ($persona['parentesco'] ?? ''));
 
-        return $autorizado && !$representante;
+        if ($autorizado === false || $representante === true) {
+            return false;
+        }
+        if (in_array($codigo, ['padre', 'madre'], true)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -184,13 +236,26 @@ final class DocumentosObligatorios
             return [];
         }
 
+        $stmt = $this->pdo->prepare(
+            'SELECT p.fecha_nacimiento
+               FROM estudiante e
+               JOIN persona p ON p.id_persona = e.id_persona
+              WHERE e.id_estudiante = :id
+              LIMIT 1'
+        );
+        $stmt->execute(['id' => $idEstudiante]);
+        $fechaNacimiento = $stmt->fetchColumn();
+        $fechaNacimiento = $fechaNacimiento === false ? null : (string) $fechaNacimiento;
+
         return $this->faltantesInscripcion(
             (int) $procedencia['es_primer_ingreso'] === 1,
             (int) $procedencia['id_institucion'] ?: null,
             (string) ($procedencia['ult_grado_cursado'] ?? ''),
             $representante === null ? [] : [$representante],
             $recaudos,
-            false
+            false,
+            $fechaNacimiento,
+            null
         );
     }
 
@@ -406,5 +471,32 @@ final class DocumentosObligatorios
                 'Falta la cédula de la persona autorizada para retirar al estudiante.',
             default => 'Falta un documento obligatorio: ' . $codigo . '.',
         };
+    }
+
+    private function alumnoTiene9AniosOMas(?string $fechaNacimiento, ?string $fechaInscripcion): bool
+    {
+        if ($fechaNacimiento === null || !$this->fechaValida($fechaNacimiento)) {
+            return false;
+        }
+
+        $referencia = $fechaInscripcion !== null && $this->fechaValida($fechaInscripcion)
+            ? $fechaInscripcion
+            : date('Y-m-d');
+
+        try {
+            $nac = new \DateTimeImmutable($fechaNacimiento);
+            $ref = new \DateTimeImmutable($referencia);
+        } catch (\Exception $e) {
+            return false;
+        }
+
+        return (int) $nac->diff($ref)->y >= 9;
+    }
+
+    private function fechaValida(string $valor): bool
+    {
+        $fecha = \DateTimeImmutable::createFromFormat('Y-m-d', $valor);
+
+        return $fecha !== false && $fecha->format('Y-m-d') === $valor;
     }
 }

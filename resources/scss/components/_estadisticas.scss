@@ -283,4 +283,19 @@
     .col-cupos { width: 110px; text-align: center; font-weight: 700; }
     .col-ocup { width: 95px; text-align: right; }
   }
+
+  // Tabla: Calificaciones y Rendimiento por Aula
+  .tabla-rendimiento-aulas {
+    min-width: 860px !important;
+
+    .col-aula { min-width: 130px; }
+    .col-turno { width: 85px; }
+    .col-docente { min-width: 180px; }
+    .col-mat { width: 95px; text-align: center; }
+    .col-cargados { width: 95px; text-align: center; }
+    .col-pend { width: 95px; text-align: center; }
+    .col-prom { width: 95px; text-align: center; }
+    .col-noprom { width: 95px; text-align: center; }
+    .col-avance { width: 145px; text-align: right; }
+  }
 }

@@ -18,7 +18,7 @@ $encodeConfig = static function (array $config): string {
 
 // Gráfica de Género
 $donutGeneroConfig = [
-    'labels'       => ['Varones', 'Hembras'],
+    'labels'       => ['Masculino', 'Femenino'],
     'values'       => [(int) ($demografiaMatricula['varones'] ?? 0), (int) ($demografiaMatricula['hembras'] ?? 0)],
     'colors'       => ['c1', 'c2'],
     'emptyMessage' => 'Sin matrícula activa registrada',
@@ -163,8 +163,8 @@ $donutIngresosConfig = [
             <th scope="col" class="col-sec text-center">Sección</th>
             <th scope="col" class="col-turno">Turno</th>
             <th scope="col" class="col-cap text-center">Capacidad Máxima</th>
-            <th scope="col" class="col-m text-center text-primary">Varones (M)</th>
-            <th scope="col" class="col-f text-center text-danger">Hembras (F)</th>
+            <th scope="col" class="col-m text-center text-primary">Masculino (M)</th>
+            <th scope="col" class="col-f text-center text-danger">Femenino (F)</th>
             <th scope="col" class="col-tot text-center fw-bold">Matrícula Total</th>
             <th scope="col" class="col-cupos text-center text-success">Cupos Libres</th>
             <th scope="col" class="col-ocup text-end">% Ocupación</th>
@@ -219,8 +219,8 @@ $donutIngresosConfig = [
             <thead class="table-light text-uppercase small text-secondary">
               <tr>
                 <th scope="col">Edad Cumplida</th>
-                <th scope="col" class="text-center text-primary">Varones (M)</th>
-                <th scope="col" class="text-center text-danger">Hembras (F)</th>
+                <th scope="col" class="text-center text-primary">Masculino (M)</th>
+                <th scope="col" class="text-danger text-center">Femenino (F)</th>
                 <th scope="col" class="text-end">Total</th>
               </tr>
             </thead>

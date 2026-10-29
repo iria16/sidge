@@ -59,10 +59,6 @@ class CatalogoController extends CrudController
         // 'maxLength' sube a 100, lo que admite la columna, porque los nombres
         // de institución son largos. Los otros once catálogos siguen en 50.
         // 'respetaSiglas': los nombres de institución traen siglas (UNEFA, UCV).
-        //   Sin esto "Universidad ... (UNEFA)" se guardaba como "(Unefa)".
-        // Catálogo de países, para las instituciones extranjeras. Se administra
-        // desde aquí mismo; el formulario de institución solo lo consulta.
-        'pais'              => ['nombre' => 'País',                'icono' => 'bi-globe2',             'modelClass' => 'PaisModel',            'formato' => 'titulo',  'maxLength' => 80],
         'institucion'       => ['nombre' => 'Institución',          'icono' => 'bi-building',           'modelClass' => 'InstitucionModel',    'formato' => 'titulo', 'maxLength' => 100, 'pideTipo' => true, 'respetaSiglas' => true],
     ];
 
@@ -153,8 +149,6 @@ class CatalogoController extends CrudController
             // Ubicación: el <select> de estados solo lo necesitan institución y
             // los dos modales de alta que comparten sus reglas.
             $estadosGeo        = $pideTipo ? (new InstitucionModel($this->conexion()))->getEstadosGeo() : [];
-            // Países: solo los necesita institución, para el camino extranjera.
-            $paises            = $pideTipo ? (new InstitucionModel($this->conexion()))->getPaises() : [];
 
             require __DIR__ . "/../Views/{$this->viewPath}/index.php";
         } catch (Throwable $e) {

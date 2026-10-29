@@ -291,7 +291,6 @@ class DashboardModel extends Model
                 'motivo_retiro'   => 'Motivo de Retiro',
                 'ocupacion'       => 'Profesión / Ocupación',
                 'nacionalidad'    => 'Nacionalidad',
-                'pais'            => 'País',
                 'institucion'     => 'Institución',
                 'cargo'           => 'Cargo',
             ];

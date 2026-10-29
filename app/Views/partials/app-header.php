@@ -61,52 +61,20 @@ $rolEtiqueta          = sigde_rol_etiqueta($rolSesion);
         aria-label="Notificaciones"
       >
         <i class="bi bi-bell" aria-hidden="true"></i>
-        <?php if ($tieneNotificaciones): ?>
-          <span class="app-header__notify-dot" aria-hidden="true"></span>
-        <?php endif; ?>
+        <span class="app-header__notify-dot d-none" id="notifyDot" aria-hidden="true"></span>
+        <span class="app-header__notify-count d-none" id="notifyCount">0</span>
       </button>
-      <div class="dropdown-menu dropdown-menu-end notify-dropdown" aria-labelledby="notifyDropdown">
+      <div class="dropdown-menu dropdown-menu-end notify-dropdown shadow" aria-labelledby="notifyDropdown">
         <div class="notify-dropdown__head">
-          <span class="notify-dropdown__title">Notificaciones</span>
-          <span class="notify-dropdown__badge">3</span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="notify-dropdown__title">Notificaciones</span>
+            <span class="badge bg-danger-subtle text-danger rounded-pill d-none" id="notifyDropdownCount">0</span>
+          </div>
+          <button type="button" class="btn btn-link btn-sm p-0 notify-dropdown__mark-all text-decoration-none" id="notifyMarkAll">Marcar todas</button>
         </div>
-
-        <div class="notify-dropdown__list">
-          <a class="notify-dropdown__item" href="#">
-            <span class="notify-dropdown__icon notify-dropdown__icon--warning">
-              <i class="bi bi-key" aria-hidden="true"></i>
-            </span>
-            <div class="notify-dropdown__body">
-              <p class="notify-dropdown__text"><strong>3 recuperaciones</strong> de acceso pendientes de aprobación.</p>
-              <time class="notify-dropdown__time">Hace 12 min</time>
-            </div>
-          </a>
-
-          <a class="notify-dropdown__item" href="#">
-            <span class="notify-dropdown__icon notify-dropdown__icon--danger">
-              <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
-            </span>
-            <div class="notify-dropdown__body">
-              <p class="notify-dropdown__text"><strong>Solicitud de retiro</strong> requiere revisión del directivo.</p>
-              <time class="notify-dropdown__time">Hace 1 h</time>
-            </div>
-          </a>
-
-          <a class="notify-dropdown__item" href="#">
-            <span class="notify-dropdown__icon notify-dropdown__icon--info">
-              <i class="bi bi-person-plus" aria-hidden="true"></i>
-            </span>
-            <div class="notify-dropdown__body">
-              <p class="notify-dropdown__text">Inscripción registrada en <strong>4to grado</strong>.</p>
-              <time class="notify-dropdown__time">Hace 2 h</time>
-            </div>
-          </a>
+        <div class="notify-dropdown__list" id="notifyList">
+          <div class="notify-dropdown__empty text-secondary small p-3">Sin notificaciones</div>
         </div>
-
-        <a class="notify-dropdown__footer" href="#">
-          Ver todas las notificaciones
-          <i class="bi bi-arrow-right" aria-hidden="true"></i>
-        </a>
       </div>
     </div>
     <?php endif; ?>
@@ -138,7 +106,7 @@ $rolEtiqueta          = sigde_rol_etiqueta($rolSesion);
             <?php echo htmlspecialchars($rolEtiqueta); ?>
           </span>
         </li>
-        <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2" aria-hidden="true"></i>Mi perfil</a></li>
+        <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>perfil/index"><i class="bi bi-person me-2" aria-hidden="true"></i>Mi perfil</a></li>
         <li><hr class="dropdown-divider"></li>
         <li>
           <a class="dropdown-item text-danger" href="<?php echo BASE_URL; ?>auth/logout">

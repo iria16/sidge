@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Partial: estadisticas/partials/filtros-globales.php
- * Barra de filtros globales por Año Escolar, Grado y Sección, con acción de reporte oficial en PDF.
+ * Barra de filtros globales por Año Escolar, Grado y Sección.
  *
  * @var array<int, array<string, mixed>> $anios
  * @var int                              $idAnio
@@ -21,7 +21,7 @@ declare(strict_types=1);
     <input type="hidden" name="pestana" id="inputPestanaActiva" value="<?= htmlspecialchars($pestana) ?>">
 
     <!-- Filtro 1: Año Escolar -->
-    <div class="col-12 col-md-4 col-lg-3">
+    <div class="col-12 col-md-4">
       <label for="filtroAnio" class="form-label small fw-semibold text-secondary mb-1">
         <i class="bi bi-calendar3 me-1 text-primary"></i>Año Escolar
       </label>
@@ -41,7 +41,7 @@ declare(strict_types=1);
     </div>
 
     <!-- Filtro 2: Grado -->
-    <div class="col-12 col-sm-6 col-md-3">
+    <div class="col-12 col-sm-6 col-md-4">
       <label for="filtroGrado" class="form-label small fw-semibold text-secondary mb-1">
         <i class="bi bi-mortarboard me-1 text-primary"></i>Grado
       </label>
@@ -57,7 +57,7 @@ declare(strict_types=1);
     </div>
 
     <!-- Filtro 3: Sección -->
-    <div class="col-12 col-sm-6 col-md-3">
+    <div class="col-12 col-sm-6 col-md-4">
       <label for="filtroSeccion" class="form-label small fw-semibold text-secondary mb-1">
         <i class="bi bi-door-open me-1 text-primary"></i>Sección
       </label>
@@ -70,16 +70,6 @@ declare(strict_types=1);
           </option>
         <?php endforeach; ?>
       </select>
-    </div>
-
-    <!-- Reporte Oficial PDF (Exclusivo para toma de decisiones) -->
-    <div class="col-12 col-md-2 col-lg-3 d-flex justify-content-md-end">
-      <a class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1 shadow-sm px-3"
-         target="_blank"
-         href="<?= BASE_URL ?>estadistica/exportarHermanosPdf?anio=<?= $idAnio ?><?= $idGrado ? '&grado=' . $idGrado : '' ?><?= $idSeccion ? '&seccion=' . $idSeccion : '' ?>&inline=1">
-        <i class="bi bi-file-earmark-pdf text-danger" aria-hidden="true"></i>
-        <span>Reporte PDF</span>
-      </a>
     </div>
   </form>
 </div>

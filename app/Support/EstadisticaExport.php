@@ -101,8 +101,8 @@ class EstadisticaExport
             'Turno',
             'Capacidad Máxima',
             'Total Matriculados',
-            'Varones (M)',
-            'Hembras (F)',
+            'Masculino (M)',
+            'Femenino (F)',
             'Cupos Disponibles',
             '% Ocupación'
         ], $delimitador);
