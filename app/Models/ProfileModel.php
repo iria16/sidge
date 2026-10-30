@@ -19,7 +19,7 @@ use Throwable;
  * - Información de contacto y dirección (contacto, direccion, parroquia, municipio, estado)
  * - Último acceso a la plataforma (bitacora)
  */
-class PerfilModel extends BaseModel
+class ProfileModel extends BaseModel
 {
     use AvatarTrait;
 
@@ -104,7 +104,7 @@ class PerfilModel extends BaseModel
 
             return $this->formatearPerfil($row);
         } catch (Throwable $e) {
-            error_log('Error en PerfilModel::getPerfilUsuario: ' . $e->getMessage());
+            error_log('Error en ProfileModel::getPerfilUsuario: ' . $e->getMessage());
             return null;
         }
     }
@@ -280,7 +280,7 @@ class PerfilModel extends BaseModel
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
             return $row !== false ? $row : null;
         } catch (\Throwable $e) {
-            error_log('Error en PerfilModel::getPersonaUsuario: ' . $e->getMessage());
+            error_log('Error en ProfileModel::getPersonaUsuario: ' . $e->getMessage());
             return null;
         }
     }
@@ -301,7 +301,7 @@ class PerfilModel extends BaseModel
                 ':id_persona' => $idPersona,
             ]);
         } catch (\Throwable $e) {
-            error_log('Error en PerfilModel::actualizarFotoPersona: ' . $e->getMessage());
+            error_log('Error en ProfileModel::actualizarFotoPersona: ' . $e->getMessage());
             return false;
         }
     }

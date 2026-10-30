@@ -534,6 +534,7 @@ $mapaControladores = [
     'estudiantes' => 'Students',
     'inscripciones' => 'Enrollment',
     'notificacion' => 'Notification',
+    'perfil' => 'Profile',
 ];
 $nombreControladorClase = $mapaControladores[$controller] ?? ucfirst($controller);
 $nombreClaseControlador = 'App\\Controllers\\' . $nombreControladorClase . 'Controller';

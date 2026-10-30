@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\PerfilModel;
+use App\Models\ProfileModel;
 use App\Traits\FotoSubidaTrait;
 use PDO;
 
@@ -15,7 +15,7 @@ use PDO;
  * coordinador, docente, secretaria) consultar su propia ficha de identidad,
  * datos de cuenta, información laboral y canales de contacto en modo solo lectura.
  */
-class PerfilController extends BaseController
+class ProfileController extends BaseController
 {
     use FotoSubidaTrait;
 
@@ -32,19 +32,19 @@ class PerfilController extends BaseController
     /**
      * Instancia tipada del modelo de perfil.
      */
-    private function modelo(): PerfilModel
+    private function modelo(): ProfileModel
     {
-        /** @var PerfilModel $model */
+        /** @var ProfileModel $model */
         $model = $this->getModel();
         return $model;
     }
 
     /**
-     * Crea la instancia de PerfilModel para BaseController.
+     * Crea la instancia de ProfileModel para BaseController.
      */
     protected function createModel(PDO $pdo): object
     {
-        return new PerfilModel($pdo);
+        return new ProfileModel($pdo);
     }
 
     /**
