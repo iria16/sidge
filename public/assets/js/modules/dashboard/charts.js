@@ -16,9 +16,13 @@
     return;
   }
 
-  // Desactiva animaciones si el usuario prefiere movimiento reducido
+  // Desactiva animaciones si el usuario prefiere movimiento reducido, o ajusta la duración
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  Chart.defaults.animation = prefersReducedMotion ? false : { duration: 400 };
+  if (prefersReducedMotion) {
+    Chart.defaults.animation = false;
+  } else if (Chart.defaults.animation && typeof Chart.defaults.animation === 'object') {
+    Chart.defaults.animation.duration = 400;
+  }
   Chart.defaults.font.family = "'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   Chart.defaults.color = '#1c2340';
 
