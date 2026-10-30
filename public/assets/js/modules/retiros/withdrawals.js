@@ -48,6 +48,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (formRegistrar) {
     var selMotivo      = document.getElementById('retiroMotivo');
+    var selRepresentante = document.getElementById('retiroRepresentante');
+    var inputFecha     = document.getElementById('retiroFecha');
     var btnRegistrar   = document.getElementById('btnRegistrarRetiro');
     var inputBuscar    = document.getElementById('retiroBuscarEstudiante');
     var inputMatricula = document.getElementById('retiroIdMatricula');
@@ -89,6 +91,10 @@ document.addEventListener('DOMContentLoaded', function () {
       inputMatricula.value = '';
       panelDatos.classList.add('d-none');
       marcarFaltaEstudiante(false);
+      if (selRepresentante) {
+        selRepresentante.innerHTML = '<option value="" selected disabled>Busque un estudiante primero</option>';
+        selRepresentante.disabled = true;
+      }
     };
 
     var avisar = function (html) {
@@ -132,6 +138,25 @@ document.addEventListener('DOMContentLoaded', function () {
       ponerTexto('retiroDatosGrado', item.grado + ' — Sección ' + item.seccion);
       ponerTexto('retiroDatosAnio', item.anio);
       panelDatos.classList.remove('d-none');
+
+      if (selRepresentante) {
+        var reps = item.representantes || [];
+        if (reps.length > 0) {
+          selRepresentante.innerHTML = '<option value="" selected disabled>Seleccione representante</option>'
+            + reps.map(function (r) {
+              return '<option value="' + r.id_persona + '">'
+                + SIGDEUI.escapeHtml(r.nombre + ' (' + r.cedula + ') — ' + r.parentesco + ' [' + r.tipo_relacion + ']')
+                + '</option>';
+            }).join('');
+          selRepresentante.disabled = false;
+          if (reps.length === 1) {
+            selRepresentante.value = reps[0].id_persona;
+          }
+        } else {
+          selRepresentante.innerHTML = '<option value="" selected disabled>El estudiante no tiene representante legal ni autorizado registrado</option>';
+          selRepresentante.disabled = true;
+        }
+      }
     };
 
 var buscar = SIGDEUI.esDebounced(400, function () {
@@ -249,10 +274,18 @@ var buscar = SIGDEUI.esDebounced(400, function () {
       var sinEstudiante = !elegido;
       marcarFaltaEstudiante(sinEstudiante);
       selMotivo.classList.toggle('is-invalid', !selMotivo.value);
+      var faltaFecha = !inputFecha || !inputFecha.value;
+      if (inputFecha) inputFecha.classList.toggle('is-invalid', faltaFecha);
+      var faltaRep = !selRepresentante || !selRepresentante.value;
+      if (selRepresentante) selRepresentante.classList.toggle('is-invalid', faltaRep);
 
-      if (sinEstudiante || !selMotivo.value) {
-        SIGDEUI.mostrarAviso('warning', 'Campos incompletos',
-          sinEstudiante ? 'Busque y seleccione el estudiante.' : 'Seleccione el motivo del retiro.');
+      if (sinEstudiante || !selMotivo.value || faltaFecha || faltaRep) {
+        var msg = 'Complete todos los campos obligatorios.';
+        if (sinEstudiante) msg = 'Busque y seleccione el estudiante.';
+        else if (faltaFecha) msg = 'Indique la fecha del retiro.';
+        else if (faltaRep) msg = 'Seleccione quién retira al estudiante.';
+        else if (!selMotivo.value) msg = 'Seleccione el motivo del retiro.';
+        SIGDEUI.mostrarAviso('warning', 'Campos incompletos', msg);
         return;
       }
 
@@ -277,6 +310,8 @@ var buscar = SIGDEUI.esDebounced(400, function () {
         var cuerpo = new URLSearchParams({
           id_matricula: inputMatricula.value,
           id_motivo_retiro: selMotivo.value,
+          id_persona_representante: selRepresentante.value,
+          fecha_retiro: inputFecha.value,
           observaciones: observaciones,
         });
 
