@@ -353,7 +353,7 @@ try {
 }
 
 // -------------------------------------------------------------
-// Caso 7: Reconocimiento automático en ConstanciaModel y Lote de 6.° Grado
+// Caso 7: Reconocimiento automático en CertificatesModel y Lote de 6.° Grado
 // -------------------------------------------------------------
 try {
     $pdfLote = ConstanciaPdf::generarEgresoPorLote($config, [$estudianteEgreso], new DateTimeImmutable('2026-07-28'));
@@ -362,7 +362,7 @@ try {
     }
     try {
         $pdo = (new \App\Config\Database())->getConnection();
-        $modelConst = new \App\Models\ConstanciaModel($pdo);
+        $modelConst = new \App\Models\CertificatesModel($pdo);
         $listaEgreso = $modelConst->getEstudiantesEgreso(['q' => ''], 1, 10);
         $totalEgreso = $modelConst->countEstudiantesEgreso(['q' => '']);
         $loteEgreso  = $modelConst->getEstudiantesEgresoParaLote(['q' => '']);

@@ -526,6 +526,7 @@ $mapaControladores = [
     'catalogo' => 'Catalog',
     'certificadoCalificaciones' => 'GradeCertificate',
     'configuracionInstitucional' => 'InstitutionalConfig',
+    'constancias' => 'Certificates',
 ];
 $nombreControladorClase = $mapaControladores[$controller] ?? ucfirst($controller);
 $nombreClaseControlador = 'App\\Controllers\\' . $nombreControladorClase . 'Controller';

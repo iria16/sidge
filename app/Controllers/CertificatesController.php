@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
-use App\Models\ConstanciaModel;
+use App\Models\CertificatesModel;
 use App\Support\ConstanciaPdf;
 use DomainException;
 use InvalidArgumentException;
@@ -15,7 +15,7 @@ use Throwable;
 use function App\Traits\sigde_rol_clave;
 
 /**
- * ConstanciasController
+ * CertificatesController
  * ---------------------
  * Controlador unificado para la emisión oficial de Constancias:
  * - Estudio
@@ -29,21 +29,21 @@ use function App\Traits\sigde_rol_clave;
  * 3. Restricción de permisos y turnos según el rol de la sesión.
  * 4. Registro formal de auditoría en la bitácora del sistema.
  */
-class ConstanciasController extends BaseController
+class CertificatesController extends BaseController
 {
     protected string $viewPath  = 'constancias';
     protected string $routeName = 'constancias';
 
-    private function modelo(): ConstanciaModel
+    private function modelo(): CertificatesModel
     {
-        /** @var ConstanciaModel $model */
+        /** @var CertificatesModel $model */
         $model = $this->getModel();
         return $model;
     }
 
     protected function createModel(PDO $pdo): object
     {
-        return new ConstanciaModel($pdo);
+        return new CertificatesModel($pdo);
     }
 
     /**
@@ -52,7 +52,7 @@ class ConstanciasController extends BaseController
      */
     private function tiposPermitidosPorRol(): array
     {
-        return ConstanciaModel::tiposPermitidosPorRol(sigde_rol_clave($_SESSION['rol'] ?? ''));
+        return CertificatesModel::tiposPermitidosPorRol(sigde_rol_clave($_SESSION['rol'] ?? ''));
     }
 
     /**

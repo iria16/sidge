@@ -7,7 +7,7 @@ namespace App\Models;
 use PDO;
 
 /**
- * ConstanciaModel
+ * CertificatesModel
  * ---------------
  * Modelo unificado para la gestión y consulta de datos académicos requeridos en la
  * emisión de Constancias oficiales (Estudio, Inscripción / Ratificación, Prosecución y Retiro).
@@ -16,7 +16,7 @@ use PDO;
  * las tablas estudiante, persona, matricula, estructura_academica, grado,
  * seccion, anio_escolar, parroquia, municipio, estado, retiro y resultado_academico.
  */
-class ConstanciaModel extends BaseModel
+class CertificatesModel extends BaseModel
 {
     protected string $table = 'estudiante';
     protected string $primaryKey = 'id_estudiante';
