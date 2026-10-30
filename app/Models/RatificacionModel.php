@@ -514,7 +514,7 @@ class RatificacionModel extends BaseModel implements Listable
                 }
                 /* fecha_actualizacion es NOT NULL y NO tiene default: si no se
  manda, el INSERT falla con el error 1364. Por eso el CURDATE()
- en las dos ramas, como en InscripcionesModel::create().*/
+ en las dos ramas, como en EnrollmentModel::create().*/
                 $this->pdo->prepare(
                     'INSERT INTO talla_uniforme (id_estudiante, talla_camisa, talla_pantalon, talla_zapato, observaciones, fecha_actualizacion)
                      VALUES (:id_estudiante, :camisa, :pantalon, :zapato, :observaciones, CURDATE())
@@ -647,7 +647,7 @@ class RatificacionModel extends BaseModel implements Listable
             'ocupaciones'         => $this->pdo->query("SELECT nombre FROM ocupacion WHERE estado = 'ACTIVO' ORDER BY nombre")
                                 ->fetchAll(\PDO::FETCH_COLUMN),
             /* Los estados se devuelven con la clave `id_estado`, que es como los entrega
- InscripcionesModel::getEstados() y como los lee el sub-modal. No se
+ EnrollmentModel::getEstados() y como los lee el sub-modal. No se
  usa un alias `id` porque el marcado del <select> pide `id_estado`, y si
  no coincidiera saldrían todos los estados con value="0": elegir un
  estado no filtraría nada y la cascada de municipios parecería rota.*/

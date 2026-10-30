@@ -25,7 +25,7 @@ use Throwable;
 */
 class WithdrawalModel extends BaseModel implements Listable, Creatable
 {
-    /* Estado "retirado" derivado y compartido con InscripcionesModel, para que los dos
+    /* Estado "retirado" derivado y compartido con EnrollmentModel, para que los dos
  módulos consulten el mismo registro y no tengan cada uno su idea de si un alumno
  está retirado. Ver RetiradoTrait.*/
     use RetiradoTrait;

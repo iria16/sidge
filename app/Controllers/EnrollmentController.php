@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use App\Exceptions\AnioEscolarCerradoException;
 use App\Exceptions\CupoAgotadoException;
-use App\Models\InscripcionesModel;
+use App\Models\EnrollmentModel;
 use App\Models\InstitucionModel;
 use App\Support\Instituciones;
 use App\Support\CedulaEscolar;
@@ -39,7 +39,7 @@ use Throwable;
  * controlador valida y traduce las excepciones de dominio: 409 para un conflicto de estado y
  * 422 para un error de campo.
 */
-class InscripcionesController extends CrudController
+class EnrollmentController extends CrudController
 {
     use FotoSubidaTrait;
     use PersonaValidacionTrait;
@@ -68,12 +68,12 @@ class InscripcionesController extends CrudController
     private const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
     /**
- * Modelo con su tipo real (InscripcionesModel), para que el editor
+ * Modelo con su tipo real (EnrollmentModel), para que el editor
  * resuelva sus métodos en vez de verlos sobre `object`.
 */
-    private function modelo(): InscripcionesModel
+    private function modelo(): EnrollmentModel
     {
-        /** @var InscripcionesModel $model*/
+        /** @var EnrollmentModel $model*/
         $model = $this->getModel();
 
         return $model;
@@ -81,7 +81,7 @@ class InscripcionesController extends CrudController
 
     protected function createModel(PDO $pdo): object
     {
-        return new InscripcionesModel($pdo);
+        return new EnrollmentModel($pdo);
     }
 
     protected function getFiltersFromRequest(): array

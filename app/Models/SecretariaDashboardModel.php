@@ -66,7 +66,7 @@ class SecretariaDashboardModel extends Model
             );
 
             $estadisticasInscripciones = $this->segura(
-                fn (): array => (new InscripcionesModel($this->pdo))->getStats($idTurno, $anioId),
+                fn (): array => (new EnrollmentModel($this->pdo))->getStats($idTurno, $anioId),
                 'inscripciones'
             );
 
@@ -82,7 +82,7 @@ class SecretariaDashboardModel extends Model
             );
 
             $cuposPorEstructura = $this->segura(
-                fn (): array => (new InscripcionesModel($this->pdo))->getCuposPorEstructura($idTurno, $anioId),
+                fn (): array => (new EnrollmentModel($this->pdo))->getCuposPorEstructura($idTurno, $anioId),
                 'cupos por estructura'
             );
         }

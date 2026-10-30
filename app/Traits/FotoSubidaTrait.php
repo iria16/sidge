@@ -11,7 +11,7 @@ namespace App\Traits;
  * (wizard de empleado, de estudiante y de familiar).
  *
  * Existía como private procesarFotoSubida() duplicado en EmployeeController
- * e InscripcionesController: el cuerpo era idéntico y solo cambiaban el
+ * e EnrollmentController: el cuerpo era idéntico y solo cambiaban el
  * prefijo del archivo y la carpeta. Acá vive una sola vez y ambos lo usan.
  *
  * El método usa $this->jsonResponse() (BaseController) para cortar la

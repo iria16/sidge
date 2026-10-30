@@ -36,7 +36,7 @@ class RatificacionController extends CrudController
 {
     /* PersonaValidacionTrait usa fechaValida() y fechaEnRango(), que viven en
  ValidacionFechaTrait: sin ese trait, validarFechaNacimiento() revienta con
- "Call to undefined method". InscripcionesController los usa los dos, por
+ "Call to undefined method". EnrollmentController los usa los dos, por
  el mismo motivo.*/
     /* validarFamiliares() (FamiliaresValidacionTrait) delega la validación del
  teléfono y el correo en ContactoValidacionTrait. Es el mismo trait que usa
@@ -337,7 +337,7 @@ class RatificacionController extends CrudController
  ratificar ya pide los datos de este estudiante, y pedir los documentos por
  otro lado duplicaría el control de turno y abriría la puerta a que la
  tabla mostrara los recaudos de un alumno y el nombre de otro.*/
-                'recaudos'        => (new \App\Models\InscripcionesModel($this->conexion()))
+                'recaudos'        => (new \App\Models\EnrollmentModel($this->conexion()))
                                         ->getRecaudosDeEstudiante($idEstudiante),
             ]);
         } catch (Throwable $e) {
@@ -930,7 +930,7 @@ class RatificacionController extends CrudController
             !== $servicio->codigoParentesco((string) ($nuevo['parentesco'] ?? ''));
     }
 
-    /** Vacío a null, como en InscripcionesController (texto libre opcional).*/
+    /** Vacío a null, como en EnrollmentController (texto libre opcional).*/
     private function vacioComoNull(?string $valor): ?string
     {
         $valor = trim((string) $valor);

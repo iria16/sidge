@@ -14,7 +14,7 @@ use App\Support\Matriculas;
  * `estructura_academica` (grado + sección + turno + año escolar, con
  * `capacidad_maxima`). Este trait es el único lugar donde se cruza esa
  * configuración con los estudiantes que realmente la ocupan, y lo usan los dos
- * módulos que necesitan el dato: InscripcionesModel (el paso académico) y
+ * módulos que necesitan el dato: EnrollmentModel (el paso académico) y
  * RatificacionModel (que proyecta al periodo siguiente).
 */
 trait CupoEstructuraTrait

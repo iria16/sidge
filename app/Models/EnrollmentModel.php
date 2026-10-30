@@ -25,7 +25,7 @@ use Throwable;
  * Opcionalmente también contacto, dirección, ficha médica y familiares.
  * La inscripción no tiene columna de estado: todo registro creado por el wizard se considera "completa".
 */
-class InscripcionesModel extends BaseModel implements Listable, Creatable
+class EnrollmentModel extends BaseModel implements Listable, Creatable
 {
     /* La escritura de familiares vive en un trait porque inscripción y
  ratificación hacen EXACTAMENTE lo mismo, y `persona_estudiante` tiene
@@ -874,7 +874,7 @@ $row['id']          = (int) $row['id'];
         } catch (Throwable $e) {
             if ($this->pdo->inTransaction()) {$this->pdo->rollBack();
             }
-            error_log('InscripcionesModel::create(): ' . $e->getMessage());
+            error_log('EnrollmentModel::create(): ' . $e->getMessage());
             throw $e;
         }
     }

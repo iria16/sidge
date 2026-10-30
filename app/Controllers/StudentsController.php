@@ -7,7 +7,7 @@ namespace App\Controllers;
 use App\Http\BinaryResponse;
 use App\Models\StudentsModel;
 use App\Models\RatificacionModel;
-use App\Models\InscripcionesModel;
+use App\Models\EnrollmentModel;
 use App\Support\Configuracion;
 use App\Support\FichaEstudiantePdf;
 use App\Support\PdfRecursos;
@@ -174,7 +174,7 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
               $autorizadosParaRetiro   = $vinculados['autorizados'];
             /* Recaudos: catálogo activo contra lo que el representante entregó. Se leen del
  modelo de inscripción y no del de ratificación porque el trait vive allí.*/
-            $recaudos = (new InscripcionesModel($this->conexion()))->getRecaudosDeEstudiante($id);
+            $recaudos = (new EnrollmentModel($this->conexion()))->getRecaudosDeEstudiante($id);
             $puedeEditar = sigde_rol_clave($_SESSION['rol'] ?? '') === 'secretaria';
 
             require __DIR__ . "/../Views/{$this->viewPath}/show.php";
@@ -205,7 +205,7 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
                     'Ese estudiante no pertenece a su turno.', 403);
             }
 
-            $model = new InscripcionesModel($this->conexion());
+            $model = new EnrollmentModel($this->conexion());
             $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
             $tocados = $model->actualizarRecaudos(
                 $idEstudiante,

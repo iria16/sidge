@@ -20,7 +20,7 @@
  * COMBINACIONES registradas en Estructura Académica
  * para el año activo, con la disponibilidad de
  * cada una (paso 3). Lo produce
- * InscripcionesModel::opcionesPasoAcademico().
+ * EnrollmentModel::opcionesPasoAcademico().
  * $tiposInstitucionEstudiante array [ ['tipo'=>..,'nombre'=>..] ] solo
  * preescolar/primaria
 */

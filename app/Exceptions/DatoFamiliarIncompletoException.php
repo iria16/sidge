@@ -32,7 +32,7 @@ use RuntimeException;
  * Antes se documentaba como "best-effort: solo con parentesco y catálogos
  * resolubles", que es justo el comportamiento que esta regla prohíbe.
  *
- * Se lanza desde InscripcionesModel::insertFamiliares() —el único sitio que
+ * Se lanza desde EnrollmentModel::insertFamiliares() —el único sitio que
  * escribe— para que la garantía no dependa de quién llamó. create() la
  * propaga tras hacer rollBack (la inscripción no se guarda), y CrudController
  * la convierte en un 422 con el mensaje, en vez de un 500.
