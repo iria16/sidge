@@ -185,9 +185,15 @@ public function getAniosParaConsultar(): array
         }
         $etiqueta = $catalogos[$table]['etiqueta'];
         $orden    = $catalogos[$table]['orden'];
+        $whereExtra = '';
+        if ($table === 'turno') {
+            $excluidos = TurnoModel::TURNOS_EXCLUSIVOS_PERSONAL;
+            $placeholders = implode(',', array_map(fn($t) => $this->pdo->quote($t), $excluidos));
+            $whereExtra = " AND {$etiqueta} NOT IN ({$placeholders})";
+        }
         $stmt = $this->pdo->query(
             "SELECT id_{$table} AS id, {$etiqueta} AS nombre
-             FROM {$table} WHERE estado = 'ACTIVO' ORDER BY {$orden}"
+             FROM {$table} WHERE estado = 'ACTIVO'{$whereExtra} ORDER BY {$orden}"
         );
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }

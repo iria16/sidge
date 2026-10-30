@@ -59,6 +59,7 @@ class CatalogController extends CrudController
         // 'maxLength' sube a 100, lo que admite la columna, porque los nombres
         // de institución son largos. Los otros once catálogos siguen en 50.
         // 'respetaSiglas': los nombres de institución traen siglas (UNEFA, UCV).
+        'cargo'             => ['nombre' => 'Cargo',                'icono' => 'bi-person-badge',       'modelClass' => 'CargoModel',          'formato' => 'titulo', 'maxLength' => 50],
         'institucion'       => ['nombre' => 'Institución',          'icono' => 'bi-building',           'modelClass' => 'InstitucionModel',    'formato' => 'titulo', 'maxLength' => 100, 'pideTipo' => true, 'respetaSiglas' => true],
     ];
 

@@ -364,6 +364,10 @@ protected function getExtraIndexData(array $items, array $filters): array
             $errores['id_anio_escolar'] = 'Las operaciones académicas nuevas deben usar el año escolar activo.';
         }
 
+        if ($data['id_turno'] > 0 && (new \App\Models\TurnoModel($this->db()))->esTurnoExclusivoPersonal((int) $data['id_turno'])) {
+            $errores['id_turno'] = 'Este turno es exclusivo de empleados y no aplica para secciones académicas.';
+        }
+
         /* La capacidad no puede quedar por debajo de los que ya están: una sección con 30
  alumnos y capacidad 5 deja los cupos disponibles en -5, la pantalla muestra una
  cifra que no existe y la sección queda bloqueada para siempre sin que nadie pueda

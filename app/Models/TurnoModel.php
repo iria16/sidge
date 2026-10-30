@@ -13,6 +13,9 @@ class TurnoModel extends CatalogModel
     protected array $allowedColumns = ['id_turno', 'nombre', 'estado'];
     protected string $campoNombre = 'nombre';
 
+    /** Turnos exclusivos de personal/empleados que no aplican para matrícula estudiantil. */
+    public const TURNOS_EXCLUSIVOS_PERSONAL = ['Tiempo Completo'];
+
     /** Nombre visible del turno; null si el id no existe o no es válido. */
     public function getNombreById(int $id): ?string
     {
@@ -27,5 +30,17 @@ class TurnoModel extends CatalogModel
         $nombre = $stmt->fetchColumn();
 
         return $nombre === false ? null : (string) $nombre;
+    }
+
+    /**
+     * Comprueba si un turno es exclusivo de personal y no puede usarse en secciones estudiantiles.
+     */
+    public function esTurnoExclusivoPersonal(int $id): bool
+    {
+        $nombre = $this->getNombreById($id);
+        if ($nombre === null) {
+            return false;
+        }
+        return in_array($nombre, self::TURNOS_EXCLUSIVOS_PERSONAL, true);
     }
 }

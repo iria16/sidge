@@ -13,8 +13,8 @@
     <span class="wizard-summary__section-title">Información laboral</span>
   </div>
   <div class="wizard-summary__card">
-    <div class="row g-2">
-      <div class="col-md-6">
+    <div class="row g-3">
+      <div class="col-md-4">
         <label class="label-sigde" for="cargoAsignado">Cargo Asignado *</label>
         <select class="form-select" id="cargoAsignado" name="id_cargo" required>
           <option value="">Seleccione el cargo...</option>
@@ -23,7 +23,7 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col-md-6">
+      <div class="col-md-4">
         <label class="label-sigde" for="fechaIngreso">Fecha de Ingreso *</label>
         <input
           type="date"
@@ -34,7 +34,7 @@
           max="<?= date('Y-m-d') ?>"
           required>
       </div>
-      <div class="col-md-6">
+      <div class="col-md-4">
         <label class="label-sigde" for="turnoEmpleado">Turno de trabajo</label>
         <select class="form-select" id="turnoEmpleado" name="id_turno">
           <option value="">Sin turno asignado</option>
