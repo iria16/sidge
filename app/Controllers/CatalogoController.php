@@ -327,94 +327,10 @@ class CatalogoController extends CrudController
                 $errors['tipo'] = 'El tipo de institución no tiene categoría asignada.';
             }
 
-            // Reutiliza $model: pedir otro InstitucionModel por dentro
-            // volvería a pasar por conexion() y reiniciaría catalogoActivo.
-            $errores = $this->validarUbicacion($model, $data, $errors, $excludeId);
-
-            return $errores;
+            $errores = $model->validarUbicacion($data, $excludeId);
+            return array_merge($errors, $errores);
         }
 
-        return $errors;
-    }
-
-    /**
-     * Valida la procedencia geográfica y el código DEA de una institución.
-     *
-     * Son dos caminos distintos según el interruptor de institution extranjera,
-     * y NO se mezclan:
-     *
-     *   Nacional   estado, municipio y parroquia obligatorios (los tres, en ese
-     *              orden, comprobando que cada hijo pertenezca a su padre).
-     *              Código DEA obligatorio solo en preescolar y escuela.
-     *
-     *   Extranjera  se ignoran los datos nacionales aunque vengan. Se pide país,
-     *              ciudad y dirección. El código o referencia del plantel de
-     *              origen es opcional. El DEA se ignora siempre.
-     *
-     * Las universidades no usan DEA en ninguno de los dos caminos.
-     *
-     * @param CatalogoModel $model  Modelo del catálogo activo (InstitucionModel).
-     * @param array<string, string> $errors Errores ya acumulados.
-     * @return array<string, string>
-     */
-    private function validarUbicacion(CatalogoModel $model, array $data, array $errors, ?int $excludeId): array
-    {
-        /** @var InstitucionModel $model */
-        $tipo  = trim((string) ($data['tipo'] ?? ''));
-        $esExt = ((string) ($data['es_extranjera'] ?? '0')) === '1';
-
-        if ($esExt) {
-            return $this->validarExtranjera($model, $data, $errors);
-        }
-
-        // ---------- Nacional ----------
-        $estado = (int) ($data['id_estado_geo'] ?? 0);
-        if ($estado <= 0) {
-            $errors['id_estado_geo'] = 'Selecciona el estado donde está la institución.';
-        } elseif (!$model->existeEstadoGeo($estado)) {
-            $errors['id_estado_geo'] = 'El estado seleccionado no existe.';
-        }
-
-        $municipio = (int) ($data['id_municipio'] ?? 0);
-        if ($municipio <= 0) {
-            $errors['id_municipio'] = 'Selecciona el municipio.';
-        } elseif (!$model->municipioPerteneceAlEstado($municipio, $estado)) {
-            $errors['id_municipio'] = 'El municipio seleccionado no pertenece a ese estado.';
-        }
-
-        $parroquia = (int) ($data['id_parroquia'] ?? 0);
-        if ($parroquia <= 0) {
-            $errors['id_parroquia'] = 'Selecciona la parroquia.';
-        } elseif (!$model->parroquiaPerteneceAlMunicipio($parroquia, $municipio)) {
-            $errors['id_parroquia'] = 'La parroquia seleccionada no pertenece a ese municipio.';
-        }
-
-        // El DEA solo aplica a preescolar y escuela.
-        if (!Instituciones::esDeEstudiante($tipo)) {
-            return $errors;
-        }
-
-        $dea = mb_strtoupper(trim((string) ($data['codigo_dea'] ?? '')), 'UTF-8');
-
-        if ($dea === '') {
-            $errors['codigo_dea'] = 'Escribe el código DEA de la institución.';
-        } elseif (!preg_match('/^[A-Z0-9]{10}$/', $dea)) {
-            $errors['codigo_dea'] = 'El código DEA debe tener exactamente 10 caracteres alfanuméricos en mayúscula (ej. OD05281402).';
-        } elseif ($model->existeCodigoDea($dea, $excludeId)) {
-            $errors['codigo_dea'] = 'Ya existe una institución con ese código DEA.';
-        }
-
-        return $errors;
-    }
-
-    /**
-     * Camino de institución extranjera: se ignoran los datos nacionales y se
-     * pide país (obligatorio), ciudad y dirección (opcionales).
-     * La referencia del plantel es opcional.
-     */
-    private function validarExtranjera(CatalogoModel $model, array $data, array $errors): array
-    {
-        // Institución extranjera no requiere validación geográfica nacional ni país
         return $errors;
     }
 

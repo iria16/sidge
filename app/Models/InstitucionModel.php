@@ -290,6 +290,58 @@ class InstitucionModel extends CatalogoModel
      *
      * @return array<int, array{id_estado: int, nombre: string}>
      */
+    /**
+     * Valida la procedencia geográfica y el código DEA de una institución.
+     *
+     * @return array<string, string> Errores por campo.
+     */
+    public function validarUbicacion(array $data, ?int $excludeId = null): array
+    {
+        $errors = [];
+        $tipo  = trim((string) ($data['tipo'] ?? ''));
+        $esExt = ((string) ($data['es_extranjera'] ?? '0')) === '1';
+
+        if ($esExt) {
+            return $errors;
+        }
+
+        $estado = (int) ($data['id_estado_geo'] ?? 0);
+        if ($estado <= 0) {
+            $errors['id_estado_geo'] = 'Selecciona el estado donde está la institución.';
+        } elseif (!$this->existeEstadoGeo($estado)) {
+            $errors['id_estado_geo'] = 'El estado seleccionado no existe.';
+        }
+
+        $municipio = (int) ($data['id_municipio'] ?? 0);
+        if ($municipio <= 0) {
+            $errors['id_municipio'] = 'Selecciona el municipio.';
+        } elseif (!$this->municipioPerteneceAlEstado($municipio, $estado)) {
+            $errors['id_municipio'] = 'El municipio seleccionado no pertenece a ese estado.';
+        }
+
+        $parroquia = (int) ($data['id_parroquia'] ?? 0);
+        if ($parroquia <= 0) {
+            $errors['id_parroquia'] = 'Selecciona la parroquia.';
+        } elseif (!$this->parroquiaPerteneceAlMunicipio($parroquia, $municipio)) {
+            $errors['id_parroquia'] = 'La parroquia seleccionada no pertenece a ese municipio.';
+        }
+
+        if (!\App\Support\Instituciones::esDeEstudiante($tipo)) {
+            return $errors;
+        }
+
+        $dea = mb_strtoupper(trim((string) ($data['codigo_dea'] ?? '')), 'UTF-8');
+        if ($dea === '') {
+            $errors['codigo_dea'] = 'Escribe el código DEA de la institución.';
+        } elseif (!preg_match('/^[A-Z0-9]{10}$/', $dea)) {
+            $errors['codigo_dea'] = 'El código DEA debe tener exactamente 10 caracteres alfanuméricos en mayúscula (ej. OD05281402).';
+        } elseif ($this->existeCodigoDea($dea, $excludeId)) {
+            $errors['codigo_dea'] = 'Ya existe una institución con ese código DEA.';
+        }
+
+        return $errors;
+    }
+
     public function getEstadosGeo(): array
     {
         return $this->pdo->query(
