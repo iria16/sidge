@@ -314,7 +314,7 @@ trait RecaudosModelTrait
  * Nombre y cédula de un estudiante para los textos de la bitácora.
  *
  * El método se llama descripciónEstudianteBruto() y no descripciónEstudiante() a
- * propósito: RatificacionModel ya tenía un private con ese nombre para lo mismo, y
+ * propósito: RatificationModel ya tenía un private con ese nombre para lo mismo, y
  * un trait que declara un método que la clase ya define es un error fatal de PHP
  * ("Cannot redeclare"), no una sobrescritura. Con dos nombres distintos conviven los
  * dos y el que se usa es explícito.

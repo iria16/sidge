@@ -70,9 +70,9 @@ class SecretariaDashboardModel extends Model
                 'inscripciones'
             );
 
-            // RatificacionModel resuelve el año activo dentro de getStats(); aquí solo se acota el turno.
+            // RatificationModel resuelve el año activo dentro de getStats(); aquí solo se acota el turno.
             $estadisticasRatificacion = $this->segura(
-                fn (): array => (new RatificacionModel($this->pdo))->getStats($idTurno),
+                fn (): array => (new RatificationModel($this->pdo))->getStats($idTurno),
                 'ratificación'
             );
 

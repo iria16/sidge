@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\RatificacionModel;
+use App\Models\RatificationModel;
 use App\Support\CedulaEscolar;
 use App\Support\Documento;
 use App\Support\DocumentosObligatorios;
@@ -32,7 +32,7 @@ use Throwable;
  * pasa por el modelo, que es donde vive el bloqueo de cupo; este controlador valida y
  * traduce las excepciones de dominio: 409 para un conflicto de estado, 422 para un campo.
 */
-class RatificacionController extends CrudController
+class RatificationController extends CrudController
 {
     /* PersonaValidacionTrait usa fechaValida() y fechaEnRango(), que viven en
  ValidacionFechaTrait: sin ese trait, validarFechaNacimiento() revienta con
@@ -70,9 +70,9 @@ class RatificacionController extends CrudController
  * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
  * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
 */
-    private function modelo(): RatificacionModel
+    private function modelo(): RatificationModel
     {
-        /** @var RatificacionModel $model*/
+        /** @var RatificationModel $model*/
         $model = $this->getModel();
 
         return $model;
@@ -80,7 +80,7 @@ class RatificacionController extends CrudController
 
     protected function createModel(PDO $pdo): object
     {
-        return new RatificacionModel($pdo);
+        return new RatificationModel($pdo);
     }
 
     protected function getFiltersFromRequest(): array
@@ -282,7 +282,7 @@ class RatificacionController extends CrudController
             $resultado = $this->modelo()->ratificar($id, $destino, (int) ($this->idUsuarioActual() ?? 0));
         } catch (Throwable $e) {
             // El mensaje al usuario nunca es el detalle técnico: ese va al log.
-            error_log('Error en RatificacionController::ratificar: ' . $e->getMessage());
+            error_log('Error en RatificationController::ratificar: ' . $e->getMessage());
             $fallar('Ocurrió un error interno al intentar ratificar al estudiante.', 500);
         }
 

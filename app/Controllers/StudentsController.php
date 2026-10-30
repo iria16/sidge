@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use App\Http\BinaryResponse;
 use App\Models\StudentsModel;
-use App\Models\RatificacionModel;
+use App\Models\RatificationModel;
 use App\Models\EnrollmentModel;
 use App\Support\Configuracion;
 use App\Support\FichaEstudiantePdf;
@@ -155,7 +155,7 @@ class StudentsController extends CrudController
                     static fn (array $reg): bool => ($reg['estado_anio'] ?? '') === 'ACTIVO'
                 ));
             }
-            $ratificacionModel = new RatificacionModel($this->conexion());
+            $ratificacionModel = new RatificationModel($this->conexion());
             $datosEditables = $ratificacionModel->getEstudianteEditable($id, !$esDocente) ?? [];
 $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
               $estados = $catFamiliares['estados'];
@@ -287,7 +287,7 @@ $catFamiliares = $ratificacionModel->getCatalogosFamiliar();
                 $this->renderHttpError(403, '403 · Acceso denegado', 'Solo la Dirección puede exportar expedientes de estudiantes retirados o egresados.');
             }
 
-            $ratificacionModel = new RatificacionModel($this->conexion());
+            $ratificacionModel = new RatificationModel($this->conexion());
             $datosEditables = $ratificacionModel->getEstudianteEditable($id, !$esDocente) ?? [];
             /* La lista completa se conserva para buscar al representante del membrete, y además llegan los
                dos grupos separados para el reporte. Es la MISMA separación que muestra la pantalla, hecha

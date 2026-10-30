@@ -602,7 +602,7 @@ class EnrollmentController extends CrudController
  * Este método es una envoltura de una línea a propósito: la consulta y el
  * formato de la respuesta son los mismos que ratificación necesita, y la
  * lógica está en el modelo (buscarPersonaPorDocumento), que es donde debe
- * estar. RatificacionController::buscarPersona es igual de corto.
+ * estar. RatificationController::buscarPersona es igual de corto.
 */
     public function buscarPersona(): void
     {

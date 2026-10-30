@@ -22,7 +22,7 @@ declare(strict_types=1);
  tenía inscripción previa. Se quitó porque con el criterio actual ya no puede
  aparecer: un alumno sin ninguna matrícula no está en el plantel, y el
  listado se arma sobre las matrículas, así que no llega a listarse. Y aunque
- llegara, el sistema ya lo impide: `RatificacionModel::ratificar()` lo
+ llegara, el sistema ya lo impide: `RatificationModel::ratificar()` lo
  rechaza y el trigger de la base también. Mostrar un estado que nadie va a
  ver es ruido.*/
     $estadoItem = (string) ($item['estado'] ?? 'pendiente');

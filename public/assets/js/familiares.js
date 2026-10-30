@@ -63,7 +63,7 @@
 
         /* ¿Se puede editar el contacto de ESTE familiar? En inscripción siempre; en ratificación solo
  el representante legal. Esto apaga los campos en pantalla, pero la regla la aplica
- RatificacionController: el formulario se puede mandar a mano.*/
+ RatificationController: el formulario se puede mandar a mano.*/
     function contactoEditable(familiar) {
       if (typeof config.contactoEditable === 'function') {
         return config.contactoEditable(familiar) === true;

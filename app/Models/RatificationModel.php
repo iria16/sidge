@@ -23,7 +23,7 @@ use RuntimeException;
  * INSCRIPCIÓN es el primer ingreso y ocurre una sola vez; RATIFICACIÓN es cada año siguiente, y se decide con flujoPara().
  * Ratificar crea una MATRÍCULA NUEVA de tipo RATIFICACION; la inscripción es única y no se vuelve a crear.
 */
-class RatificacionModel extends BaseModel implements Listable
+class RatificationModel extends BaseModel implements Listable
 {
     use CupoEstructuraTrait;
     use FamiliaresModelTrait;
@@ -591,7 +591,7 @@ class RatificacionModel extends BaseModel implements Listable
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            error_log('RatificacionModel::actualizarEstudiante(): ' . $e->getMessage());
+            error_log('RatificationModel::actualizarEstudiante(): ' . $e->getMessage());
             throw $e;
         }
     }
@@ -1370,7 +1370,7 @@ es.nombre AS estado_nombre
             if ($abrioTransaccion && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            error_log('RatificacionModel::ratificar(): ' . $e->getMessage());
+            error_log('RatificationModel::ratificar(): ' . $e->getMessage());
             return ['ok' => false, 'mensaje' => 'No se pudo registrar la ratificación.'];
         }
     }

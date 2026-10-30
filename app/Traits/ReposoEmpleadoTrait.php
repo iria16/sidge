@@ -62,7 +62,7 @@ trait ReposoEmpleadoTrait
      * Por qué el bloqueo va antes del INSERT y no después: el modelo corre en
      * REPEATABLE READ, así que un SELECT COUNT previo fijaría la vista de lectura antes del
      * bloqueo y la segunda persona vería el estado viejo. Bloquear primero y comprobar
-     * después es lo que hace RatificacionModel::reservarCupo(), y está explicado allí con el
+     * después es lo que hace RatificationModel::reservarCupo(), y está explicado allí con el
      * mismo detalle. Con el bloqueo en su sitio, dos personas que guarden a la vez sobre el
      * mismo empleado se serializan y la segunda ve el reposo de la primera.
      *
