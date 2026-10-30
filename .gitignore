@@ -79,3 +79,6 @@ extracted_*.txt
 
 # Carpetas temporales auxiliares
 /scratch/
+
+# Archivo local de instrucciones
+AGENTS.md
