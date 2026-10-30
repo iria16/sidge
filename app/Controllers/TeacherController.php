@@ -495,19 +495,6 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
             $this->jsonError($e, 'Enlace de WhatsApp');
         }
 
-        // Registrar en bitácora sin guardar nunca la URL del grupo (da acceso directo).
-        $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
-        if ($idUsuario > 0 && $enlaceAnterior !== $enlaceNuevo) {
-            $etiquetaSeccion = trim(($seccion['grado'] ?? '') . ' ' . ($seccion['seccion'] ?? ''));
-            if ($enlaceNuevo === null) {
-                $accionBitacora = 'QUITÓ ENLACE DE WHATSAPP · ' . $etiquetaSeccion;
-            } elseif ($enlaceAnterior === null || $enlaceAnterior === '') {
-                $accionBitacora = 'AGREGÓ ENLACE DE WHATSAPP · ' . $etiquetaSeccion;
-            } else {
-                $accionBitacora = 'CAMBIÓ ENLACE DE WHATSAPP · ' . $etiquetaSeccion;
-            }
-            (new AuditLogModel($this->conexion()))->registrar($idUsuario, $accionBitacora, 'Docente');
-        }
 
         $mensaje = $enlaceNuevo === null
             ? 'Se quitó el enlace del grupo de WhatsApp.'

@@ -59,7 +59,7 @@ class AuditLogModel extends Model implements Listable
 
     private const TIPOS_CONOCIDOS = [
         'LOGIN'         => 'login',
-        'LOGOUT'        => 'login',
+        'LOGOUT'        => 'logout',
         'CREAR'         => 'create',
         'CREATE'        => 'create',
         'CREACION'      => 'create',
@@ -111,7 +111,8 @@ class AuditLogModel extends Model implements Listable
  * desplegable acababa ofreciendo una opción por cada acción registrada.
 */
     private const PREFIJOS_POR_TIPO = [
-        'login'        => ["'LOGIN'", "'LOGOUT'"],
+        'login'        => ["'LOGIN'"],
+        'logout'       => ["'LOGOUT'"],
         'password'     => ["'CAMBIO_PASSWORD'"],
         'create'       => ["'CREAR%'", "'CREACI%'"],
         'update'       => ["'ACTUALIZ%'", "'EDITAR%'", "'UPDATE%'"],
@@ -128,6 +129,7 @@ class AuditLogModel extends Model implements Listable
 
     private const TIPO_LABELS = [
         'login'       => 'Inicio de sesión',
+        'logout'      => 'Cierre de sesión',
         'password'    => 'Cambio de clave',
         'create'      => 'Creación',
         'update'      => 'Actualización',

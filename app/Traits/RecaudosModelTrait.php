@@ -285,17 +285,6 @@ trait RecaudosModelTrait
             $cambios[] = ($consignado ? 'entregado' : 'pendiente') . ': ' . $this->nombreRecaudo($id);
         }
 
-        /* La bitácora registra el hecho; los dos campos de la fila dicen quién fue el
- último. Se audita antes del commit, como en el resto del proyecto: si el
- commit fallara, el rollback también deshace la bitácora.*/
-        if ($tocados > 0 && $idUsuario > 0) {
-            (new AuditLogModel($this->pdo))->registrar(
-                $idUsuario,
-                'ACTUALIZACIÓN DE RECAUDOS del estudiante ' . $this->descripcionEstudianteBruto($estudianteId)
-                    . ' · ' . implode(' | ', $cambios),
-                'Recaudos'
-            );
-        }
 
         return $tocados;
     }
