@@ -116,7 +116,7 @@ class TeacherController extends BaseController
     public function index(): void
     {
         $this->exigirDocente();
-        (new DocenteDashboardController())->index();
+        (new TeacherDashboardController())->index();
     }
 
     /* ======================================================================

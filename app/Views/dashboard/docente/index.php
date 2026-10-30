@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Vista: dashboard/docente/index.php
  * Panel del Docente: visión de aula, métricas pedagógicas, cumpleaños y alertas de evaluación.
  *
- * Variables esperadas desde DocenteDashboardController::index():
+ * Variables esperadas desde TeacherDashboardController::index():
  * @var string     $nombreDocente
  * @var string     $saludo
  * @var array|null $seccion

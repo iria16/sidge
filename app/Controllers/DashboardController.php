@@ -103,13 +103,13 @@ class DashboardController extends BaseController
 
     /**
  * Dashboard del docente.
- * Ruta: dashboard/docente. Lo renderiza DocenteDashboardController con la
+ * Ruta: dashboard/docente. Lo renderiza TeacherDashboardController con la
  * vista Views/dashboard/docente/index.php.
 */
     public function docente(): void
     {
         $this->verificarAccesoRol('docente');
-        (new DocenteDashboardController())->index();
+        (new TeacherDashboardController())->index();
     }
 
     /**

@@ -13,7 +13,7 @@ use Throwable;
 use function App\Traits\sigde_rol_clave;
 
 /**
- * DocenteDashboardController
+ * TeacherDashboardController
  *
  * Controlador del Dashboard del rol Docente.
  * Muestra el resumen del aula asignada, distribución por sexo y edad,
@@ -22,7 +22,7 @@ use function App\Traits\sigde_rol_clave;
  * Solo lectura: sin botones de escritura.
  * La sección del docente se resuelve exclusivamente desde la sesión activa.
  */
-class DocenteDashboardController extends BaseController
+class TeacherDashboardController extends BaseController
 {
     protected string $routeName = 'dashboard';
     protected string $viewPath  = 'docente';
@@ -56,7 +56,7 @@ class DocenteDashboardController extends BaseController
             $seccionActiva = (new TeacherAssignmentModel($this->conexion()))
                 ->getSeccionActivaDeDocente($idUsuario);
         } catch (Throwable $e) {
-            error_log('DocenteDashboardController: error al obtener seccion activa: ' . $e->getMessage());
+            error_log('TeacherDashboardController: error al obtener seccion activa: ' . $e->getMessage());
         }
 
         $tieneSeccion = ($seccionActiva !== null);
@@ -130,7 +130,7 @@ class DocenteDashboardController extends BaseController
                 // Bloque 5: Nuevo ingreso y ratificados
                 $ingresos = $estudianteModel->getIngresoYRatificados($idEstructura);
             } catch (Throwable $e) {
-                error_log('DocenteDashboardController: error al cargar bloques del dashboard: ' . $e->getMessage());
+                error_log('TeacherDashboardController: error al cargar bloques del dashboard: ' . $e->getMessage());
             }
         }
 
