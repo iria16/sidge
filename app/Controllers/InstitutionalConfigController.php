@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
-use App\Models\ConfiguracionInstitucionalModel;
+use App\Models\InstitutionalConfigModel;
 use App\Support\Configuracion;
 use PDO;
 use Throwable;
@@ -22,7 +22,7 @@ use Throwable;
  * 4. quitarImagen: Restablece logos a sus versiones predeterminadas o vacía firma/sello.
  * 5. verPrivado: Transmite en streaming seguro la vista previa de firma y sello solo al administrador.
  */
-class ConfiguracionInstitucionalController extends BaseController
+class InstitutionalConfigController extends BaseController
 {
     protected string $viewPath  = 'configuracion_institucional';
     protected string $routeName = 'configuracionInstitucional';
@@ -102,16 +102,16 @@ class ConfiguracionInstitucionalController extends BaseController
         $this->jsonRaw($payload, $code);
     }
 
-    protected function createModel(PDO $pdo): ConfiguracionInstitucionalModel
+    protected function createModel(PDO $pdo): InstitutionalConfigModel
     {
         // Compartir la misma conexión PDO con el helper global
         Configuracion::setPdo($pdo);
-        return new ConfiguracionInstitucionalModel($pdo);
+        return new InstitutionalConfigModel($pdo);
     }
 
-    private function modelo(): ConfiguracionInstitucionalModel
+    private function modelo(): InstitutionalConfigModel
     {
-        /** @var ConfiguracionInstitucionalModel $model */
+        /** @var InstitutionalConfigModel $model */
         $model = $this->getModel();
         return $model;
     }

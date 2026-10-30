@@ -32,7 +32,7 @@ use Throwable;
  *      Si la base de datos falla, el archivo nuevo generado se elimina y el anterior queda intacto.
  * 5. Registro automático de cada cambio en la tabla `bitacora`.
  */
-class ConfiguracionInstitucionalModel extends BaseModel
+class InstitutionalConfigModel extends BaseModel
 {
     protected string $table = 'configuracion_institucional';
     protected string $primaryKey = 'clave';
@@ -488,7 +488,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            error_log('ConfiguracionInstitucionalModel::guardarTextos() error: ' . $e->getMessage());
+            error_log('InstitutionalConfigModel::guardarTextos() error: ' . $e->getMessage());
 
             return [
                 'ok'      => false,
@@ -747,7 +747,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
             }
             imagedestroy($recursoOriginal);
         } catch (Throwable $e) {
-            error_log('ConfiguracionInstitucionalModel::procesarYGuardarImagen() GD error: ' . $e->getMessage());
+            error_log('InstitutionalConfigModel::procesarYGuardarImagen() GD error: ' . $e->getMessage());
             $gdOk = false;
         }
 
@@ -828,7 +828,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
             if (!$commitOcurrido && is_file($rutaCompleta)) {
                 @unlink($rutaCompleta);
             }
-            error_log('ConfiguracionInstitucionalModel::procesarYGuardarImagen() DB error: ' . $e->getMessage());
+            error_log('InstitutionalConfigModel::procesarYGuardarImagen() DB error: ' . $e->getMessage());
 
             if ($commitOcurrido) {
                 return [
@@ -911,7 +911,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
             if (!$commitOcurrido && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            error_log('ConfiguracionInstitucionalModel::eliminarImagen() error: ' . $e->getMessage());
+            error_log('InstitutionalConfigModel::eliminarImagen() error: ' . $e->getMessage());
 
             if ($commitOcurrido) {
                 return ['ok' => true, 'mensaje' => 'La imagen fue actualizada en la base de datos correctamente.'];
@@ -971,7 +971,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
             if (!$commitOcurrido && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            error_log('ConfiguracionInstitucionalModel::restablecerFranjaOficial() error: ' . $e->getMessage());
+            error_log('InstitutionalConfigModel::restablecerFranjaOficial() error: ' . $e->getMessage());
             return ['ok' => false, 'mensaje' => 'No se pudo restablecer la franja tricolor oficial.'];
         }
     }
