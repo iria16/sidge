@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
-use App\Models\EstudianteModel;
+use App\Models\StudentsModel;
 use App\Models\RatificacionModel;
 use App\Models\InscripcionesModel;
 use App\Support\Configuracion;
@@ -19,7 +19,7 @@ use function App\Traits\sigde_rol_clave;
  * Consulta de expedientes (consulta_academica/estudiantes).
  * Endpoints: estudiantes/index (GET, listado con filtros) y estudiantes/show/{id} (GET, expediente completo).
 */
-class EstudiantesController extends CrudController
+class StudentsController extends CrudController
 {
     protected string $viewPath  = 'consulta_academica/estudiantes';
     protected string $routeName = 'estudiantes';
@@ -28,9 +28,9 @@ class EstudiantesController extends CrudController
  * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
  * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
 */
-    private function modelo(): EstudianteModel
+    private function modelo(): StudentsModel
     {
-        /** @var EstudianteModel $model*/
+        /** @var StudentsModel $model*/
         $model = $this->getModel();
 
         return $model;
@@ -38,7 +38,7 @@ class EstudiantesController extends CrudController
 
     protected function createModel(PDO $pdo): object
     {
-        return new EstudianteModel($pdo);
+        return new StudentsModel($pdo);
     }
 
     private function esSecretariaActual(): bool

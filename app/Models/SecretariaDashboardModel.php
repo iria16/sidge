@@ -58,7 +58,7 @@ class SecretariaDashboardModel extends Model
 
         if ($anioActivo !== null && $idTurno > 0) {
             $estadisticasEstudiantes = $this->segura(
-                fn (): array => (new EstudianteModel($this->pdo))->getStats([
+                fn (): array => (new StudentsModel($this->pdo))->getStats([
                     'anio'     => $anioId,
                     'id_turno' => $idTurno,
                 ]),

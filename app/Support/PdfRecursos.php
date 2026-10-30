@@ -20,7 +20,7 @@ use RuntimeException;
  * resources/scss/pdf/ con `npm run sass:build:pdf`.
  *
  * @see \App\Support\ConstanciaPdf Constancias de estudio e inscripción.
- * @see \App\Controllers\EstudiantesController::exportar() Ficha integral.
+ * @see \App\Controllers\StudentsController::exportar() Ficha integral.
  */
 final class PdfRecursos
 {

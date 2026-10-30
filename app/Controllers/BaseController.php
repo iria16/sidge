@@ -150,7 +150,7 @@ abstract class BaseController
 
     /**
  * Fabrica el modelo en las clases hijas (por defecto no crea ninguno).
- * Ejemplo: `return new EstudianteModel($pdo);`
+ * Ejemplo: `return new StudentsModel($pdo);`
 */
     protected function createModel(PDO $pdo): ?object
     {

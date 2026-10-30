@@ -12,7 +12,7 @@ use App\Support\Matriculas;
  * Consulta de expedientes (estudiante ↔ persona).
  * Resuelve el grado y la sección vigentes de cada estudiante a partir de su matrícula más reciente (inscripción o ratificación).
 */
-class EstudianteModel extends BaseModel implements Listable
+class StudentsModel extends BaseModel implements Listable
 {
     protected string $table = 'estudiante';
     protected string $primaryKey = 'id_estudiante';

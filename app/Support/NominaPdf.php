@@ -18,7 +18,7 @@ use Throwable;
  *
  * Utiliza Dompdf con hoja de estilos externa compilada desde SCSS
  * (PdfRecursos::estilos('nomina')), papel carta vertical, isRemoteEnabled = false
- * y la misma consulta de datos de EstudianteModel::nominaSeccion().
+ * y la misma consulta de datos de StudentsModel::nominaSeccion().
  */
 final class NominaPdf
 {

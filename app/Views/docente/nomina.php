@@ -15,7 +15,7 @@ declare(strict_types=1);
  * @var string     $vista          nomina | contacto | cumpleaneros | boletas
  * @var array      $vistas         Definición de las vistas permitidas.
  * @var array      $columnas       clave => encabezado, en orden.
- * @var array      $filas          Resultado de EstudianteModel::nominaSeccion().
+ * @var array      $filas          Resultado de StudentsModel::nominaSeccion().
  * @var array      $filtros        q, sexo, mes (ya validados).
  * @var array      $meses          1..12 => nombre.
  * @var int        $mesActual      Mes en curso (1..12) en America/Caracas.

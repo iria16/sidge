@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use App\Http\BinaryResponse;
 use App\Models\AuditLogModel;
-use App\Models\EstudianteModel;
+use App\Models\StudentsModel;
 use App\Models\TeacherAssignmentModel;
 use App\Support\Configuracion;
 use App\Support\ConQuienVive;
@@ -54,7 +54,7 @@ class TeacherController extends BaseController
 
     protected function createModel(PDO $pdo): ?object
     {
-        return new EstudianteModel($pdo);
+        return new StudentsModel($pdo);
     }
 
     /**

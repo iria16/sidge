@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\EstudianteModel;
+use App\Models\StudentsModel;
 use App\Models\ResultadoAcademicoModel;
 use App\Models\TeacherAssignmentModel;
 use App\Support\Saludo;
@@ -29,7 +29,7 @@ class TeacherDashboardController extends BaseController
 
     protected function createModel(PDO $pdo): ?object
     {
-        return new EstudianteModel($pdo);
+        return new StudentsModel($pdo);
     }
 
     /**
@@ -111,7 +111,7 @@ class TeacherDashboardController extends BaseController
         $resultadoModel = new ResultadoAcademicoModel($this->conexion());
 
         if ($tieneSeccion && $idEstructura > 0) {
-            /** @var EstudianteModel $estudianteModel */
+            /** @var StudentsModel $estudianteModel */
             $estudianteModel = $this->getModel();
 
             try {
