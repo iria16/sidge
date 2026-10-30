@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\StudentsModel;
-use App\Models\ResultadoAcademicoModel;
+use App\Models\AcademicResultModel;
 use App\Models\TeacherAssignmentModel;
 use App\Support\Saludo;
 use PDO;
@@ -96,8 +96,8 @@ class TeacherDashboardController extends BaseController
             'registrados'       => 0,
             'pendientes'        => 0,
             'porcentaje'        => 0.0,
-            'literales_validos' => ResultadoAcademicoModel::LITERALES_VALIDOS,
-            'escala_texto'      => implode(', ', ResultadoAcademicoModel::LITERALES_VALIDOS),
+            'literales_validos' => AcademicResultModel::LITERALES_VALIDOS,
+            'escala_texto'      => implode(', ', AcademicResultModel::LITERALES_VALIDOS),
         ];
 
         $ingresos = [
@@ -108,7 +108,7 @@ class TeacherDashboardController extends BaseController
             'pct_nuevos'      => 0.0,
         ];
 
-        $resultadoModel = new ResultadoAcademicoModel($this->conexion());
+        $resultadoModel = new AcademicResultModel($this->conexion());
 
         if ($tieneSeccion && $idEstructura > 0) {
             /** @var StudentsModel $estudianteModel */

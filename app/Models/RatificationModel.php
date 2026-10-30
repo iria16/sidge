@@ -1576,7 +1576,7 @@ es.nombre AS estado_nombre
             $stmtRes->execute(['id_matricula' => (int) $matricula['id_matricula']]);
             $resAcad = $stmtRes->fetch(\PDO::FETCH_ASSOC);
 
-            if ($resAcad && ($resAcad['literal'] === 'E' || $resAcad['estado_resultado'] === ResultadoAcademicoModel::ESTADO_NO_PROMOVIDO)) {
+            if ($resAcad && ($resAcad['literal'] === 'E' || $resAcad['estado_resultado'] === AcademicResultModel::ESTADO_NO_PROMOVIDO)) {
                 // Si no fue promovido, debe repetir el mismo grado
                 $gradoDestino = (int) $matricula['id_grado'];
             } else {

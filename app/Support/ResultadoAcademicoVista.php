@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Models\ResultadoAcademicoModel;
+use App\Models\AcademicResultModel;
 
 /**
  * Cálculos de presentación de la pantalla de resultados académicos.
@@ -123,9 +123,9 @@ final class ResultadoAcademicoVista
 
         foreach ($estudiantes as $est) {
             $literal = strtoupper(trim((string) ($est['literal'] ?? '')));
-            $estado  = strtoupper(trim((string) ($est['estado_resultado'] ?? ResultadoAcademicoModel::ESTADO_PENDIENTE)));
+            $estado  = strtoupper(trim((string) ($est['estado_resultado'] ?? AcademicResultModel::ESTADO_PENDIENTE)));
             if ($estado === '') {
-                $estado = ResultadoAcademicoModel::ESTADO_PENDIENTE;
+                $estado = AcademicResultModel::ESTADO_PENDIENTE;
             }
 
             if ($literal !== '') {
@@ -134,10 +134,10 @@ final class ResultadoAcademicoVista
                 $sinLiteral++;
             }
 
-            if ($estado === ResultadoAcademicoModel::ESTADO_PROMOVIDO
-                || in_array($literal, ResultadoAcademicoModel::LITERALES_PROMUEVEN, true)) {
+            if ($estado === AcademicResultModel::ESTADO_PROMOVIDO
+                || in_array($literal, AcademicResultModel::LITERALES_PROMUEVEN, true)) {
                 $promovidos++;
-            } elseif ($estado === ResultadoAcademicoModel::ESTADO_NO_PROMOVIDO || $literal === 'E') {
+            } elseif ($estado === AcademicResultModel::ESTADO_NO_PROMOVIDO || $literal === 'E') {
                 $noPromovidos++;
             } else {
                 $pendientes++;

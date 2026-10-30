@@ -11,7 +11,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * ResultadoAcademicoModel
+ * AcademicResultModel
  * -----------------------------------------------------------------------------
  * Modelo de los resultados académicos de fin de año (Promoción y No Promoción).
  *
@@ -28,7 +28,7 @@ use Throwable;
  *  - Literal válido: A, B, C, D o E.
  *  - El literal E exige una observación.
  */
-class ResultadoAcademicoModel extends BaseModel
+class AcademicResultModel extends BaseModel
 {
     protected string $table = 'resultado_academico';
     protected string $primaryKey = 'id_resultado';
@@ -487,7 +487,7 @@ class ResultadoAcademicoModel extends BaseModel
             if ($abrioTransaccion && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            error_log('ResultadoAcademicoModel::guardarPropuesta: ' . $e->getMessage());
+            error_log('AcademicResultModel::guardarPropuesta: ' . $e->getMessage());
             return ['ok' => false, 'mensaje' => 'Error al guardar la propuesta académica.'];
         }
     }
@@ -667,7 +667,7 @@ class ResultadoAcademicoModel extends BaseModel
             if ($abrioTransaccion && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            error_log('ResultadoAcademicoModel::confirmarResultados: ' . $e->getMessage());
+            error_log('AcademicResultModel::confirmarResultados: ' . $e->getMessage());
             return ['ok' => false, 'mensaje' => 'Error al confirmar los resultados académicos.'];
         }
     }

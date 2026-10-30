@@ -292,7 +292,7 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
                 . '(pendientes de aprobar o rechazar).';
         }
 
-        $pendientesResultado = (new ResultadoAcademicoModel($this->pdo))->contarPendientesDeCierre($idAnioEscolar);
+        $pendientesResultado = (new AcademicResultModel($this->pdo))->contarPendientesDeCierre($idAnioEscolar);
         if ($pendientesResultado > 0) {
             $motivos[] = "No se puede cerrar: quedan {$pendientesResultado} estudiante(s) activo(s) sin literal de promoción. "
                 . 'La docente debe registrar el literal de todas las secciones antes de cerrar el período.';

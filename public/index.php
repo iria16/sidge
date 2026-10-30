@@ -537,6 +537,7 @@ $mapaControladores = [
     'perfil' => 'Profile',
     'ratificacion' => 'Ratification',
     'recuperacionAcceso' => 'PasswordRecovery',
+    'resultadoAcademico' => 'AcademicResult',
 ];
 $nombreControladorClase = $mapaControladores[$controller] ?? ucfirst($controller);
 $nombreClaseControlador = 'App\\Controllers\\' . $nombreControladorClase . 'Controller';

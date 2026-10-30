@@ -267,7 +267,7 @@ class EgresoModel extends BaseModel implements Listable
 
         $literalCargado = strtoupper(trim((string) ($resAcad['literal'] ?? '')));
         $esLiteralAprobatorio = in_array($literalCargado, ['A', 'B', 'C', 'D'], true);
-        $esNoPromovido = (($resAcad['estado_resultado'] ?? '') === ResultadoAcademicoModel::ESTADO_NO_PROMOVIDO);
+        $esNoPromovido = (($resAcad['estado_resultado'] ?? '') === AcademicResultModel::ESTADO_NO_PROMOVIDO);
 
         if (!$resAcad || !$esLiteralAprobatorio || $esNoPromovido) {
             $estadoTexto = ($resAcad && $literalCargado !== '')
@@ -287,7 +287,7 @@ class EgresoModel extends BaseModel implements Listable
                 $abrioTransaccion = true;
             }
 
-            if (($resAcad['estado_resultado'] ?? '') !== ResultadoAcademicoModel::ESTADO_PROMOVIDO && !empty($resAcad['id_resultado'])) {
+            if (($resAcad['estado_resultado'] ?? '') !== AcademicResultModel::ESTADO_PROMOVIDO && !empty($resAcad['id_resultado'])) {
                 $this->pdo->prepare(
                     "UPDATE resultado_academico
                         SET estado_resultado = 'PROMOVIDO'

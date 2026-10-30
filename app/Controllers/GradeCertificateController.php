@@ -7,7 +7,7 @@ namespace App\Controllers;
 use App\Http\BinaryResponse;
 use App\Models\AuditLogModel;
 use App\Models\GradeCertificateModel;
-use App\Models\ResultadoAcademicoModel;
+use App\Models\AcademicResultModel;
 use App\Support\CertificadoCalificacionesPdf;
 use App\Support\Configuracion;
 use DateTimeImmutable;
@@ -33,9 +33,9 @@ class GradeCertificateController extends BaseController
     protected string $viewPath  = 'resultado_academico';
     protected string $routeName = 'certificadoCalificaciones';
 
-    private function modeloResultadoAcademico(): ResultadoAcademicoModel
+    private function modeloResultadoAcademico(): AcademicResultModel
     {
-        return new ResultadoAcademicoModel($this->conexion());
+        return new AcademicResultModel($this->conexion());
     }
 
     private function modeloCertificado(): GradeCertificateModel

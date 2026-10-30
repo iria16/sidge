@@ -6,13 +6,13 @@ namespace App\Controllers;
 
 use App\Models\AcademicYearModel;
 use App\Models\AuditLogModel;
-use App\Models\ResultadoAcademicoModel;
+use App\Models\AcademicResultModel;
 use PDO;
 use Throwable;
 use function App\Traits\sigde_rol_clave;
 
 /**
- * ResultadoAcademicoController
+ * AcademicResultController
  * -----------------------------------------------------------------------------
  * Controlador para la gestión de resultados académicos de fin de año.
  *
@@ -24,14 +24,14 @@ use function App\Traits\sigde_rol_clave;
  * Acceso exclusivo para docentes. Directivo y coordinador ven estadísticas
  * en el módulo de Estadísticas > Rendimiento y Literales por Aula.
  */
-class ResultadoAcademicoController extends BaseController
+class AcademicResultController extends BaseController
 {
     protected string $viewPath  = 'resultado_academico';
     protected string $routeName = 'resultadoAcademico';
 
-    private function modelo(): ResultadoAcademicoModel
+    private function modelo(): AcademicResultModel
     {
-        /** @var ResultadoAcademicoModel $model */
+        /** @var AcademicResultModel $model */
         $model = $this->getModel();
 
         return $model;
@@ -39,7 +39,7 @@ class ResultadoAcademicoController extends BaseController
 
     protected function createModel(PDO $pdo): object
     {
-        return new ResultadoAcademicoModel($pdo);
+        return new AcademicResultModel($pdo);
     }
 
     /**
@@ -132,9 +132,9 @@ class ResultadoAcademicoController extends BaseController
             'rolUsuario'          => $rol,
             'esDocenteAsignada'   => true,
             'anioCerrado'         => strtoupper((string) ($detalle['estado_anio'] ?? '')) === 'CERRADO',
-            'literales'           => ResultadoAcademicoModel::LITERALES_VALIDOS,
-            'literalesPromueven'  => ResultadoAcademicoModel::LITERALES_PROMUEVEN,
-            'literalesExigenObservacion' => ResultadoAcademicoModel::LITERALES_EXIGEN_OBSERVACION,
+            'literales'           => AcademicResultModel::LITERALES_VALIDOS,
+            'literalesPromueven'  => AcademicResultModel::LITERALES_PROMUEVEN,
+            'literalesExigenObservacion' => AcademicResultModel::LITERALES_EXIGEN_OBSERVACION,
             'filtroEstadoInicial' => $filtroEstadoInicial,
             'flash_error'         => $flash['error'],
             'flash_success'       => $flash['success'],
