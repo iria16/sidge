@@ -84,8 +84,5 @@ $nameNacMunicipio = $prefixName ? $prefixName . 'id_municipio_nacimiento_ui' : '
         </div>
       <?php endif; ?>
     </div>
-    <?php if (!$pideMunicipioParroquiaNacimiento): ?>
-      <p class="form-text mb-0">Para el estudiante se registra también municipio y parroquia.</p>
-    <?php endif; ?>
   </div>
 </section>

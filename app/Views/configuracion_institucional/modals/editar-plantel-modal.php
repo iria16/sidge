@@ -159,7 +159,6 @@ ob_start();
              maxlength="200"
              required>
       <div class="invalid-feedback" id="error-lugar_expedicion"></div>
-      <div class="form-text">Texto para «Constancia que se expide en [Lugar]...».</div>
     </div>
 
     <div class="col-md-4">

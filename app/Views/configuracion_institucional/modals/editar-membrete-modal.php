@@ -29,7 +29,6 @@ ob_start();
            maxlength="200"
            required>
     <div class="invalid-feedback" id="error-ministerio_linea_1"></div>
-    <div class="form-text">Ejemplo: REPÚBLICA BOLIVARIANA DE VENEZUELA</div>
   </div>
 
   <div class="mb-3">
@@ -44,7 +43,6 @@ ob_start();
            maxlength="200"
            required>
     <div class="invalid-feedback" id="error-ministerio_linea_2"></div>
-    <div class="form-text">Ejemplo: MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</div>
   </div>
 
   <div class="mb-3">

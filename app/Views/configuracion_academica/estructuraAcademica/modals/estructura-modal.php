@@ -56,9 +56,6 @@ ob_start();
                 </option>
               <?php endforeach; ?>
             </select>
-            <?php if ($field[0] === 'anio' && $anioPorDefecto > 0): ?>
-              <div class="form-text">Por defecto, el año escolar activo. Solo ese admite cambios.</div>
-            <?php endif; ?>
             <div class="invalid-feedback">Seleccione <?= strtolower($field[1]) ?>.</div>
           </div>
         <?php endforeach; ?>

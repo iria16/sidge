@@ -98,7 +98,7 @@ $panelFilters = ob_get_clean();
 ob_start();
 ?>
 <colgroup>
-  <col style="width:30%"><col style="width:18%"><col style="width:22%"><col style="width:14%"><col style="width:16%">
+  <col class="ancho-30"><col class="ancho-18"><col class="ancho-22"><col class="ancho-14"><col class="ancho-16">
 </colgroup>
 <?php
 $panelColgroup = ob_get_clean();

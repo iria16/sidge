@@ -107,7 +107,6 @@ ob_start();
               <option value="<?= (int) $turno['id_turno'] ?>"><?= htmlspecialchars($turno['nombre']) ?></option>
             <?php endforeach; ?>
           </select>
-          <div class="form-text">Déjelo vacío para cargos generales que no dependen de un turno.</div>
         </div>
       </div>
     </div>

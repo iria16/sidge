@@ -238,7 +238,6 @@ if ($pideNacionalidad) {
                 ? 'Este alumno no tiene nacionalidad registrada. Selecciónela para poder guardar.'
                 : 'Seleccione la nacionalidad del alumno.' ?>
           </div>
-          <p class="form-text mb-0">Se administra en Configuración &rsaquo; Cat&aacute;logos.</p>
         </div>
       </div>
     </div>

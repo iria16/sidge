@@ -29,9 +29,8 @@ ob_start();
         <label class="label-sigde" for="euEmpleado">Empleado asociado</label>
         <div class="input-icon-group">
           <i class="bi bi-person" aria-hidden="true"></i>
-          <input type="text" class="form-control" id="euEmpleado" disabled aria-describedby="euEmpleadoHelp">
+          <input type="text" class="form-control" id="euEmpleado" disabled>
         </div>
-        <div class="form-text" id="euEmpleadoHelp">El empleado asociado a la cuenta no se puede cambiar desde aquí.</div>
       </div>
 
       <div class="row g-2">

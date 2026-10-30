@@ -39,7 +39,7 @@ declare(strict_types=1);
             data-iniciado-por="<?= htmlspecialchars((string) ($anio['iniciado_por'] ?? '')) ?>"
             data-cerrado-en="<?= htmlspecialchars((string) ($anio['cerrado_en'] ?? '')) ?>"
             data-cerrado-por="<?= htmlspecialchars((string) ($anio['cerrado_por'] ?? '')) ?>"
-            data-reabierto-por="<?= htmlspecialchars((string) ($anio['reapierto_por'] ?? '')) ?>"
+            data-reabierto-por="<?= htmlspecialchars((string) ($anio['reabierto_por'] ?? '')) ?>"
             data-reapertura="<?= htmlspecialchars((string) ($anio['motivo_reapertura'] ?? '')) ?>"
             title="Ver año escolar" aria-label="Ver <?= htmlspecialchars($anio['nombre']) ?>">
             <i class="bi bi-eye"></i>

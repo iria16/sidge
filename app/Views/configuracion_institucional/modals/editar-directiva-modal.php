@@ -85,7 +85,6 @@ ob_start();
              maxlength="20"
              required>
       <div class="invalid-feedback" id="error-director_cedula"></div>
-      <div class="form-text">Formato: V- o E- seguido de los dígitos.</div>
     </div>
 
     <div class="col-md-6">

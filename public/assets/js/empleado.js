@@ -1713,9 +1713,10 @@ function initWizardRegistro() {
       var data = res.data;
 
       if (!res.ok || !data.ok) {
-        var msgError = data.mensaje || 'No se pudo registrar el empleado. Verifique los datos.';
-        if (data.data && typeof data.data === 'object') {
-          var detalles = Object.values(data.data).join('\n');
+        var msgError = (data && data.mensaje) || 'No se pudo registrar el empleado. Verifique los datos.';
+        var errs = (data && (data.errors || data.data));
+        if (errs && typeof errs === 'object') {
+          var detalles = Object.values(errs).map(function(v) { return Array.isArray(v) ? v.join('\n') : v; }).filter(Boolean).join('\n');
           if (detalles) msgError += '\n\n' + detalles;
         }
         SIGDEUI.mostrarError(msgError, 'Error al registrar empleado');

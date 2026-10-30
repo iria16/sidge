@@ -694,6 +694,7 @@ protected function extractData(array $source): array
             /* Al empleado solo se le pregunta la entidad federal de nacimiento. La parroquia
                no se guarda para él: es un dato que el sistema solo necesita del estudiante. */
             'id_estado_nacimiento' => (int) ($raw('id_estado_nacimiento') ?? '0'),
+            'id_nacionalidad'      => (int) ($raw('id_nacionalidad') ?: ($source['id_nacionalidad'] ?? 0)),
             'id_cargo'         => (int) ($source['id_cargo'] ?? 0),
             'id_turno'         => (int) ($source['id_turno'] ?? 0) ?: null,
             'fecha_ingreso'    => $this->normalizarEspacios($raw('fecha_ingreso')),

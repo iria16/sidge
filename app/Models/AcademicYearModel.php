@@ -11,6 +11,7 @@ use App\Interfaces\Creatable;
 use App\Interfaces\Listable;
 use App\Interfaces\Updatable;
 
+use PDO;
 use Throwable;
 
 /**
@@ -21,29 +22,30 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
     protected string $table = 'anio_escolar';
     protected string $primaryKey = 'id_anio_escolar';
 
-    protected array $columns = ['id_anio_escolar', 'nombre_periodo', 'anio_inicio', 'anio_cierre', 'estado', 'iniciado_en', 'iniciado_por', 'cerrado_en', 'cerrado_por', 'reapierto_en', 'reapierto_por', 'motivo_reapertura', 'activo_unico'];
-    protected array $allowedColumns = ['id_anio_escolar', 'nombre_periodo', 'anio_inicio', 'anio_cierre', 'estado', 'iniciado_en', 'iniciado_por', 'cerrado_en', 'cerrado_por', 'reapierto_en', 'reapierto_por', 'motivo_reapertura', 'activo_unico'];
+    protected array $columns = ['id_anio_escolar', 'nombre_periodo', 'anio_inicio', 'anio_cierre', 'estado', 'iniciado_en', 'iniciado_por', 'cerrado_en', 'cerrado_por', 'reabierto_en', 'reabierto_por', 'motivo_reapertura', 'activo_unico'];
+    protected array $allowedColumns = ['id_anio_escolar', 'nombre_periodo', 'anio_inicio', 'anio_cierre', 'estado', 'iniciado_en', 'iniciado_por', 'cerrado_en', 'cerrado_por', 'reabierto_en', 'reabierto_por', 'motivo_reapertura', 'activo_unico'];
 
     public function getAll(array $filters = [], int $page = 1, int $perPage = 10): array
     {
         [$where, $params] = $this->filters($filters);
 
-        $sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
+$sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
                        ae.anio_inicio AS fecha_inicio, ae.anio_cierre AS fecha_cierre, ae.estado,
                        ae.iniciado_en, ae.cerrado_en,
-                       ae.reapierto_por, ae.motivo_reapertura,
+                       ae.reabierto_en,
+                       ae.reabierto_por, ae.motivo_reapertura,
                        CONCAT_WS(' ', pi.primer_nombre, pi.primer_apellido) AS iniciado_por,
                        CONCAT_WS(' ', pc.primer_nombre, pc.primer_apellido) AS cerrado_por,
-                       /* Alias distinto del campo: ae.reapierto_por es el id, y sin este
- CONCAT el modal mostraría un número en vez del nombre de quien
- reabrió, igual que pasó con iniciado_por y cerrado_por.*/
+                       /* Alias distinto del campo: ae.reabierto_por es el id, y sin este
+                          CONCAT el modal mostraría un número en vez del nombre de quien
+                          reabrió, igual que pasó con iniciado_por y cerrado_por.*/
                        CONCAT_WS(' ', pr.primer_nombre, pr.primer_apellido) AS reapertura_por
                 FROM anio_escolar ae
                 LEFT JOIN usuario ui ON ui.id_usuario = ae.iniciado_por
                 LEFT JOIN persona pi ON pi.id_persona = ui.id_persona
                 LEFT JOIN usuario uc ON uc.id_usuario = ae.cerrado_por
                 LEFT JOIN persona pc ON pc.id_persona = uc.id_persona
-                LEFT JOIN usuario ur ON ur.id_usuario = ae.reapierto_por
+                LEFT JOIN usuario ur ON ur.id_usuario = ae.reabierto_por
                 LEFT JOIN persona pr ON pr.id_persona = ur.id_persona";
         if ($where) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
@@ -407,8 +409,8 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
                     SET estado = 'ACTIVO',
                         iniciado_en = COALESCE(iniciado_en, NOW()),
                         iniciado_por = COALESCE(iniciado_por, :usuario_inicio),
-                        reapierto_en = NOW(),
-                        reapierto_por = :usuario_reapertura,
+                        reabierto_en = NOW(),
+                        reabierto_por = :usuario_reapertura,
                         motivo_reapertura = :motivo
                   WHERE id_anio_escolar = :id AND estado = 'CERRADO'"
             );
@@ -522,8 +524,9 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
             'cerrado_en'   => $row['cerrado_en'] ?? null,
             'cerrado_por'  => $row['cerrado_por'] ?? null,
             // Datos de la reapertura (Fase 4): solo existen si el período se reabrió.
-            'reapierto_por'     => $row['reapertura_por'] ?? null,
-            'motivo_reapertura' => $row['motivo_reapertura'] ?? null,
+            'reabierto_en'       => $row['reabierto_en'] ?? null,
+            'reabierto_por'      => $row['reapertura_por'] ?? null,
+            'motivo_reapertura'  => $row['motivo_reapertura'] ?? null,
         ];
     }
 }
