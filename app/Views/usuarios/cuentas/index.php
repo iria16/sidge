@@ -201,12 +201,12 @@ ob_start();
           </button>
           <button type="button"
                   class="action-btn action-btn--edit btn-editar-usuario"
-                  title="<?= $esInactivo ? 'No se puede editar una cuenta inactiva' : 'Editar' ?>"
+                  title="<?= $esPropiaCuenta ? 'No puedes modificar tu propia cuenta' : ($esInactivo ? 'No se puede editar una cuenta inactiva' : 'Editar') ?>"
                   data-id="<?= (int) $u['id'] ?>"
                   data-nombre-usuario="<?= htmlspecialchars($u['nombre_usuario']) ?>"
                   data-empleado="<?= htmlspecialchars($u['empleado']) ?>"
                   data-id-rol="<?= (int) $u['id_rol'] ?>"
-                  <?= $esInactivo ? 'disabled' : '' ?>>
+                  <?= ($esPropiaCuenta || $esInactivo) ? 'disabled' : '' ?>>
             <i class="bi bi-pencil"></i>
           </button>
           <div class="form-check form-switch table-switch mb-0"

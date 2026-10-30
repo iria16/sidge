@@ -217,6 +217,11 @@ class UserAccountController extends CrudController
     {
         $model = $this->modelo();
 
+        $idActual = $this->idUsuarioActual();
+        if ($idActual !== null && $id === $idActual) {
+            $this->jsonResponse(false, null, 'No puedes modificar tu propia cuenta de usuario.', 403);
+        }
+
         if (!$model instanceof Updatable) {
             $this->jsonResponse(false, null, 'Esta sección no admite edición de cuentas.', 405);
         }

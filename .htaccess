@@ -25,6 +25,11 @@
     Require all denied
 </FilesMatch>
 
+# Manifiestos de dependencias: no deben ser públicos.
+<FilesMatch "^(composer\.json|composer\.lock|package\.json|package-lock\.json)$">
+    Require all denied
+</FilesMatch>
+
 # Historial de git: contiene el código entero y las credenciales que estuvieron
 # commiteadas.
 RedirectMatch 404 /\.git
