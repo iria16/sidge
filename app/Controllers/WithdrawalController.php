@@ -218,8 +218,8 @@ class WithdrawalController extends CrudController
             if ($ok) {
                 try {
                     $estudiante = $this->modelo()->descripcionEstudiantePublica((int) $data['id_matricula']);
-                    $directivos = (new \App\Models\NotificacionModel($this->conexion()))->destinatariosPorRol('Directivo');
-                    (new \App\Models\NotificacionModel($this->conexion()))->crear(
+                    $directivos = (new \App\Models\NotificationModel($this->conexion()))->destinatariosPorRol('Directivo');
+                    (new \App\Models\NotificationModel($this->conexion()))->crear(
                         $directivos,
                         'retiro_pendiente',
                         'Nuevo retiro pendiente',
@@ -327,7 +327,7 @@ class WithdrawalController extends CrudController
                     $estudiante = (string) ($detalle['estudiante'] ?? 'el estudiante');
                     if ($idRegistrante > 0) {
                         $verbo = $estado === 'APROBADO' ? 'aprobada' : 'rechazada';
-                        (new \App\Models\NotificacionModel($this->conexion()))->crear(
+                        (new \App\Models\NotificationModel($this->conexion()))->crear(
                             $idRegistrante,
                             'retiro_' . strtolower($estado),
                             'Retiro ' . $verbo,

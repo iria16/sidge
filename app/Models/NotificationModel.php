@@ -6,7 +6,7 @@ namespace App\Models;
 
 use PDO;
 
-class NotificacionModel
+class NotificationModel
 {
     public function __construct(private PDO $pdo) {}
 

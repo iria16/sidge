@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\NotificacionModel;
+use App\Models\NotificationModel;
 use PDO;
 
-class NotificacionController extends BaseController
+class NotificationController extends BaseController
 {
     protected function createModel(PDO $pdo): object
     {
-        return new NotificacionModel($pdo);
+        return new NotificationModel($pdo);
     }
 
-    private function modelo(): NotificacionModel
+    private function modelo(): NotificationModel
     {
-        /** @var NotificacionModel $model */
+        /** @var NotificationModel $model */
         $model = $this->getModel();
         return $model;
     }

@@ -8,7 +8,7 @@ use App\Config\Database;
 use App\Models\AuditLogModel;
 use App\Models\LoginModel;
 use App\Models\RecuperacionAccesoModel;
-use App\Models\NotificacionModel;
+use App\Models\NotificationModel;
 use App\Traits\SecurityTrait;
 use function App\Traits\sigde_rol_clave;
 use PDO;
@@ -323,8 +323,8 @@ class AuthController
             if ($nombre === '') {
                 $nombre = (string) ($usuario['nombre_usuario'] ?? 'Un usuario');
             }
-            $admins = (new NotificacionModel($this->db))->destinatariosPorRol('Admin');
-            (new NotificacionModel($this->db))->crear(
+            $admins = (new NotificationModel($this->db))->destinatariosPorRol('Admin');
+            (new NotificationModel($this->db))->crear(
                 $admins,
                 'recuperacion_acceso',
                 'Solicitud de recuperación de acceso',
