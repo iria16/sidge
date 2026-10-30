@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use App\Models\EstudianteModel;
 use App\Models\TeacherAssignmentModel;
 use App\Support\Configuracion;
@@ -506,7 +506,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
             } else {
                 $accionBitacora = 'CAMBIÓ ENLACE DE WHATSAPP · ' . $etiquetaSeccion;
             }
-            (new BitacoraModel($this->conexion()))->registrar($idUsuario, $accionBitacora, 'Docente');
+            (new AuditLogModel($this->conexion()))->registrar($idUsuario, $accionBitacora, 'Docente');
         }
 
         $mensaje = $enlaceNuevo === null

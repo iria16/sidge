@@ -118,7 +118,7 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
 
         $idUsuario = (int) ($data['id_usuario'] ?? 0);
         if ($ok && $idUsuario > 0) {
-            (new BitacoraModel($this->pdo))->registrar(
+            (new AuditLogModel($this->pdo))->registrar(
                 $idUsuario,
                 'CREACIÓN del año escolar ' . $data['nombre'],
                 'Años escolares'
@@ -454,7 +454,7 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
             $accion = mb_substr($accion, 0, $limite - 1, 'UTF-8') . '…';
         }
 
-        (new BitacoraModel($this->pdo))->registrar($idUsuario, $accion, 'Años escolares', $ip);
+        (new AuditLogModel($this->pdo))->registrar($idUsuario, $accion, 'Años escolares', $ip);
     }
 
     /**

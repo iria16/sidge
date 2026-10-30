@@ -408,6 +408,6 @@ class ReposoEmpleadoModel extends BaseModel implements Creatable, Updatable
             return;
         }
 
-        (new BitacoraModel($this->pdo))->registrar($idUsuario, $accion, 'Reposos');
+        (new AuditLogModel($this->pdo))->registrar($idUsuario, $accion, 'Reposos');
     }
 }

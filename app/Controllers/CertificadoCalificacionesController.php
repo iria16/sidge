@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use App\Models\CertificadoCalificacionesModel;
 use App\Models\ResultadoAcademicoModel;
 use App\Support\CertificadoCalificacionesPdf;
@@ -168,7 +168,7 @@ class CertificadoCalificacionesController extends BaseController
                     $datosEstudiante['numero_documento'],
                     $literal
                 );
-                (new BitacoraModel($this->conexion()))->registrar($idUsuario, $accion, 'Evaluación');
+                (new AuditLogModel($this->conexion()))->registrar($idUsuario, $accion, 'Evaluación');
             }
 
             $nombreLimpio = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) $datosEstudiante['nombre_completo']);
@@ -280,7 +280,7 @@ class CertificadoCalificacionesController extends BaseController
                     $idEstructura,
                     $totalEmitidos
                 );
-                (new BitacoraModel($this->conexion()))->registrar($idUsuario, $accion, 'Evaluación');
+                (new AuditLogModel($this->conexion()))->registrar($idUsuario, $accion, 'Evaluación');
             }
 
             $filename = "certificados_seccion_{$idEstructura}.pdf";

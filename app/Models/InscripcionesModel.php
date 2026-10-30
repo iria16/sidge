@@ -860,7 +860,7 @@ $row['id']          = (int) $row['id'];
  inscripción que no ocurrió. El id del usuario lo pasa el controlador.*/
             $idUsuario = (int) ($data['id_usuario'] ?? 0);
             if ($idUsuario > 0) {
-                (new BitacoraModel($this->pdo))->registrar(
+                (new AuditLogModel($this->pdo))->registrar(
                     $idUsuario,
                     'INSCRIPCIÓN ' . trim((string) $this->descripcionEstudiante($estudianteId))
                         . ' · ' . (string) $disponibilidad['nombre'],

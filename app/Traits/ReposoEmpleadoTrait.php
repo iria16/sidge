@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use App\Models\EmpleadoModel;
 use App\Models\ReposoEmpleadoModel;
 use PDO;
@@ -386,7 +386,7 @@ trait ReposoEmpleadoTrait
      * commit falla, la anotación tampoco queda, porque de lo contrario el expediente diría
      * que alguien registró un reposo que en realidad no se registró.
      *
-     * El id del usuario sale de la sesión. BitacoraModel::registrar() recorta a 100 y 50
+     * El id del usuario sale de la sesión. AuditLogModel::registrar() recorta a 100 y 50
      * caracteres y atrapa su propio error, así que un texto largo no rompe la operación.
      */
     private function registrarEnBitacora(string $accion, string $modulo): void
@@ -397,7 +397,7 @@ trait ReposoEmpleadoTrait
             return;
         }
 
-        (new BitacoraModel($this->conexion()))->registrar($idUsuario, $accion, $modulo);
+        (new AuditLogModel($this->conexion()))->registrar($idUsuario, $accion, $modulo);
     }
 
 

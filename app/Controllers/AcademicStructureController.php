@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use App\Exceptions\CapacidadInsuficienteException;
 use App\Models\AcademicStructureModel;
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use App\Support\Validator;
 use PDO;
 use RuntimeException;
@@ -297,7 +297,7 @@ protected function getExtraIndexData(array $items, array $filters): array
 
         /* registrar() trunca a 100 y se traga sus propio fallos en el log, así que
  una bitácora caída no puede tumbar una edición ya guardada.*/
-        (new BitacoraModel($this->conexion()))->registrar(
+        (new AuditLogModel($this->conexion()))->registrar(
             (int) ($this->idUsuarioActual() ?? 0),
             $accion,
             'Estructura académica'

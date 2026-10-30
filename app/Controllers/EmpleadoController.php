@@ -8,7 +8,7 @@ use App\Exceptions\DocumentoDuplicadoException;
 use App\Http\BinaryResponse;
 use App\Interfaces\Creatable;
 use App\Interfaces\Updatable;
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use App\Models\EmpleadoModel;
 use App\Models\InstitucionModel;
 use App\Models\ReposoEmpleadoModel;
@@ -478,7 +478,7 @@ class EmpleadoController extends CrudController
         $cambioReal = $resultado['estado_anterior'] !== $resultado['estado_nuevo'];
 
         if ($cambioReal && $idUsuario > 0) {
-            (new BitacoraModel($this->conexion()))->registrar(
+            (new AuditLogModel($this->conexion()))->registrar(
                 $idUsuario,
                 'CAMBIO ESTADO ' . (string) $empleado['nombre_completo'] . ' · ' . $resultado['estado_anterior'] . ' → ' . $resultado['estado_nuevo'],
                 'Empleados'

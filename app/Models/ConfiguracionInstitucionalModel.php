@@ -458,7 +458,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
                 default     => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Datos del plantel y directiva',
             };
 
-            $bitacora = new BitacoraModel($this->pdo);
+            $bitacora = new AuditLogModel($this->pdo);
             $bitacoraOk = $bitacora->registrar(
                 $idUsuario,
                 $detalleBitacora,
@@ -793,7 +793,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
                 default                  => $clave,
             };
 
-            $bitacoraOk = (new BitacoraModel($this->pdo))->registrar(
+            $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
                 $idUsuario,
                 "ACTUALIZACIÓN IMAGEN INSTITUCIONAL · {$nombreLegible}",
                 'Configuración'
@@ -880,7 +880,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
                 'clave'   => $clave,
             ]);
 
-            $bitacoraOk = (new BitacoraModel($this->pdo))->registrar(
+            $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
                 $idUsuario,
                 "ELIMINACIÓN / RESTABLECIMIENTO DE IMAGEN · {$clave}",
                 'Configuración'
@@ -946,7 +946,7 @@ class ConfiguracionInstitucionalModel extends BaseModel
                 'clave'   => 'plantel_cintillo',
             ]);
 
-            $bitacoraOk = (new BitacoraModel($this->pdo))->registrar(
+            $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
                 $idUsuario,
                 'RESTABLECIMIENTO FRANJA TRICOLOR OFICIAL · plantel_cintillo',
                 'Configuración'

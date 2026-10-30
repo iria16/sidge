@@ -521,7 +521,11 @@ spl_autoload_register(function ($clase) {
 
 
 // 11. CARGA Y EJECUCION DEL CONTROLADOR
-$nombreClaseControlador = 'App\\Controllers\\' . ucfirst($controller) . 'Controller';
+$mapaControladores = [
+    'bitacora' => 'AuditLog',
+];
+$nombreControladorClase = $mapaControladores[$controller] ?? ucfirst($controller);
+$nombreClaseControlador = 'App\\Controllers\\' . $nombreControladorClase . 'Controller';
 
 if (!class_exists($nombreClaseControlador)) {
     // El detalle va al log del servidor, no a la pantalla: mostrar el nombre

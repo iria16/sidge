@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use App\Traits\ValidacionFechaTrait;
 use PDO;
 use Throwable;
@@ -14,19 +14,19 @@ use Throwable;
  * Bitácora del Sistema (vista audit/index.php), solo lectura.
  * El listado lo resuelve ListableIndexTrait; exportar() es el único método propio.
  */
-class BitacoraController extends ReadOnlyController
+class AuditLogController extends ReadOnlyController
 {
     use ValidacionFechaTrait;
     protected string $viewPath  = 'auditoria';
     protected string $routeName = 'bitacora';
 
     /**
-     * Modelo con su tipo real (BitacoraModel), para que el editor
+     * Modelo con su tipo real (AuditLogModel), para que el editor
      * resuelva sus métodos en vez de verlos sobre `object`.
      */
-    private function modelo(): BitacoraModel
+    private function modelo(): AuditLogModel
     {
-        /** @var BitacoraModel $model */
+        /** @var AuditLogModel $model */
         $model = $this->getModel();
 
         return $model;
@@ -34,7 +34,7 @@ class BitacoraController extends ReadOnlyController
 
     protected function createModel(PDO $pdo): object
     {
-        return new BitacoraModel($pdo);
+        return new AuditLogModel($pdo);
     }
 
     /**

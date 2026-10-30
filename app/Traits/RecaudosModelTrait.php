@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use PDO;
 use Throwable;
 
@@ -289,7 +289,7 @@ trait RecaudosModelTrait
  último. Se audita antes del commit, como en el resto del proyecto: si el
  commit fallara, el rollback también deshace la bitácora.*/
         if ($tocados > 0 && $idUsuario > 0) {
-            (new BitacoraModel($this->pdo))->registrar(
+            (new AuditLogModel($this->pdo))->registrar(
                 $idUsuario,
                 'ACTUALIZACIÓN DE RECAUDOS del estudiante ' . $this->descripcionEstudianteBruto($estudianteId)
                     . ' · ' . implode(' | ', $cambios),

@@ -16,7 +16,7 @@ use Throwable;
  * Extiende Model y no BaseModel a propósito: registrar() es la única vía de escritura y no expone create/update/delete genéricos.
  * Tabla bitacora: id_bitacora, id_usuario, fecha, hora, accion (texto libre, no ENUM), modulo, direccion_ip.
 */
-class BitacoraModel extends Model implements Listable
+class AuditLogModel extends Model implements Listable
 {
     use AvatarTrait;
 
@@ -48,7 +48,7 @@ class BitacoraModel extends Model implements Listable
                 'ip'     => mb_substr($ip ?? ClientIp::get(), 0, 45),
             ]);
         } catch (Throwable $e) {
-            error_log('BitacoraModel: no se pudo registrar la acción: ' . $e->getMessage());
+            error_log('AuditLogModel: no se pudo registrar la acción: ' . $e->getMessage());
             return false;
         }
     }

@@ -576,7 +576,7 @@ class RatificacionModel extends BaseModel implements Listable
             );
 
             if (!empty($data['cambio_ce'])) {
-                $bitacora = new BitacoraModel($this->pdo);
+                $bitacora = new AuditLogModel($this->pdo);
                 $accion = "ACTUALIZACIÓN CE: {$data['cambio_ce']['ce_anterior']} → {$data['cambio_ce']['ce_nueva']}. Motivo: {$data['cambio_ce']['motivo']}";
                 $bitacora->registrar(
                     (int) ($data['id_usuario'] ?? 0),
@@ -1338,7 +1338,7 @@ es.nombre AS estado_nombre
  ratificación que no ocurrió. El mensaje incluye el origen y el destino, así
  que un cambio de sección queda trazado aunque no tenga registro propio.*/
             if ($idUsuario > 0) {
-                (new BitacoraModel($this->pdo))->registrar(
+                (new AuditLogModel($this->pdo))->registrar(
                     $idUsuario,
                     'RATIFICACIÓN ' . $this->descripcionEstudiante($estudianteId)
                         . ' · ' . $this->descripcionEstructura((int) $matriculaVigente['id_estructura_academica'] ?? 0)

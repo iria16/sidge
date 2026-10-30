@@ -355,7 +355,7 @@ class EgresoModel extends BaseModel implements Listable
             /* Dentro de la transacción y no después: si algo fallara y se revirtiera, el
  egreso tampoco se habría hecho y la bitácora no debe decir que sí.*/
             if ($idUsuario > 0) {
-                (new BitacoraModel($this->pdo))->registrar(
+                (new AuditLogModel($this->pdo))->registrar(
                     $idUsuario,
                     'EGRESO ' . $this->descripcionEstudiante((int) $estudianteId),
                     'Egresos'

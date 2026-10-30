@@ -839,7 +839,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
         if ($idUsuario <= 0) {
             return;
         }
-        (new BitacoraModel($this->pdo))->registrar($idUsuario, $accion, $modulo);
+        (new AuditLogModel($this->pdo))->registrar($idUsuario, $accion, $modulo);
     }
 
     /**

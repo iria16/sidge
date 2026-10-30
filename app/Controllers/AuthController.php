@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Config\Database;
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use App\Models\LoginModel;
 use App\Models\RecuperacionAccesoModel;
 use App\Models\NotificacionModel;
@@ -41,7 +41,7 @@ class AuthController
     private RecuperacionAccesoModel $recoveryModel;
 
     /** Registro de auditoría (LOGIN, LOGOUT, CAMBIO_PASSWORD).*/
-    private BitacoraModel $bitacora;
+    private AuditLogModel $bitacora;
 
     /**
  * Inicializa la conexión y los modelos.
@@ -55,7 +55,7 @@ class AuthController
 
         $this->model         = new LoginModel($this->db);
         $this->recoveryModel = new RecuperacionAccesoModel($this->db);
-        $this->bitacora      = new BitacoraModel($this->db);
+        $this->bitacora      = new AuditLogModel($this->db);
     }
 
     /**

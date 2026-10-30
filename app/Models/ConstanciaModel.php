@@ -1462,6 +1462,6 @@ class ConstanciaModel extends BaseModel
             return;
         }
 
-        (new BitacoraModel($this->pdo))->registrar($idUsuario, $accion, 'Constancias');
+        (new AuditLogModel($this->pdo))->registrar($idUsuario, $accion, 'Constancias');
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\AcademicYearModel;
-use App\Models\BitacoraModel;
+use App\Models\AuditLogModel;
 use App\Models\ResultadoAcademicoModel;
 use PDO;
 use Throwable;
@@ -194,7 +194,7 @@ class ResultadoAcademicoController extends BaseController
             /* Cada guardado de literales queda en la bitácora: quién lo hizo,
                sobre qué sección, y cuántas filas de cada tipo. */
             if ($res['ok'] && $idUsuario > 0) {
-                (new BitacoraModel($this->conexion()))->registrar(
+                (new AuditLogModel($this->conexion()))->registrar(
                     $idUsuario,
                     sprintf(
                         'LITERALES: %d guardados (%d prom, %d no prom, %d sin lit) · %d omitidos · estruct %d',
