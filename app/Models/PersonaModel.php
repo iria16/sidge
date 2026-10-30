@@ -13,6 +13,9 @@ class PersonaModel extends BaseModel
     protected string $table = 'persona';
     protected string $primaryKey = 'id_persona';
 
+    protected array $columns = ['id_persona', 'foto', 'tipo_documento', 'numero_documento', 'fecha_nacimiento', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'sexo', 'id_estado_nacimiento', 'id_parroquia_nacimiento', 'estado', 'fecha_creacion', 'fecha_actualizacion', 'id_nacionalidad', 'es_fallecido'];
+    protected array $allowedColumns = ['id_persona', 'foto', 'tipo_documento', 'numero_documento', 'fecha_nacimiento', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'sexo', 'id_estado_nacimiento', 'id_parroquia_nacimiento', 'estado', 'fecha_creacion', 'fecha_actualizacion', 'id_nacionalidad', 'es_fallecido'];
+
     private const CAMPOS_PERSONA = [
         'tipo_documento',
         'numero_documento',

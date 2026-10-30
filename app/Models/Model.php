@@ -30,6 +30,11 @@ abstract class Model
      * @return mixed El valor retornado por el callback.
      * @throws Throwable Si ocurre algún fallo durante la ejecución.
      */
+    protected function escapeLike(string $valor): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $valor);
+    }
+
     protected function transaction(callable $callback): mixed
     {
         $yaEnTransaccion = $this->pdo->inTransaction();

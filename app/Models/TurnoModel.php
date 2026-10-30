@@ -8,6 +8,9 @@ class TurnoModel extends CatalogoModel
 {
     protected string $table = 'turno';
     protected string $primaryKey = 'id_turno';
+
+    protected array $columns = ['id_turno', 'nombre', 'estado'];
+    protected array $allowedColumns = ['id_turno', 'nombre', 'estado'];
     protected string $campoNombre = 'nombre';
 
     /** Nombre visible del turno; null si el id no existe o no es válido. */

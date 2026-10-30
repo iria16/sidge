@@ -8,5 +8,8 @@ class TipoAsignacionModel extends CatalogoModel
 {
     protected string $table = 'tipo_asignacion';
     protected string $primaryKey = 'id_tipo_asignacion';
+
+    protected array $columns = ['id_tipo_asignacion', 'nombre', 'estado'];
+    protected array $allowedColumns = ['id_tipo_asignacion', 'nombre', 'estado'];
     protected string $campoNombre = 'nombre';
 }

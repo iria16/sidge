@@ -297,12 +297,7 @@ class DashboardModel extends Model
 
             $vacios = [];
             foreach ($catalogos as $tabla => $nombreCat) {
-                $cols = $this->pdo->query("DESCRIBE {$tabla}")->fetchAll(PDO::FETCH_COLUMN);
-                if (in_array('estado', $cols, true)) {
-                    $cant = (int) $this->pdo->query("SELECT COUNT(*) FROM {$tabla} WHERE estado = 'ACTIVO'")->fetchColumn();
-                } else {
-                    $cant = (int) $this->pdo->query("SELECT COUNT(*) FROM {$tabla}")->fetchColumn();
-                }
+                $cant = (int) $this->pdo->query("SELECT COUNT(*) FROM {$tabla} WHERE estado = 'ACTIVO'")->fetchColumn();
                 if ($cant === 0) {
                     $vacios[] = $nombreCat;
                 }

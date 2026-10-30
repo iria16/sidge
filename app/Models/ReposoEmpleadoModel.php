@@ -22,6 +22,9 @@ class ReposoEmpleadoModel extends BaseModel implements Creatable, Updatable
     protected string $table      = 'reposo_empleado';
     protected string $primaryKey = 'id_reposo';
 
+    protected array $columns = ['id_reposo', 'id_empleado', 'fecha_inicio', 'fecha_fin', 'motivo', 'observacion', 'estado', 'id_usuario_registro', 'fecha_creacion', 'fecha_actualizacion'];
+    protected array $allowedColumns = ['id_reposo', 'id_empleado', 'fecha_inicio', 'fecha_fin', 'motivo', 'observacion', 'estado', 'id_usuario_registro', 'fecha_creacion', 'fecha_actualizacion'];
+
     /** Condición única de "reposo vigente hoy"; usa el alias `r`. */
     public const CONDICION_VIGENTE =
         "r.estado = 'VIGENTE' AND CURDATE() BETWEEN r.fecha_inicio AND r.fecha_fin";

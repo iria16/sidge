@@ -26,6 +26,9 @@ class PerfilModel extends BaseModel
     protected string $table = 'usuario';
     protected string $primaryKey = 'id_usuario';
 
+    protected array $columns = ['id_usuario', 'id_persona', 'id_rol', 'nombre_usuario', 'fecha_creacion', 'fecha_actualizacion', 'estado'];
+    protected array $allowedColumns = ['id_usuario', 'id_persona', 'id_rol', 'nombre_usuario', 'fecha_creacion', 'fecha_actualizacion', 'estado'];
+
     /**
      * Obtiene el perfil completo y estructurado para la vista de solo lectura.
      *

@@ -18,6 +18,9 @@ class RecuperacionAccesoModel extends BaseModel implements Listable
     protected string $table      = 'recuperacion_acceso';
     protected string $primaryKey = 'id_recuperacion';
 
+    protected array $columns = ['id_recuperacion', 'id_usuario', 'fecha_solicitud', 'estado_recuperacion', 'origen', 'fecha_atencion', 'id_admin_atendio', 'fecha_actualizacion'];
+    protected array $allowedColumns = ['id_recuperacion', 'id_usuario', 'fecha_solicitud', 'estado_recuperacion', 'origen', 'fecha_atencion', 'id_admin_atendio', 'fecha_actualizacion'];
+
     // Confirmado con `SHOW COLUMNS FROM recuperacion_acceso LIKE 'estado_recuperacion'`:
     // el ENUM real es PENDIENTE / APROVADO (con V, no B) / RECHAZADO.
     // No "corregir" a APROBADO sin antes migrar el ENUM de la base de datos.
@@ -134,7 +137,7 @@ class RecuperacionAccesoModel extends BaseModel implements Listable
             // detalle de la solicitud con SQLSTATE[42S22] Column not found).
             $where[]      = "(u.nombre_usuario LIKE :q1 OR p.primer_nombre LIKE :q2
                               OR p.primer_apellido LIKE :q3 OR p.numero_documento LIKE :q4)";
-            $like         = "%$q%";
+            $like         = "%" . $this->escapeLike((string) $q) . "%";
             $params['q1'] = $like;
             $params['q2'] = $like;
             $params['q3'] = $like;
@@ -386,4 +389,59 @@ class RecuperacionAccesoModel extends BaseModel implements Listable
 
         return $claveProvisional;
     }
+
+
+public function buscarPorUsuarioOCedula(string $valor): array|false
+    {
+        $sql = "SELECT u.id_usuario AS id, u.nombre_usuario, p.numero_documento,
+                       p.primer_nombre, p.primer_apellido
+                FROM usuario u
+                INNER JOIN persona p ON u.id_persona = p.id_persona
+                WHERE (u.nombre_usuario = :valor1 OR p.numero_documento = :valor2)
+                AND u.estado != 'INACTIVO'
+                LIMIT 1";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'valor1' => $valor,
+            'valor2' => $valor
+        ]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Evita solicitudes duplicadas: si ya hay una PENDIENTE para este
+     * usuario, no crea otra.
+     */
+
+public function tieneSolicitudPendiente(int $usuarioId): bool
+    {
+        $sql = "SELECT id_recuperacion FROM recuperacion_acceso
+                WHERE id_usuario = :usuario_id AND estado_recuperacion = 'PENDIENTE'
+                LIMIT 1";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(['usuario_id' => $usuarioId]);
+
+        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Crea la solicitud de recuperación (la "notificación" que verá
+     * el administrador en su panel). fecha_solicitud y estado_recuperacion
+     * usan sus valores por defecto (CURRENT_TIMESTAMP / PENDIENTE).
+     */
+
+public function crearSolicitud(int $usuarioId): bool
+    {
+        $sql = "INSERT INTO recuperacion_acceso (id_usuario) VALUES (:usuario_id)";
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute(['usuario_id' => $usuarioId]);
+    }
+
+    /**
+     * Lista las solicitudes pendientes para mostrar al administrador
+     * (panel/badge de notificaciones).
+     */
 }

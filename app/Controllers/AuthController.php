@@ -7,7 +7,7 @@ namespace App\Controllers;
 use App\Config\Database;
 use App\Models\BitacoraModel;
 use App\Models\LoginModel;
-use App\Models\RecoveryModel;
+use App\Models\RecuperacionAccesoModel;
 use App\Models\NotificacionModel;
 use App\Traits\SecurityTrait;
 use function App\Traits\sigde_rol_clave;
@@ -38,7 +38,7 @@ class AuthController
     private LoginModel $model;
 
     /** Modelo de recuperación de acceso: solicitudes pendientes al administrador.*/
-    private RecoveryModel $recoveryModel;
+    private RecuperacionAccesoModel $recoveryModel;
 
     /** Registro de auditoría (LOGIN, LOGOUT, CAMBIO_PASSWORD).*/
     private BitacoraModel $bitacora;
@@ -54,7 +54,7 @@ class AuthController
         $this->db = $database->getConnection();
 
         $this->model         = new LoginModel($this->db);
-        $this->recoveryModel = new RecoveryModel($this->db);
+        $this->recoveryModel = new RecuperacionAccesoModel($this->db);
         $this->bitacora      = new BitacoraModel($this->db);
     }
 

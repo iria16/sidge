@@ -28,6 +28,9 @@ class InstitucionModel extends CatalogoModel
     protected string $table      = 'institucion';
     protected string $primaryKey = 'id_institucion';
 
+    protected array $columns = ['id_institucion', 'nombre', 'estado', 'id_tipo_institucion', 'codigo_dea', 'es_extranjera', 'id_estado_geo', 'id_municipio', 'id_parroquia'];
+    protected array $allowedColumns = ['id_institucion', 'nombre', 'estado', 'id_tipo_institucion', 'codigo_dea', 'es_extranjera', 'id_estado_geo', 'id_municipio', 'id_parroquia'];
+
     /**
      * Opciones de tipo para el <select> de alta rápida, en el formato que
      * esperan los modales: el código del enum (lo que viaja en el POST) y su

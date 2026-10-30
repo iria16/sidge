@@ -217,7 +217,7 @@ class EstadisticaModel extends Model
                 OR CONCAT_WS(' ', pest.primer_nombre, pest.primer_apellido) LIKE :q
                 OR pest.numero_documento LIKE :q
             )";
-            $params[':q'] = "%{$qLimpia}%";
+            $params[':q'] = "%" . $this->escapeLike((string) $qLimpia) . "%";
         }
 
         try {

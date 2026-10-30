@@ -18,5 +18,8 @@ class OcupacionModel extends CatalogoModel
 {
     protected string $table = 'ocupacion';
     protected string $primaryKey = 'id_ocupacion';
+
+    protected array $columns = ['id_ocupacion', 'nombre', 'estado'];
+    protected array $allowedColumns = ['id_ocupacion', 'nombre', 'estado'];
     protected string $campoNombre = 'nombre';
 }

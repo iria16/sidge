@@ -17,6 +17,9 @@ class TeacherAssignmentModel extends BaseModel implements Listable
     protected string $table = 'asignacion_docente';
     protected string $primaryKey = 'id_asignacion';
 
+    protected array $columns = ['id_asignacion', 'id_docente', 'id_estructura_academica', 'id_tipo_asignacion', 'fecha_inicio', 'fecha_fin'];
+    protected array $allowedColumns = ['id_asignacion', 'id_docente', 'id_estructura_academica', 'id_tipo_asignacion', 'fecha_inicio', 'fecha_fin'];
+
     public function getAll(array $filters = [], int $page = 1, int $perPage = 10): array
     {
         [$where, $params] = $this->filters($filters);

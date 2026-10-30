@@ -26,6 +26,9 @@ class NacionalidadModel extends CatalogoModel
 {
     protected string $table = 'nacionalidad';
     protected string $primaryKey = 'id_nacionalidad';
+
+    protected array $columns = ['id_nacionalidad', 'nombre', 'estado'];
+    protected array $allowedColumns = ['id_nacionalidad', 'nombre', 'estado'];
     protected string $campoNombre = 'nombre';
 
     /** Id del valor por defecto. Lo busca por nombre en vez de hardcodear el 1. */

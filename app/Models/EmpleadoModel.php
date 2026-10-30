@@ -25,6 +25,9 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
     protected string $table = 'empleado';
     protected string $primaryKey = 'id_empleado';
 
+    protected array $columns = ['id_empleado', 'id_persona', 'fecha_ingreso', 'fecha_egreso', 'id_cargo', 'id_turno'];
+    protected array $allowedColumns = ['id_empleado', 'id_persona', 'fecha_ingreso', 'fecha_egreso', 'id_cargo', 'id_turno'];
+
     /**
      * Columnas del reposo para el listado y el detalle.
      *
@@ -177,8 +180,11 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
 
     public function getEstadisticas(): array
     {
-        $total = (int) $this->pdo->query("SELECT COUNT(*) FROM empleado e INNER JOIN persona p ON p.id_persona = e.id_persona")->fetchColumn();
-        $activos = (int) $this->pdo->query("SELECT COUNT(*) FROM empleado e INNER JOIN persona p ON p.id_persona = e.id_persona WHERE p.estado = 'ACTIVO'")->fetchColumn();
+        $fila = $this->pdo->query("SELECT COUNT(*) AS total,
+                SUM(CASE WHEN p.estado = 'ACTIVO' THEN 1 ELSE 0 END) AS activos
+           FROM empleado e INNER JOIN persona p ON p.id_persona = e.id_persona")->fetch(PDO::FETCH_ASSOC) ?: [];
+        $total = (int) ($fila['total'] ?? 0);
+        $activos = (int) ($fila['activos'] ?? 0);
 
         return [
             'total'     => $total,

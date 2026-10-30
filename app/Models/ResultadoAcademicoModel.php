@@ -33,6 +33,9 @@ class ResultadoAcademicoModel extends BaseModel
     protected string $table = 'resultado_academico';
     protected string $primaryKey = 'id_resultado';
 
+    protected array $columns = ['id_resultado', 'id_estudiante', 'id_anio_escolar', 'id_estructura_academica', 'id_matricula', 'literal', 'estado_resultado', 'id_grado_destino', 'observaciones', 'propuesto_por', 'fecha_propuesta', 'confirmado_por', 'fecha_confirmacion', 'fecha_creacion', 'fecha_actualizacion'];
+    protected array $allowedColumns = ['id_resultado', 'id_estudiante', 'id_anio_escolar', 'id_estructura_academica', 'id_matricula', 'literal', 'estado_resultado', 'id_grado_destino', 'observaciones', 'propuesto_por', 'fecha_propuesta', 'confirmado_por', 'fecha_confirmacion', 'fecha_creacion', 'fecha_actualizacion'];
+
     public const ESTADO_PENDIENTE    = 'PENDIENTE';
     public const ESTADO_PROMOVIDO    = 'PROMOVIDO';
     public const ESTADO_NO_PROMOVIDO = 'NO_PROMOVIDO';

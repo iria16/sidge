@@ -32,6 +32,9 @@ class WithdrawalModel extends BaseModel implements Listable, Creatable
     protected string $table = 'retiro';
     protected string $primaryKey = 'id_retiro';
 
+    protected array $columns = ['id_retiro', 'id_matricula', 'id_motivo_retiro', 'id_persona_representante', 'estado_solicitud', 'fecha_solicitud', 'fecha_retiro', 'fecha_resolucion', 'id_usuario_registro', 'id_usuario_resolucion', 'observaciones'];
+    protected array $allowedColumns = ['id_retiro', 'id_matricula', 'id_motivo_retiro', 'id_persona_representante', 'estado_solicitud', 'fecha_solicitud', 'fecha_retiro', 'fecha_resolucion', 'id_usuario_registro', 'id_usuario_resolucion', 'observaciones'];
+
     /**
  * Por qué falló la última actualización, ya traducida a un mensaje para la secretaria.
  * Vive en el modelo porque el throw original es una excepción de SQL y el texto que

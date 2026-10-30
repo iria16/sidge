@@ -49,6 +49,9 @@ class RatificacionModel extends BaseModel implements Listable
     protected string $table = 'matricula';
     protected string $primaryKey = 'id_matricula';
 
+    protected array $columns = ['id_matricula', 'id_estudiante', 'fecha_matricula', 'id_anio_escolar', 'id_estructura_academica', 'tipo', 'motivo_anticipo', 'fecha_creacion'];
+    protected array $allowedColumns = ['id_matricula', 'id_estudiante', 'fecha_matricula', 'id_anio_escolar', 'id_estructura_academica', 'tipo', 'motivo_anticipo', 'fecha_creacion'];
+
     /**
  * Une cada estudiante con su matrícula de ORIGEN y con la del año en curso (`sig`).
  * La de origen decide el próximo grado; la del año en curso, si ya está ratificado.

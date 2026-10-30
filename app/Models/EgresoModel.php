@@ -20,6 +20,9 @@ class EgresoModel extends BaseModel implements Listable
     protected string $table = 'egreso';
     protected string $primaryKey = 'id_egreso';
 
+    protected array $columns = ['id_egreso', 'id_matricula', 'fecha_egreso', 'id_usuario'];
+    protected array $allowedColumns = ['id_egreso', 'id_matricula', 'fecha_egreso', 'id_usuario'];
+
     /** Solo 6to grado se egresa: ver el docblock de la clase.*/
     public const GRADO_EGRESO = 6;
 

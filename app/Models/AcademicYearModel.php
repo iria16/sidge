@@ -21,6 +21,9 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
     protected string $table = 'anio_escolar';
     protected string $primaryKey = 'id_anio_escolar';
 
+    protected array $columns = ['id_anio_escolar', 'nombre_periodo', 'anio_inicio', 'anio_cierre', 'estado', 'iniciado_en', 'iniciado_por', 'cerrado_en', 'cerrado_por', 'reapierto_en', 'reapierto_por', 'motivo_reapertura', 'activo_unico'];
+    protected array $allowedColumns = ['id_anio_escolar', 'nombre_periodo', 'anio_inicio', 'anio_cierre', 'estado', 'iniciado_en', 'iniciado_por', 'cerrado_en', 'cerrado_por', 'reapierto_en', 'reapierto_por', 'motivo_reapertura', 'activo_unico'];
+
     public function getAll(array $filters = [], int $page = 1, int $perPage = 10): array
     {
         [$where, $params] = $this->filters($filters);
@@ -73,10 +76,15 @@ class AcademicYearModel extends BaseModel implements Listable, Creatable, Updata
 
     public function getStats(): array
     {
-        $total       = (int) $this->pdo->query('SELECT COUNT(*) FROM anio_escolar')->fetchColumn();
-        $activos     = (int) $this->pdo->query("SELECT COUNT(*) FROM anio_escolar WHERE estado = 'ACTIVO'")->fetchColumn();
-        $planificados = (int) $this->pdo->query("SELECT COUNT(*) FROM anio_escolar WHERE estado = 'PLANIFICADO'")->fetchColumn();
-        $cerrados    = (int) $this->pdo->query("SELECT COUNT(*) FROM anio_escolar WHERE estado = 'CERRADO'")->fetchColumn();
+        $fila = $this->pdo->query("SELECT COUNT(*) AS total,
+                SUM(CASE WHEN estado = 'ACTIVO' THEN 1 ELSE 0 END) AS activos,
+                SUM(CASE WHEN estado = 'PLANIFICADO' THEN 1 ELSE 0 END) AS planificados,
+                SUM(CASE WHEN estado = 'CERRADO' THEN 1 ELSE 0 END) AS cerrados
+           FROM anio_escolar")->fetch(PDO::FETCH_ASSOC) ?: [];
+        $total = (int) ($fila['total'] ?? 0);
+        $activos = (int) ($fila['activos'] ?? 0);
+        $planificados = (int) ($fila['planificados'] ?? 0);
+        $cerrados = (int) ($fila['cerrados'] ?? 0);
         $actual   = AniosEscolares::nombreEnCurso($this->pdo);
 
         return [

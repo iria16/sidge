@@ -8,6 +8,9 @@ class DireccionModel extends BaseModel
     protected string $table = 'direccion';
     protected string $primaryKey = 'id_direccion';
 
+    protected array $columns = ['id_direccion', 'id_persona', 'sector_urbanizacion', 'calle_avenida', 'nro_casa_apto', 'punto_referencia', 'fecha_actualizacion', 'id_parroquia'];
+    protected array $allowedColumns = ['id_direccion', 'id_persona', 'sector_urbanizacion', 'calle_avenida', 'nro_casa_apto', 'punto_referencia', 'fecha_actualizacion', 'id_parroquia'];
+
     private const COLUMNAS_DIRECCION = [
         'id_parroquia',
         'sector_urbanizacion',

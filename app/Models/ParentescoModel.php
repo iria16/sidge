@@ -10,6 +10,9 @@ class ParentescoModel extends CatalogoModel
 {
     protected string $table = 'parentesco';
     protected string $primaryKey = 'id_parentesco';
+
+    protected array $columns = ['id_parentesco', 'nombre', 'codigo', 'estado'];
+    protected array $allowedColumns = ['id_parentesco', 'nombre', 'codigo', 'estado'];
     protected string $campoNombre = 'nombre';
 
     /**

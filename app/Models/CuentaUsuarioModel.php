@@ -27,6 +27,9 @@ class CuentaUsuarioModel extends BaseModel implements Creatable, Updatable, Togg
     protected string $table = 'usuario';
     protected string $primaryKey = 'id_usuario';
 
+    protected array $columns = ['id_usuario', 'id_persona', 'id_rol', 'nombre_usuario', 'fecha_creacion', 'fecha_actualizacion', 'estado'];
+    protected array $allowedColumns = ['id_usuario', 'id_persona', 'id_rol', 'nombre_usuario', 'fecha_creacion', 'fecha_actualizacion', 'estado'];
+
     /**
  * Cumple con la interfaz Findable para compatibilidad con CrudController::edit().
 */
@@ -201,8 +204,11 @@ class CuentaUsuarioModel extends BaseModel implements Creatable, Updatable, Togg
 */
     public function getStats(): array
     {
-        $total   = (int) $this->pdo->query("SELECT COUNT(*) FROM usuario")->fetchColumn();
-        $activas = (int) $this->pdo->query("SELECT COUNT(*) FROM usuario WHERE estado = 'ACTIVO'")->fetchColumn();
+        $fila = $this->pdo->query("SELECT COUNT(*) AS total,
+                SUM(CASE WHEN estado = 'ACTIVO' THEN 1 ELSE 0 END) AS activas
+           FROM usuario")->fetch(PDO::FETCH_ASSOC) ?: [];
+        $total = (int) ($fila['total'] ?? 0);
+        $activas = (int) ($fila['activas'] ?? 0);
         $inactivas = $total - $activas;
 
         return [

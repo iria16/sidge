@@ -17,6 +17,12 @@ abstract class BaseModel extends Model
     /** Columna de clave primaria (por defecto 'id'). */
     protected string $primaryKey = 'id';
 
+    /** Columnas explícitas que expone el modelo (evita SELECT *). */
+    protected array $columns = [];
+
+    /** Lista blanca estática de columnas permitidas para escritura. */
+    protected array $allowedColumns = [];
+
     /**
      * Lista registros con filtros y paginación, del más reciente al más antiguo por clave primaria.
      * Los filtros se arman con buildFilters().
@@ -25,7 +31,8 @@ abstract class BaseModel extends Model
     {
         [$where, $params] = $this->buildFilters($filters);
 
-        $sql = "SELECT * FROM {$this->table}";
+        $columnas = $this->columns !== [] ? implode(', ', array_map(static fn (string $c): string => "`$c`", $this->columns)) : '*';
+        $sql = "SELECT $columnas FROM `{$this->table}`";
         if ($where) {
             $sql .= " WHERE " . implode(" AND ", $where);
         }
@@ -83,9 +90,9 @@ abstract class BaseModel extends Model
      */
     protected function validarColumnas(array $data): void
     {
-        $columnasReales = $this->getTableColumns();
+        $columnasPermitidas = $this->allowedColumns !== [] ? $this->allowedColumns : $this->getTableColumns();
         foreach (array_keys($data) as $columna) {
-            if (!in_array($columna, $columnasReales, true)) {
+            if (!in_array($columna, $columnasPermitidas, true)) {
                 throw new \InvalidArgumentException("La columna '{$columna}' no existe en la tabla '{$this->table}'.");
             }
         }
@@ -96,7 +103,8 @@ abstract class BaseModel extends Model
      */
     public function getById(int $id): ?array
     {
-        $stmt = $this->pdo->prepare("SELECT * FROM `{$this->table}` WHERE `{$this->primaryKey}` = :p_pk");
+        $columnas = $this->columns !== [] ? implode(', ', array_map(static fn (string $c): string => "`$c`", $this->columns)) : '*';
+        $stmt = $this->pdo->prepare("SELECT $columnas FROM `{$this->table}` WHERE `{$this->primaryKey}` = :p_pk");
         $stmt->execute([':p_pk' => $id]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
@@ -196,7 +204,7 @@ abstract class BaseModel extends Model
                 foreach ($this->searchableFields() as $i => $col) {
                     $key = "search$i";
                     $conds[] = "$col LIKE :$key";
-                    $params[$key] = "%$value%";
+                    $params[$key] = '%' . $this->escapeLike((string) $value) . '%';
                 }
                 if ($conds) {
                     $where[] = "(" . implode(" OR ", $conds) . ")";
@@ -208,6 +216,14 @@ abstract class BaseModel extends Model
         }
 
         return [$where, $params];
+    }
+
+    /**
+     * Escapa los comodines de LIKE para que el texto del usuario se trate como literal.
+     */
+    protected function escapeLike(string $valor): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $valor);
     }
 
     /**

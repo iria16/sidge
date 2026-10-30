@@ -21,6 +21,9 @@ class AcademicStructureModel extends BaseModel implements Listable, Creatable, U
     protected string $table = 'estructura_academica';
     protected string $primaryKey = 'id_estructura_academica';
 
+    protected array $columns = ['id_estructura_academica', 'id_anio_escolar', 'id_grado', 'id_seccion', 'id_turno', 'capacidad_maxima', 'enlace_whatsapp'];
+    protected array $allowedColumns = ['id_estructura_academica', 'id_anio_escolar', 'id_grado', 'id_seccion', 'id_turno', 'capacidad_maxima', 'enlace_whatsapp'];
+
     public function getAll(array $filters = [], int $page = 1, int $perPage = 10): array
     {
         [$where, $params] = $this->filters($filters);

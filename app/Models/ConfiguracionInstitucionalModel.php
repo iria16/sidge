@@ -37,6 +37,9 @@ class ConfiguracionInstitucionalModel extends BaseModel
     protected string $table = 'configuracion_institucional';
     protected string $primaryKey = 'clave';
 
+    protected array $columns = ['clave', 'valor', 'descripcion', 'fecha_actualizacion', 'actualizado_por'];
+    protected array $allowedColumns = ['clave', 'valor', 'descripcion', 'fecha_actualizacion', 'actualizado_por'];
+
     /** @var int Ancho mínimo exigido para imágenes (300 px) */
     private const ANCHO_MINIMO_PX = 300;
 

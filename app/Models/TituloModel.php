@@ -17,6 +17,9 @@ class TituloModel extends CatalogoModel
 {
     protected string $table = 'titulo';
     protected string $primaryKey = 'id_titulo';
+
+    protected array $columns = ['id_titulo', 'nombre', 'id_grado_academico', 'estado'];
+    protected array $allowedColumns = ['id_titulo', 'nombre', 'id_grado_academico', 'estado'];
     protected string $campoNombre = 'nombre';
 
     /**

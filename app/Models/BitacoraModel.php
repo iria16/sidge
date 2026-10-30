@@ -23,6 +23,9 @@ class BitacoraModel extends Model implements Listable
     protected string $table = 'bitacora';
     protected string $primaryKey = 'id_bitacora';
 
+    protected array $columns = ['id_bitacora', 'id_usuario', 'fecha', 'hora', 'accion', 'modulo', 'direccion_ip'];
+    protected array $allowedColumns = ['id_bitacora', 'id_usuario', 'fecha', 'hora', 'accion', 'modulo', 'direccion_ip'];
+
     // Escritura: registrar una acción de auditoría
 
     public function registrar(int $idUsuario, string $accion, string $modulo, ?string $ip = null): bool

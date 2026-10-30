@@ -8,6 +8,9 @@ class ContactoModel extends BaseModel
     protected string $table = 'contacto';
     protected string $primaryKey = 'id_contacto';
 
+    protected array $columns = ['id_contacto', 'id_persona', 'codigo_telefono_principal', 'numero_telefono_principal', 'codigo_telefono_alternativo', 'numero_telefono_alternativo', 'correo_electronico', 'fecha_creacion', 'fecha_actualizacion'];
+    protected array $allowedColumns = ['id_contacto', 'id_persona', 'codigo_telefono_principal', 'numero_telefono_principal', 'codigo_telefono_alternativo', 'numero_telefono_alternativo', 'correo_electronico', 'fecha_creacion', 'fecha_actualizacion'];
+
     private const COLUMNAS_CONTACTO = [
         'codigo_telefono_principal',
         'numero_telefono_principal',

@@ -17,6 +17,9 @@ class EstudianteModel extends BaseModel implements Listable
     protected string $table = 'estudiante';
     protected string $primaryKey = 'id_estudiante';
 
+    protected array $columns = ['id_estudiante', 'id_persona'];
+    protected array $allowedColumns = ['id_estudiante', 'id_persona'];
+
     /* Estado del CICLO del estudiante, en una sola expresión SQL. Se lee de la última fila de
  `matricula`, no de `persona.estado`: ese campo es de la persona, se comparte con empleados y
  familiares, y el retiro también lo apaga.*/
@@ -481,7 +484,7 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
             $where[] = "({$this->exprNombre('p')} LIKE :q
                          OR p.numero_documento LIKE :q2
                          OR {$this->exprNombre('rep')} LIKE :q3)";
-            $params += ['q' => "%$q%", 'q2' => "%$q%", 'q3' => "%$q%"];
+            $params += ['q' => "%" . $this->escapeLike((string) $q) . "%", 'q2' => "%" . $this->escapeLike((string) $q) . "%", 'q3' => "%" . $this->escapeLike((string) $q) . "%"];
         }
 
         $sexo = strtolower(trim((string) ($filtros['sexo'] ?? '')));
@@ -611,7 +614,7 @@ c.numero_telefono_principal,
                          OR {$this->exprNombre('rep')} LIKE :q4
                          OR CONCAT_WS(' ', NULLIF(rep.primer_apellido, ''), NULLIF(rep.segundo_apellido, ''), NULLIF(rep.primer_nombre, ''), NULLIF(rep.segundo_nombre, '')) LIKE :q5
                          OR rep.numero_documento LIKE :q6)";
-            $params += ['q' => "%$q%", 'q2' => "%$q%", 'q3' => "%$q%", 'q4' => "%$q%", 'q5' => "%$q%", 'q6' => "%$q%"];
+            $params += ['q' => "%" . $this->escapeLike((string) $q) . "%", 'q2' => "%" . $this->escapeLike((string) $q) . "%", 'q3' => "%" . $this->escapeLike((string) $q) . "%", 'q4' => "%" . $this->escapeLike((string) $q) . "%", 'q5' => "%" . $this->escapeLike((string) $q) . "%", 'q6' => "%" . $this->escapeLike((string) $q) . "%"];
         }
 
         $sexo = strtoupper(trim((string) ($filtros['sexo'] ?? '')));

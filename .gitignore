@@ -47,3 +47,35 @@ storage/institucion/firma/*
 !storage/institucion/sello/
 storage/institucion/sello/*
 !storage/institucion/sello/.gitkeep
+
+# Residuos temporales y respaldos manuales
+*.bak
+*.bkp
+*.tmp
+*.swp
+*~
+*.orig
+
+# Volcados de sesiones de trabajo
+chunk*.txt
+step*.txt
+extracted_*.txt
+
+# Redirecciones accidentales de terminal en raiz
+/curl
+/echo
+/pdo
+/test_db.php
+
+# Servidor y pruebas locales
+/storage/pruebas/
+/storage/boletas/*.pdf
+/storage/boletas/*.png
+/storage/constancias_muestra/
+/storage/constancias_prueba/
+/storage/pruebas_encabezado/
+/scripts/test_ficha.pdf
+/scripts/test_ficha_page-*.png
+
+# Carpetas temporales auxiliares
+/scratch/

@@ -21,6 +21,9 @@ class ConstanciaModel extends BaseModel
     protected string $table = 'estudiante';
     protected string $primaryKey = 'id_estudiante';
 
+    protected array $columns = ['id_estudiante', 'id_persona'];
+    protected array $allowedColumns = ['id_estudiante', 'id_persona'];
+
     /**
      * Fragmento SQL canónico de la condición única de elegibilidad para Constancia de Estudio:
      * - Persona con estado ACTIVO.

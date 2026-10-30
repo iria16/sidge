@@ -87,6 +87,9 @@ class InscripcionesModel extends BaseModel implements Listable, Creatable
     protected string $table = 'inscripcion';
     protected string $primaryKey = 'id_inscripcion';
 
+    protected array $columns = ['id_inscripcion', 'id_matricula', 'id_estudiante', 'id_estructura_academica', 'id_anio_escolar', 'numero_inscripcion', 'ult_grado_cursado', 'es_primer_ingreso', 'motivo_egreso', 'anio_escolar_pre', 'id_institucion'];
+    protected array $allowedColumns = ['id_inscripcion', 'id_matricula', 'id_estudiante', 'id_estructura_academica', 'id_anio_escolar', 'numero_inscripcion', 'ult_grado_cursado', 'es_primer_ingreso', 'motivo_egreso', 'anio_escolar_pre', 'id_institucion'];
+
     /** Último estudiante creado en esta petición; lo usa el controlador para ofrecer la ficha. */
     private ?int $ultimoEstudianteId = null;
 
