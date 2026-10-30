@@ -123,7 +123,7 @@ trait InstitucionTrait
         // ---------- Procedencia ----------
         //
         // Dos caminos que no se mezclan, los mismos que aplica
-        // CatalogoController::validarUbicacion(). Que la petición venga de un
+        // CatalogController::validarUbicacion(). Que la petición venga de un
         // lado o del otro no cambia las reglas: si divergieran, una institución
         // creada por Catálogos y otra creada por el wizard acabarían con datos
         // distintos según por dónde se tocó.

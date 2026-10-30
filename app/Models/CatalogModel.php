@@ -15,7 +15,7 @@ use App\Interfaces\Updatable;
  * Implementa Creatable, Updatable, Toggleable, Listable y Findable aquí para que todos los hijos pasen el instanceof sin declararlo cada uno.
  * No implementa Deletable a propósito: los catálogos solo se crean, editan y activan/desactivan.
  */
-abstract class CatalogoModel extends BaseModel implements Creatable, Updatable, Toggleable, Listable, Findable
+abstract class CatalogModel extends BaseModel implements Creatable, Updatable, Toggleable, Listable, Findable
 {
     /** Nombre de la PK por defecto; los hijos (ej. TurnoModel) la sobrescriben si difiere. */
     protected string $primaryKey = 'id';

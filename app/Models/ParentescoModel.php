@@ -6,7 +6,7 @@ namespace App\Models;
 
 use PDO;
 
-class ParentescoModel extends CatalogoModel
+class ParentescoModel extends CatalogModel
 {
     protected string $table = 'parentesco';
     protected string $primaryKey = 'id_parentesco';

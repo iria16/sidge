@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-class TurnoModel extends CatalogoModel
+class TurnoModel extends CatalogModel
 {
     protected string $table = 'turno';
     protected string $primaryKey = 'id_turno';

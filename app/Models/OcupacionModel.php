@@ -14,7 +14,7 @@ namespace App\Models;
  *iculate por casualidad alfabéticamente. Por eso se agrega al catálogo: para que
  * se pueda mantener y para que el dato que se registra sea el que se eligió.
  */
-class OcupacionModel extends CatalogoModel
+class OcupacionModel extends CatalogModel
 {
     protected string $table = 'ocupacion';
     protected string $primaryKey = 'id_ocupacion';

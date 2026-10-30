@@ -16,7 +16,7 @@ namespace App\Models;
  * (de "Sin instrucción" a "Doctorado"), y los select la muestran en el orden de
  * la tabla.
  */
-class NivelInstruccionModel extends CatalogoModel
+class NivelInstruccionModel extends CatalogModel
 {
     protected string $table = 'nivel_instruccion';
     protected string $primaryKey = 'id_nivel_instruccion';

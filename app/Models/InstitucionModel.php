@@ -11,7 +11,7 @@ use PDO;
  * InstitucionModel
  *
  * Catálogo `institucion`: es el único catálogo del sistema con un campo extra
- * obligatorio (el tipo), así que sobrescribe create() de CatalogoModel para
+ * obligatorio (el tipo), así que sobrescribe create() de CatalogModel para
  * incluirlo. El resto (Listable, Toggleable, existeNombre, getPrimaryKey,
  * búsqueda por nombre) lo hereda igual que los demás catálogos.
  *
@@ -23,7 +23,7 @@ use PDO;
  * siendo el que decide, y `Instituciones::idCatalogo()` traduce su código al
  * id. La tabla deja de ser un histórico y pasa a ser la que manda.
  */
-class InstitucionModel extends CatalogoModel
+class InstitucionModel extends CatalogModel
 {
     protected string $table      = 'institucion';
     protected string $primaryKey = 'id_institucion';
@@ -118,7 +118,7 @@ class InstitucionModel extends CatalogoModel
     /**
      * Edición de institución. Actualiza el tipo a través de la FK.
      *
-     * El padre (CatalogoModel) solo toca `nombre`, así que sin este sobrescribe
+     * El padre (CatalogModel) solo toca `nombre`, así que sin este sobrescribe
      * el tipo quedaría congelado con el valor del alta. Desde la pantalla de
      * Catálogos se puede corregir una institución creada por error.
      *

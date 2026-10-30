@@ -13,7 +13,7 @@ declare(strict_types=1);
 ?>
   <?php foreach ($elementos as $el):
     // La BD guarda el estado en MAYÚSCULA ('ACTIVO' / 'INACTIVO'),
-    // ver comentario de CatalogoModel. strtoupper() evita que esto
+    // ver comentario de CatalogModel. strtoupper() evita que esto
     // se rompa si algún día se guarda distinto.
     $esInactivo = strtoupper($el['estado']) !== 'ACTIVO';
   ?>

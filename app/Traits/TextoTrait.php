@@ -7,7 +7,7 @@ namespace App\Traits;
 /**
  * Utilidades de formato de texto compartidas entre controladores.
  *
- * Se deja como trait (en vez de método propio de CatalogoController)
+ * Se deja como trait (en vez de método propio de CatalogController)
  * para poder reutilizar capitalizarTitulo() en cualquier otro
  * controlador que también guarde nombres/títulos (p. ej. si en el
  * futuro EstudiantesController o CuentaUsuarioController necesitan

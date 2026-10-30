@@ -523,6 +523,7 @@ spl_autoload_register(function ($clase) {
 // 11. CARGA Y EJECUCION DEL CONTROLADOR
 $mapaControladores = [
     'bitacora' => 'AuditLog',
+    'catalogo' => 'Catalog',
 ];
 $nombreControladorClase = $mapaControladores[$controller] ?? ucfirst($controller);
 $nombreClaseControlador = 'App\\Controllers\\' . $nombreControladorClase . 'Controller';

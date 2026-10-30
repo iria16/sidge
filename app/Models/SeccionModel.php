@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-class SeccionModel extends CatalogoModel
+class SeccionModel extends CatalogModel
 {
     protected string $table = 'seccion';
     protected string $primaryKey = 'id_seccion';

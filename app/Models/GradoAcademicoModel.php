@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-class GradoAcademicoModel extends CatalogoModel
+class GradoAcademicoModel extends CatalogModel
 {
     protected string $table = 'grado_academico';
     protected string $primaryKey = 'id_grado_academico';

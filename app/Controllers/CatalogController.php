@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\CatalogoModel;
+use App\Models\CatalogModel;
 use App\Models\InstitucionModel;
 use App\Support\Instituciones;
 use App\Support\Validator;
@@ -23,7 +23,7 @@ use Throwable;
  * @author Logística
  * @package App\Controllers
  */
-class CatalogoController extends CrudController
+class CatalogController extends CrudController
 {
     /* Aporta getUbicacion(), el endpoint que devuelve estado, municipio y
        parroquia para la cascada. Lo usan los formularios de institución. */
@@ -69,12 +69,12 @@ class CatalogoController extends CrudController
     private string $catalogoActivo;
 
     /**
-     * Modelo con su tipo real (CatalogoModel), para que el editor
+     * Modelo con su tipo real (CatalogModel), para que el editor
      * resuelva sus métodos en vez de verlos sobre `object`.
      */
-    private function modelo(): CatalogoModel
+    private function modelo(): CatalogModel
     {
-        /** @var CatalogoModel $model */
+        /** @var CatalogModel $model */
         $model = $this->getModel();
 
         return $model;

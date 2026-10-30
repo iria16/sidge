@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-class RolModel extends CatalogoModel
+class RolModel extends CatalogModel
 {
     protected string $table = 'rol';
     protected string $primaryKey = 'id_rol';

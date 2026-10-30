@@ -22,7 +22,7 @@ namespace App\Models;
  *   sería fragile: una base estrenada o una restaurada desde un respaldo puede
  *   arrancar el contador en otro lado.
  */
-class NacionalidadModel extends CatalogoModel
+class NacionalidadModel extends CatalogModel
 {
     protected string $table = 'nacionalidad';
     protected string $primaryKey = 'id_nacionalidad';

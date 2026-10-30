@@ -10,10 +10,10 @@ namespace App\Models;
  * Catálogo `titulo`: desde que la tabla `titulo` tiene la columna
  * `id_grado_academico` (NOT NULL, FK a grado_academico), todo título
  * pertenece a un grado. Por eso sobrescribe create()/update() de
- * CatalogoModel (que solo permite la columna 'nombre') con SQL directo,
+ * CatalogModel (que solo permite la columna 'nombre') con SQL directo,
  * igual que hace InstitucionModel con la columna `tipo`.
  */
-class TituloModel extends CatalogoModel
+class TituloModel extends CatalogModel
 {
     protected string $table = 'titulo';
     protected string $primaryKey = 'id_titulo';
@@ -24,7 +24,7 @@ class TituloModel extends CatalogoModel
 
     /**
      * Un mismo nombre de título puede existir en varios grados académicos
-     * (p. ej. "sistema" en Licenciatura y en Ingeniería). CatalogoModel::existeNombre()
+     * (p. ej. "sistema" en Licenciatura y en Ingeniería). CatalogModel::existeNombre()
      * solo mira el nombre, así que el duplicado del alto rápido se valida aquí,
      * por grado.
      *
