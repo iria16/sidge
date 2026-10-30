@@ -10,7 +10,7 @@ namespace App\Traits;
  * Validación y guardado de una foto de perfil subida por un formulario
  * (wizard de empleado, de estudiante y de familiar).
  *
- * Existía como private procesarFotoSubida() duplicado en EmpleadoController
+ * Existía como private procesarFotoSubida() duplicado en EmployeeController
  * e InscripcionesController: el cuerpo era idéntico y solo cambiaban el
  * prefijo del archivo y la carpeta. Acá vive una sola vez y ambos lo usan.
  *

@@ -54,7 +54,7 @@ final class Instituciones
      * `institucion.id_tipo_institucion`. El catálogo no cambia: es fijo, igual
      * que este enum.
      *
-     * La tabla se lee (EmpleadoModel la necesita para el <select>), pero los
+     * La tabla se lee (EmployeeModel la necesita para el <select>), pero los
      * ids NO salen de ella: salen de aquí. Si mañana el catálogo cambiara, el
      * código seguiría apuntando al id que se decidió en la migración.
      */

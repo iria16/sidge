@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Traits;
 
 use App\Models\AuditLogModel;
-use App\Models\EmpleadoModel;
-use App\Models\ReposoEmpleadoModel;
+use App\Models\EmployeeModel;
+use App\Models\ReposoEmployeeModel;
 use PDO;
 use Throwable;
 
@@ -14,7 +14,7 @@ use Throwable;
  * ReposoEmpleadoTrait
  *
  * Las tres acciones del reposo (registrar, editar y listar) viven aquí y no en
- * EmpleadoController por dos motivos. El primero es que el controlador ya tiene 620 líneas
+ * EmployeeController por dos motivos. El primero es que el controlador ya tiene 620 líneas
  * y tres responsabilidades que no tienen nada que ver entre sí; el segundo es que este trait
  * se puede probar solo, sin levantar el controlador entero ni su sesión.
  *
@@ -360,22 +360,22 @@ trait ReposoEmpleadoTrait
     /**
      * Modelo de reposos con su tipo real, para que el editor resuelva sus métodos.
      */
-    private function reposo(): ReposoEmpleadoModel
+    private function reposo(): ReposoEmployeeModel
     {
-        return new ReposoEmpleadoModel($this->conexion());
+        return new ReposoEmployeeModel($this->conexion());
     }
 
     /**
      * Nombre del empleado, solo para el texto de la bitácora.
      *
-     * Lo resuelve EmpleadoModel::getNombreCorto() con el mismo CONCAT_WS del
+     * Lo resuelve EmployeeModel::getNombreCorto() con el mismo CONCAT_WS del
      * listado, para que el mismo empleado se lea igual en la pantalla y en la
      * auditoría. El motivo del reposo no entra aquí: la bitácora se exporta y
      * puede decir cosas de salud.
      */
     private function nombreDeEmpleado(int $idEmpleado): string
     {
-        return (new EmpleadoModel($this->conexion()))->getNombreCorto($idEmpleado)
+        return (new EmployeeModel($this->conexion()))->getNombreCorto($idEmpleado)
             ?? ('empleado #' . $idEmpleado);
     }
 

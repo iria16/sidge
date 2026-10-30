@@ -25,7 +25,7 @@ var rawBaseUrl = window.BASE_URL || '';
 var baseUrl = rawBaseUrl.endsWith('/') ? rawBaseUrl : rawBaseUrl + '/';
 // Debe coincidir con la URL real del módulo (127.0.0.1:8000/empleado/...)
 // y con la clave 'empleado' de $rutasPermitidas en el front controller.
-// OJO: EmpleadoController::$routeName está en plural ('empleados'); si en
+// OJO: EmployeeController::$routeName está en plural ('empleados'); si en
 // algún momento se unifica todo a plural, cambiar esto también.
 var rutaControlador = 'empleado';
 
@@ -1641,7 +1641,7 @@ function initWizardRegistro() {
       switch (el.dataset.resumen) {
           case 'nombre_completo':
             /* Se normaliza por CAMPO y después se une, en ese orden y no al revés: es el mismo que sigue el
- servidor (EmpleadoController normaliza primer_nombre, segundo_nombre, primer_apellido y
+ servidor (EmployeeController normaliza primer_nombre, segundo_nombre, primer_apellido y
  segundo_apellido por separado). Si se uniera primero, "de la" perdería la minúscula.*/
             valor = ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']
               .map(function (campo) { return SIGDEUI.normalizarNombre(textoCampo(campo)); })

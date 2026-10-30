@@ -14,7 +14,7 @@ use Throwable;
  * restricción UNIQUE de `numero_documento` (SQLSTATE 23000).
  *
  * Existe para cubrir la condición de carrera entre la validación de
- * EmpleadoController::validate() y el INSERT real dentro de la transacción.
+ * EmployeeController::validate() y el INSERT real dentro de la transacción.
  *
  * @author Logística
  * @package App\Exceptions

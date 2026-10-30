@@ -15,7 +15,7 @@ use Throwable;
  * Alta rápida de una institución desde cualquier wizard que la necesite
  * como catálogo de apoyo (institución de procedencia de un estudiante en
  * InscripcionesController, institución de formación académica en
- * EmpleadoController, o cualquier módulo futuro que registre instituciones
+ * EmployeeController, o cualquier módulo futuro que registre instituciones
  * al vuelo).
  *
  * Por qué un trait y no un servicio inyectado: todos los controladores del

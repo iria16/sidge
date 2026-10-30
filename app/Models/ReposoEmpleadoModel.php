@@ -17,7 +17,7 @@ use Throwable;
  * calcula SIEMPRE con CONDICION_VIGENTE: estado VIGENTE y la fecha de hoy dentro
  * del rango. No se repite esa condición en otros modelos ni en las vistas.
  */
-class ReposoEmpleadoModel extends BaseModel implements Creatable, Updatable
+class ReposoEmployeeModel extends BaseModel implements Creatable, Updatable
 {
     protected string $table      = 'reposo_empleado';
     protected string $primaryKey = 'id_reposo';
@@ -398,7 +398,7 @@ class ReposoEmpleadoModel extends BaseModel implements Creatable, Updatable
     /** Nombre corto para el texto de bitácora; fallback si el empleado no tiene nombre. */
     private function nombreCortoEmpleado(int $idEmpleado): string
     {
-        return (new EmpleadoModel($this->pdo))->getNombreCorto($idEmpleado) ?? ('empleado #' . $idEmpleado);
+        return (new EmployeeModel($this->pdo))->getNombreCorto($idEmpleado) ?? ('empleado #' . $idEmpleado);
     }
 
     /** Bitácora dentro de la transacción; se omite si no hay usuario en sesión. */

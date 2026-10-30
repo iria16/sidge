@@ -7,12 +7,12 @@
  *
  * Los botones "+ Nuevo Título" / "+ Nueva Institución" abren las altas
  * rápidas (modals/new-title-modal.php y modals/new-institution-modal.php);
- * esas guardan con guardarTitulo y guardarInstitucion del EmpleadoController.
+ * esas guardan con guardarTitulo y guardarInstitucion del EmployeeController.
  *
  * Variables en scope (definidas en index.php vía getExtraIndexData):
  *   $titulos, $instituciones, $gradosAcademicos
  *
- * $instituciones ya llega filtrada desde EmpleadoModel::getCatalogosFormulario()
+ * $instituciones ya llega filtrada desde EmployeeModel::getCatalogosFormulario()
  * (excluye tipos Preescolar/Escuela/Instituto de Educación Especial), así
  * que este archivo no necesita filtrar nada por su cuenta.
  */

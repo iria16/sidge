@@ -6,7 +6,7 @@
  * Lo incluye empleados/index.php dentro de un ob_start() y el resultado va a
  * $panelTableBody (components/data-panel.php).
  *
- * Espera del controlador (EmpleadoController, vía EmpleadoModel::getAll):
+ * Espera del controlador (EmployeeController, vía EmployeeModel::getAll):
  * @var array $empleados cada uno: ['id_empleado','nombre_completo','primer_nombre',
  * 'primer_apellido','tipo_documento','numero_documento',
  * 'cargo','turno','estado' => 'ACTIVO'|'INACTIVO','foto',

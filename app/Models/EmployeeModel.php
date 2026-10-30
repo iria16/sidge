@@ -18,7 +18,7 @@ use PDOStatement;
 use RuntimeException;
 use Throwable;
 
-class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable, Toggleable
+class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable, Toggleable
 {
     use AvatarTrait;
 
@@ -41,7 +41,7 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
 
     /** Columna para el badge del listado y para getById(). */
     private const COLUMNA_EN_REPOSO =
-        ReposoEmpleadoModel::EXPRESION_EN_REPOSO . ' AS en_reposo';
+        ReposoEmployeeModel::EXPRESION_EN_REPOSO . ' AS en_reposo';
 
     /**
      * Motivo del reposo vigente: SOLO se consulta en getById() (detalle).
@@ -50,7 +50,7 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
     private const COLUMNA_MOTIVO_REPOSO =
         '(SELECT r.motivo FROM reposo_empleado r'
         . '  WHERE r.id_empleado = e.id_empleado'
-        . '    AND ' . ReposoEmpleadoModel::CONDICION_VIGENTE
+        . '    AND ' . ReposoEmployeeModel::CONDICION_VIGENTE
         . '  ORDER BY r.fecha_inicio DESC LIMIT 1) AS motivo_reposo';
 
     private const CAMPOS_EMPLEADO = ['id_cargo', 'fecha_ingreso', 'id_turno'];
@@ -699,7 +699,7 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
         }
 
         $asignaciones = $this->getAsignacionesActivas($idEmpleado, $fechaEfectiva);
-        $reposo = (new ReposoEmpleadoModel($this->pdo))->getVigente($idEmpleado);
+        $reposo = (new ReposoEmployeeModel($this->pdo))->getVigente($idEmpleado);
 
         return [
             'estado_actual'         => $actual,
@@ -755,12 +755,12 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
                     'estado_anterior'      => $actual,
                     'estado_nuevo'         => $nuevoEstado,
                     'asignaciones_cerradas' => 0,
-                    'reposo_vigente'       => (new ReposoEmpleadoModel($pdo))->getVigente($idEmpleado),
+                    'reposo_vigente'       => (new ReposoEmployeeModel($pdo))->getVigente($idEmpleado),
                 ];
             }
 
             $asignaciones = $this->getAsignacionesActivas($idEmpleado, $fechaEfectiva);
-            $reposo = (new ReposoEmpleadoModel($pdo))->getVigente($idEmpleado);
+            $reposo = (new ReposoEmployeeModel($pdo))->getVigente($idEmpleado);
 
             if (!$confirmar && $nuevoEstado === 'INACTIVO' && ($asignaciones !== [] || $reposo !== null)) {
                 $pdo->rollBack();
@@ -932,7 +932,7 @@ class EmpleadoModel extends BaseModel implements Listable, Creatable, Updatable,
  no se traga.*/
         if (empty($fila['fecha_obtencion'])) {
             error_log(
-                'EmpleadoModel::actualizarFormacion(): no se guardó la formación del empleado '
+                'EmployeeModel::actualizarFormacion(): no se guardó la formación del empleado '
                 . $idEmpleado . ' porque fecha_obtencion venía vacía (columna NOT NULL).'
             );
 

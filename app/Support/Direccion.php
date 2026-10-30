@@ -16,7 +16,7 @@ namespace App\Support;
  * "Av. Las Flores, Casa nro 12, , Chuao".
  *
  * Antes cada módulo armaba la suya y ya había tres redacciones distintas: la
- * ficha del empleado (EmpleadoModel), el JS del modal de detalle
+ * ficha del empleado (EmployeeModel), el JS del modal de detalle
  * (pintarDetalleEmpleado, que volvía a componerla en el navegador) y la del
  * representante en Listados y Actas. Con una persona registrada con un solo
  * tramo faltante, cada una mostraba algo distinto.

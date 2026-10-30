@@ -16,7 +16,7 @@
  * - string $phoneFeedback     opcional. Mensaje .invalid-feedback bajo el campo
  *
  * El número solo acepta dígitos, hasta 7 (mismo formato que valida
- * EmpleadoController::validate() en el servidor: `^[0-9]{7}$`):
+ * EmployeeController::validate() en el servidor: `^[0-9]{7}$`):
  *  - pattern="[0-9]{7}" + inputmode="numeric": hacen que checkValidity()
  *    (usado por el wizard en panelCompleto()) marque el campo como inválido
  *    si trae letras o menos de 7 dígitos, y muestran teclado numérico en

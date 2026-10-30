@@ -19,7 +19,7 @@ window.SIGDEEmpleados = (function () {
   var baseUrl = rawBaseUrl.endsWith('/') ? rawBaseUrl : rawBaseUrl + '/';
   // Debe coincidir con la URL real del módulo (127.0.0.1:8000/empleado/...)
   // y con la clave 'empleado' de $rutasPermitidas en el front controller.
-  // OJO: EmpleadoController::$routeName está en plural ('empleados'); si en
+  // OJO: EmployeeController::$routeName está en plural ('empleados'); si en
   // algún momento se unifica todo a plural, cambiar esto también.
   var rutaControlador = 'empleado';
 

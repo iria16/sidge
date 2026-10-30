@@ -9,9 +9,9 @@ use App\Http\BinaryResponse;
 use App\Interfaces\Creatable;
 use App\Interfaces\Updatable;
 use App\Models\AuditLogModel;
-use App\Models\EmpleadoModel;
+use App\Models\EmployeeModel;
 use App\Models\InstitucionModel;
-use App\Models\ReposoEmpleadoModel;
+use App\Models\ReposoEmployeeModel;
 use App\Models\TituloModel;
 use App\Support\Configuracion;
 use App\Support\FichaEmpleadoPdf;
@@ -38,7 +38,7 @@ use function App\Traits\sigde_rol_clave;
  * Sobrescribe toggleStatus() para que todo cambio pase por cambiarEstado().
  * Sobrescribe store()/update() para distinguir la cédula duplicada.
 */
-class EmpleadoController extends CrudController
+class EmployeeController extends CrudController
 {
     use PersonaValidacionTrait;
     use ValidacionFechaTrait;
@@ -67,7 +67,7 @@ class EmpleadoController extends CrudController
     /** Crea el modelo del módulo.*/
     protected function createModel(PDO $pdo): object
     {
-        return new EmpleadoModel($pdo);
+        return new EmployeeModel($pdo);
     }
 
     /**
@@ -298,7 +298,7 @@ class EmpleadoController extends CrudController
             $formacion    = $model->getFormacionAcademica($id);
             $asignaciones = $model->getAsignacionesDocente($id);
             $historial    = $model->getHistorialEstados($id);
-            $reposos      = (new ReposoEmpleadoModel($this->conexion()))->getPorEmpleado($id);
+            $reposos      = (new ReposoEmployeeModel($this->conexion()))->getPorEmpleado($id);
 
             $catalogos        = $model->getCatalogosFormulario();
             $cargos           = $model->getCargos();
@@ -343,7 +343,7 @@ class EmpleadoController extends CrudController
             $formacion    = $model->getFormacionAcademica($id);
             $asignaciones = $model->getAsignacionesDocente($id);
             $historial    = $model->getHistorialEstados($id);
-            $reposos      = (new ReposoEmpleadoModel($this->conexion()))->getPorEmpleado($id);
+            $reposos      = (new ReposoEmployeeModel($this->conexion()))->getPorEmpleado($id);
 
             $config = Configuracion::getAll();
 
@@ -654,12 +654,12 @@ class EmpleadoController extends CrudController
     }
 
     /**
- * Modelo con su tipo real (EmpleadoModel), para que el editor
+ * Modelo con su tipo real (EmployeeModel), para que el editor
  * resuelva sus métodos en vez de verlos sobre `object`.
 */
-    private function modelo(): EmpleadoModel
+    private function modelo(): EmployeeModel
     {
-        /** @var EmpleadoModel $model*/
+        /** @var EmployeeModel $model*/
         $model = $this->getModel();
 
         return $model;
@@ -667,7 +667,7 @@ class EmpleadoController extends CrudController
 
     /**
  * Convierte el $_POST del wizard o del modal de edición en el arreglo
- * de EmpleadoModel: persona, laboral, contacto, dirección y formación.
+ * de EmployeeModel: persona, laboral, contacto, dirección y formación.
  * Los nombres se normalizan; el documento se guarda solo con dígitos.
 */
 protected function extractData(array $source): array
