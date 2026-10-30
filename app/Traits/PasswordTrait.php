@@ -12,7 +12,7 @@ use PDO;
  * Generación y aplicación de contraseñas provisionales, y lectura de los
  * datos básicos del usuario (id, nombre de usuario, nombre de persona).
  * Compartido por los modelos que entregan credenciales generadas por el
- * servidor: UserAccountModel (alta de cuenta) y RecuperacionAccesoModel
+ * servidor: UserAccountModel (alta de cuenta) y PasswordRecoveryModel
  * (aprobación de solicitud y restablecimiento manual).
  *
  * Requiere que la clase que lo usa (un Model) exponga `$this->pdo`.

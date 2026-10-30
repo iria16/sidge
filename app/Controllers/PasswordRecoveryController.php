@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\RecuperacionAccesoModel;
+use App\Models\PasswordRecoveryModel;
 use App\Traits\DetalleJsonTrait;
 use App\Traits\ListableIndexTrait;
 use PDO;
@@ -15,7 +15,7 @@ use Throwable;
  * Al aprobar genera una clave provisional; también permite restablecer la clave de cualquier usuario sin solicitud.
  * Vistas en Views/usuarios/recuperacion; updateEstado, getDetalle y resetPassword deben estar en el whitelist de public/index.php.
  */
-class RecuperacionAccesoController extends BaseController
+class PasswordRecoveryController extends BaseController
 {
     use DetalleJsonTrait, ListableIndexTrait;
 
@@ -29,9 +29,9 @@ class RecuperacionAccesoController extends BaseController
      * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
      * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
      */
-    private function modelo(): RecuperacionAccesoModel
+    private function modelo(): PasswordRecoveryModel
     {
-        /** @var RecuperacionAccesoModel $model */
+        /** @var PasswordRecoveryModel $model */
         $model = $this->getModel();
 
         return $model;
@@ -39,7 +39,7 @@ class RecuperacionAccesoController extends BaseController
 
     protected function createModel(PDO $pdo): object
     {
-        return new RecuperacionAccesoModel($pdo);
+        return new PasswordRecoveryModel($pdo);
     }
 
     /**

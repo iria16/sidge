@@ -10,7 +10,7 @@ use PDO;
 use RuntimeException;
 use Throwable;
 
-class RecuperacionAccesoModel extends BaseModel implements Listable
+class PasswordRecoveryModel extends BaseModel implements Listable
 {
     use AvatarTrait;
     use PasswordTrait;
