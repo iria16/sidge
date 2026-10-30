@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use App\Http\BinaryResponse;
 use App\Models\AuditLogModel;
-use App\Models\CertificadoCalificacionesModel;
+use App\Models\GradeCertificateModel;
 use App\Models\ResultadoAcademicoModel;
 use App\Support\CertificadoCalificacionesPdf;
 use App\Support\Configuracion;
@@ -17,7 +17,7 @@ use Throwable;
 use function App\Traits\sigde_rol_clave;
 
 /**
- * CertificadoCalificacionesController
+ * GradeCertificateController
  * -----------------------------------
  * Controlador para la emisión de Certificados de Calificaciones (según Art. 108 RGLOE).
  *
@@ -28,7 +28,7 @@ use function App\Traits\sigde_rol_clave;
  * 4. Admite literales A-D (promovido) y E (no promovido).
  * 5. Registro formal de auditoría en bitácora.
  */
-class CertificadoCalificacionesController extends BaseController
+class GradeCertificateController extends BaseController
 {
     protected string $viewPath  = 'resultado_academico';
     protected string $routeName = 'certificadoCalificaciones';
@@ -38,9 +38,9 @@ class CertificadoCalificacionesController extends BaseController
         return new ResultadoAcademicoModel($this->conexion());
     }
 
-    private function modeloCertificado(): CertificadoCalificacionesModel
+    private function modeloCertificado(): GradeCertificateModel
     {
-        return new CertificadoCalificacionesModel($this->conexion());
+        return new GradeCertificateModel($this->conexion());
     }
 
     /**
@@ -115,8 +115,8 @@ class CertificadoCalificacionesController extends BaseController
             }
 
             $gradoNombre = (string) ($estudiante['grado'] ?? '');
-            if (CertificadoCalificacionesModel::esGradoSexto($gradoNombre)
-                && CertificadoCalificacionesModel::literalEsPromovido($literal)) {
+            if (GradeCertificateModel::esGradoSexto($gradoNombre)
+                && GradeCertificateModel::literalEsPromovido($literal)) {
                 $this->renderHttpError(
                     422,
                     'Estudiante promovido de 6.° grado',
@@ -222,7 +222,7 @@ class CertificadoCalificacionesController extends BaseController
             }
 
             $gradoNombre = (string) ($estudiantes[0]['grado'] ?? '');
-            if (CertificadoCalificacionesModel::esGradoSexto($gradoNombre)) {
+            if (GradeCertificateModel::esGradoSexto($gradoNombre)) {
                 // En 6.° grado solo reciben Certificado de Calificaciones quienes no alcanzaron las competencias (literal E)
                 $estudiantes = $modelo->filtrarCertificablesDeSexto($estudiantes);
 

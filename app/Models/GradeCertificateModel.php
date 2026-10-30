@@ -7,7 +7,7 @@ namespace App\Models;
 use PDO;
 
 /**
- * CertificadoCalificacionesModel
+ * GradeCertificateModel
  * ----------------------------
  * Modelo para la gestión de Certificados de Calificaciones (según Art. 108 RGLOE).
  *
@@ -17,7 +17,7 @@ use PDO;
  * - La comparación con las hojas físicas del colegio
  * - El historial de generación de certificados
  */
-class CertificadoCalificacionesModel extends BaseModel
+class GradeCertificateModel extends BaseModel
 {
     protected string $table = 'certificados_calificaciones';
     protected string $primaryKey = 'id_certificado';

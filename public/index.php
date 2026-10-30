@@ -524,6 +524,7 @@ spl_autoload_register(function ($clase) {
 $mapaControladores = [
     'bitacora' => 'AuditLog',
     'catalogo' => 'Catalog',
+    'certificadoCalificaciones' => 'GradeCertificate',
 ];
 $nombreControladorClase = $mapaControladores[$controller] ?? ucfirst($controller);
 $nombreClaseControlador = 'App\\Controllers\\' . $nombreControladorClase . 'Controller';
