@@ -119,8 +119,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  var guardando = false;
   function save(form, endpoint, modalId, id) {
+    if (guardando) return;
     if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+
+    var btnSubmit = form.querySelector('button[type="submit"]') ||
+                    document.querySelector('button[type="submit"][form="' + form.id + '"]');
+    var textoOriginal = btnSubmit ? btnSubmit.innerHTML : '';
 
     /* El alta nunca mueve alumnos, así que no pasa por la confirmación.*/
     var preparar = id ? pedirConfirmacionSiAfecta(id) : Promise.resolve(true);
@@ -128,10 +134,19 @@ document.addEventListener('DOMContentLoaded', function () {
     preparar.then(function (confirmado) {
       if (!confirmado) return;
 
+      guardando = true;
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
+      }
+
       SIGDEUI.enviar(route + endpoint, { metodo: 'POST', cuerpo: new FormData(form) })
         .then(function (result) {
           if (!result.ok || !result.data.ok) {
-            SIGDEUI.mostrarError(result.data.mensaje || 'No se pudo guardar el registro.');
+            if (SIGDEUI.mostrarErroresDeCampos && SIGDEUI.mostrarErroresDeCampos(result.data, { form: form, titulo: 'Error al guardar' })) {
+              return;
+            }
+            SIGDEUI.mostrarError(result.data && result.data.mensaje ? result.data.mensaje : 'No se pudo guardar el registro.');
             return;
           }
           SIGDEUI.ocultarModal(document.getElementById(modalId));
@@ -141,7 +156,14 @@ document.addEventListener('DOMContentLoaded', function () {
  confusión, y el formulario de alta sí necesita verse limpio.*/
           window.location.reload();
         })
-        .catch(function () { SIGDEUI.mostrarError('No se pudo conectar con el servidor.'); });
+        .catch(function () { SIGDEUI.mostrarError('No se pudo conectar con el servidor.'); })
+        .finally(function () {
+          guardando = false;
+          if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = textoOriginal;
+          }
+        });
     });
   }
 

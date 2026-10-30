@@ -32,12 +32,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  function fechaVisible(value) {
-    if (!value) return '—';
-    var partes = value.slice(0, 10).split('-');
-    return partes.length === 3 ? partes[2] + '/' + partes[1] + '/' + partes[0] : value;
-  }
-
+  /* La fecha corta la pinta core/sigde-ui.js (formatearFechaCorta), que es la misma que usa el
+   * módulo de empleados. Antes tenía aquí su propia copia idéntica. */
   function texto(id, value) {
     var element = document.getElementById(id);
     if (element) element.textContent = value || '—';
@@ -60,8 +56,8 @@ document.addEventListener('DOMContentLoaded', function () {
     button.addEventListener('click', function () {
       texto('verAnioNombre', button.dataset.nombre);
       texto('verAnioEstado', button.dataset.estado);
-      texto('verAnioInicio', fechaVisible(button.dataset.inicio));
-      texto('verAnioCierre', fechaVisible(button.dataset.cierre));
+      texto('verAnioInicio', SIGDEUI.formatearFechaCorta(button.dataset.inicio));
+      texto('verAnioCierre', SIGDEUI.formatearFechaCorta(button.dataset.cierre));
       dato('verAnioIniciadoPor', button.dataset.iniciadoPor);
       dato('verAnioIniciadoEn', button.dataset.iniciadoEn ? button.dataset.iniciadoEn.replace('T', ' ') : '');
       dato('verAnioReabiertoPor', button.dataset.reabiertoPor);
@@ -79,11 +75,22 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  var enviandoGuardar = false;
   function guardar(formulario, endpoint, modalId) {
+    if (enviandoGuardar) return;
     if (!formulario.checkValidity()) {
       formulario.classList.add('was-validated');
       return;
     }
+    var btn = formulario.querySelector('button[type="submit"]') ||
+              document.querySelector('button[type="submit"][form="' + formulario.id + '"]');
+    var textoOriginal = btn ? btn.innerHTML : '';
+    enviandoGuardar = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
+    }
+
     enviar(endpoint, { method: 'POST', body: new FormData(formulario) })
       .then(function (result) {
         if (!result.response.ok || !result.data.ok) {
@@ -93,15 +100,26 @@ document.addEventListener('DOMContentLoaded', function () {
         SIGDEUI.ocultarModal(document.getElementById(modalId));
         window.location.reload();
       })
-      .catch(function () { SIGDEUI.mostrarError('No se pudo conectar con el servidor.'); });
+      .catch(function () { SIGDEUI.mostrarError('No se pudo conectar con el servidor.'); })
+      .finally(function () {
+        enviandoGuardar = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = textoOriginal;
+        }
+      });
   }
 
   if (form) form.addEventListener('submit', function (event) { event.preventDefault(); guardar(form, 'store', 'nuevoAnioModal'); });
   if (editForm) editForm.addEventListener('submit', function (event) { event.preventDefault(); guardar(editForm, 'update', 'editarAnioModal'); });
 
+  var enviandoTransicion = false;
   function transicionar(button, endpoint, confirmation) {
+    if (enviandoTransicion) return;
     SIGDEUI.confirmar(confirmation).then(function (confirmed) {
       if (!confirmed) return;
+      enviandoTransicion = true;
+      button.disabled = true;
       enviar(endpoint, {
         method: 'POST',
         body: new URLSearchParams({ id: button.dataset.id })
@@ -113,6 +131,9 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.reload();
       }).catch(function () {
         SIGDEUI.mostrarError('No se pudo conectar con el servidor.');
+      }).finally(function () {
+        enviandoTransicion = false;
+        button.disabled = false;
       });
     });
   }
@@ -158,14 +179,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var formularioReabrir = document.getElementById('formReabrirAnio');
   if (formularioReabrir) {
+    var enviandoReabrir = false;
     formularioReabrir.addEventListener('submit', function (evento) {
       evento.preventDefault();
+      if (enviandoReabrir) return;
+
       var motivo = document.getElementById('reabrirAnioMotivo');
       if (!motivo || motivo.value.trim().length < 10) {
         SIGDEUI.mostrarError('Explique el motivo con al menos 10 caracteres: quedará registrado.');
         if (motivo) motivo.focus();
         return;
       }
+
+      var botonSubmit = formularioReabrir.querySelector('button[type="submit"]') ||
+                        document.querySelector('button[type="submit"][form="formReabrirAnio"]');
+      var textoOriginal = botonSubmit ? botonSubmit.innerHTML : '';
+
+      enviandoReabrir = true;
+      if (botonSubmit) {
+        botonSubmit.disabled = true;
+        botonSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Reabriendo...';
+      }
+
       var cuerpo = new URLSearchParams({
         id: document.getElementById('reabrirAnioId').value,
         motivo: motivo.value.trim()
@@ -173,6 +208,12 @@ document.addEventListener('DOMContentLoaded', function () {
       enviar('reabrir', { method: 'POST', body: cuerpo })
         .then(function (answer) {
           if (!answer.ok || !answer.data.ok) {
+            if (answer.data && answer.data.mensaje && answer.data.mensaje.indexOf('ya se encuentra activo') !== -1) {
+              SIGDEUI.exito(answer.data.mensaje);
+              SIGDEUI.ocultarModal(document.getElementById('reabrirAnioModal'));
+              window.location.reload();
+              return;
+            }
             SIGDEUI.mostrarError(answer.data.mensaje || 'No se pudo reabrir el año escolar.');
             return;
           }
@@ -182,6 +223,13 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .catch(function () {
           SIGDEUI.mostrarError('No se pudo conectar con el servidor.');
+        })
+        .finally(function () {
+          enviandoReabrir = false;
+          if (botonSubmit) {
+            botonSubmit.disabled = false;
+            botonSubmit.innerHTML = textoOriginal;
+          }
         });
     });
   }

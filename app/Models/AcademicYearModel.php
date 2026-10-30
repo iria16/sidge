@@ -372,10 +372,15 @@ $sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
             }
             if ($anio['estado'] !== 'CERRADO') {
                 $this->pdo->rollBack();
-                return ['ok' => false, 'mensaje' => 'Solo se puede reabrir un año escolar cerrado.'];
+                $mensaje = $anio['estado'] === 'ACTIVO'
+                    ? 'El año escolar ya se encuentra activo.'
+                    : 'Solo se puede reabrir un año escolar cerrado.';
+                return ['ok' => false, 'mensaje' => $mensaje];
             }
 
-            $activo = $this->pdo->query("SELECT nombre_periodo FROM anio_escolar WHERE estado = 'ACTIVO' LIMIT 1")->fetchColumn();
+            $stmtActivo = $this->pdo->prepare("SELECT nombre_periodo FROM anio_escolar WHERE estado = 'ACTIVO' AND id_anio_escolar != :id LIMIT 1");
+            $stmtActivo->execute(['id' => $id]);
+            $activo = $stmtActivo->fetchColumn();
             if ($activo !== false) {
                 $this->pdo->rollBack();
                 return ['ok' => false, 'mensaje' => "No se puede reabrir: {$activo} está activo. "

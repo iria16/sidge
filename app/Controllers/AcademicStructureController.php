@@ -161,6 +161,9 @@ protected function getExtraIndexData(array $items, array $filters): array
         try {
             $this->modelo()->create($data);
             $this->jsonResponse(true, null, 'Estructura académica registrada correctamente.');
+        } catch (\RuntimeException $e) {
+            $this->jsonResponse(false, null, $e->getMessage(), 422);
+            return;
         } catch (\PDOException $e) {
             $codigo = (int) ($e->errorInfo[1] ?? 0);
             if ($e->getCode() === '23000' || $codigo === 1062) {
@@ -364,7 +367,7 @@ protected function getExtraIndexData(array $items, array $filters): array
             $errores['id_anio_escolar'] = 'Las operaciones académicas nuevas deben usar el año escolar activo.';
         }
 
-        if ($data['id_turno'] > 0 && (new \App\Models\TurnoModel($this->db()))->esTurnoExclusivoPersonal((int) $data['id_turno'])) {
+        if ($data['id_turno'] > 0 && (new \App\Models\TurnoModel($this->conexion()))->esTurnoExclusivoPersonal((int) $data['id_turno'])) {
             $errores['id_turno'] = 'Este turno es exclusivo de empleados y no aplica para secciones académicas.';
         }
 

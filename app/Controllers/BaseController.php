@@ -74,6 +74,14 @@ abstract class BaseController
     }
 
     /**
+     * Alias de conveniencia para acceder a la conexión PDO.
+     */
+    protected function db(): PDO
+    {
+        return $this->conexion();
+    }
+
+    /**
      * Modelo de consultas de acceso, reutilizando la conexión del request.
      */
     private function acceso(): AccesoUsuarioModel
