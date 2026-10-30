@@ -708,6 +708,8 @@ protected function extractData(array $source): array
 
             // Direcciones con capitalización inteligente
             'direccion' => [
+                'id_estado'           => (int) ($source['id_estado_ui'] ?? 0),
+                'id_municipio'        => (int) ($source['id_municipio_ui'] ?? 0),
                 'id_parroquia'        => (int) ($source['id_parroquia'] ?? 0),
                 'sector_urbanizacion' => $this->capitalizarTitulo($raw('sector_urbanizacion')),
                 'calle_avenida'       => $this->capitalizarTitulo($raw('calle_avenida')),
@@ -884,7 +886,7 @@ protected function extractData(array $source): array
         registra antes de que estos dos campos existieran, así que los tiene en NULL y no
         pueden exigirse. En el alta (store) sí se exigen. Si vienen informados, se
         comprueba que sean válidos igual. */
-        $exigir = $ignorarId === null;
+        $exigir = true;
         $this->validarLugarNacimiento($data, $errores, false, $exigir);
         $this->validarNacionalidad($data, $errores, $exigir);
 

@@ -19,7 +19,7 @@ ob_start();
     <div class="wizard-summary__card">
       <div class="mb-3">
         <label for="anioNombre" class="label-sigde">Nombre del período</label>
-        <input type="text" id="anioNombre" name="nombre" class="form-control" placeholder="Ej. 2024-2025" maxlength="20" required>
+        <input type="text" id="anioNombre" name="nombre" class="form-control" placeholder="Ej. 2024-2025" maxlength="9" pattern="\d{4}-\d{4}" required>
         <div class="invalid-feedback">Indique el nombre del período.</div>
       </div>
       <div class="row g-2">

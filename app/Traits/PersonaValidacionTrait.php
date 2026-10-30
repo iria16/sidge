@@ -130,8 +130,6 @@ trait PersonaValidacionTrait
 
         if ($numero === '') {
             $errores['numero_documento'] = 'El documento es obligatorio.';
-        } elseif ($documentoOriginal !== null && $numero === $documentoOriginal) {
-            // El documento no cambió: no se revalida formato ni duplicado para admitir registros históricos
         } elseif (($errorFormato = $this->errorFormatoDocumento($numero, $tipo)) !== null) {
             $errores['numero_documento'] = $errorFormato;
         } elseif ($this->documentoYaRegistrado($numero, $ignorarId)) {

@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Http\BinaryResponse;
 use App\Models\BitacoraModel;
+use App\Traits\ValidacionFechaTrait;
 use PDO;
 use Throwable;
 
@@ -15,6 +16,7 @@ use Throwable;
  */
 class BitacoraController extends ReadOnlyController
 {
+    use ValidacionFechaTrait;
     protected string $viewPath  = 'auditoria';
     protected string $routeName = 'bitacora';
 
@@ -41,9 +43,22 @@ class BitacoraController extends ReadOnlyController
      */
     protected function getFiltersFromRequest(): array
     {
+        $desde  = trim($_GET['desde'] ?? '');
+        $hasta  = trim($_GET['hasta'] ?? '');
+        if ($desde !== '' && !$this->fechaValida($desde)) {
+            $desde = '';
+        }
+        if ($hasta !== '' && !$this->fechaValida($hasta)) {
+            $hasta = '';
+        }
+        if ($desde !== '' && $hasta !== '' && $desde > $hasta) {
+            $tmp = $desde;
+            $desde = $hasta;
+            $hasta = $tmp;
+        }
         return [
-            'desde'  => trim($_GET['desde'] ?? ''),
-            'hasta'  => trim($_GET['hasta'] ?? ''),
+            'desde'  => $desde,
+            'hasta'  => $hasta,
             'accion' => trim($_GET['accion'] ?? ''),
             'search' => trim($_GET['q'] ?? ''),
         ];

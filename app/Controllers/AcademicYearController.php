@@ -202,7 +202,7 @@ class AcademicYearController extends CrudController
         $errores = [];
 
         $v = Validator::make($data, [
-            'nombre'       => 'required|string|max_len:20',
+            'nombre'       => 'required|string|max_len:9|regex:/^\d{4}-\d{4}$/',
             'fecha_inicio' => 'required|date',
             'fecha_cierre' => 'required|date|date_after_or_equal:fecha_inicio',
         ]);
@@ -211,6 +211,9 @@ class AcademicYearController extends CrudController
             foreach ($v->errors() as $campo => $mensajes) {
                 $errores[$campo] = $mensajes[0];
             }
+        }
+        if (empty($errores['nombre']) && !preg_match('/^\d{4}-\d{4}$/', (string) $data['nombre'])) {
+            $errores['nombre'] = 'El nombre del período debe tener el formato AAAA-AAAA (ej. 2026-2027).';
         }
 
         // $id llega de update() y permite excluir la fila en edición de unicidad;

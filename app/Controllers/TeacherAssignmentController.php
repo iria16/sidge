@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\TeacherAssignmentModel;
+use App\Traits\ValidacionFechaTrait;
 use PDO;
 
 /**
@@ -13,6 +14,7 @@ use PDO;
 */
 class TeacherAssignmentController extends CrudController
 {
+    use ValidacionFechaTrait;
     protected string $viewPath  = 'configuracion_academica/asignacionDocente';
     protected string $routeName = 'teacherAssignment';
 
@@ -83,6 +85,9 @@ class TeacherAssignmentController extends CrudController
         if ($fechaInicio === '') {
             $this->jsonResponse(false, ['fecha_inicio' => 'Indique la fecha de inicio.'], 'Hay errores en el formulario.', 422);
         }
+        if (!$this->fechaValida($fechaInicio)) {
+            $this->jsonResponse(false, ['fecha_inicio' => 'Indique una fecha de inicio válida (YYYY-MM-DD).'], 'Hay errores en el formulario.', 422);
+        }
 
         $resultado = $model->assign([
             'id_estructura_academica' => $estructura,
@@ -109,6 +114,9 @@ class TeacherAssignmentController extends CrudController
         }
         if ($docente <= 0 || $tipo <= 0 || $fechaInicio === '') {
             $this->jsonResponse(false, null, 'Seleccione el docente, el tipo de asignación y la fecha de inicio.', 422);
+        }
+        if (!$this->fechaValida($fechaInicio)) {
+            $this->jsonResponse(false, null, 'Indique una fecha de inicio válida (YYYY-MM-DD).', 422);
         }
 
         $resultado = $this->modelo()->updateAssignment([

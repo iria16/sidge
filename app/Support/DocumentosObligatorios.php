@@ -71,27 +71,26 @@ final class DocumentosObligatorios
      *
      * @return array<int, array{codigo: string, mensaje: string}>
      */
-    public function faltantesInscripcion(
+    /**
+     * Códigos de documentos requeridos para una inscripción, según los datos del estudiante.
+     *
+     * @return string[]
+     */
+    public function codigosRequeridosInscripcion(
         bool $primerIngreso,
         ?int $idInstitucion,
         ?string $ultimoGrado,
         array $familiares,
-        array $recaudos,
-        bool $incluirRegla3 = true,
         ?string $fechaNacimientoAlumno = null,
         ?string $fechaInscripcion = null
     ): array {
-        $faltantes = [];
-
-        foreach ([
+        $requeridos = [
             self::PARTIDA_NACIMIENTO,
             self::FOTO_ALUMNO,
             self::FOTO_REPRESENTANTE,
             self::CONSTANCIA_VACUNA,
             self::CEDULA_REPRESENTANTE,
-        ] as $codigoObligatorio) {
-            $this->agregarSiFalta($faltantes, $codigoObligatorio, $recaudos);
-        }
+        ];
 
         $gradoOrdinal = Instituciones::ordinalGrado($ultimoGrado);
         $requiereProsecucion = false;
@@ -104,26 +103,56 @@ final class DocumentosObligatorios
             }
         }
         if ($requiereProsecucion) {
-            $this->agregarSiFalta($faltantes, self::CONSTANCIA_PROSECUCION, $recaudos);
+            $requeridos[] = self::CONSTANCIA_PROSECUCION;
         }
 
         if ($this->alumnoTiene9AniosOMas($fechaNacimientoAlumno, $fechaInscripcion)) {
-            $this->agregarSiFalta($faltantes, self::CEDULA_ALUMNO, $recaudos);
+            $requeridos[] = self::CEDULA_ALUMNO;
         }
 
         $representante = $this->representanteLegal($familiares);
         if ($this->exigePermisoLopnna($representante)) {
-            $this->agregarSiFalta($faltantes, self::PERMISO_LOPNNA, $recaudos);
+            $requeridos[] = self::PERMISO_LOPNNA;
         }
 
-        if ($incluirRegla3) {
-            foreach ($familiares as $familiar) {
-                if ($this->exigeDocumentosRetiro($familiar)) {
-                    $this->agregarSiFalta($faltantes, self::AUTORIZACION_RETIRO, $recaudos);
-                    $this->agregarSiFalta($faltantes, self::CEDULA_AUTORIZADA, $recaudos);
-                    break;
+        foreach ($familiares as $familiar) {
+            if ($this->exigeDocumentosRetiro($familiar)) {
+                $requeridos[] = self::AUTORIZACION_RETIRO;
+                $requeridos[] = self::CEDULA_AUTORIZADA;
+                break;
+            }
+        }
+
+        return array_values(array_unique($requeridos));
+    }
+
+    public function faltantesInscripcion(
+        bool $primerIngreso,
+        ?int $idInstitucion,
+        ?string $ultimoGrado,
+        array $familiares,
+        array $recaudos,
+        bool $incluirRegla3 = true,
+        ?string $fechaNacimientoAlumno = null,
+        ?string $fechaInscripcion = null
+    ): array {
+        $requeridos = $this->codigosRequeridosInscripcion(
+            $primerIngreso,
+            $idInstitucion,
+            $ultimoGrado,
+            $familiares,
+            $fechaNacimientoAlumno,
+            $fechaInscripcion
+        );
+
+        $faltantes = [];
+        foreach ($requeridos as $codigo) {
+            if ($codigo === self::AUTORIZACION_RETIRO || $codigo === self::CEDULA_AUTORIZADA) {
+                if (!$incluirRegla3) {
+                    continue;
                 }
             }
+            $this->agregarSiFalta($faltantes, $codigo, $recaudos);
         }
 
         return $faltantes;

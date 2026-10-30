@@ -88,6 +88,8 @@ trait FamiliaresValidacionTrait
                 ],
 
                 'direccion' => [
+                    'id_estado'    => (int) ($item['direccion']['id_estado'] ?? $item['direccion']['estado'] ?? 0),
+                    'id_municipio' => (int) ($item['direccion']['id_municipio'] ?? $item['direccion']['municipio'] ?? 0),
                     // Se acepta `parroquia` como alias de `id_parroquia`, porque el
                     // formulario y el modelo no siempre usan el mismo nombre y
                     // perder la dirección en silencio era el síntoma.

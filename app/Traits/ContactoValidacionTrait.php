@@ -64,7 +64,9 @@ trait ContactoValidacionTrait
 
         // 3. Correo Electrónico (Opcional)
         if ($correo !== '') {
-            if (filter_var($correo, FILTER_VALIDATE_EMAIL) === false || !preg_match('/\.[a-zA-Z]{2,}$/', $correo)) {
+            if (mb_strlen($correo, 'UTF-8') > 254
+                || filter_var($correo, FILTER_VALIDATE_EMAIL) === false
+                || !preg_match('/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/u', $correo)) {
                 $errores['correo_electronico'] = 'Indica un correo electrónico válido.';
             }
         }

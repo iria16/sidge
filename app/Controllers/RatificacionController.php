@@ -743,8 +743,8 @@ class RatificacionController extends CrudController
         tiene en NULL y exigirlos hacía imposible guardar cualquier edición: el
         requisito se creó con el campo y no puede aplicarse hacia atrás. Si vienen
         informados, se comprueba que sean válidos — más abajo— igual que en el alta. */
-        $this->validarLugarNacimiento($p, $errores, true, false);
-        $this->validarNacionalidad($p, $errores, false);
+        $this->validarLugarNacimiento($p, $errores, true, true);
+        $this->validarNacionalidad($p, $errores, true);
 
         $this->validarNombresApellidos($p, $errores);
 

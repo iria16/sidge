@@ -126,7 +126,12 @@ foreach ($recaudos as $r) {
               ?>
               <tr data-recaudo-row>
                 <td>
-                  <div class="fw-semibold"><?= htmlspecialchars((string) $r['nombre']) ?></div>
+                  <div class="fw-semibold">
+                    <?= htmlspecialchars((string) $r['nombre']) ?>
+                    <?php if (!empty($r['requerido'])): ?>
+                      <span class="text-danger" aria-hidden="true">*</span>
+                    <?php endif; ?>
+                  </div>
                 </td>
                 <td class="text-center">
                   <?php if ($recaudosEditable): ?>

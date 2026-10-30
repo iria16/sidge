@@ -14,7 +14,7 @@ ob_start();
   <input type="hidden" name="id" id="editarAnioId">
   <div class="mb-3">
     <label for="editarAnioNombre" class="label-sigde">Nombre del período</label>
-    <input type="text" name="nombre" id="editarAnioNombre" class="form-control" maxlength="20" required>
+    <input type="text" name="nombre" id="editarAnioNombre" class="form-control" maxlength="9" pattern="\d{4}-\d{4}" required>
   </div>
   <div class="row g-3">
     <div class="col-md-6">

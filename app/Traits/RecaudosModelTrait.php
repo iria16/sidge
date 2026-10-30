@@ -34,12 +34,20 @@ trait RecaudosModelTrait
 */
     public function getRecaudos(): array
     {
-        return $this->pdo->query(
-            "SELECT id_tipo_documento AS id, nombre, '' AS detalle
+        $filas = $this->pdo->query(
+            "SELECT id_tipo_documento AS id, nombre, codigo, '' AS detalle
                FROM tipo_documento
               WHERE estado = 'ACTIVO'
            ORDER BY nombre"
         )->fetchAll(PDO::FETCH_ASSOC);
+
+        $siempre = ['partida_nacimiento', 'foto_alumno', 'foto_representante', 'constancia_vacuna', 'cedula_representante'];
+        foreach ($filas as &$fila) {
+            $fila['requerido'] = in_array((string) ($fila['codigo'] ?? ''), $siempre, true);
+        }
+        unset($fila);
+
+        return $filas;
     }
 
     /**
@@ -104,6 +112,7 @@ trait RecaudosModelTrait
         $consulta = $this->pdo->prepare(
             "SELECT t.id_tipo_documento AS id,
                     t.nombre,
+                    t.codigo,
                     IFNULL(ed.consignado, 0) AS consignado,
                     ed.observacion,
                     ed.actualizado_en,
@@ -117,8 +126,51 @@ trait RecaudosModelTrait
            ORDER BY t.nombre"
         );
         $consulta->execute(['estudiante' => $estudianteId]);
+        $filas = $consulta->fetchAll(PDO::FETCH_ASSOC);
 
-        return $consulta->fetchAll(PDO::FETCH_ASSOC);
+        // Requisitos por estudiante (reutiliza el método central).
+        $procedencia = $this->pdo->prepare(
+            'SELECT es_primer_ingreso, id_institucion, ult_grado_cursado
+               FROM inscripcion
+              WHERE id_estudiante = :id
+              LIMIT 1'
+        );
+        $procedencia->execute(['id' => $estudianteId]);
+        $proc = $procedencia->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        $rep = $this->pdo->prepare(
+            'SELECT p.fecha_nacimiento, par.nombre AS parentesco
+               FROM persona_estudiante pe
+               JOIN persona p ON p.id_persona = pe.id_persona
+               LEFT JOIN parentesco par ON par.id_parentesco = pe.id_parentesco
+              WHERE pe.id_estudiante = :id
+                AND pe.es_representante_legal = 1
+              LIMIT 1'
+        );
+        $rep->execute(['id' => $estudianteId]);
+        $representante = $rep->fetch(PDO::FETCH_ASSOC) ?: null;
+
+        $familiares = $representante === null ? [] : [[
+            'parentesco' => (string) ($representante['parentesco'] ?? ''),
+            'representante_principal' => 1,
+        ]];
+
+        $servicio = new \App\Support\DocumentosObligatorios($this->pdo);
+        $requeridos = $servicio->codigosRequeridosInscripcion(
+            (int) ($proc['es_primer_ingreso'] ?? 1) === 1,
+            isset($proc['id_institucion']) ? (int) $proc['id_institucion'] : null,
+            (string) ($proc['ult_grado_cursado'] ?? ''),
+            $familiares,
+            isset($representante['fecha_nacimiento']) ? (string) $representante['fecha_nacimiento'] : null,
+            date('Y-m-d')
+        );
+
+        foreach ($filas as &$fila) {
+            $fila['requerido'] = in_array((string) ($fila['codigo'] ?? ''), $requeridos, true);
+        }
+        unset($fila);
+
+        return $filas;
     }
 
     /**

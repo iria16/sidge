@@ -536,6 +536,44 @@ if (!class_exists($nombreClaseControlador)) {
     die("<h1>500 - Error interno</h1><p>Ocurrió un problema. Intenta de nuevo más tarde.</p>");
 }
 
+// Rate limiting basico por IP para endpoints sensibles (sin BD).
+$limitesSensibles = [
+    'auth/requestRecovery' => [5, 900],
+    'withdrawal/store' => [20, 60],
+    'inscripciones/store' => [20, 60],
+    'empleado/store' => [20, 60],
+    'catalogo/store' => [30, 60],
+    'catalogo/update' => [30, 60],
+    'configuracionInstitucional/subirImagen' => [20, 60],
+    'configuracionInstitucional/quitarImagen' => [20, 60],
+];
+$claveLimite = $controller . '/' . $action;
+if (isset($limitesSensibles[$claveLimite])) {
+    [$maxIntentos, $ventana] = $limitesSensibles[$claveLimite];
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'desconocida');
+    $archivoLimite = __DIR__ . '/../storage/rate_limit/' . md5($ip . '|' . $claveLimite) . '.json';
+    $ahora = time();
+    $datos = ['inicio' => $ahora, 'intentos' => 0];
+    if (is_file($archivoLimite)) {
+        $leido = json_decode((string) file_get_contents($archivoLimite), true);
+        if (is_array($leido) && isset($leido['inicio'], $leido['intentos'])) {
+            $datos = $leido;
+            if ($ahora - (int) $datos['inicio'] > $ventana) {
+                $datos = ['inicio' => $ahora, 'intentos' => 0];
+            }
+        }
+    }
+    $datos['intentos'] = (int) $datos['intentos'] + 1;
+    @file_put_contents($archivoLimite, json_encode($datos));
+    if ((int) $datos['intentos'] > $maxIntentos) {
+        http_response_code(429);
+        if (esPeticionAjax()) {
+            responderJson(false, null, 'Demasiadas solicitudes. Intente de nuevo en unos minutos.', 429);
+        }
+        die('<h1>429 - Demasiadas solicitudes</h1>');
+    }
+}
+
 $instanciaControlador = new $nombreClaseControlador();
 
 // is_callable y no method_exists: este ultimo tambien da true para metodos

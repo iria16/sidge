@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
+use App\Models\UbicacionModel;
+
 trait DireccionValidacionTrait
 {
     /**
@@ -13,13 +15,34 @@ trait DireccionValidacionTrait
     {
         $direccion = $data['direccion'] ?? [];
 
-        // 1. Parroquia (Obligatorio)
+        $idEstado = (int) ($direccion['id_estado'] ?? 0);
+        $idMunicipio = (int) ($direccion['id_municipio'] ?? 0);
         $idParroquia = (int) ($direccion['id_parroquia'] ?? 0);
-        if ($idParroquia <= 0) {
-            $errores['id_parroquia'] = 'Selecciona la parroquia de residencia.';
+
+        // 1. Estado (Obligatorio)
+        if ($idEstado <= 0) {
+            $errores['id_estado'] = 'Selecciona el estado de residencia.';
         }
 
-        // 2. Sector / Urbanización (Obligatorio: min 3, max 100)
+        // 2. Municipio (Obligatorio)
+        if ($idMunicipio <= 0) {
+            $errores['id_municipio'] = 'Selecciona el municipio de residencia.';
+        }
+
+        // 3. Parroquia (Obligatorio) y coherencia de la jerarquía
+        if ($idParroquia <= 0) {
+            $errores['id_parroquia'] = 'Selecciona la parroquia de residencia.';
+        } else {
+            $ubicacion = (new UbicacionModel($this->conexion()))->ubicacionDeParroquia($idParroquia);
+            if ($ubicacion === null) {
+                $errores['id_parroquia'] = 'La parroquia seleccionada no existe.';
+            } elseif (($idEstado > 0 && $idEstado !== (int) $ubicacion['estado'])
+                || ($idMunicipio > 0 && $idMunicipio !== (int) $ubicacion['municipio'])) {
+                $errores['id_parroquia'] = 'La parroquia no corresponde al estado y municipio seleccionados.';
+            }
+        }
+
+        // 4. Sector / Urbanización (Obligatorio: min 3, max 100)
         $sector = trim((string) ($direccion['sector_urbanizacion'] ?? ''));
         if ($sector === '') {
             $errores['sector_urbanizacion'] = 'El sector o urbanización es obligatorio.';
