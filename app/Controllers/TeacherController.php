@@ -40,7 +40,7 @@ use function App\Traits\sigde_rol_clave;
  * `motivo_retiro`. No hay ninguna acción que las nombre, de modo que esa
  * información no puede aparecer por accidente en una pantalla del docente.
  */
-class DocenteController extends BaseController
+class TeacherController extends BaseController
 {
     use TextoTrait;
 
@@ -78,7 +78,7 @@ class DocenteController extends BaseController
             $this->seccionCache = (new TeacherAssignmentModel($this->conexion()))
                 ->getSeccionActivaDeDocente($idUsuario);
         } catch (Throwable $e) {
-            error_log('DocenteController::seccionActiva(): ' . $e->getMessage());
+            error_log('TeacherController::seccionActiva(): ' . $e->getMessage());
             $this->seccionCache = null;
         }
 
@@ -152,7 +152,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
                    que el contador de arriba sigue siendo el de la tabla. */
                 $agrupado = $this->agruparPorRepresentante($nomina);
             } catch (Throwable $e) {
-                error_log('DocenteController::seccion(): ' . $e->getMessage());
+                error_log('TeacherController::seccion(): ' . $e->getMessage());
             }
         }
 
@@ -227,7 +227,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
                     $familiares = $this->getModel()->getFamiliaresDocente($idEstudiante);
                 }
             } catch (Throwable $e) {
-                error_log('DocenteController::estudiante(): ' . $e->getMessage());
+                error_log('TeacherController::estudiante(): ' . $e->getMessage());
             }
         }
 
@@ -278,7 +278,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
         try {
             $nomina = $this->getModel()->getNominaDocente($base['idEstructura'], $filtros);
         } catch (Throwable $e) {
-            error_log('DocenteController::buscar(): ' . $e->getMessage());
+            error_log('TeacherController::buscar(): ' . $e->getMessage());
             $this->jsonResponse(false, null, 'No se pudo consultar la nómina.', 500);
         }
 
@@ -398,7 +398,7 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
                     $sectores = $this->getModel()->sectoresSeccion($base['idEstructura']);
                 }
             } catch (Throwable $e) {
-                error_log('DocenteController::nomina(): ' . $e->getMessage());
+                error_log('TeacherController::nomina(): ' . $e->getMessage());
                 $filas    = [];
                 $sectores = [];
             }

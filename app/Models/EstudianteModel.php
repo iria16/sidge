@@ -428,7 +428,7 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
        MÓDULO DOCENTE
        Todo lo de aquí está acotado a UNA estructura académica: la que el
        servidor resolvió desde la sesión. La estructura viaja como parámetro
-       desde DocenteController, que la obtiene con
+       desde TeacherController, que la obtiene con
        TeacherAssignmentModel::getSeccionActivaDeDocente() y NUNCA desde GET.
        ====================================================================== */
 
