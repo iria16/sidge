@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Vista: estadisticas/index.php
  * Interfaz única de Estadísticas Institucionales para Dirección y Coordinación.
  *
- * Variables esperadas desde EstadisticaController::index():
+ * Variables esperadas desde StatisticsController::index():
  * @var array<int, array<string, mixed>> $anios
  * @var int                              $idAnio
  * @var string                           $nombrePeriodo

@@ -13,7 +13,7 @@ use PDO;
 use Throwable;
 
 /**
- * EstadisticaModel
+ * StatisticsModel
  * ----------------
  * Modelo centralizado para la consolidación analítica institucional:
  * - Control de Representantes y Hermanos
@@ -21,7 +21,7 @@ use Throwable;
  * - Familias, Parentescos, Empleados Representantes y Recaudos
  * - Salud, Tallas y Personal Escolar
  */
-class EstadisticaModel extends Model
+class StatisticsModel extends Model
 {
     public function getAniosEscolares(): array
     {
@@ -69,7 +69,7 @@ class EstadisticaModel extends Model
             $stmt->execute([':anio' => $idAnio]);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getGradosAnio: ' . $e->getMessage());
+            error_log('StatisticsModel::getGradosAnio: ' . $e->getMessage());
             return [];
         }
     }
@@ -96,7 +96,7 @@ class EstadisticaModel extends Model
             $stmt->execute($params);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getSeccionesGrado: ' . $e->getMessage());
+            error_log('StatisticsModel::getSeccionesGrado: ' . $e->getMessage());
             return [];
         }
     }
@@ -177,7 +177,7 @@ class EstadisticaModel extends Model
                 'distribucion_familias'    => $distribucion,
             ];
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getResumenRepresentantesHermanos: ' . $e->getMessage());
+            error_log('StatisticsModel::getResumenRepresentantesHermanos: ' . $e->getMessage());
             return [
                 'total_estudiantes'        => 0,
                 'total_representantes'     => 0,
@@ -297,7 +297,7 @@ class EstadisticaModel extends Model
 
             return array_values($familias);
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getDetalleControlHermanos: ' . $e->getMessage());
+            error_log('StatisticsModel::getDetalleControlHermanos: ' . $e->getMessage());
             return [];
         }
     }
@@ -348,7 +348,7 @@ class EstadisticaModel extends Model
             $stmt->execute($params);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getMatriculaCapacidadDetallada: ' . $e->getMessage());
+            error_log('StatisticsModel::getMatriculaCapacidadDetallada: ' . $e->getMessage());
             return [];
         }
     }
@@ -482,7 +482,7 @@ class EstadisticaModel extends Model
                 'estudiantes_extraedad' => $estudiantesExtraedad,
             ];
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getDemografiaMatricula: ' . $e->getMessage());
+            error_log('StatisticsModel::getDemografiaMatricula: ' . $e->getMessage());
             return [
                 'total_cursando'        => 0,
                 'varones'               => 0,
@@ -582,7 +582,7 @@ class EstadisticaModel extends Model
                 'total_reps_empleados'    => count($repsEmpleados),
             ];
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getEstadisticasFamilias: ' . $e->getMessage());
+            error_log('StatisticsModel::getEstadisticasFamilias: ' . $e->getMessage());
             return [
                 'parentescos'             => [],
                 'incompletos'             => 0,
@@ -669,7 +669,7 @@ class EstadisticaModel extends Model
                 'estudiantes_con_deuda' => count($estudiantesAdeudan),
             ];
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getDocumentosPendientes: ' . $e->getMessage());
+            error_log('StatisticsModel::getDocumentosPendientes: ' . $e->getMessage());
             return ['documentos' => [], 'estudiantes_con_deuda' => 0];
         }
     }
@@ -714,7 +714,7 @@ class EstadisticaModel extends Model
             $stmt->execute($params);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getDistribucionParroquias: ' . $e->getMessage());
+            error_log('StatisticsModel::getDistribucionParroquias: ' . $e->getMessage());
             return [];
         }
     }
@@ -812,7 +812,7 @@ class EstadisticaModel extends Model
             $stmt->execute($params);
             $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
-            error_log('EstadisticaModel::getRendimientoSecciones: ' . $e->getMessage());
+            error_log('StatisticsModel::getRendimientoSecciones: ' . $e->getMessage());
             return [];
         }
 

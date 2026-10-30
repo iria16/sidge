@@ -6,31 +6,31 @@ namespace App\Controllers;
 
 use App\Http\BinaryResponse;
 use App\Models\Configuracion;
-use App\Models\EstadisticaModel;
+use App\Models\StatisticsModel;
 use App\Support\EstadisticaExport;
 use PDO;
 use Throwable;
 use function App\Traits\sigde_rol_clave;
 
 /**
- * EstadisticaController
+ * StatisticsController
  * ---------------------
  * Interfaz única de Estadísticas Institucionales para Dirección y Coordinación.
  * Control de Representantes y Hermanos, Matrícula y Capacidad, Demografía, Salud y Talento Humano.
  */
-class EstadisticaController extends BaseController
+class StatisticsController extends BaseController
 {
     protected string $viewPath  = 'estadisticas';
     protected string $routeName = 'estadistica';
 
     protected function createModel(PDO $pdo): object
     {
-        return new EstadisticaModel($pdo);
+        return new StatisticsModel($pdo);
     }
 
-    private function modelo(): EstadisticaModel
+    private function modelo(): StatisticsModel
     {
-        /** @var EstadisticaModel $model */
+        /** @var StatisticsModel $model */
         $model = $this->getModel();
         return $model;
     }
