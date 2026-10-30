@@ -11,8 +11,8 @@ declare(strict_types=1);
  * - array $usuarios              cada uno: ['id','id_rol','nombre','nombre_usuario','iniciales',
  *                                 'avatar_color','avatar_tipo','avatar_foto','empleado','rol','estado']
  *                                 ('rol' ya viene formateado — ej. "Admin" — desde
- *                                 CuentaUsuarioModel::mapRowToVista(), no se reformatea acá)
- * - array $roles                 cada uno: ['id','nombre'] (CuentaUsuarioModel::getRoles())
+ *                                 UserAccountModel::mapRowToVista(), no se reformatea acá)
+ * - array $roles                 cada uno: ['id','nombre'] (UserAccountModel::getRoles())
  * - array $empleadosDisponibles  cada uno: ['id','nombre'] — solo para el modal de crear
  * - array $filters               ['id_rol' => ..., 'estado' => ..., 'q' => ...] (valores actuales del GET)
  * - array $paginacion            ['desde','hasta','total','pagina_actual','total_paginas']
@@ -21,7 +21,7 @@ declare(strict_types=1);
  *                                 así que no puede usar components/csrf-field.php)
  * - int|null $usuarioActualId    id del usuario logueado; se usa para deshabilitar
  *                                 visualmente su propio switch de estado (no puede
- *                                 desactivarse a sí mismo, ver CuentaUsuarioController::toggleStatus())
+ *                                 desactivarse a sí mismo, ver UserAccountController::toggleStatus())
  * @var array $stats
  * @var array $usuarios
  * @var array $roles
@@ -116,7 +116,7 @@ ob_start();
 <?php
   // ---------- Data panel: filtros ----------
   // name="id_rol" aquí es correcto: coincide con lo que lee
-  // CuentaUsuarioController::getFiltersFromRequest() por GET.
+  // UserAccountController::getFiltersFromRequest() por GET.
   $panelFormAction = BASE_URL . 'cuentaUsuario/index';
 
   ob_start();

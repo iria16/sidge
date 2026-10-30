@@ -10,7 +10,7 @@ namespace App\Traits;
  * Se deja como trait (en vez de método propio de CatalogController)
  * para poder reutilizar capitalizarTitulo() en cualquier otro
  * controlador que también guarde nombres/títulos (p. ej. si en el
- * futuro EstudiantesController o CuentaUsuarioController necesitan
+ * futuro EstudiantesController o UserAccountController necesitan
  * la misma normalización).
 */
 trait TextoTrait

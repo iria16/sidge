@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Interfaces\Updatable;
-use App\Models\CuentaUsuarioModel;
+use App\Models\UserAccountModel;
 use App\Support\Validator;
 use App\Traits\DetalleJsonTrait;
 use PDO;
@@ -19,23 +19,23 @@ use Throwable;
  * @author Logística
  * @package App\Controllers
 */
-class CuentaUsuarioController extends CrudController
+class UserAccountController extends CrudController
 {
     use DetalleJsonTrait;
 
     protected string $viewPath  = 'usuarios/cuentas';
     protected string $routeName = 'cuentaUsuario';
 
-    private function modelo(): CuentaUsuarioModel
+    private function modelo(): UserAccountModel
     {
-        /** @var CuentaUsuarioModel $model*/
+        /** @var UserAccountModel $model*/
         $model = $this->getModel();
         return $model;
     }
 
     protected function createModel(PDO $pdo): object
     {
-        return new CuentaUsuarioModel($pdo);
+        return new UserAccountModel($pdo);
     }
 
     protected function getFiltersFromRequest(): array

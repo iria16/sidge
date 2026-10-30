@@ -5,16 +5,16 @@
  * data-nombre-usuario, data-empleado, data-id-rol) y setea #euId
  * (hidden) para saber a quién actualizar en el submit.
  *
- * Nombres de campo alineados con CuentaUsuarioController::update():
+ * Nombres de campo alineados con UserAccountController::update():
  * id, nombre_usuario, rol_id.
  *
- * El campo "Empleado asociado" es de SOLO LECTURA: CuentaUsuarioModel::
+ * El campo "Empleado asociado" es de SOLO LECTURA: UserAccountModel::
  * update() solo modifica nombre_usuario e id_rol, no reasigna el
  * id_persona. Por eso va disabled (no se envía en el submit) y solo
  * se muestra como referencia visual.
  *
  * Espera del controlador: array $roles, cada uno ['id','nombre']
- * (mismo array que create-modal.php, viene de CuentaUsuarioModel::getRoles()).
+ * (mismo array que create-modal.php, viene de UserAccountModel::getRoles()).
  * @var array $roles
  */
 ob_start();

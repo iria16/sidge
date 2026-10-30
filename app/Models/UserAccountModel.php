@@ -19,7 +19,7 @@ use Throwable;
  * Cuentas de usuario (tabla usuario) unidas con persona, rol y, si existe, empleado/cargo.
  * El alta genera una clave provisional; no implementa Deletable, las cuentas solo se activan o desactivan.
 */
-class CuentaUsuarioModel extends BaseModel implements Creatable, Updatable, Toggleable, Listable, Findable
+class UserAccountModel extends BaseModel implements Creatable, Updatable, Toggleable, Listable, Findable
 {
     use AvatarTrait;
     use PasswordTrait;
@@ -319,7 +319,7 @@ class CuentaUsuarioModel extends BaseModel implements Creatable, Updatable, Togg
                 'mensaje'              => 'Usuario creado exitosamente.',
             ];
         } catch (Throwable $e) {
-            error_log('CuentaUsuarioModel::crearUsuario(): ' . $e->getMessage());
+            error_log('UserAccountModel::crearUsuario(): ' . $e->getMessage());
 
             if ($e instanceof PDOException && $e->getCode() === '23000') {
                 return ['ok' => false, 'mensaje' => 'El nombre de usuario "' . $nombreUsuario . '" ya está en uso. Por favor elija otro.', 'codigo' => 422];

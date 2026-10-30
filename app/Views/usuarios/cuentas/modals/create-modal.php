@@ -8,10 +8,10 @@
  * contraseña provisional.
  *
  * Espera del controlador:
- * - array $empleadosDisponibles  cada uno ['id','nombre'] (CuentaUsuarioModel::getEmpleadosDisponibles())
- * - array $roles                 cada uno ['id','nombre'] (CuentaUsuarioModel::getRoles())
+ * - array $empleadosDisponibles  cada uno ['id','nombre'] (UserAccountModel::getEmpleadosDisponibles())
+ * - array $roles                 cada uno ['id','nombre'] (UserAccountModel::getRoles())
  *
- * Nombres de campo alineados con CuentaUsuarioController::store():
+ * Nombres de campo alineados con UserAccountController::store():
  * empleado_id, usuario, rol_id.
  * @var array $empleadosDisponibles
  * @var array $roles
