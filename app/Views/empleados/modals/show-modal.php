@@ -70,7 +70,12 @@ ob_start();
         <div class="wizard-summary__grid">
           <?php
             $campo('Cargo', 'cargo');
-            $campo('Turno de trabajo', 'turno');
+          ?>
+          <div class="wizard-summary__item" data-campo-turno hidden>
+            <span class="wizard-summary__label">Turno de trabajo</span>
+            <span class="wizard-summary__value" data-campo="turno">—</span>
+          </div>
+          <?php
             $campo('Fecha de ingreso', 'fecha_ingreso');
             $campo('Fecha de egreso', 'fecha_egreso');
           ?>

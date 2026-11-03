@@ -243,7 +243,7 @@ class DirectivoDashboardModel extends Model
         try {
             $sql = "SELECT c.id_cargo,
                            COALESCE(c.nombre, 'Sin cargo asignado') AS cargo,
-                           COALESCE(t.nombre, 'General') AS turno,
+                           t.nombre AS turno,
                            COUNT(DISTINCT e.id_empleado) AS total_personal,
                            COUNT(DISTINCT CASE WHEN p.estado = 'ACTIVO' THEN e.id_empleado END) AS activos,
                            COUNT(DISTINCT CASE WHEN p.estado != 'ACTIVO' THEN e.id_empleado END) AS inactivos,
@@ -273,6 +273,7 @@ class DirectivoDashboardModel extends Model
                 $f['varones']        = (int) ($f['varones'] ?? 0);
                 $f['hembras']        = (int) ($f['hembras'] ?? 0);
                 $f['en_reposo']      = (int) ($f['en_reposo'] ?? 0);
+                $f['turno']          = trim((string) ($f['turno'] ?? ''));
                 $f['porcentaje']     = $totalGeneral > 0
                     ? round(($f['total_personal'] / $totalGeneral) * 100, 1)
                     : 0.0;

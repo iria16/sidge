@@ -80,7 +80,7 @@ $filas = [
             <?php else: ?>
               <div class="wizard-summary__grid">
                 <?php foreach ($seccion['campos'] as [$etiqueta, $clave]): ?>
-                  <div class="wizard-summary__item">
+                  <div class="wizard-summary__item" <?= $clave === 'turno' ? 'data-resumen-item="turno" hidden' : '' ?>>
                     <div class="wizard-summary__label"><?= htmlspecialchars($etiqueta) ?></div>
                     <div class="wizard-summary__value" data-resumen="<?= $clave ?>">—</div>
                   </div>

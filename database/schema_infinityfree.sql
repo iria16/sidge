@@ -2892,7 +2892,8 @@ LOCK TABLES `turno` WRITE;
 /*!40000 ALTER TABLE `turno` DISABLE KEYS */;
 INSERT INTO `turno` VALUES
 (1,'Tarde','ACTIVO'),
-(2,'Mañana','ACTIVO');
+(2,'Mañana','ACTIVO'),
+(3,'Tiempo Completo','ACTIVO');
 /*!40000 ALTER TABLE `turno` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;

@@ -135,10 +135,12 @@ $badgesReposo = [
             <span class="label-sigde">Cargo asignado</span>
             <strong><?= htmlspecialchars((string) ($empleado['cargo'] ?? 'Sin cargo')) ?></strong>
           </div>
-          <div class="student-record__field">
-            <span class="label-sigde">Turno de trabajo</span>
-            <strong><?= htmlspecialchars((string) ($empleado['turno'] ?? 'Sin turno')) ?></strong>
-          </div>
+          <?php if (!empty($empleado['turno'])): ?>
+            <div class="student-record__field">
+              <span class="label-sigde">Turno de trabajo</span>
+              <strong><?= htmlspecialchars((string) $empleado['turno']) ?></strong>
+            </div>
+          <?php endif; ?>
           <div class="student-record__field">
             <span class="label-sigde">Fecha de ingreso</span>
             <strong><?= htmlspecialchars($fecha($empleado['fecha_ingreso'] ?? null)) ?></strong>

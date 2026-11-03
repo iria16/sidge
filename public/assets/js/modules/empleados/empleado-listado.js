@@ -119,7 +119,7 @@ function pintarDetalleEmpleado(modalEl, d) {
        escribir "Sin nacionalidad" en cada ficha vieja sería ruido. */
     nacionalidad:     d.nacionalidad || '',
     cargo:            d.cargo || 'Sin cargo',
-    turno:            d.turno || 'Sin turno',
+    turno:            d.turno || '',
     estado:           activo ? 'Activo' : 'Inactivo',
     sexo:             { F: 'Femenino', M: 'Masculino' }[d.sexo] || d.sexo,
     fecha_nacimiento: SIGDEUI.formatearFechaCorta(d.fecha_nacimiento),
@@ -135,6 +135,8 @@ function pintarDetalleEmpleado(modalEl, d) {
   modalEl.querySelectorAll('[data-campo]').forEach(function (el) {
     el.textContent = valores[el.dataset.campo] || '—';
   });
+  var campoTurno = modalEl.querySelector('[data-campo-turno]');
+  if (campoTurno) campoTurno.hidden = !valores.turno;
 
   // El badge de estado y la barra inferior comparten data-campo="estado";
   // solo el badge lleva el modificador de color según el valor.

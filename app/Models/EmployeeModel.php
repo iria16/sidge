@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Exceptions\DocumentoDuplicadoException;
 use App\Interfaces\Creatable;
 use App\Interfaces\Listable;
 use App\Interfaces\Toggleable;
 use App\Interfaces\Updatable;
 use App\Support\Documento;
-use App\Support\Instituciones;
 use App\Traits\AvatarTrait;
 use PDO;
-use PDOException;
-use PDOStatement;
 use RuntimeException;
 use Throwable;
 
@@ -137,7 +133,7 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
             'tipo_documento'   => (string) ($row['tipo_documento'] ?? ''),
             'numero_documento' => (string) ($row['numero_documento'] ?? ''),
             'cargo'            => $row['cargo'] ?? 'Sin cargo',
-            'turno'            => $row['turno'] ?? 'Sin turno',
+            'turno'            => trim((string) ($row['turno'] ?? '')),
             /* Vacía y no "Sin nacionalidad": el listado es para leer de un vistazo y
                un texto de relleno por fila distrae de las que sí lo tienen. */
             'nacionalidad'     => (string) ($row['nacionalidad'] ?? ''),

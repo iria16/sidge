@@ -170,7 +170,7 @@ $direccionCompleta = !empty($dirPartes) ? implode(', ', $dirPartes) : '—';
       <tbody>
         <tr>
           <td><strong><?= $escape((string) ($empleado['cargo'] ?? 'Sin cargo')) ?></strong></td>
-          <td><?= $escape((string) ($empleado['turno'] ?? 'Sin turno')) ?></td>
+          <td><?= $escape((string) ($empleado['turno'] ?? '')) ?></td>
           <td><?= $fechaFmt($empleado['fecha_ingreso'] ?? null) ?></td>
           <td>
             <?php if (!empty($empleado['en_reposo'])): ?>

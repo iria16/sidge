@@ -609,7 +609,11 @@ function initWizardRegistro() {
         case 'fecha_ingreso': valor = SIGDEUI.formatearFechaCorta(textoCampo('fecha_ingreso')); break;
         default: valor = textoCampo(el.dataset.resumen);
       }
-      el.textContent = valor || '—';
+      if (el.dataset.resumen === 'turno') {
+        var itemTurno = el.closest('[data-resumen-item="turno"]');
+        if (itemTurno) itemTurno.hidden = !valor;
+      }
+      el.textContent = el.dataset.resumen === 'turno' ? valor : (valor || '—');
     });
     pintarTitulosResumen();
   }
