@@ -372,7 +372,24 @@
     .record__actions,
     .student-record__hero-actions {
       width: 100%;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem;
+    }
+
+    .student-record__hero-actions {
+      .status-badge {
+        grid-column: 1 / -1;
+        justify-self: start;
+      }
+
+      .btn {
+        justify-content: center;
+        padding-right: 0.5rem;
+        padding-left: 0.5rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+      }
     }
   }
 }
@@ -545,6 +562,108 @@
   .content-card__header {
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
+  }
+}
+
+.student-record__section [data-recaudos-lectura] .wizard-titulos-table {
+  @include media-breakpoint-down(sm) {
+    display: block;
+    min-width: 0;
+
+    thead {
+      display: none;
+    }
+
+    tbody {
+      display: block;
+    }
+
+    tr[data-recaudo-row] {
+      display: block;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid $primary-tint;
+      border-radius: $border-radius;
+
+      & + tr[data-recaudo-row] {
+        margin-top: 0.75rem;
+      }
+
+      td {
+        display: grid;
+        grid-template-columns: minmax(7rem, 0.8fr) minmax(0, 1.2fr);
+        gap: 0.75rem;
+        width: 100%;
+        padding: 0.55rem 0;
+        border: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-align: left;
+
+        &::before {
+          content: attr(data-label);
+          color: $secondary;
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-align: left;
+        }
+      }
+
+      td[data-label="Consignado"] {
+        align-items: center;
+
+        > span {
+          justify-self: start;
+        }
+      }
+    }
+  }
+}
+
+table.table.expediente-formacion-table {
+  min-width: 720px;
+
+  @include media-breakpoint-down(sm) {
+    display: block;
+    min-width: 0;
+
+    thead {
+      display: none;
+    }
+
+    tbody,
+    tr,
+    td {
+      display: block;
+      width: 100%;
+    }
+
+    tr {
+      padding: 0.45rem 0.75rem;
+      border: 1px solid $primary-tint;
+      border-radius: $border-radius;
+
+      & + tr {
+        margin-top: 0.75rem;
+      }
+    }
+
+    td {
+      display: grid;
+      grid-template-columns: minmax(7.5rem, 0.8fr) minmax(0, 1.2fr);
+      gap: 0.75rem;
+      padding: 0.55rem 0;
+      border: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-align: left;
+
+      &::before {
+        content: attr(data-label);
+        color: $secondary;
+        font-size: 0.7rem;
+        font-weight: 600;
+      }
+    }
   }
 }
 

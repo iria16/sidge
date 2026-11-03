@@ -136,7 +136,7 @@ foreach ($recaudos as $r) {
                 $obs       = (string) ($r['observacion'] ?? '');
               ?>
               <tr data-recaudo-row>
-                <td>
+                <td data-label="Documento">
                   <div class="fw-semibold">
                     <?= htmlspecialchars((string) $r['nombre']) ?>
                     <?php if (!empty($r['persona_nombre'])): ?>
@@ -147,7 +147,7 @@ foreach ($recaudos as $r) {
                     <?php endif; ?>
                   </div>
                 </td>
-                <td class="text-center">
+                <td class="text-center" data-label="Consignado">
                   <?php if ($recaudosEditable): ?>
                     <?php /* El oculto no es opcional: un checkbox sin marcar no viaja en el
                          POST, y sin él el servidor no distinguiría "no entregado" de
@@ -173,7 +173,7 @@ foreach ($recaudos as $r) {
                     <?php endif; ?>
                   <?php endif; ?>
                 </td>
-                <td>
+                <td data-label="Observación">
                   <?php if ($recaudosEditable): ?>
                     <input type="text" class="form-control form-control-sm"
                            name="recaudos[<?= $idRecaudoSeguro ?>][observacion]"

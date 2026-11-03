@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function initPerfilFoto() {
     var inputFoto = document.getElementById('inputFotoPerfil');
     var preview = document.getElementById('perfilFotoPreview');
     var btnQuitar = document.getElementById('btnQuitarFotoPerfil');
@@ -40,8 +40,8 @@
       // Validar tipo
       var tiposValidos = ['image/jpeg', 'image/png', 'image/webp'];
       if (!tiposValidos.includes(archivo.type)) {
-        if (window.SIGDEUI && SIGDEUI.error) {
-          SIGDEUI.error('La foto debe ser en formato JPG, PNG o WEBP.', 'Formato no permitido');
+        if (window.SIGDEUI && SIGDEUI.mostrarError) {
+          SIGDEUI.mostrarError('La foto debe ser en formato JPG, PNG o WEBP.', 'Formato no permitido');
         } else {
           alert('La foto debe ser en formato JPG, PNG o WEBP.');
         }
@@ -51,8 +51,8 @@
 
       // Validar tamaño (máximo 2 MB)
       if (archivo.size > 2 * 1024 * 1024) {
-        if (window.SIGDEUI && SIGDEUI.error) {
-          SIGDEUI.error('La foto no puede superar los 2 MB.', 'Archivo muy pesado');
+        if (window.SIGDEUI && SIGDEUI.mostrarError) {
+          SIGDEUI.mostrarError('La foto no puede superar los 2 MB.', 'Archivo muy pesado');
         } else {
           alert('La foto no puede superar los 2 MB.');
         }
@@ -88,11 +88,11 @@
 
             SIGDEUI.exito(payload.mensaje || 'Foto de perfil actualizada correctamente.', '¡Foto actualizada!');
           } else {
-            SIGDEUI.error((payload && payload.mensaje) || 'No se pudo actualizar la foto de perfil.', 'Error');
+            SIGDEUI.mostrarError((payload && payload.mensaje) || 'No se pudo actualizar la foto de perfil.', 'Error');
           }
         })
         .catch(function () {
-          SIGDEUI.error('Ocurrió un error al procesar la subida de la foto.', 'Error de red');
+          SIGDEUI.mostrarError('Ocurrió un error al procesar la subida de la foto.', 'Error de red');
         })
         .finally(function () {
           inputFoto.value = '';
@@ -108,8 +108,8 @@
           confirmar: 'Sí, quitar foto',
           cancelar: 'Cancelar',
           icono: 'warning'
-        }).then(function (res) {
-          if (!res.isConfirmed) return;
+        }).then(function (confirmado) {
+          if (!confirmado) return;
 
           var fd = new FormData();
           fd.append('eliminar_foto', '1');
@@ -131,14 +131,20 @@
                 btnQuitar.classList.add('d-none');
                 SIGDEUI.exito(payload.mensaje || 'Foto eliminada correctamente.', '¡Foto retirada!');
               } else {
-                SIGDEUI.error((payload && payload.mensaje) || 'No se pudo quitar la foto.', 'Error');
+                SIGDEUI.mostrarError((payload && payload.mensaje) || 'No se pudo quitar la foto.', 'Error');
               }
             })
             .catch(function () {
-              SIGDEUI.error('Ocurrió un error al quitar la foto de perfil.', 'Error de red');
+              SIGDEUI.mostrarError('Ocurrió un error al quitar la foto de perfil.', 'Error de red');
             });
         });
       });
     }
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPerfilFoto, { once: true });
+  } else {
+    initPerfilFoto();
+  }
 })();

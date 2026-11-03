@@ -20,16 +20,18 @@ function initEditarEmpleadoModal() {
 
   // --- Foto de perfil: cambiar o quitar (reutiliza .wizard-photo-upload) ---
   var editFotoPreview    = formEditar.querySelector('#editFotoPreview');
-  var editEliminarFoto   = formEditar.querySelector('#editEliminarFoto');
   var btnQuitarFoto      = formEditar.querySelector('#btnQuitarFotoEdicion');
-  var editFotoInput      = formEditar.querySelector('#editFotoInput');
-  var editFotoUrl        = null;
+  var fotoEdicion = SIGDEWizardUI.initFoto({
+    inputId: 'editFotoInput',
+    previewId: 'editFotoPreview',
+    quitarId: 'btnQuitarFotoEdicion',
+    flagId: 'editEliminarFoto'
+  });
 
   // Pinta la foto actual (o el icono por defecto) en el círculo del
   // componente y muestra/oculta el botón "Quitar foto". ruta es relativa
   // tipo 'uploads/empleados/xxx.jpg'.
   function pintarFotoEdicion(ruta) {
-    if (editFotoUrl) { URL.revokeObjectURL(editFotoUrl); editFotoUrl = null; }
     if (ruta) {
       if (editFotoPreview) {
         editFotoPreview.innerHTML = '<img src="' + SIGDEEmpleados.baseUrl + ruta.replace(/^\//, '') + '" alt="Foto de perfil">';
@@ -43,29 +45,8 @@ function initEditarEmpleadoModal() {
     }
   }
 
-  if (editFotoInput) {
-    editFotoInput.addEventListener('change', function () {
-      var archivo = editFotoInput.files[0];
-      if (!archivo) return;
-      // Elegir un archivo nuevo anula un "Quitar foto" previo.
-      editEliminarFoto.value = '';
-      if (editFotoUrl) { URL.revokeObjectURL(editFotoUrl); editFotoUrl = null; }
-      editFotoUrl = URL.createObjectURL(archivo);
-      editFotoPreview.innerHTML = '<img src="' + editFotoUrl + '" alt="Nueva foto de perfil">';
-      btnQuitarFoto.hidden = false;
-    });
-  }
-
-  if (btnQuitarFoto) {
-    btnQuitarFoto.addEventListener('click', function () {
-      editFotoInput.value = '';
-      editEliminarFoto.value = '1';
-      pintarFotoEdicion('');
-    });
-  }
-
   SIGDEUI.alCerrarModal(modalEditarEl, function liberarFotoTemporal() {
-    if (editFotoUrl) { URL.revokeObjectURL(editFotoUrl); editFotoUrl = null; }
+    if (fotoEdicion) fotoEdicion.vaciar(false);
   });
 
   // --- Dirección: cascada estado->municipio->parroquia del modal de edición ---

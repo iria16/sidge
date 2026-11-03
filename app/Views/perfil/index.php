@@ -54,12 +54,21 @@ ob_start();
                 <i class="bi bi-person" id="iconoPerfilFallback"></i>
               <?php endif; ?>
             </div>
-            <label class="wizard-photo-upload__edit" for="inputFotoPerfil" title="Cambiar foto de perfil">
+            <label class="wizard-photo-upload__edit" for="inputFotoPerfil" title="Elegir foto de perfil">
               <i class="bi bi-pencil-fill"></i>
             </label>
-            <input type="file" id="inputFotoPerfil" name="foto" accept="image/jpeg,image/png,image/webp" class="d-none">
+            <input type="file" id="inputFotoPerfil" name="foto" accept="image/jpeg,image/png,image/webp" class="d-none" data-foto-archivo>
+            <input type="file" id="inputFotoPerfilCamara" accept="image/*" capture="environment" class="d-none" data-foto-camara-input data-foto-destino="inputFotoPerfil">
           </div>
           <span class="wizard-photo-upload__hint mt-2">Foto de perfil (Opcional)</span>
+          <div class="d-flex justify-content-center gap-2 mt-2">
+            <label class="btn btn-outline-primary btn-sm mb-0" for="inputFotoPerfilCamara">
+              <i class="bi bi-camera me-1" aria-hidden="true"></i>Tomar foto
+            </label>
+            <label class="btn btn-outline-secondary btn-sm mb-0" for="inputFotoPerfil">
+              <i class="bi bi-image me-1" aria-hidden="true"></i>Elegir foto
+            </label>
+          </div>
           <button type="button" class="btn btn-link btn-sm text-danger p-0 mt-1 <?= empty($perfil['avatar_foto']) ? 'd-none' : '' ?>" id="btnQuitarFotoPerfil">
             <i class="bi bi-x-circle me-1"></i>Quitar foto
           </button>

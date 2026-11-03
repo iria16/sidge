@@ -91,13 +91,22 @@ $nameSexo = $prefixName . 'sexo';
     <div class="wizard-photo-upload__preview" id="<?= $idFotoPreview ?>">
       <i class="bi bi-person"></i>
     </div>
-    <label class="wizard-photo-upload__edit" for="<?= $idFotoInput ?>">
+    <label class="wizard-photo-upload__edit" for="<?= $idFotoInput ?>" title="Elegir foto">
       <i class="bi bi-pencil-fill"></i>
     </label>
-    <input type="file" id="<?= $idFotoInput ?>" name="<?= $nameFoto ?>" accept="image/*" class="d-none">
+    <input type="file" id="<?= $idFotoInput ?>" name="<?= $nameFoto ?>" accept="image/*" class="d-none" data-foto-archivo>
+    <input type="file" id="<?= $idFotoInput ?>Camara" accept="image/*" capture="environment" class="d-none" data-foto-camara-input data-foto-destino="<?= $idFotoInput ?>">
   </div>
   <div class="text-center">
     <span class="wizard-photo-upload__hint">Foto de perfil (Opcional)</span>
+    <div class="d-flex justify-content-center gap-2 mt-2">
+      <label class="btn btn-outline-primary btn-sm mb-0" for="<?= $idFotoInput ?>Camara">
+        <i class="bi bi-camera me-1" aria-hidden="true"></i>Tomar foto
+      </label>
+      <label class="btn btn-outline-secondary btn-sm mb-0" for="<?= $idFotoInput ?>" data-foto-elegir>
+        <i class="bi bi-image me-1" aria-hidden="true"></i>Elegir foto
+      </label>
+    </div>
     <div>
       <button type="button" class="btn btn-link btn-sm text-danger p-0" id="<?= $btnQuitarFotoId ?>" hidden>
         <i class="bi bi-x-circle me-1"></i>Quitar foto

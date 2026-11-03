@@ -168,17 +168,17 @@ $badgesReposo = [
           </div>
         <?php else: ?>
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 expediente-formacion-table">
               <thead class="table-light">
                 <tr><th>Título</th><th>Grado académico</th><th>Institución</th><th>Fecha de obtención</th></tr>
               </thead>
               <tbody>
                 <?php foreach ($formacion as $fila): ?>
                   <tr>
-                    <td><?= htmlspecialchars((string) $fila['titulo']) ?></td>
-                    <td><?= htmlspecialchars((string) $fila['grado_academico']) ?></td>
-                    <td><?= htmlspecialchars((string) $fila['institucion']) ?></td>
-                    <td><?= htmlspecialchars($fecha($fila['fecha_obtencion'] ?? null)) ?></td>
+                    <td data-label="Título"><?= htmlspecialchars((string) $fila['titulo']) ?></td>
+                    <td data-label="Grado académico"><?= htmlspecialchars((string) $fila['grado_academico']) ?></td>
+                    <td data-label="Institución"><?= htmlspecialchars((string) $fila['institucion']) ?></td>
+                    <td data-label="Fecha de obtención"><?= htmlspecialchars($fecha($fila['fecha_obtencion'] ?? null)) ?></td>
                   </tr>
                 <?php endforeach; ?>
               </tbody>

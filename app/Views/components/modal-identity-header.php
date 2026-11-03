@@ -32,10 +32,19 @@ $identityBadgeExtra = $identityBadgeExtra ?? '';
     <div class="wizard-photo-upload__preview" id="<?= htmlspecialchars($identityPreviewId) ?>">
       <i class="bi bi-person"></i>
     </div>
-    <label class="wizard-photo-upload__edit" for="<?= htmlspecialchars($identityInputId) ?>" title="Cambiar foto">
+    <label class="wizard-photo-upload__edit" for="<?= htmlspecialchars($identityInputId) ?>" title="Elegir foto">
       <i class="bi bi-pencil-fill"></i>
     </label>
-    <input type="file" id="<?= htmlspecialchars($identityInputId) ?>" name="<?= htmlspecialchars($identityInputName) ?>" accept="image/*" class="d-none">
+    <input type="file" id="<?= htmlspecialchars($identityInputId) ?>" name="<?= htmlspecialchars($identityInputName) ?>" accept="image/*" class="d-none" data-foto-archivo>
+    <input type="file" id="<?= htmlspecialchars($identityInputId) ?>Camara" accept="image/*" capture="environment" class="d-none" data-foto-camara-input data-foto-destino="<?= htmlspecialchars($identityInputId) ?>">
+  </div>
+  <div class="d-flex justify-content-center gap-2 mt-2">
+    <label class="btn btn-outline-primary btn-sm mb-0" for="<?= htmlspecialchars($identityInputId) ?>Camara">
+      <i class="bi bi-camera me-1" aria-hidden="true"></i>Tomar foto
+    </label>
+    <label class="btn btn-outline-secondary btn-sm mb-0" for="<?= htmlspecialchars($identityInputId) ?>" data-foto-elegir>
+      <i class="bi bi-image me-1" aria-hidden="true"></i>Elegir foto
+    </label>
   </div>
   <div class="user-detail__name mt-2" id="<?= htmlspecialchars($identityNameId) ?>">—</div>
   <div class="user-detail__meta mt-1">
