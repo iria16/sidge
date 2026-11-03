@@ -95,7 +95,7 @@ foreach ($combinaciones as $combo) {
     <?php else: ?>
       <div class="row g-2" data-academico-cascada
            data-cupos="<?= htmlspecialchars((string) json_encode($indiceCupos, JSON_UNESCAPED_UNICODE)) ?>">
-        <div class="col-6">
+        <div class="col-12 col-md-6">
           <label class="label-sigde" for="gradoCursar">Grado a cursar *</label>
           <select class="form-select" id="gradoCursar" name="id_grado" required>
             <option value="" selected disabled>Seleccione el grado...</option>
@@ -112,7 +112,7 @@ foreach ($combinaciones as $combo) {
           <div class="invalid-feedback">Seleccione el grado.</div>
         </div>
 
-        <div class="col-6">
+        <div class="col-12 col-md-6">
           <label class="label-sigde" for="seccion">Sección *</label>
           <select class="form-select" id="seccion" name="id_seccion" required>
             <option value="" selected disabled>Seleccione la sección...</option>
@@ -126,7 +126,7 @@ foreach ($combinaciones as $combo) {
           <div class="invalid-feedback">Seleccione la sección.</div>
         </div>
 
-        <div class="col-6">
+        <div class="col-12 col-md-6">
           <label class="label-sigde" for="turno">Turno *</label>
           <select class="form-select" id="turno" name="id_turno" required>
             <option value="" selected disabled>Seleccione el turno...</option>
@@ -144,7 +144,7 @@ foreach ($combinaciones as $combo) {
           <div class="invalid-feedback">Seleccione el turno.</div>
         </div>
 
-        <div class="col-6">
+        <div class="col-12 col-md-6">
           <label class="label-sigde" for="anioEscolarAcademico">Año escolar</label>
           <input type="text" class="form-control" id="anioEscolarAcademico" name="anio_escolar"
                  value="<?= htmlspecialchars((string) $anioActivo['nombre']) ?>" readonly>

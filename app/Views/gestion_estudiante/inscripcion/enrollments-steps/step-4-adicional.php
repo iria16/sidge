@@ -38,7 +38,7 @@
   </button>
   <div class="wizard-extra-card__body" id="extraBody-talla" hidden>
     <div class="row g-2">
-      <div class="col-4">
+      <div class="col-12 col-sm-4">
         <label class="label-sigde" for="tallaCamisa">Talla de camisa</label>
         <select class="form-select" id="tallaCamisa" name="talla_camisa">
           <option value=""><?= \App\Support\Tallas::PLACEHOLDER ?></option>
@@ -47,7 +47,7 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col-4">
+      <div class="col-12 col-sm-4">
         <label class="label-sigde" for="tallaPantalon">Talla de pantalón</label>
         <select class="form-select" id="tallaPantalon" name="talla_pantalon">
           <option value=""><?= \App\Support\Tallas::PLACEHOLDER ?></option>
@@ -56,7 +56,7 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col-4">
+      <div class="col-12 col-sm-4">
         <label class="label-sigde" for="tallaZapato">Talla de calzado</label>
         <select class="form-select" id="tallaZapato" name="talla_zapato">
           <option value=""><?= \App\Support\Tallas::PLACEHOLDER ?></option>
@@ -91,7 +91,7 @@
   </button>
   <div class="wizard-extra-card__body" id="extraBody-medica" hidden>
     <div class="row g-2">
-      <div class="col-6">
+      <div class="col-12 col-sm-6">
         <label class="label-sigde" for="tipoSangre">Tipo de sangre</label>
         <select class="form-select" id="tipoSangre" name="tipo_sangre">
           <option value="" selected disabled>Seleccione...</option>
@@ -101,17 +101,17 @@
           <option>AB+</option><option>AB-</option>
         </select>
       </div>
-      <div class="col-6">
+      <div class="col-12 col-sm-6">
         <label class="label-sigde" for="medicamentos">Medicamentos de uso regular</label>
         <input type="text" class="form-control" id="medicamentos" name="medicamentos"
                placeholder="Ej: Broncodilatador cada 8h...">
       </div>
-      <div class="col-6">
+      <div class="col-12 col-sm-6">
         <label class="label-sigde" for="alergias">Alergias</label>
         <textarea class="form-control" id="alergias" name="alergias" rows="2"
                   placeholder="Ej: Penicilina, maní..."></textarea>
       </div>
-      <div class="col-6">
+      <div class="col-12 col-sm-6">
         <label class="label-sigde" for="enfermedades">Enfermedades relevantes</label>
         <input type="text" class="form-control" id="enfermedades" name="enfermedades"
                placeholder="Ej: Asma, epilepsia controlada...">
