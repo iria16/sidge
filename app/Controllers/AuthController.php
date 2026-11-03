@@ -10,6 +10,7 @@ use App\Models\LoginModel;
 use App\Models\PasswordRecoveryModel;
 use App\Models\NotificationModel;
 use App\Traits\SecurityTrait;
+use App\Traits\AvatarTrait;
 use function App\Traits\sigde_rol_clave;
 use PDO;
 
@@ -23,7 +24,7 @@ use PDO;
 */
 class AuthController
 {
-    use SecurityTrait;
+    use SecurityTrait, AvatarTrait;
 
    /**
  * Hash bcrypt señuelo (Costo 12): se verifica cuando el usuario no existe para igualar el tiempo de respuesta.
@@ -143,6 +144,19 @@ class AuthController
             // Se guarda el nombre SIN escapar. El escape corresponde a la vista.
             $_SESSION['nombre'] = trim($usuario['nombre'] . ' ' . $usuario['apellido']);
             $_SESSION['rol']    = $rol;
+            $avatarFoto = $this->resolverAvatar(
+                $usuario['foto'] ?? null,
+                $usuario['nombre'] ?? null,
+                $usuario['apellido'] ?? null,
+                $rol,
+                $usuario['nombre_usuario'] ?? 'U'
+            );
+            $_SESSION['avatar_foto'] = $avatarFoto['foto'] ?? '';
+            $_SESSION['avatar_iniciales'] = $this->generarIniciales(
+                $usuario['nombre'] ?? null,
+                $usuario['apellido'] ?? null,
+                $usuario['nombre_usuario'] ?? 'U'
+            );
             if ($rol === 'secretaria') {
                 $_SESSION['id_turno'] = (int) $usuario['id_turno'];
             } else {

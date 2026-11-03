@@ -14,6 +14,24 @@
 
     var urlActualizar = (typeof BASE_URL !== 'undefined' ? BASE_URL : '/') + 'perfil/actualizarFoto';
 
+    function actualizarAvatarEncabezado(urlFoto, iniciales) {
+      var avatar = document.getElementById('headerUserAvatar');
+      if (!avatar) return;
+
+      if (urlFoto) {
+        var imagen = document.createElement('img');
+        imagen.src = urlFoto + (urlFoto.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+        var nombreUsuario = document.querySelector('.app-header__profile-name');
+        imagen.alt = nombreUsuario ? nombreUsuario.textContent : 'Foto de perfil';
+        avatar.replaceChildren(imagen);
+        avatar.setAttribute('aria-hidden', 'false');
+        return;
+      }
+
+      avatar.textContent = iniciales || avatar.dataset.avatarInitials || 'U';
+      avatar.setAttribute('aria-hidden', 'true');
+    }
+
     // Manejar selección de nueva foto
     inputFoto.addEventListener('change', function () {
       var archivo = inputFoto.files && inputFoto.files[0];
@@ -62,6 +80,7 @@
             var urlFoto = payload.data && payload.data.foto_url;
             if (urlFoto) {
               preview.innerHTML = '<img src="' + urlFoto + '?t=' + Date.now() + '" alt="Foto de perfil" id="imgPerfilFoto">';
+              actualizarAvatarEncabezado(urlFoto, payload.data.avatar_iniciales);
             }
             if (btnQuitar) {
               btnQuitar.classList.remove('d-none');
@@ -108,6 +127,7 @@
               var payload = respuesta.data;
               if (respuesta.ok && payload && payload.ok) {
                 preview.innerHTML = '<i class="bi bi-person" id="iconoPerfilFallback"></i>';
+                actualizarAvatarEncabezado('', payload.data && payload.data.avatar_iniciales);
                 btnQuitar.classList.add('d-none');
                 SIGDEUI.exito(payload.mensaje || 'Foto eliminada correctamente.', '¡Foto retirada!');
               } else {

@@ -18,6 +18,7 @@ class LoginModel extends Model
                     u.id_usuario AS id, 
                     p.primer_nombre AS nombre,
                     p.primer_apellido AS apellido,
+                    p.foto,
                     u.nombre_usuario, 
                     u.password_hash, 
                     r.nombre AS rol, 

@@ -123,12 +123,23 @@ class ProfileController extends BaseController
             $this->borrarFoto($fotoAnterior);
         }
 
+        $perfilActualizado = $this->modelo()->getPerfilUsuario($idUsuario);
+        if ($perfilActualizado !== null) {
+            $_SESSION['avatar_foto'] = (string) ($perfilActualizado['avatar_foto'] ?? '');
+            if (!empty($perfilActualizado['iniciales'])) {
+                $_SESSION['avatar_iniciales'] = (string) $perfilActualizado['iniciales'];
+            }
+        } else {
+            $_SESSION['avatar_foto'] = $fotoNueva !== null ? ltrim($fotoNueva, '/') : '';
+        }
+
         $fotoUrl = $fotoNueva ? BASE_URL . ltrim($fotoNueva, '/') : '';
         $mensaje = $quitarFoto ? 'Foto de perfil eliminada correctamente.' : 'Foto de perfil actualizada con éxito.';
 
         $this->jsonResponse(true, [
-            'foto_url'   => $fotoUrl,
-            'tiene_foto' => $fotoNueva !== null,
+            'foto_url'         => $fotoUrl,
+            'tiene_foto'       => $fotoNueva !== null,
+            'avatar_iniciales' => (string) ($_SESSION['avatar_iniciales'] ?? 'U'),
         ], $mensaje);
     }
 }

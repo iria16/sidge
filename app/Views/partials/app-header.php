@@ -95,7 +95,12 @@ $rolEtiqueta          = sigde_rol_etiqueta($rolSesion);
         <?php
           $avatarSize = 'sm';
           $avatarTone = 'dark';
-          $avatarInitials = $iniciales;
+          $avatarInitials = (string) ($_SESSION['avatar_iniciales'] ?? $iniciales);
+          $avatarSrc = !empty($_SESSION['avatar_foto'])
+              ? BASE_URL . ltrim((string) $_SESSION['avatar_foto'], '/')
+              : '';
+          $avatarAlt = $nombreUsuario;
+          $avatarId = 'headerUserAvatar';
           include __DIR__ . '/../components/avatar.php';
         ?>
       </button>

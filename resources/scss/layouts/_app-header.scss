@@ -205,6 +205,35 @@
   letter-spacing: 0.08em;
 }
 
+@include media-breakpoint-down(sm) {
+  .app-header {
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .app-header__left {
+    gap: 0.5rem;
+  }
+
+  .app-header__right {
+    gap: 0.45rem;
+  }
+
+  .app-header__profile {
+    padding-left: 0.45rem;
+  }
+
+  .app-header__right > .dropdown:last-child > .dropdown-menu {
+    width: min(220px, calc(100vw - 1rem));
+    max-width: calc(100vw - 1rem);
+  }
+
+  .app-header__right > .dropdown:last-child .dropdown-item-text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 // ---------- Notify dropdown ----------
 // Panel de notificaciones que cuelga del botón de campana.
 .notify-dropdown {
