@@ -177,7 +177,6 @@ if ($controller === null || $action === null) {
 // 7. MATRIZ DE RUTAS Y ROLES PERMITIDOS
 // Lista blanca: controlador => accion => roles con permiso. 'publico' = sin login.
 // Lo que no este aqui responde 404, aunque la clase y el metodo existan.
-// Las acciones nuevas usan ingles camelCase; las anteriores se conservan como alias temporales.
 $rutasPermitidas = [
     'auth' => [
         'login' => ['publico'],

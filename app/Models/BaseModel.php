@@ -178,6 +178,8 @@ abstract class BaseModel extends Model
      */
     public function toggleStatus(int $id, string $field = 'estado'): bool
     {
+        $field = preg_replace('/[^a-zA-Z0-9_]/', '', $field);
+
         $sql = "UPDATE `{$this->table}` 
                 SET `$field` = CASE WHEN `$field` = 'ACTIVO' THEN 'INACTIVO' ELSE 'ACTIVO' END
                 WHERE `{$this->primaryKey}` = :p_pk";

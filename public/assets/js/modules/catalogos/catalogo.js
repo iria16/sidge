@@ -333,11 +333,8 @@ function initEditarElementoModal() {
     if (inputId) inputId.value = d.elementoId || '';
     if (inputNombre) inputNombre.value = d.elementoNombre || '';
 
-    // Solo existe en el catalogo institucion. El boton de la fila manda el ID
-    // de tipo_institucion (la columna de texto ya no existe), pero el value de
-    // cada opcion es el codigo de texto. Si se asignara el id al value no
-    // coincidiria con ninguna opcion, el select quedaria vacio y, como es
-    // required, el formulario no se enviaria.
+    // El select usa value=código y data-id=ID. El servidor manda el ID, buscamos
+    // la opción con ese data-id y usamos su value para el select.
     if (selectTipo) {
       var idCatalogo = d.elementoTipo;
       var opcionTipo = idCatalogo
