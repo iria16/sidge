@@ -328,6 +328,7 @@ function initEditarElementoModal() {
     var inputId = modalEditarEl.querySelector('#editarElementoId');
     var inputNombre = modalEditarEl.querySelector('#editarElementoNombre');
     var selectTipo = modalEditarEl.querySelector('#editarElementoTipo');
+    var selectGrado = modalEditarEl.querySelector('#editarElementoGradoAcademico');
 
     if (inputId) inputId.value = d.elementoId || '';
     if (inputNombre) inputNombre.value = d.elementoNombre || '';
@@ -344,6 +345,7 @@ function initEditarElementoModal() {
         : null;
       selectTipo.value = opcionTipo ? opcionTipo.value : '';
     }
+    if (selectGrado) selectGrado.value = d.elementoGrado || '';
 
     // Ubicacion y codigo DEA. Sin esto, editar una institucion los pondria en
     // blanco y se perderian.
@@ -383,6 +385,7 @@ function initEditarElementoModal() {
   });
 
   var selectTipoEditar = modalEditarEl.querySelector('#editarElementoTipo');
+  var selectGradoEditar = modalEditarEl.querySelector('#editarElementoGradoAcademico');
   if (selectTipoEditar) {
     selectTipoEditar.addEventListener('change', function () {
       alternarCampoDea(selectTipoEditar, modalEditarEl.querySelector('[data-solo-tipo-estudiante]'));
@@ -462,6 +465,14 @@ function initEditarElementoModal() {
             if (btnEditarEnFila && opcionElegida && opcionElegida.dataset.id) {
               btnEditarEnFila.dataset.elementoTipo = opcionElegida.dataset.id;
             }
+          }
+
+          if (selectGradoEditar && selectGradoEditar.value) {
+            var opcionGradoElegida = selectGradoEditar.options[selectGradoEditar.selectedIndex];
+            var indiceColumnaGrado = selectTipoEditar ? 3 : 2;
+            var celdaGrado = tr.querySelector('td:nth-child(' + indiceColumnaGrado + ')');
+            if (celdaGrado && opcionGradoElegida) celdaGrado.textContent = opcionGradoElegida.text;
+            if (btnEditarEnFila) btnEditarEnFila.dataset.elementoGrado = selectGradoEditar.value;
           }
 
           // La linea de ubicacion y DEA bajo el nombre se reconstruye con lo

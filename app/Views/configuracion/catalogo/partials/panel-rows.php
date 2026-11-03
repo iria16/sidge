@@ -9,6 +9,8 @@ declare(strict_types=1);
  * @var array<int, array<string, mixed>> $elementos
  * @var array<int, array<string, mixed>> $estadosGeo
  * @var array $tiposInstitucion
+ * @var bool $pideGrado
+ * @var array<int, string> $gradosAcademicosPorId
  */
 ?>
   <?php foreach ($elementos as $el):
@@ -46,6 +48,9 @@ declare(strict_types=1);
                 isset($el['id_tipo_institucion']) ? (int) $el['id_tipo_institucion'] : null
             )) ?></td>
       <?php endif; ?>
+      <?php if (!empty($pideGrado)): ?>
+        <td class="text-nowrap"><?= htmlspecialchars($gradosAcademicosPorId[(int) ($el['id_grado_academico'] ?? 0)] ?? 'Grado inactivo') ?></td>
+      <?php endif; ?>
       <td class="text-center">
         <?php
           $badgeLabel  = $esInactivo ? 'Inactivo' : 'Activo';
@@ -59,6 +64,7 @@ declare(strict_types=1);
                   class="action-btn action-btn--edit editar-elemento"
                   data-elemento-id="<?= (int) $el['id'] ?>"
                   data-elemento-nombre="<?= htmlspecialchars($el['nombre']) ?>"
+                  <?php if (!empty($pideGrado)): ?>data-elemento-grado="<?= (int) ($el['id_grado_academico'] ?? 0) ?>"<?php endif; ?>
                   <?php if (!empty($tiposInstitucion)): ?>data-elemento-tipo="<?= htmlspecialchars(
                         isset($el['id_tipo_institucion']) ? (string) $el['id_tipo_institucion'] : ''
                       ) ?>"
@@ -86,7 +92,7 @@ declare(strict_types=1);
 
   <?php if (empty($elementos)): ?>
     <tr class="catalogo-empty-row">
-      <td colspan="3" class="text-center text-support py-4">
+      <td colspan="<?= (int) ($catalogoColumnas ?? 3) ?>" class="text-center text-support py-4">
         No se encontraron elementos con los filtros seleccionados.
       </td>
     </tr>

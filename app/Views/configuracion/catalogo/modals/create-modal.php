@@ -2,13 +2,13 @@
 /**
  * Modal: Nuevo Elemento
  * Espera del index.php: $catalogoActivo, $catalogoInfo, $catalogoMaxLength,
- * $tiposInstitucion, $estadosGeo, $paises
+ * $tiposInstitucion, $estadosGeo, $gradosAcademicos, $pideGrado
  */
 
 // ---------- Cuerpo del Modal ----------
 ob_start();
 ?>
-<form id="formNuevoElemento" novalidate data-max-length="<?= (int) ($catalogoMaxLength ?? 50) ?>"<?= !empty($tiposInstitucion) ? ' data-pide-tipo="1"' : '' ?>>
+<form id="formNuevoElemento" novalidate data-max-length="<?= (int) ($catalogoMaxLength ?? 50) ?>"<?= !empty($tiposInstitucion) ? ' data-pide-tipo="1"' : '' ?><?= !empty($pideGrado) ? ' data-pide-grado="1"' : '' ?>>
   <div class="alert alert-danger d-none" data-form-error></div>
 
   <!-- Campo oculto con el catálogo activo -->
@@ -52,6 +52,21 @@ ob_start();
             <?php endforeach; ?>
           </select>
           <div class="invalid-feedback">Selecciona el tipo de institución.</div>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($pideGrado)): ?>
+        <div class="mb-3">
+          <label for="nuevoElementoGradoAcademico" class="form-label">
+            Grado académico <span class="text-danger">*</span>
+          </label>
+          <select id="nuevoElementoGradoAcademico" name="id_grado_academico" class="form-select" required>
+            <option value="">Seleccione el grado académico...</option>
+            <?php foreach ($gradosAcademicos as $gradoAcademico): ?>
+              <option value="<?= (int) $gradoAcademico['id_grado_academico'] ?>"><?= htmlspecialchars($gradoAcademico['nombre']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="invalid-feedback">Selecciona el grado académico del título.</div>
         </div>
       <?php endif; ?>
 

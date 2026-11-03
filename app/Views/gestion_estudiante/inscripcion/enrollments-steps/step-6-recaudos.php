@@ -1,6 +1,6 @@
 <?php
 /**
- * Paso 5 - Recaudos del estudiante.
+ * Paso 6 - Recaudos del estudiante.
  *
  * La tabla la pinta el partial de recaudos, el MISMO que usan la ficha del expediente y el
  * modal "Actualizar expediente" (y este último, la ratificación). Estaba escrita aquí a mano
@@ -10,9 +10,6 @@
  * Variables:
  * - array $recaudos Cada fila: 'id', 'nombre', 'detalle', 'consignado', 'observacion'.
 */
-$recaudos = $recaudos ?? [];
-$total    = count($recaudos);
-$consignados = count(array_filter($recaudos, fn ($r) => !empty($r['consignado'])));
 ?>
 
 <section class="wizard-summary__section">
@@ -20,13 +17,13 @@ $consignados = count(array_filter($recaudos, fn ($r) => !empty($r['consignado'])
     <span class="wizard-summary__icon"><i class="bi bi-folder2-open" aria-hidden="true"></i></span>
     <span class="wizard-summary__section-title">Recaudos del estudiante</span>
     <span class="status-badge status-badge--active" id="recaudosBadge">
-      <span id="recaudosConsignadosCount"><?= $consignados ?></span> de
-      <span id="recaudosTotalCount"><?= $total ?></span> consignados
+      <span id="recaudosConsignadosCount">0</span> de
+      <span id="recaudosTotalCount">0</span> consignados
     </span>
   </div>
   <div class="wizard-summary__card">
     <p class="text-support">
-      Marque los documentos que el representante entrega en este momento.
+      La lista se calcula con los datos del estudiante y las personas registradas.
     </p>
 
     <?php
@@ -35,9 +32,28 @@ $consignados = count(array_filter($recaudos, fn ($r) => !empty($r['consignado'])
  enrollments.js, que engancha ahí el cambio del switch.*/
       $recaudosEditable   = true;
       $recaudosBotonPropio = false;
-      $recaudosContenedor = 'recaudosPaso5';
+      $recaudosContenedor = 'recaudosPaso6';
       $recaudosCuerpoId   = 'recaudosTbody';
-      require __DIR__ . '/../partials/recaudos-panel.php';
     ?>
+    <div id="<?= htmlspecialchars($recaudosContenedor) ?>" data-recaudos-panel>
+      <div class="table-responsive">
+        <table class="wizard-titulos-table" style="table-layout: fixed;">
+          <colgroup>
+            <col style="width: 42%">
+            <col style="width: 20%">
+            <col style="width: 38%">
+          </colgroup>
+          <thead>
+            <tr><th>Documento físico</th><th class="text-center">Consignado</th><th>Observación</th></tr>
+          </thead>
+          <tbody id="recaudosTbody">
+            <tr><td colspan="3" class="text-center py-3 text-support">
+              Completa los pasos anteriores para calcular los recaudos.
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <input type="hidden" name="recaudos_json" id="recaudosJson" value="{}">
   </div>
 </section>

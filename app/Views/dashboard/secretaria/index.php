@@ -84,7 +84,7 @@ ob_start();
       <div>
         <div class="fw-semibold mb-1">Estructura académica en configuración</div>
         <p class="mb-0 small">
-          Faltan <?= $pendientesEstructura ?> combinaciones en <?= htmlspecialchars((string) ($estructura['anio'] ?? '')) ?>. La estructura la configura el Directivo.
+          Si no encuentra el grado, sección o turno que necesita para inscribir, avise al Directivo para que revise la estructura académica del período.
         </p>
       </div>
     </div>

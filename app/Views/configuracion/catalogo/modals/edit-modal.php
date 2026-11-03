@@ -4,13 +4,13 @@
  * Se llena desde JS (catalogo.js) con los data-elemento-* del botón "editar"
  * presionado.
  * Espera del index.php: $catalogoActivo, $catalogoInfo, $catalogoMaxLength,
- * $tiposInstitucion, $estadosGeo, $paises
+ * $tiposInstitucion, $estadosGeo, $gradosAcademicos, $pideGrado
  */
 
 // ---------- Cuerpo del Modal ----------
 ob_start();
 ?>
-<form id="formEditarElemento" novalidate data-max-length="<?= (int) ($catalogoMaxLength ?? 50) ?>"<?= !empty($tiposInstitucion) ? ' data-pide-tipo="1"' : '' ?>>
+<form id="formEditarElemento" novalidate data-max-length="<?= (int) ($catalogoMaxLength ?? 50) ?>"<?= !empty($tiposInstitucion) ? ' data-pide-tipo="1"' : '' ?><?= !empty($pideGrado) ? ' data-pide-grado="1"' : '' ?>>
   <div class="alert alert-danger d-none" data-form-error></div>
 
   <!-- Campos ocultos requeridos para la actualización -->
@@ -57,6 +57,21 @@ ob_start();
             <?php endforeach; ?>
           </select>
           <div class="invalid-feedback">Selecciona el tipo de institución.</div>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($pideGrado)): ?>
+        <div class="mb-3">
+          <label for="editarElementoGradoAcademico" class="form-label">
+            Grado académico <span class="text-danger">*</span>
+          </label>
+          <select id="editarElementoGradoAcademico" name="id_grado_academico" class="form-select" required>
+            <option value="">Seleccione el grado académico...</option>
+            <?php foreach ($gradosAcademicos as $gradoAcademico): ?>
+              <option value="<?= (int) $gradoAcademico['id_grado_academico'] ?>"><?= htmlspecialchars($gradoAcademico['nombre']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="invalid-feedback">Selecciona el grado académico del título.</div>
         </div>
       <?php endif; ?>
 

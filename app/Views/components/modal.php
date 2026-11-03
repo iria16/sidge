@@ -11,6 +11,7 @@
  * - string $modalSize      sm|lg|xl (default '' = tamaño base ~500px)
  * - bool   $modalStatic    true = backdrop estático, no cierra al hacer click fuera
  * - bool   $modalCentered  true = centrado verticalmente (default true)
+ * - string $modalClass     clase adicional del contenedor del modal
  */
 $modalId       = $modalId ?? '';
 $modalTitle    = $modalTitle ?? '';
@@ -20,6 +21,7 @@ $modalFooter   = $modalFooter ?? '';
 $modalSize     = $modalSize ?? '';
 $modalStatic   = $modalStatic ?? false;
 $modalCentered = $modalCentered ?? true;
+$modalClass    = trim((string) ($modalClass ?? ''));
 $modalHeaderExtra = $modalHeaderExtra ?? ''; // HTML opcional entre header y body (ej. stepper)
 
 $dialogClass = 'modal-dialog';
@@ -32,7 +34,7 @@ if ($modalCentered) {
 
 $backdropAttr = $modalStatic ? ' data-bs-backdrop="static" data-bs-keyboard="false"' : '';
 ?>
-<div class="modal fade app-modal" id="<?php echo htmlspecialchars($modalId); ?>" tabindex="-1" aria-labelledby="<?php echo htmlspecialchars($modalId); ?>Label" aria-hidden="true"<?php echo $backdropAttr; ?>>
+<div class="modal fade app-modal<?php echo $modalClass !== '' ? ' ' . htmlspecialchars($modalClass) : ''; ?>" id="<?php echo htmlspecialchars($modalId); ?>" tabindex="-1" aria-labelledby="<?php echo htmlspecialchars($modalId); ?>Label" aria-hidden="true"<?php echo $backdropAttr; ?>>
   <div class="<?php echo $dialogClass; ?>">
     <div class="modal-content">
       <div class="modal-header">
@@ -59,5 +61,5 @@ $backdropAttr = $modalStatic ? ' data-bs-backdrop="static" data-bs-keyboard="fal
   </div>
 </div>
 <?php
-unset($modalId, $modalTitle, $modalSubtitle, $modalBody, $modalFooter, $modalSize, $modalStatic, $modalCentered, $modalHeaderExtra, $dialogClass, $backdropAttr);
+unset($modalId, $modalTitle, $modalSubtitle, $modalBody, $modalFooter, $modalSize, $modalStatic, $modalCentered, $modalClass, $modalHeaderExtra, $dialogClass, $backdropAttr);
 ?>

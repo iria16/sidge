@@ -20,7 +20,7 @@ declare(strict_types=1);
         <h2 class="h6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
           <i class="bi bi-file-earmark-text text-danger" aria-hidden="true"></i>Expedientes y Documentos Físicos Pendientes
         </h2>
-        <span class="text-secondary small">Control de consignación de recaudos obligatorios de inscripción</span>
+        <span class="text-secondary small">Incluye recaudos obligatorios y opcionales pendientes de inscripción</span>
       </div>
       <div>
         <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-6 px-3 py-1">
@@ -43,7 +43,7 @@ declare(strict_types=1);
           $docs = $documentosPendientes['documentos'] ?? [];
           if ($docs === []):
           ?>
-            <tr><td colspan="3" class="text-center text-success py-3"><i class="bi bi-check-circle me-1"></i>Todos los recaudos exigidos han sido consignados.</td></tr>
+            <tr><td colspan="3" class="text-center text-success py-3"><i class="bi bi-check-circle me-1"></i>No hay recaudos pendientes de consignación.</td></tr>
           <?php else: ?>
             <?php foreach ($docs as $d): ?>
               <tr>

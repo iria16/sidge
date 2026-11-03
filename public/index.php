@@ -224,7 +224,8 @@ $rutasPermitidas = [
         'index' => ['admin'],
         'store' => ['admin'],
         'update' => ['admin'],
-        'toggleStatus' => ['admin']
+        'toggleStatus' => ['admin'],
+        'getUbicacion' => ['admin']
     ],
     'empleado' => [
         'index' => ['directivo', 'coordinador'],
@@ -241,6 +242,8 @@ $rutasPermitidas = [
         'update' => ['directivo'],
         'toggleStatus' => ['directivo'],
         'getUbicacion' => ['directivo', 'coordinador'],
+        // Precarga en el wizard de alta a una persona ya registrada (p. ej. un familiar).
+        'buscarPersona' => ['directivo'],
         // Reposos del personal (empleados y docentes). Registrarlos es una decisión de
         // la dirección, así que van como el resto del módulo: solo `directivo`.
         'registrarReposo' => ['directivo'],
@@ -282,6 +285,7 @@ $rutasPermitidas = [
         'ver' => ['directivo', 'secretaria'],
         'buscarEstudiante' => ['secretaria'],
         'store' => ['secretaria'],
+        'evaluarRecaudos' => ['secretaria'],
         'updateEstado' => ['directivo']
     ],
     'estudiantes' => [
@@ -296,6 +300,7 @@ $rutasPermitidas = [
     'inscripciones' => [
         'index' => ['secretaria'],
         'store' => ['secretaria'],
+        'evaluarRecaudos' => ['secretaria'],
         'ver' => ['secretaria'],
         'continuar' => ['secretaria'],
         'buscarPersona' => ['secretaria'],
@@ -378,7 +383,7 @@ $accionesSoloPost = [
     'withdrawal' => ['store', 'updateEstado'],
     'notificacion' => ['leer', 'leerTodas'],
     'estudiantes' => ['guardarRecaudos'],
-    'inscripciones' => ['store', 'guardarInstitucion'],
+    'inscripciones' => ['store', 'evaluarRecaudos', 'guardarInstitucion'],
     'egresos' => ['graduar', 'graduarMasivo'],
     'ratificacion' => ['ratificar', 'updateEstudiante'],
     'configuracionInstitucional' => ['guardar', 'subirImagen', 'quitarImagen', 'restablecerOficial'],

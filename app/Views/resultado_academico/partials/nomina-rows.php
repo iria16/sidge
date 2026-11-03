@@ -1,12 +1,13 @@
 <?php
 /**
- * Partial: filas de la nómina de literales.
+ * Partial: filas de la nómna de literales.
  *
- * @var array  $filas
- * @var array  $literales Literales válidos del modelo.
- * @var string $gradoNombre
- * @var string $textoGradoAvanza
- * @var bool   $anioCerrado
+ * @var int       $idEstructura
+ * @var array     $filas
+ * @var array     $literales Literales válidos del modelo.
+ * @var string    $gradoNombre
+ * @var string    $textoGradoAvanza
+ * @var bool      $anioCerrado
  */
 ?>
 <?php foreach ($filas as $idx => $est): ?>

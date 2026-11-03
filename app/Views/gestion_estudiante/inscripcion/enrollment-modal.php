@@ -32,8 +32,8 @@ $pasos = [
 2 => ['label' => 'Procedencia',   'vista' => 'step-2-procedencia'],
 3 => ['label' => 'Académico',     'vista' => 'step-3-academico'],
 4 => ['label' => 'Adicional',     'vista' => 'step-4-adicional'],
-5 => ['label' => 'Recaudos',      'vista' => 'step-5-recaudos'],
-6 => ['label' => 'Familiares',    'vista' => 'step-6-familiares'],
+5 => ['label' => 'Familiares',    'vista' => 'step-5-familiares'],
+6 => ['label' => 'Recaudos',      'vista' => 'step-6-recaudos'],
 7 => ['label' => 'Confirmación',  'vista' => 'step-7-resumen'],
 ];
 
@@ -61,7 +61,7 @@ ob_start();
     </div>
   <?php endforeach; ?>
 
-  <!-- Acumulador de familiares agregados en el paso 6 -->
+  <!-- Acumulador de familiares agregados en el paso 5 -->
   <input type="hidden" name="familiares_json" id="familiaresJson" value="[]">
 </form>
 <?php

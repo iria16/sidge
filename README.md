@@ -3,14 +3,39 @@
 Aplicación web para la gestión de inscripciones, ratificaciones, expedientes de
 estudiantes, retiros, egresos y configuración académica de una escuela.
 
+## Índice
+
+- [Datos del proyecto](#datos-del-proyecto)
+- [Requisitos](#requisitos)
+- [Instalación](#instalación)
+- [Scripts npm](#scripts-npm)
+- [Pruebas](#pruebas)
+- [Base de datos](#base-de-datos)
+- [Estructura](#estructura)
+- [Módulos y roles](#módulos-y-roles)
+- [Reporte PDF](#reporte-pdf)
+- [Problemas frecuentes](#problemas-frecuentes)
+
+## Datos del proyecto
+
+- **Institución:** ¿Qué institución debe figurar?
+- **Autores:** ¿Quiénes deben figurar como autores?
+- **Estado:** Preparación de despliegue; falta definir el dominio y probar HTTPS en
+  el VPS.
+- **Licencia:** Los manifiestos de Composer y npm indican `ISC`, pero no hay un
+  archivo `LICENSE`. ¿Confirmas que esa licencia aplica al proyecto?
+
 ## Requisitos
 
 | Componente | Versión |
 |---|---|
-| PHP | 8.4 con las extensiones `pdo_mysql` y `mbstring` |
-| MySQL | 8.0 o superior |
+| PHP | 8.4 o superior con `pdo_mysql`, `mbstring`, `gd`, `fileinfo`, `dom`, `iconv`, `zip` y `zlib` |
+| MariaDB | 10.10 o superior |
 | Composer | 2.x |
 | Node.js | 18 o superior |
+
+El esquema usa la intercalación `utf8mb4_uca1400_ai_ci` de MariaDB; MySQL no está
+validado como motor compatible.
 
 ## Instalación
 
@@ -30,6 +55,35 @@ ahí: apunta a `public/assets/`. El paso `build` las copia a esa carpeta y compi
 Si se omite, la aplicación carga y responde bien pero **sin estilos y sin iconos**, que
 es la forma más difícil de detectar de una vista. `npm run verificar` existe para eso.
 
+## Scripts npm
+
+Estos son los comandos declarados en `package.json`:
+
+| Comando | Qué hace |
+|---|---|
+| `npm run build` | Copia las bibliotecas de terceros y compila los estilos de la aplicación y los PDF. |
+| `npm run verificar` | Comprueba los assets, IDs de vistas, vistas PHP y permisos del menú. |
+| `npm run test:inscripcion` | Ejecuta las pruebas de las reglas de inscripción y recaudos. |
+| `npm run sass:build` | Compila el SCSS de la aplicación en `public/assets/css/app.css`. |
+| `npm run sass:watch` | Observa los cambios del SCSS de la aplicación y recompila automáticamente. |
+| `npm run sass:build:pdf` | Compila las hojas SCSS de los documentos PDF. |
+| `npm run sass:watch:pdf` | Observa y recompila las hojas SCSS de constancias, ficha, nómina y reportes PDF. |
+| `npm run copy:vendor-js` | Copia Bootstrap, SweetAlert2 y Chart.js a `public/assets/js/vendor/`. |
+| `npm run copy:vendor-icons` | Copia la fuente y CSS de Bootstrap Icons a `public/assets/vendor/`. |
+| `npm run verificar:ids` | Revisa la correspondencia entre IDs de JavaScript y vistas. |
+| `npm run verificar:vistas` | Revisa la estructura de las vistas PHP. |
+| `npm run verificar:menu` | Compara las rutas del menú con los permisos por rol. |
+
+## Pruebas
+
+```bash
+npm run test:inscripcion
+```
+
+Ejecuta pruebas automatizadas de las reglas de recaudos sin modificar la base de
+datos. `npm run verificar` ejecuta las comprobaciones estructurales descritas en
+la tabla de scripts npm.
+
 ## Base de datos
 
 Las credenciales **no** están en el código: se leen del archivo `.env` de la raíz del
@@ -37,32 +91,68 @@ proyecto. `.env` está en `.gitignore` y no debe subirse nunca; `.env.example` d
 las variables necesarias sin valores reales.
 
 ```bash
-cp .env.example .env      # y rellena DB_USER, DB_PASS y las demás
+cp .env.example .env      # y reemplaza los valores de ejemplo
 ```
+
+El nombre de la base configurado en `.env.example` es `sidge`. Antes de importar
+el esquema, crea esa base con la intercalación requerida y un usuario exclusivo para
+la aplicación:
+
+```sql
+CREATE DATABASE sidge
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_uca1400_ai_ci;
+
+CREATE USER 'sidge_app'@'localhost'
+  IDENTIFIED BY 'REEMPLAZA_POR_UNA_CLAVE_SEGURA';
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON sidge.* TO 'sidge_app'@'localhost';
+```
+
+Reemplaza la clave de ejemplo antes de ejecutar el comando. El usuario de aplicación
+solo recibe permisos sobre `sidge`; usa una cuenta administrativa distinta para crear
+la base e importar el esquema. Configura después `DB_NAME=sidge`, `DB_USER=sidge_app`
+y los valores reales de conexión en `.env`.
 
 ```bash
-mysql -u root -p sidge < database/schema_actual.sql
+mariadb -u root -p sidge < database/schema_actual.sql
 ```
 
-Usa un usuario propio de la aplicación, no `root`: con permisos solo sobre la base
-`sidge` es imposible que una fuga borre el servidor de MySQL entero. Los comandos
-para crearlo están en `DESPLIEGUE.md`.
+`database/schema_actual.sql` es el esquema completo para una instalación nueva. Incluye
+los cambios de estructura que también aparecen como migraciones incrementales.
+Los archivos SQL conservan los catálogos de referencia, pero omiten usuarios, personas,
+matrículas y demás datos operativos. La instalación debe provisionar una cuenta inicial
+y configurar la institución antes de habilitar el uso normal.
+El procedimiento de instalación, publicación y alta del administrador inicial está en
+[docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+La raíz del servidor web debe apuntar a `public/`; la guía de despliegue explica la
+configuración para Apache y Nginx.
 
-`database/migrations/` guarda el esquema consolidado en un único archivo inicial
-(`20261030_initial_schema.sql`), que es copia de `schema_actual.sql`. **No hay que
-ejecutarlas para instalar de cero**: `schema_actual.sql` ya está consolidado y trae
-todo (esquema, datos de prueba y disparadores).
+`database/migrations/` contiene una línea base histórica y cambios incrementales:
 
-`database/backups/` conserva respaldos históricos del disparador de transición de
-matrícula.
+| Archivo | Qué hace | ¿Destructiva? |
+|---|---|---|
+| `20261030_initial_schema.sql` | Línea base histórica anterior al esquema actual; no es una copia idéntica de `schema_actual.sql`. | Sí: contiene `DROP TABLE IF EXISTS`; solo debe usarse con una base vacía. |
+| `20261101_enrollment_document_snapshots.sql` | Agrega campos, índices y restricciones para los recaudos de inscripción. | No elimina datos, pero puede fallar si los datos existentes incumplen las nuevas restricciones. |
+| `20261102_remove_unused_pais.sql` | Elimina la tabla `pais`. | Sí: elimina la tabla. |
+| `20261102_uniform_sizes_enum.sql` | Limita las tallas de uniforme a las opciones admitidas y conserva la cadena vacía para indicar que no se registró una talla opcional. | No elimina datos válidos; se detiene si encuentra tallas fuera del catálogo. |
+
+Para una instalación nueva, importa solo `schema_actual.sql`; no ejecutes después las
+migraciones ya incluidas en ese esquema. Para actualizar una instalación existente,
+respalda primero la base y aplica, una sola vez y en orden cronológico, únicamente las
+migraciones que todavía no se hayan aplicado. La aplicación no lleva un registro
+automático de migraciones, así que anota cuáles ejecutaste. Revisa la columna de
+destructividad y respalda la base antes de cada actualización.
 
 Para verificar que el esquema instala bien, sobre una base temporal:
 
 ```bash
-mysql -u root -p -e "CREATE DATABASE sigde_prueba"
-mysql -u root -p sigde_prueba < database/schema_actual.sql
-mysql -u root -p -e "DROP DATABASE sigde_prueba"
+mariadb -u root -p -e "CREATE DATABASE sidge_prueba CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci"
+mariadb -u root -p sidge_prueba < database/schema_actual.sql
+mariadb -u root -p -e "DROP DATABASE sidge_prueba"
 ```
+
+La base temporal `sidge_prueba` es independiente de la base de instalación `sidge`.
 
 ## Estructura
 
@@ -73,16 +163,32 @@ app/
   Exceptions/     excepciones de dominio, con su código HTTP asociado
   Http/           utilidades de respuesta
   Interfaces/     contratos que implementan los modelos
-  Models/         acceso a datos; aquí vive la lógica de negocio
-  Support/        clases sin estado compartidas
-  Traits/         reutilización entre controladores y modelos
+  Models/         consultas y operaciones sobre los datos
+  Services/       procesos de aplicación que coordinan varios modelos
+  Support/        herramientas reutilizables e independientes
+  Traits/         comportamiento compartido que encaja en sus clases anfitrionas
   Views/          plantillas PHP
-database/         esquema, migraciones y respaldos
+database/         esquema actual y migraciones incrementales
 docs/             documentos del proyecto
 public/           raíz web: index.php y assets
 resources/scss/   fuentes de estilos
 scripts/          utilidades de mantenimiento (fuera de la raíz web)
 ```
+
+Como guía para mantener esas responsabilidades:
+
+- Los **controladores** reciben la petición, comprueban permisos y datos de entrada y
+  construyen la respuesta HTTP.
+- Los **servicios** coordinan un caso de uso cuando participan varios modelos o pasos.
+- Los **modelos** consultan y modifican la base de datos, y aplican las reglas que
+  pertenecen a esas operaciones.
+- Las clases de **Support** se invocan explícitamente como herramientas; no deben
+  convertirse en controladores o servicios de negocio por acumular funcionalidades.
+- Los **traits** incorporan métodos dentro de una clase con `use`; úsalos solo cuando
+  ese comportamiento compartido tenga sentido como parte de cada clase anfitriona.
+
+No es necesario mover código existente solo para ajustarlo a esta guía. Al modificar un
+módulo, conserva sus interfaces y extrae responsabilidades de forma incremental.
 
 El punto de entrada es `public/index.php`, que enruta por `/controlador/accion`. Con el
 servidor embebido de PHP:
@@ -95,25 +201,43 @@ Ese servidor no sirve archivos estáticos por su cuenta y devuelve 400 en ellos;
 desarrollar conviene apuntar el navegador a las rutas PHP y dejar los assets a un
 servidor web real (Apache o Nginx), que sí los sirve directamente.
 
-## Módulos
+## Módulos y roles
 
-| Módulo | Ruta |
-|---|---|
-| Años escolares | `academicYear/index` |
-| Estructura académica | `academicStructure/index` |
-| Asignación docente | `teacherAssignment/index` |
-| Catálogos | `catalogo/index` |
-| Empleados | `empleado/index` |
-| Inscripción | `inscripciones/index` |
-| Ratificación | `ratificacion/index` |
-| Retiro | `withdrawal/index` |
-| Egreso | `egresos/index` |
-| Expediente del estudiante | `estudiantes/show/{id}` |
-| Cuentas de usuario | `cuentaUsuario/index` |
-| Bitácora | `bitacora/index` |
+La matriz resume los roles admitidos por la lista blanca de `public/index.php`.
+El acceso puede variar por acción dentro de un módulo.
 
-Las acciones disponibles de cada módulo están en la lista blanca de
-`public/index.php`, que es también lo que decide qué rol entra a qué.
+| Módulo | Ruta | Admin | Directivo | Coordinador | Secretaria | Docente | Público |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Autenticación | `auth/*` | Sí | Sí | Sí | Sí | Sí | Sí |
+| Paneles | `dashboard/*` | Sí | Sí | Sí | Sí | Sí | — |
+| Cuentas de usuario | `cuentaUsuario/*` | Sí | — | — | — | — | — |
+| Bitácora | `bitacora/*` | Sí | — | — | — | — | — |
+| Recuperación de acceso | `recuperacionAcceso/*` | Sí | — | — | — | — | — |
+| Notificaciones | `notificacion/*` | Sí | Sí | — | Sí | — | — |
+| Catálogos | `catalogo/*` | Sí | — | — | — | — | — |
+| Empleados | `empleado/*` | — | Sí | Sí | — | — | — |
+| Años escolares | `academicYear/*` | — | Sí | — | — | — | — |
+| Estructura académica | `academicStructure/*` | — | Sí | Sí | — | — | — |
+| Asignación docente | `teacherAssignment/*` | — | Sí | Sí | — | — | — |
+| Retiros | `withdrawal/*` | — | Sí | — | Sí | — | — |
+| Estudiantes y expedientes | `estudiantes/*` | — | Sí | Sí | Sí | Sí | — |
+| Inscripción | `inscripciones/*` | — | — | — | Sí | — | — |
+| Ratificación | `ratificacion/*` | Sí* | Sí* | — | Sí | — | — |
+| Configuración institucional | `configuracionInstitucional/*` | Sí | — | — | — | — | — |
+| Constancias | `constancias/*` | — | — | — | Sí | — | — |
+| Resultados académicos | `resultadoAcademico/*` | — | — | — | — | Sí | — |
+| Certificados de calificaciones | `certificadoCalificaciones/*` | — | — | — | — | Sí | — |
+| Docente | `docente/*` | — | — | — | — | Sí | — |
+| Estadísticas | `estadistica/*` | — | Sí | Sí | — | — | — |
+| Egresos | `egresos/*` | — | — | — | — | — | — |
+| Perfil | `perfil/*` | Sí | Sí | Sí | Sí | Sí | — |
+
+`*` En Ratificación, Admin y Directivo solo tienen permiso para la acción
+`updateEstudiante`; las demás acciones de ese módulo son exclusivas de Secretaria.
+La edición de recaudos en Estudiantes también es exclusiva de Secretaria. En
+Empleados, Coordinador tiene acceso a un subconjunto de consulta; Directivo puede
+gestionar el módulo. Egresos no tiene rutas declaradas en la lista blanca, aunque
+aparezca en la lista de acciones POST.
 
 ## Reporte PDF
 
@@ -150,9 +274,13 @@ fallo más difícil de ver porque el CSS carga igual. `npm run verificar` lo det
 
 **Faltan estilos.** No se compiló el SCSS: `npm run sass:build`.
 
-**Un PDF sale sin márgenes ni con el contenido pegado al borde.** Almost siempre es
+**Un PDF sale sin márgenes ni con el contenido pegado al borde.** Casi siempre es
 que se editó la hoja compilada a mano en vez del SCSS, o que se borró
 `public/assets/css/pdf/`. Regenerar con `npm run sass:build:pdf`.
 
 **Las fotos que sube la aplicación no aparecen.** `public/uploads/` está en
 `.gitignore` a propósito: son datos personales y no deben entrar al repositorio.
+El código crea la carpeta raíz y sus subcarpetas cuando las necesita; el usuario
+del servidor web debe tener permiso de escritura en `public/` para crearlas y
+guardar archivos. La guía de [despliegue](docs/DESPLIEGUE.md) explica cómo asignar
+permisos sin hacer escribible todo el proyecto.

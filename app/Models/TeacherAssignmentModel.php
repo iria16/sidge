@@ -197,9 +197,16 @@ class TeacherAssignmentModel extends BaseModel implements Listable
                   INNER JOIN turno t ON t.id_turno = ea.id_turno AND t.estado = 'ACTIVO'
                  WHERE p.estado = 'ACTIVO'
                    AND e.fecha_egreso IS NULL
+                   AND NOT EXISTS (
+                           SELECT 1
+                             FROM asignacion_docente ad2
+                            WHERE ad2.id_docente = d.id_docente
+                              AND ad2.id_estructura_academica <> :estructura2
+                              AND (ad2.fecha_fin IS NULL OR ad2.fecha_fin >= CURDATE())
+                       )
                  ORDER BY p.primer_nombre, p.primer_apellido";
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(['estructura' => $structureId]);
+        $stmt->execute(['estructura' => $structureId, 'estructura2' => $structureId]);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
@@ -497,18 +504,33 @@ class TeacherAssignmentModel extends BaseModel implements Listable
 
     public function remove(int $id): bool
     {
+        $existe = $this->pdo->prepare(
+            "SELECT 1
+               FROM asignacion_docente ad
+               INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ad.id_estructura_academica
+               INNER JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar
+              WHERE ad.id_asignacion = :id
+                AND a.estado = 'ACTIVO'
+                AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())
+              LIMIT 1"
+        );
+        $existe->execute(['id' => $id]);
+        if ($existe->fetchColumn() === false) {
+            return false;
+        }
+
         $stmt = $this->pdo->prepare(
             "UPDATE asignacion_docente ad
                INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ad.id_estructura_academica
                INNER JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar
-                SET ad.fecha_fin = CURDATE()
+                SET ad.fecha_fin = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
               WHERE ad.id_asignacion = :id
                 AND a.estado = 'ACTIVO'
                 AND (ad.fecha_fin IS NULL OR ad.fecha_fin >= CURDATE())"
         );
         $stmt->execute(['id' => $id]);
 
-        return $stmt->rowCount() > 0;
+        return true;
     }
 
     private function filters(array $filters): array

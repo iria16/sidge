@@ -11,10 +11,8 @@ use App\Interfaces\Updatable;
 use App\Models\AuditLogModel;
 use App\Models\EmployeeModel;
 use App\Models\InstitucionModel;
-use App\Models\ReposoEmployeeModel;
 use App\Models\TituloModel;
-use App\Support\Configuracion;
-use App\Support\FichaEmpleadoPdf;
+use App\Services\ExpedienteEmpleadoService;
 use App\Support\Instituciones;
 use App\Support\Documento;
 use App\Support\Validator;
@@ -63,11 +61,17 @@ class EmployeeController extends CrudController
 
     protected string $viewPath  = 'empleados';
     protected string $routeName = 'empleado';
+    private ?ExpedienteEmpleadoService $expedientes = null;
 
     /** Crea el modelo del módulo.*/
     protected function createModel(PDO $pdo): object
     {
         return new EmployeeModel($pdo);
+    }
+
+    private function servicioExpedientes(): ExpedienteEmpleadoService
+    {
+        return $this->expedientes ??= new ExpedienteEmpleadoService($this->conexion());
     }
 
     /**
@@ -168,6 +172,38 @@ class EmployeeController extends CrudController
     public function getUbicacion(): void
     {
         $this->getUbicacionComun('Empleados');
+    }
+
+    /**
+     * Busca una persona ya registrada (por ejemplo, como familiar de un estudiante)
+     * para precargar sus datos en el paso 1 del wizard de alta.
+     * Ruta: empleado/buscarPersona?documento= (GET, JSON).
+     * Responde data null si no existe; si ya es empleado lo indica con `es_empleado`.
+     */
+    public function buscarPersona(): void
+    {
+        $documento = Documento::normalizar(trim((string) ($_GET['documento'] ?? '')));
+
+        if ($documento === '') {
+            $this->jsonResponse(false, null, 'Indique la cédula a buscar.', 422);
+        }
+
+        if (!Documento::esCedula($documento)) {
+            $this->jsonResponse(false, null, 'La cédula debe tener entre 7 y 8 dígitos.', 422);
+        }
+
+        try {
+            $persona = (new \App\Models\PersonaModel($this->conexion()))
+                ->buscarPersonaPorDocumento($documento);
+
+            if ($persona !== null) {
+                $persona['es_empleado'] = $this->modelo()->existeDocumento($documento);
+            }
+
+            $this->jsonResponse(true, $persona);
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Empleados');
+        }
     }
 
     /**
@@ -287,30 +323,12 @@ class EmployeeController extends CrudController
         }
 
         try {
-            $model    = $this->modelo();
-            $empleado = $model->getById($id);
-
-            if ($empleado === null) {
+            $datosExpediente = $this->servicioExpedientes()->getExpediente($id);
+            if ($datosExpediente === null) {
                 $this->setFlash('error', 'El empleado solicitado no existe.');
                 $this->redirect('index');
             }
-
-            $formacion    = $model->getFormacionAcademica($id);
-            $asignaciones = $model->getAsignacionesDocente($id);
-            $historial    = $model->getHistorialEstados($id);
-            $reposos      = (new ReposoEmployeeModel($this->conexion()))->getPorEmpleado($id);
-
-            $catalogos        = $model->getCatalogosFormulario();
-            $cargos           = $model->getCargos();
-            $gradosAcademicos = $catalogos['grados_academicos'] ?? [];
-            $titulos          = $catalogos['titulos'] ?? [];
-            $instituciones    = $catalogos['instituciones'] ?? [];
-            $tiposInstitucion = (new InstitucionModel($this->conexion()))
-                ->tiposFormulario([Instituciones::TIPO_TITULO_ACADEMICO]);
-            $estadosGeo       = (new InstitucionModel($this->conexion()))->getEstadosGeo();
-            $estados          = $catalogos['estados'] ?? [];
-            $turnos           = $catalogos['turnos'] ?? [];
-            $nacionalidades   = $model->getNacionalidades();
+            extract($datosExpediente, EXTR_SKIP);
         } catch (Throwable $e) {
             $this->handleError($e, 'Empleados');
         }
@@ -333,39 +351,17 @@ class EmployeeController extends CrudController
         }
 
         try {
-            $model    = $this->modelo();
-            $empleado = $model->getById($id);
-
-            if ($empleado === null) {
+            $resultado = $this->servicioExpedientes()->generarPdf($id);
+            if ($resultado === null) {
                 $this->renderHttpError(404, '404 · Empleado no encontrado', 'El empleado solicitado no existe.');
             }
-
-            $formacion    = $model->getFormacionAcademica($id);
-            $asignaciones = $model->getAsignacionesDocente($id);
-            $historial    = $model->getHistorialEstados($id);
-            $reposos      = (new ReposoEmployeeModel($this->conexion()))->getPorEmpleado($id);
-
-            $config = Configuracion::getAll();
-
-            $fotoRuta    = (string) ($empleado['avatar_foto'] ?? $empleado['foto'] ?? '');
-            $fotoDataUri = $fotoRuta !== '' ? FichaEmpleadoPdf::imagenADataUri($fotoRuta) : null;
-
-            $pdfContent = FichaEmpleadoPdf::generar(
-                $config,
-                $empleado,
-                $formacion,
-                $asignaciones,
-                $reposos,
-                $historial,
-                null,
-                $fotoDataUri
-            );
+            $empleado = $resultado['empleado'];
 
             $docLimpio     = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($empleado['numero_documento'] ?? 'personal'));
             $nombreArchivo = 'ficha_empleado_' . $docLimpio . '.pdf';
             $descargar     = ($_GET['descargar'] ?? '') === '1';
 
-            BinaryResponse::pdf($pdfContent, $nombreArchivo, !$descargar)->send();
+            BinaryResponse::pdf($resultado['contenido'], $nombreArchivo, !$descargar)->send();
         } catch (Throwable $e) {
             $this->handleError($e, 'Empleados');
         }

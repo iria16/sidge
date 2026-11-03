@@ -134,12 +134,19 @@ trait InstitucionTrait
         //   Extranjera  se ignoran los datos nacionales aunque vengan. País,
         //              ciudad y dirección. La referencia del plantel es
         //              opcional. El DEA se ignora siempre.
-        if ($esExtranjera) {
-            // Para institución extranjera solo se exige nombre y tipo.
-            // Se ignoran DEA y ubicación venezolana.
-            $idEstadoGeo = 0;
-            $idMunicipio = 0;
-            $idParroquia = 0;
+        if ($esExtranjera || !Instituciones::esDeEstudiante($tipo)) {
+            // Para institución extranjera o universitaria (donde se obtuvo un título)
+            // no se exige ubicación geográfica obligatoria ni código DEA.
+            if (!Instituciones::esDeEstudiante($tipo) && $idEstadoGeo > 0) {
+                $errores = $this->validarCadenaNacional($model, $idEstadoGeo, $idMunicipio, $idParroquia);
+                if ($errores !== []) {
+                    $this->jsonResponse(false, $errores, 'Ubicación de la institución inválida.', 422);
+                }
+            } else {
+                $idEstadoGeo = 0;
+                $idMunicipio = 0;
+                $idParroquia = 0;
+            }
             $codigoDea   = '';
         } else {
             $errores = $this->validarCadenaNacional($model, $idEstadoGeo, $idMunicipio, $idParroquia);

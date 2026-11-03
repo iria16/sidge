@@ -14,6 +14,9 @@ declare(strict_types=1);
  * @var array  $paginacion      ['desde','hasta','total','pagina_actual','total_paginas']
  * @var array  $estadosGeo      estados disponibles para los catálogos de instituciones
  * @var array  $tiposInstitucion tipos de institución disponibles (vacío en catálogos simples)
+ * @var bool   $pideGrado       indica si el catálogo requiere un grado académico
+ * @var array  $gradosAcademicos grados académicos activos
+ * @var array<int, string> $gradosAcademicosPorId nombres de grados por ID
  */
 
 $pageTitle  = 'Gestión de Catálogos del Sistema';
@@ -85,6 +88,7 @@ ob_start();
   include __DIR__ . '/partials/panel-rows.php';
   $panelTableBody = ob_get_clean();
   $panelTableBodyId = 'catalogoTablaBody';
+  $catalogoColumnas = 3 + (!empty($tiposInstitucion) ? 1 : 0) + (!empty($pideGrado) ? 1 : 0);
 
   $panelSummary = 'Mostrando ' . (int) $paginacion['desde'] . ' a ' . (int) $paginacion['hasta']
                 . ' de ' . (int) $paginacion['total'] . ' elementos';

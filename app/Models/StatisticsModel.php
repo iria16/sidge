@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Support\DocumentosObligatorios;
-
 use App\Support\AniosEscolares;
 use App\Support\Instituciones;
 use App\Support\Matriculas;
@@ -120,7 +118,7 @@ class StatisticsModel extends Model
         }
 
         try {
-            $sql = "SELECT 
+            $sql = "SELECT
                         pe.id_persona AS id_rep,
                         COUNT(DISTINCT e.id_estudiante) AS total_hijos,
                         COUNT(DISTINCT g.id_grado) AS total_grados_distintos
@@ -611,19 +609,20 @@ class StatisticsModel extends Model
         }
 
         try {
-            $sql = "SELECT
-                        ed.id_estudiante,
-                        p.fecha_nacimiento,
-                        td.id_tipo_documento,
+            $sql = "SELECT DISTINCT
+                ed.id_estudiante_documento,
+                ed.id_estudiante,
+                td.id_tipo_documento,
                         td.codigo,
                         td.nombre AS documento
                     FROM estudiante_documento ed
                     INNER JOIN tipo_documento td ON td.id_tipo_documento = ed.id_tipo_documento
+                    INNER JOIN inscripcion i ON i.id_estudiante = ed.id_estudiante
                     INNER JOIN matricula m ON m.id_estudiante = ed.id_estudiante
                     INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
-                    INNER JOIN estudiante e ON e.id_estudiante = ed.id_estudiante
-                    INNER JOIN persona p ON p.id_persona = e.id_persona
                     WHERE ed.consignado = 0
+                      AND ed.requerido IS NOT NULL
+                      AND i.documentos_evaluados_en IS NOT NULL
                       AND m.id_anio_escolar = :anio
                       AND {$condCursando}
                       {$filtroEa}";
@@ -632,19 +631,11 @@ class StatisticsModel extends Model
             $stmt->execute($params);
             $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $servicio = new DocumentosObligatorios($this->pdo);
-            $hoy = date('Y-m-d');
-
             $conteo = [];
             $estudiantesAdeudan = [];
 
             foreach ($filas as $fila) {
                 $codigo = (string) ($fila['codigo'] ?? '');
-                if ($codigo === 'cedula_alumno'
-                    && !$servicio->requiereCedulaAlumno((string) ($fila['fecha_nacimiento'] ?? ''), $hoy)) {
-                    continue;
-                }
-
                 $idDocumento = (int) $fila['id_tipo_documento'];
                 if (!isset($conteo[$idDocumento])) {
                     $conteo[$idDocumento] = [

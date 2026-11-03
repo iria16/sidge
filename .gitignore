@@ -21,6 +21,7 @@ coverage/
 # Son datos personales: nunca deben entrar al repositorio.
 public/uploads/*
 !public/uploads/.gitkeep
+!public/uploads/.htaccess
 !public/uploads/institucion/
 public/uploads/institucion/*
 !public/uploads/institucion/.gitkeep
@@ -37,6 +38,9 @@ database/backups/*
 storage/*
 !storage/.gitkeep
 !storage/.htaccess
+!storage/rate_limit/
+storage/rate_limit/*
+!storage/rate_limit/.gitkeep
 !storage/institucion/
 storage/institucion/*
 !storage/institucion/.gitkeep

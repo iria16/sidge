@@ -87,6 +87,39 @@
   }
 }
 
+@include media-breakpoint-down(sm) {
+  .wizard-steps {
+    padding: 0.75rem 0.65rem;
+  }
+
+  .wizard-steps__step {
+    flex: 1 1 0;
+    min-width: 0;
+
+    &:not(.is-active) .wizard-steps__label {
+      display: none;
+    }
+
+    &.is-active .wizard-steps__label {
+      display: block;
+      max-width: 100%;
+      font-size: 0.55rem;
+      letter-spacing: 0;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .wizard-steps__circle {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+
+  .wizard-steps__step:not(:last-child)::after {
+    top: 0.78rem;
+  }
+}
+
 // ---------- Panel de cada paso ----------
 .wizard-panel {
   display: none;

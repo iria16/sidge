@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use PDO;
+use RuntimeException;
 
 /**
  * Documentos obligatorios de la matrícula
@@ -38,6 +39,129 @@ final class DocumentosObligatorios
     public const FOTO_REPRESENTANTE     = 'foto_representante';
     public const CONSTANCIA_VACUNA      = 'constancia_vacuna';
     public const CEDULA_REPRESENTANTE   = 'cedula_representante';
+
+    /**
+     * Evalúa el snapshot de recaudos de una inscripción nueva.
+     *
+     * @param array<int, array<string, mixed>> $familiares
+     * @return array<int, array{
+     *   clave:string,codigo:string,id_tipo_documento:int,nombre:string,
+     *   requerido:bool,documento_persona:?string,persona_nombre:?string
+     * }>
+     */
+    public function evaluarInscripcion(
+        int $idGradoDestino,
+        ?string $fechaNacimientoAlumno,
+        array $familiares,
+        ?string $fechaInscripcion = null,
+        ?int $idInstitucionProcedencia = null,
+        ?string $ultimoGradoCursado = null,
+        bool $esPrimerIngreso = false
+    ): array {
+        $catalogo = $this->catalogoPorCodigo();
+        $instancias = [];
+
+        foreach ([
+            self::FOTO_ALUMNO,
+            self::PARTIDA_NACIMIENTO,
+            self::CONSTANCIA_VACUNA,
+        ] as $codigo) {
+            $instancias[] = $this->instancia($catalogo, $codigo, true);
+        }
+
+        $representante = $this->representanteLegal($familiares);
+        if ($representante !== null) {
+            foreach ([self::FOTO_REPRESENTANTE, self::CEDULA_REPRESENTANTE] as $codigo) {
+                $instancias[] = $this->instanciaPersona($catalogo, $codigo, true, $representante);
+            }
+
+            if ($this->exigePermisoLopnna($representante)) {
+                $instancias[] = $this->instanciaPersona($catalogo, self::PERMISO_LOPNNA, true, $representante);
+            }
+        } else {
+            foreach ([self::FOTO_REPRESENTANTE, self::CEDULA_REPRESENTANTE] as $codigo) {
+                $instancias[] = $this->instancia($catalogo, $codigo, true);
+            }
+        }
+
+        $nombreGrado = null;
+        if ($idGradoDestino > 0) {
+            $consulta = $this->pdo->prepare(
+                'SELECT nombre FROM grado WHERE id_grado = :id LIMIT 1'
+            );
+            $consulta->execute(['id' => $idGradoDestino]);
+            $nombre = $consulta->fetchColumn();
+            $nombreGrado = $nombre === false ? null : (string) $nombre;
+        }
+        $ordinalGrado = $nombreGrado !== null ? Instituciones::ordinalGrado($nombreGrado) : null;
+        $ordinalUltimoGrado = Instituciones::ordinalGrado($ultimoGradoCursado);
+        if ($ordinalGrado !== null
+            && $ordinalGrado >= 2
+            && $ordinalGrado <= 6
+            && $ordinalUltimoGrado !== $ordinalGrado
+            && !$esPrimerIngreso
+            && $this->esInstitucionEscuela($idInstitucionProcedencia)) {
+            $instancias[] = $this->instancia($catalogo, self::CONSTANCIA_PROSECUCION, true);
+        }
+
+        if ($this->alumnoTiene9AniosOMas($fechaNacimientoAlumno, $fechaInscripcion ?? date('Y-m-d'))) {
+            $instancias[] = $this->instancia($catalogo, self::CEDULA_ALUMNO, false);
+        }
+
+        foreach ($familiares as $familiar) {
+            if (!$this->exigeRecaudosPorAutorizado($familiar)) {
+                continue;
+            }
+            $instancias[] = $this->instanciaPersona($catalogo, self::AUTORIZACION_RETIRO, true, $familiar);
+            $instancias[] = $this->instanciaPersona($catalogo, self::CEDULA_AUTORIZADA, true, $familiar);
+        }
+
+        return $instancias;
+    }
+
+    /**
+     * Devuelve los faltantes obligatorios de una evaluación. Los opcionales se
+     * conservan pendientes en el snapshot, pero no bloquean la inscripción.
+     *
+     * @param array<int, array<string, mixed>> $evaluacion
+     * @param array<string, array<string, mixed>> $estados clave => consignación
+     * @return array<int, array{clave:string,nombre:string,persona_nombre:?string}>
+     */
+    public function faltantesObligatorios(array $evaluacion, array $estados): array
+    {
+        $faltantes = [];
+        foreach ($evaluacion as $recaudo) {
+            $clave = (string) $recaudo['clave'];
+            if (!empty($recaudo['requerido'])
+                && empty($estados[$clave]['consignado'])) {
+                $faltantes[] = [
+                    'clave' => $clave,
+                    'nombre' => (string) $recaudo['nombre'],
+                    'persona_nombre' => $recaudo['persona_nombre'],
+                ];
+            }
+        }
+
+        return $faltantes;
+    }
+
+    /**
+     * Comprueba que el estado enviado corresponda a la evaluación recalculada
+     * en el servidor y devuelve los recaudos obligatorios pendientes.
+     *
+     * @param array<int, array<string, mixed>> $evaluacion
+     * @param array<string, array<string, mixed>> $estados
+     * @return array{lista_desactualizada:bool,faltantes:array<int,array{clave:string,nombre:string,persona_nombre:?string}>}
+     */
+    public function validarSnapshotInscripcion(array $evaluacion, array $estados): array
+    {
+        $clavesEsperadas = array_column($evaluacion, 'clave');
+
+        return [
+            'lista_desactualizada' => array_diff(array_keys($estados), $clavesEsperadas) !== [],
+            'faltantes' => $this->faltantesObligatorios($evaluacion, $estados),
+        ];
+    }
 
     /**
      * Nombres de respaldo. Solo se usan si el catálogo todavía no tiene el
@@ -308,6 +432,28 @@ final class DocumentosObligatorios
     }
 
     /**
+     * La inscripción exige ambos documentos a cada autorizado no parental,
+     * excepto al representante legal, cuya autorización para retirar es automática.
+     *
+     * @param array<string, mixed> $persona
+     */
+    private function exigeRecaudosPorAutorizado(array $persona): bool
+    {
+        if (strtoupper((string) ($persona['estado_relacion'] ?? 'ACTIVO')) === 'INACTIVO') {
+            return false;
+        }
+
+        if ((int) ($persona['representante_principal'] ?? 0) === 1) {
+            return false;
+        }
+
+        $autorizado = (int) ($persona['autorizado_retiros'] ?? 0) === 1;
+        $parentesco = $this->codigoParentesco((string) ($persona['parentesco'] ?? ''));
+
+        return $autorizado && !in_array($parentesco, ['madre', 'padre'], true);
+    }
+
+    /**
      * Código del parentesco a partir de su nombre.
      *
      * El formulario manda el nombre porque `persona_estudiante` guarda
@@ -321,10 +467,20 @@ final class DocumentosObligatorios
             return '';
         }
 
-        $stmt = $this->pdo->prepare(
-            'SELECT codigo FROM parentesco WHERE LOWER(TRIM(nombre)) = LOWER(:nombre) LIMIT 1'
-        );
-        $stmt->execute(['nombre' => $nombre]);
+        if (ctype_digit($nombre)) {
+            $stmt = $this->pdo->prepare(
+                "SELECT COALESCE(NULLIF(TRIM(codigo), ''), nombre)
+                   FROM parentesco
+                  WHERE id_parentesco = :id
+                  LIMIT 1"
+            );
+            $stmt->execute(['id' => (int) $nombre]);
+        } else {
+            $stmt = $this->pdo->prepare(
+                'SELECT codigo FROM parentesco WHERE LOWER(TRIM(nombre)) = LOWER(:nombre) LIMIT 1'
+            );
+            $stmt->execute(['nombre' => $nombre]);
+        }
         $codigo = $stmt->fetchColumn();
 
         if ($codigo !== false && $codigo !== null && trim((string) $codigo) !== '') {
@@ -472,6 +628,11 @@ final class DocumentosObligatorios
             return !empty($recaudos[$idDocumento]['consignado']);
         }
 
+        $claveLegada = 'tipo_' . $idDocumento;
+        if (isset($recaudos[$claveLegada]) && is_array($recaudos[$claveLegada])) {
+            return !empty($recaudos[$claveLegada]['consignado']);
+        }
+
         foreach ($recaudos as $recaudo) {
             if (!is_array($recaudo)) {
                 continue;
@@ -500,6 +661,89 @@ final class DocumentosObligatorios
                 'Falta la cédula de la persona autorizada para retirar al estudiante.',
             default => 'Falta un documento obligatorio: ' . $codigo . '.',
         };
+    }
+
+    /**
+     * @return array<string, array{id:int,nombre:string}>
+     */
+    private function catalogoPorCodigo(): array
+    {
+        $filas = $this->pdo->query(
+            "SELECT id_tipo_documento, nombre, codigo
+               FROM tipo_documento
+              WHERE estado = 'ACTIVO' AND codigo IS NOT NULL"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        $catalogo = [];
+        foreach ($filas as $fila) {
+            $catalogo[(string) $fila['codigo']] = [
+                'id' => (int) $fila['id_tipo_documento'],
+                'nombre' => (string) $fila['nombre'],
+            ];
+        }
+
+        return $catalogo;
+    }
+
+    /**
+     * @param array<string, array{id:int,nombre:string}> $catalogo
+     * @return array{clave:string,codigo:string,id_tipo_documento:int,nombre:string,requerido:bool,documento_persona:?string,persona_nombre:?string}
+     */
+    private function instancia(array $catalogo, string $codigo, bool $requerido): array
+    {
+        return $this->crearInstancia($catalogo, $codigo, $requerido, null);
+    }
+
+    /**
+     * @param array<string, array{id:int,nombre:string}> $catalogo
+     * @param array<string, mixed> $persona
+     * @return array{clave:string,codigo:string,id_tipo_documento:int,nombre:string,requerido:bool,documento_persona:?string,persona_nombre:?string}
+     */
+    private function instanciaPersona(array $catalogo, string $codigo, bool $requerido, array $persona): array
+    {
+        return $this->crearInstancia($catalogo, $codigo, $requerido, $persona);
+    }
+
+    /**
+     * @param array<string, array{id:int,nombre:string}> $catalogo
+     * @param array<string, mixed>|null $persona
+     * @return array{clave:string,codigo:string,id_tipo_documento:int,nombre:string,requerido:bool,documento_persona:?string,persona_nombre:?string}
+     */
+    private function crearInstancia(array $catalogo, string $codigo, bool $requerido, ?array $persona): array
+    {
+        if (!isset($catalogo[$codigo])) {
+            throw new RuntimeException(
+                "El recaudo con código «{$codigo}» no está activo en Configuración → Tipo de Documento."
+            );
+        }
+
+        $numero = $persona !== null
+            ? preg_replace('/\D/', '', (string) ($persona['numero_documento'] ?? ''))
+            : null;
+        if ($persona !== null && ($numero === null || $numero === '')) {
+            throw new RuntimeException('No se pudo identificar a la persona asociada al recaudo.');
+        }
+
+        $nombrePersona = $persona === null
+            ? null
+            : trim(implode(' ', array_filter([
+                $persona['primer_nombre'] ?? '',
+                $persona['segundo_nombre'] ?? '',
+                $persona['primer_apellido'] ?? '',
+                $persona['segundo_apellido'] ?? '',
+            ], static fn (mixed $parte): bool => trim((string) $parte) !== '')));
+        $clave = $persona === null
+            ? $codigo
+            : $codigo . ':' . hash('sha256', $codigo . ':' . $numero);
+
+        return [
+            'clave' => $clave,
+            'codigo' => $codigo,
+            'id_tipo_documento' => $catalogo[$codigo]['id'],
+            'nombre' => $catalogo[$codigo]['nombre'],
+            'requerido' => $requerido,
+            'documento_persona' => $persona === null ? null : (string) $numero,
+            'persona_nombre' => $nombrePersona,
+        ];
     }
 
     private function alumnoTiene9AniosOMas(?string $fechaNacimiento, ?string $fechaInscripcion): bool

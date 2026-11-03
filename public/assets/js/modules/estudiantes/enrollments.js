@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btnWizardSiguiente').classList.toggle('d-none', numero === totalPasos);
     document.getElementById('btnWizardFinalizar').classList.toggle('d-none', numero !== totalPasos);
 
+    if (numero === 6) actualizarRecaudos();
     if (numero === totalPasos) llenarResumen();
     pasoActual = numero;
   }
@@ -73,13 +74,41 @@ document.addEventListener('DOMContentLoaded', function () {
  el navegador no muestre su propio globo y los mensajes sean los del sistema, que explican qué
  corregir.*/
   function validarPaso(numero) {
-    if (numero === 6 && !familiaresUI.hayRepresentante()) {
+    if (numero === 5 && !familiaresUI.hayRepresentante()) {
       SIGDEUI.mostrarAviso(
         'warning',
         'Falta el representante legal',
         'Debe marcar un familiar como representante legal.'
       );
       return false;
+    }
+
+    if (numero === 6) {
+      if (errorRecaudos) {
+        SIGDEUI.mostrarAviso('error', 'No se pudieron calcular los recaudos', 'Actualiza la lista antes de continuar.');
+        return false;
+      }
+      if (cargandoRecaudos) {
+        SIGDEUI.mostrarAviso('info', 'Calculando recaudos', 'Espera a que se actualice la lista de documentos.');
+        return false;
+      }
+      if (recaudosActuales.length === 0) {
+        SIGDEUI.mostrarAviso('warning', 'Lista de recaudos incompleta', 'Actualiza la lista de documentos antes de continuar.');
+        return false;
+      }
+      var faltanteObligatorio = recaudosActuales.find(function (recaudo) {
+        var fila = recaudosTbody.querySelector('[data-recaudo-clave="' + recaudo.clave + '"]');
+        var toggle = fila && fila.querySelector('[data-recaudo-toggle]');
+        return recaudo.requerido && (!toggle || !toggle.checked);
+      });
+      if (faltanteObligatorio) {
+        SIGDEUI.mostrarAviso(
+          'warning',
+          'Faltan recaudos obligatorios',
+          'Marca como consignados los documentos obligatorios antes de continuar.'
+        );
+        return false;
+      }
     }
 
     var panel = wizardModalEl.querySelector('.wizard-panel[data-step="' + numero + '"]');
@@ -192,6 +221,9 @@ document.addEventListener('DOMContentLoaded', function () {
  "3 de 5 consignados" con los cinco switches apagados, y las cajas de observación
  de los que sí estaban marcados seguirían a la vista. Se recalcula desde el DOM,
  que ya está en su estado limpio.*/
+    estadoRecaudos = Object.create(null);
+    recaudosActuales = [];
+    dibujarRecaudos([]);
     recalcularRecaudos();
     mostrarPaso(1);
     var previewEl = document.getElementById('fotoPreview');
@@ -393,6 +425,7 @@ document.addEventListener('DOMContentLoaded', function () {
           delete campo.dataset.requiredSaved;
         }
       });
+      actualizarRecaudos();
     });
   }
 
@@ -409,67 +442,198 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  /* ---------- Recaudos (paso 5): toggle observación ----------*/
+  /* ---------- Recaudos dinámicos (paso 6) ----------*/
   var recaudosTbody = document.getElementById('recaudosTbody');
+  var recaudosActuales = [];
+  var estadoRecaudos = Object.create(null);
+  var cargandoRecaudos = false;
+  var errorRecaudos = false;
+  var solicitudRecaudos = 0;
 
-  /* Mostrar la observación solo cuando el documento está marcado, y borrarla cuando se
- desmarca: una nota que queda pegada a un documento NO entregado se lee como un
- documento entregado con nota. Misma regla que recaudos.js, para que el mismo dato
- se comportee igual en el asistente y en la ficha.*/
-  function sincronizarFilaRecaudo(fila) {
-    if (!fila) return;
-    var toggle      = fila.querySelector('[data-recaudo-toggle]');
-    var observacion = fila.querySelector('[data-recaudo-observacion]');
-    if (!toggle) return;
-
-    if (observacion) {
-      observacion.classList.toggle('d-none', !toggle.checked);
-      if (!toggle.checked) observacion.value = '';
-    }
-    var pendiente = fila.querySelector('[data-recaudo-pendiente]');
-    if (pendiente) pendiente.classList.toggle('d-none', toggle.checked);
+  function guardarEstadoVisibleRecaudos() {
+    if (!recaudosTbody) return;
+    recaudosTbody.querySelectorAll('[data-recaudo-row]').forEach(function (fila) {
+      var clave = fila.dataset.recaudoClave;
+      var toggle = fila.querySelector('[data-recaudo-toggle]');
+      var observacion = fila.querySelector('[data-recaudo-observacion]');
+      if (!clave || !toggle) return;
+      estadoRecaudos[clave] = {
+        consignado: toggle.checked ? 1 : 0,
+        observacion: observacion ? observacion.value : ''
+      };
+    });
   }
 
-  /* Recalcula el contador del badge y deja cada fila como corresponde a su switch.
-
- Esto vive en una función y no dentro del listener del `change` por el reset del
- modal: form.reset() devuelve los checkboxes a su estado original pero NO dispara
- `change`, así que sin este llamado el badge se quedaba con el conteo de la
- inscripción anterior ("3 de 5") y las observacionesYa abiertas seguían
- visibles en un formulario que ya estaba en blanco.*/
-  function recalcularRecaudos() {
+  function actualizarContadorRecaudos() {
     if (!recaudosTbody) return;
-
     var toggles = recaudosTbody.querySelectorAll('[data-recaudo-toggle]');
-    var marcadas = 0;
+    var marcadas = recaudosTbody.querySelectorAll('[data-recaudo-toggle]:checked').length;
+    var totalEl = document.getElementById('recaudosTotalCount');
+    var consigEl = document.getElementById('recaudosConsignadosCount');
+    if (totalEl) totalEl.textContent = toggles.length;
+    if (consigEl) consigEl.textContent = marcadas;
+  }
 
-    recaudosTbody.querySelectorAll('[data-recaudo-row]').forEach(function (fila) {
-      sincronizarFilaRecaudo(fila);
-      var toggle = fila.querySelector('[data-recaudo-toggle]');
-      if (toggle && toggle.checked) marcadas++;
+  function dibujarRecaudos(recaudos) {
+    if (!recaudosTbody) return;
+    recaudosTbody.innerHTML = '';
+    if (!recaudos.length) {
+      var vacio = document.createElement('tr');
+      var celdaVacia = document.createElement('td');
+      celdaVacia.colSpan = 3;
+      celdaVacia.className = 'text-center py-3 text-support';
+      celdaVacia.textContent = 'Completa los pasos anteriores para calcular los recaudos.';
+      vacio.appendChild(celdaVacia);
+      recaudosTbody.appendChild(vacio);
+      actualizarContadorRecaudos();
+      return;
+    }
+
+    recaudos.forEach(function (recaudo) {
+      var estado = estadoRecaudos[recaudo.clave] || { consignado: 0, observacion: '' };
+      estadoRecaudos[recaudo.clave] = estado;
+
+      var fila = document.createElement('tr');
+      fila.dataset.recaudoRow = '';
+      fila.dataset.recaudoClave = recaudo.clave;
+
+      var nombre = document.createElement('td');
+      var titulo = document.createElement('div');
+      titulo.className = 'fw-semibold';
+      titulo.textContent = recaudo.nombre
+        + (recaudo.persona_nombre ? ' — ' + recaudo.persona_nombre : '');
+      if (recaudo.requerido) {
+        var asterisco = document.createElement('span');
+        asterisco.className = 'text-danger';
+        asterisco.setAttribute('aria-label', 'Obligatorio');
+        asterisco.textContent = ' *';
+        titulo.appendChild(asterisco);
+      } else {
+        var opcional = document.createElement('span');
+        opcional.className = 'text-support small ms-1';
+        opcional.textContent = 'Opcional';
+        titulo.appendChild(opcional);
+      }
+      nombre.appendChild(titulo);
+
+      var celdaCheck = document.createElement('td');
+      celdaCheck.className = 'text-center';
+      var marco = document.createElement('div');
+      marco.className = 'form-check form-switch d-flex justify-content-center mb-0';
+      var toggle = document.createElement('input');
+      toggle.className = 'form-check-input';
+      toggle.type = 'checkbox';
+      toggle.setAttribute('role', 'switch');
+      toggle.setAttribute('data-recaudo-toggle', '');
+      toggle.checked = !!estado.consignado;
+      marco.appendChild(toggle);
+      celdaCheck.appendChild(marco);
+
+      var celdaObservacion = document.createElement('td');
+      var observacion = document.createElement('input');
+      observacion.type = 'text';
+      observacion.className = 'form-control form-control-sm';
+      observacion.maxLength = 255;
+      observacion.placeholder = 'Observación opcional';
+      observacion.setAttribute('data-recaudo-observacion', '');
+      observacion.value = estado.observacion || '';
+      celdaObservacion.appendChild(observacion);
+
+      fila.appendChild(nombre);
+      fila.appendChild(celdaCheck);
+      fila.appendChild(celdaObservacion);
+      recaudosTbody.appendChild(fila);
     });
 
-    var totalEl  = document.getElementById('recaudosTotalCount');
-    var consigEl = document.getElementById('recaudosConsignadosCount');
-    if (totalEl)  totalEl.textContent  = toggles.length;
-    if (consigEl) consigEl.textContent = marcadas;
+    actualizarContadorRecaudos();
+  }
+
+  function actualizarRecaudos() {
+    if (!recaudosTbody) return Promise.resolve();
+    guardarEstadoVisibleRecaudos();
+    if (familiaresUI) familiaresUI.serializar();
+
+    var solicitud = ++solicitudRecaudos;
+    cargandoRecaudos = true;
+    errorRecaudos = false;
+    var cuerpo = new FormData();
+    cuerpo.append('fecha_nacimiento', document.getElementById('fechaNacimiento').value);
+    cuerpo.append('id_grado', document.getElementById('gradoCursar').value);
+    cuerpo.append('id_institucion', document.getElementById('institucionProcedencia').value);
+    cuerpo.append('ultimo_grado_cursado', document.getElementById('ultimoGradoCursado').value);
+    cuerpo.append('ingreso_primera_vez', document.getElementById('ingresoPrimeraVez').checked ? '1' : '0');
+    cuerpo.append('familiares_json', document.getElementById('familiaresJson').value || '[]');
+
+    return SIGDEUI.enviar(route + 'evaluarRecaudos', { metodo: 'POST', cuerpo: cuerpo })
+      .then(function (resultado) {
+        if (solicitud !== solicitudRecaudos) return;
+        if (!resultado.ok || !resultado.data || !resultado.data.ok
+            || !resultado.data.data || !Array.isArray(resultado.data.data.recaudos)) {
+          errorRecaudos = true;
+          recaudosTbody.innerHTML = '';
+          var filaError = document.createElement('tr');
+          var celdaError = document.createElement('td');
+          celdaError.colSpan = 3;
+          celdaError.className = 'text-center py-3 text-danger';
+          celdaError.textContent = resultado.data && resultado.data.mensaje
+            ? resultado.data.mensaje
+            : 'No se pudieron calcular los recaudos. Intenta actualizar la lista.';
+          filaError.appendChild(celdaError);
+          recaudosTbody.appendChild(filaError);
+          SIGDEUI.mostrarError(celdaError.textContent);
+          return;
+        }
+        recaudosActuales = resultado.data.data.recaudos;
+        dibujarRecaudos(recaudosActuales);
+        if (pasoActual === totalPasos) llenarResumen();
+      })
+      .catch(function () {
+        if (solicitud !== solicitudRecaudos) return;
+        errorRecaudos = true;
+        SIGDEUI.mostrarError('No se pudo conectar para calcular los recaudos. Revise su conexión e intente de nuevo.');
+      })
+      .finally(function () {
+        if (solicitud === solicitudRecaudos) cargandoRecaudos = false;
+      });
+  }
+
+  function recalcularRecaudos() {
+    guardarEstadoVisibleRecaudos();
+    actualizarContadorRecaudos();
+  }
+
+  function serializarRecaudos() {
+    guardarEstadoVisibleRecaudos();
+    var snapshot = {};
+    recaudosActuales.forEach(function (recaudo) {
+      snapshot[recaudo.clave] = estadoRecaudos[recaudo.clave] || {
+        consignado: 0,
+        observacion: ''
+      };
+    });
+    var campo = document.getElementById('recaudosJson');
+    if (campo) campo.value = JSON.stringify(snapshot);
   }
 
   if (recaudosTbody) {
     recaudosTbody.addEventListener('change', function (e) {
       var toggle = e.target.closest('[data-recaudo-toggle]');
       if (!toggle) return;
-
-      var observacion = toggle.closest('[data-recaudo-row]')
-        .querySelector('[data-recaudo-observacion]');
-
-      /* El foco se pone antes de recalcular, porque sincronizarFilaRecaudo borra el
- texto de las filas sin marcar, y al llegar al resumen el foco ya no está.*/
-      if (toggle.checked && observacion) observacion.focus();
-
       recalcularRecaudos();
+      if (pasoActual === totalPasos) llenarResumen();
+    });
+
+    recaudosTbody.addEventListener('input', function (e) {
+      if (!e.target.matches('[data-recaudo-observacion]')) return;
+      guardarEstadoVisibleRecaudos();
+      if (pasoActual === totalPasos) llenarResumen();
     });
   }
+
+  ['fechaNacimiento', 'gradoCursar', 'institucionProcedencia', 'ultimoGradoCursado'].forEach(function (id) {
+    var campo = document.getElementById(id);
+    if (campo) campo.addEventListener('change', actualizarRecaudos);
+  });
 
   /* ---------- Alta rápida de la institución de procedencia (paso 2) ----------
  Igual que en el wizard de empleados: un modal anidado con el tipo
@@ -551,14 +715,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  /* Familiares (paso 6). La lista se arma desde cero y todo es editable; el contacto se pregunta
+  /* Familiares (paso 5). La lista se arma desde cero y todo es editable; el contacto se pregunta
  al representante, a la madre o al padre, y los demás solo requieren el teléfono principal.*/
   var familiaresUI = FamiliaresUI.init({
     baseRoute: route,
     jsonInputId: 'familiaresJson',
     /* En el alta la lista se está armando: nadie tiene datos que proteger.*/
     contactoEditable: function () { return true; },
-    alCambiar: function () { }
+    alCambiar: function () {
+      actualizarRecaudos();
+      if (pasoActual === totalPasos) llenarResumen();
+    }
   });
 
   /* ---------- Resumen (paso 7) ----------*/
@@ -634,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
-    /* Documentos (paso 5)*/
+    /* Recaudos (paso 6)*/
     var listaDocs = document.getElementById('resumenListaDocumentos');
     if (listaDocs) {
       var htmlDocs = '';
@@ -643,12 +810,18 @@ document.addEventListener('DOMContentLoaded', function () {
       var totalDocs = filasDocs.length;
       filasDocs.forEach(function(fila) {
         var chk = fila.querySelector('[data-recaudo-toggle]');
+        var recaudo = recaudosActuales.find(function (item) {
+          return item.clave === fila.dataset.recaudoClave;
+        });
         var nombreDoc = fila.querySelector('.fw-semibold').textContent;
+        var tipo = recaudo && recaudo.requerido ? 'Obligatorio' : 'Opcional';
+        var estado = chk && chk.checked ? 'Consignado' : 'Pendiente';
+        var detalle = nombreDoc + ' · ' + tipo + ' · ' + estado;
         if (chk && chk.checked) {
           marcadosDocs++;
-          htmlDocs += '<li class="mb-2 text-success d-flex align-items-start"><i class="bi bi-check-circle-fill me-2 mt-1"></i><span>' + SIGDEUI.escapeHtml(nombreDoc) + '</span></li>';
+          htmlDocs += '<li class="mb-2 text-success d-flex align-items-start"><i class="bi bi-check-circle-fill me-2 mt-1"></i><span>' + SIGDEUI.escapeHtml(detalle) + '</span></li>';
         } else {
-          htmlDocs += '<li class="mb-2 text-danger d-flex align-items-start"><i class="bi bi-x-circle me-2 mt-1"></i><span class="text-muted">' + SIGDEUI.escapeHtml(nombreDoc) + '</span></li>';
+          htmlDocs += '<li class="mb-2 text-danger d-flex align-items-start"><i class="bi bi-x-circle me-2 mt-1"></i><span class="text-muted">' + SIGDEUI.escapeHtml(detalle) + '</span></li>';
         }
       });
       listaDocs.innerHTML = htmlDocs;
@@ -731,7 +904,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* Fallos que no tienen un input propio (los familiares viven en un sub-modal):
  sí indican un paso al que hay que llevar a la secretaria.*/
-  var PASOS_SIN_CAMPO = { familiares: '6' };
+  var PASOS_SIN_CAMPO = { familiares: '5', recaudos: '6' };
 
   /* Limpia las marcas antes de cada reintento.*/
   function limpiarErroresServidor() {
@@ -764,7 +937,7 @@ document.addEventListener('DOMContentLoaded', function () {
     event.preventDefault();
     if (!validarPasoActual()) return;
 
-    // El paso 6 es el único que registra al representante legal, y es
+    // El paso 5 es el único que registra al representante legal, y es
     // obligatorio: si falta, se devuelve al usuario ahí en vez de dejar que
     // el servidor rechace la inscripción.
     if (!familiaresUI.hayRepresentante()) {
@@ -773,12 +946,13 @@ document.addEventListener('DOMContentLoaded', function () {
         'Falta el representante legal',
         'Debe marcar un familiar como representante legal.'
       );
-      mostrarPaso(6);
+      mostrarPaso(5);
       return;
     }
 
     /* El JSON de la lista lo escribe el propio módulo, que es quien la tiene.*/
     familiaresUI.serializar();
+    serializarRecaudos();
 
     var btnFinalizar = document.getElementById('btnWizardFinalizar');
 
@@ -879,4 +1053,3 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 });
-

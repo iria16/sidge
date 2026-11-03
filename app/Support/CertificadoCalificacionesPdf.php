@@ -9,6 +9,7 @@ use DateTimeInterface;
 use DateTimeZone;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use DomainException;
 use InvalidArgumentException;
 use RuntimeException;
 use Throwable;

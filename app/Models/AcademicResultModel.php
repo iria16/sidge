@@ -53,7 +53,7 @@ class AcademicResultModel extends BaseModel
      * Días de antelación al cierre del año escolar en los que se abre la ventana
      * para la carga de literales finales por parte del docente.
      */
-    public const DIAS_AVISO_CIERRE_LITERALES = 60;
+    public const DIAS_AVISO_CIERRE_LITERALES = 30;
 
     /**
      * Mapeo normativo de literales de Primaria a estado sugerido:
@@ -817,22 +817,6 @@ class AcademicResultModel extends BaseModel
         return (int) $stmt->fetchColumn() > 0;
     }
 
-    private function getMatriculaCursandoId(int $idEstudiante, int $idAnioEscolar): int
-    {
-        $stmt = $this->pdo->prepare(
-            "SELECT m.id_matricula
-             FROM matricula m
-             WHERE m.id_estudiante = :id_est
-               AND m.id_anio_escolar = :id_anio
-               AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
-               AND " . Matriculas::condicionCursando('m') . "
-             ORDER BY m.fecha_matricula DESC, m.id_matricula DESC
-             LIMIT 1"
-        );
-        $stmt->execute(['id_est' => $idEstudiante, 'id_anio' => $idAnioEscolar]);
-        return (int) ($stmt->fetchColumn() ?: 0);
-    }
-
     public function gradosOrdenados(): array
     {
         $rows = $this->pdo->query("SELECT id_grado AS id, nombre FROM grado WHERE estado = 'ACTIVO'")->fetchAll(PDO::FETCH_ASSOC);
@@ -897,10 +881,6 @@ class AcademicResultModel extends BaseModel
      */
     public function debeMostrarAvanceLiterales(int $registrados, ?string $fechaCierre): bool
     {
-        if ($registrados > 0) {
-            return true;
-        }
-
         if ($fechaCierre === null || trim($fechaCierre) === '') {
             return false;
         }
@@ -913,7 +893,7 @@ class AcademicResultModel extends BaseModel
         $tsInicioVentana = strtotime('-' . self::DIAS_AVISO_CIERRE_LITERALES . ' days', $tsCierre);
         $hoy = strtotime(date('Y-m-d'));
 
-        return $hoy >= $tsInicioVentana;
+        return $hoy >= $tsInicioVentana && $hoy <= $tsCierre;
     }
 
     /**
@@ -974,4 +954,3 @@ class AcademicResultModel extends BaseModel
         ];
     }
 }
-

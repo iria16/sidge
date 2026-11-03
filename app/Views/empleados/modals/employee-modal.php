@@ -73,6 +73,7 @@ $modalTitle    = 'Registrar Nuevo Empleado';
 $modalSubtitle = 'Complete los datos del trabajador en 6 pasos.';
 $modalSize     = 'lg';
 $modalStatic   = true;
+$modalClass    = 'app-modal--wizard';
 include __DIR__ . '/../../components/modal.php';
 
 // ---------- Modales anidados (deben quedar como hermanos inmediatos del wizard,

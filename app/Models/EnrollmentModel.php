@@ -735,7 +735,7 @@ $row['id']          = (int) $row['id'];
 
             // 2. Matrícula
             // El wizard no manda fecha: la matrícula se registra con la del día.
-            $fecha = ($data['fecha_matricula'] ?? '') ?: date('Y-m-d');
+            $fecha = ($data['fecha_inscripcion'] ?? '') ?: date('Y-m-d');
 
             /* Primer ingreso: sin historial solo se entra por INSCRIPCION (tipo fijado por App\Support\Matriculas) y nunca se repite.
  La llave única (estudiante, año, tipo) no frena una segunda INSCRIPCION en un año nuevo,
@@ -839,15 +839,8 @@ $row['id']          = (int) $row['id'];
                 ]);
             }
 
-            /* 6. Recaudos que entregó el representante. Antes esta información se mostraba en el
- paso 5 del asistente y se perdía al guardar: la tabla estudiante_documento
- estaba creada para esto y nunca se escribió. Van todos los recaudos del
- catálogo, no solo los marcados, para que quede la lista de lo que se pidió en
- esa inscripción y se pueda mostrar lo que falta.*/
-            $this->guardarRecaudos($estudianteId, $data['recaudos'] ?? []);
-
-            /* 7. Familiares: ya no es best-effort; si algún familiar no declara parentesco sin ser "no es familiar",
- se lanza DatoFamiliarIncompletoException y create() hace rollBack.*/
+            /* 6. Familiares y representante: los vínculos deben existir antes de
+ guardar recaudos relacionados con una persona autorizada.*/
             $this->guardarFamiliares(
                 $estudianteId,
                 $data['familiares'] ?? [],
@@ -855,6 +848,18 @@ $row['id']          = (int) $row['id'];
                 (int) ($data['id_usuario'] ?? 0)
             );
 
+            /* 7. Snapshot de recaudos: guarda todas las instancias solicitadas,
+ incluidos los opcionales pendientes, y la regla de obligatoriedad vigente.
+ Se mantiene en la misma transacción que el estudiante y sus vínculos.*/
+            $this->guardarSnapshotRecaudos(
+                $estudianteId,
+                $data['recaudos_evaluacion'] ?? [],
+                $data['recaudos'] ?? [],
+                (int) ($data['id_usuario'] ?? 0)
+            );
+
+            /* Si algún familiar no declara parentesco sin ser "no es familiar",
+ se lanza DatoFamiliarIncompletoException y create() hace rollBack.*/
             /* Se audita antes del commit y en la misma conexión: si el commit fallara, el
  rollback también deshace la bitácora, y nunca queda constancia de una
  inscripción que no ocurrió. El id del usuario lo pasa el controlador.*/

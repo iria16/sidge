@@ -8,9 +8,8 @@
  *
  *   Nacional    estado, municipio y parroquia (los tres obligatorios con componente
  *               en cascada), y el código DEA en preescolar y escuela.
- *   Extranjera  solo selector de país obligatorio (tomado de la tabla pais).
- *               Se ocultan codigo_dea, estado, municipio y parroquia.
- *               Ciudad, dirección y código se omiten.
+ *   Extranjera  se ocultan codigo_dea, estado, municipio y parroquia.
+ *               Ciudad, dirección y país no se registran.
  *
  * Aparece en los cuatro sitios donde se registra una institución:
  * Catálogos (alta y edición), el wizard de empleados y el de inscripciones.

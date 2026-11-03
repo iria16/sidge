@@ -12,7 +12,7 @@ use App\Support\Instituciones;
 use App\Support\CedulaEscolar;
 use App\Support\Documento;
 use App\Support\DocumentosObligatorios;
-use App\Support\Validator;
+use App\Support\Tallas;
 use App\Traits\InstitucionTrait;
 use App\Traits\UbicacionTrait;
 use App\Traits\ContactoValidacionTrait;
@@ -145,7 +145,6 @@ class EnrollmentController extends CrudController
                formulario. */
             'nacionalidades'  => $model->getNacionalidades(),
             // Recaudos del paso 5, desde el catálogo: al agregar uno allí, aparece aquí.
-            'recaudos'        => $model->getRecaudos(),
             'parroquias'      => $model->getParroquias(),
             // Estados para la cascada del familiar; municipio y parroquia llegan por AJAX.
             'estados'         => $model->getEstados(),
@@ -206,6 +205,18 @@ class EnrollmentController extends CrudController
 
         $familiares = $this->decodificarFamiliares($source['familiares_json'] ?? '[]');
         $documento  = $this->resolverDocumentoEstudiante($source, $familiares);
+        $fechaInscripcion = date('Y-m-d');
+        $esPrimerIngreso = isset($source['ingreso_primera_vez']);
+        $idInstitucion = (int) ($source['id_institucion'] ?? 0);
+        $evaluacionRecaudos = (new DocumentosObligatorios($this->conexion()))->evaluarInscripcion(
+            $idGrado,
+            $this->normalizarEspacios($raw('fecha_nacimiento')),
+            $familiares,
+            $fechaInscripcion,
+            $idInstitucion > 0 ? $idInstitucion : null,
+            $this->normalizarEspacios($raw('ultimo_grado_cursado')),
+            $esPrimerIngreso
+        );
 
         return [
             'persona' => [
@@ -232,9 +243,9 @@ class EnrollmentController extends CrudController
             'foto'                    => null,
             'id_grado'                => $idGrado,
             'ult_grado_cursado'       => $this->capitalizarTitulo($raw('ultimo_grado_cursado')),
-            'es_primer_ingreso'       => isset($source['ingreso_primera_vez']) ? 1 : 0,
+            'es_primer_ingreso'       => $esPrimerIngreso ? 1 : 0,
             'anio_escolar_pre'        => $this->normalizarEspacios($raw('anio_escolar_procedencia')),
-            'id_institucion'          => (int) ($source['id_institucion'] ?? 0),
+            'id_institucion'          => $idInstitucion,
             'id_estructura_academica' => $estructuraId,
             'errores_combinacion'     => $erroresCombo,
 
@@ -255,35 +266,43 @@ class EnrollmentController extends CrudController
             ],
 
             'familiares'           => $familiares,
-            'recaudos'             => $this->decodificarRecaudos($source['recaudos'] ?? []),
+            'recaudos'             => $this->decodificarRecaudos(
+                $source['recaudos_json'] ?? $source['recaudos'] ?? []
+            ),
+            'recaudos_evaluacion'  => $evaluacionRecaudos,
+            'fecha_inscripcion'    => $fechaInscripcion,
             'cedula_escolar_error' => $documento['error'],
         ];
     }
 
     /**
- * Normaliza el bloque de recaudos del paso 5.
+ * Normaliza el snapshot de recaudos del paso 6.
  *
- * Llega como recaudos[<id_tipo_documento>][consignado|observacion]. Se limpian aquí los
+ * Llega como JSON de instancias identificadas por clave. Se limpian aquí los
  * tipos de dato, pero NO se decide cuáles son válidos: eso lo hace el modelo contra el
  * catálogo, que es el único que puede saber si un id existe y está activo. Aceptar el id
  * tal como viene del formulario dejaría la puerta abierta a guardar un recaudo inventado.
  *
- * @return array<int, array{consignado: int, observacion: string}>
+ * @return array<string, array{consignado: int, observacion: string}>
 */
     protected function decodificarRecaudos($crudo): array
     {
+        if (is_string($crudo)) {
+            $crudo = json_decode($crudo, true);
+        }
         if (!is_array($crudo)) {
             return [];
         }
 
         $recaudos = [];
-        foreach ($crudo as $id => $estado) {
-            $id = (int) $id;
-            if ($id <= 0 || !is_array($estado)) {
+        foreach ($crudo as $clave => $estado) {
+            $clave = trim((string) $clave);
+            if ($clave === '' || !is_array($estado)) {
                 continue;
             }
-            $recaudos[$id] = [
-                'consignado'  => !empty($estado['consignado']) ? 1 : 0,
+            $consignado = $estado['consignado'] ?? 0;
+            $recaudos[$clave] = [
+                'consignado'  => in_array($consignado, [1, '1', true], true) ? 1 : 0,
                 /* normalizarEspacios quita HTML y colapsa espacios, igual que el resto de
  textos libres del alta: la observación es un campo de texto que escribe la
  secretaria y se vuelve a mostrar en la ficha. Sin limpiar, un "<script>"
@@ -383,7 +402,11 @@ class EnrollmentController extends CrudController
     public function store(): void
     {
         $model = $this->getModel();
-        $data  = $this->extractData($_POST);
+        try {
+            $data = $this->extractData($_POST);
+        } catch (Throwable $e) {
+            $this->jsonError($e, static::class);
+        }
         // Quién inscribe: lo necesita la bitácora del proceso, no se guarda en la matrícula.
         $data['id_usuario'] = (int) ($this->idUsuarioActual() ?? 0);
 
@@ -499,23 +522,7 @@ class EnrollmentController extends CrudController
             $errores['sexo'] = 'Selecciona el sexo.';
         }
 
-        // Validación de tallas de uniforme (columnas varchar(10) en BD)
-        $talla = $data['talla_uniforme'] ?? [];
-        if (!empty($talla['camisa']) || !empty($talla['pantalon']) || !empty($talla['zapato'])) {
-            $valTalla = Validator::make($talla, [
-                'camisa'   => 'max_len:10',
-                'pantalon' => 'max_len:10',
-                'zapato'   => 'max_len:10',
-            ], [
-                'camisa.max_len'   => 'La talla de camisa no puede superar los 10 caracteres.',
-                'pantalon.max_len' => 'La talla de pantalón no puede superar los 10 caracteres.',
-                'zapato.max_len'   => 'La talla de zapato no puede superar los 10 caracteres.',
-            ]);
-            if (!$valTalla->passes()) {
-                $errores = array_merge($errores, $valTalla->errors());
-            }
-        }
-
+        $errores = array_merge($errores, Tallas::errores($data['talla_uniforme'] ?? []));
         /* El tipo de sangre es un ENUM en la base. Sin esta comprobación, un valor fuera de la
  lista llega al INSERT y MariaDB solo avisa ("Data truncated") y guarda un valor
  vacío: la secretaria ve un error 500 sin explicación cuando
@@ -543,29 +550,60 @@ class EnrollmentController extends CrudController
 
         $this->validarGradoProcedencia($data, $errores);
 
-        /* Reglas 1, 2 y 3: van al paso de recaudos (`estudiante_documento`), que es
-           donde la secretaría marca todos los documentos del alumno. */
-        $servicioDocumentos = new DocumentosObligatorios($this->conexion());
-        $faltantes = $servicioDocumentos->faltantesInscripcion(
-            (int) $data['es_primer_ingreso'] === 1,
-            $data['id_institucion'] > 0 ? (int) $data['id_institucion'] : null,
-            $data['ult_grado_cursado'],
-            $data['familiares'],
-            $data['recaudos'],
-            true,
-            (string) ($data['persona']['fecha_nacimiento'] ?? ''),
-            date('Y-m-d')
+        $evaluacionRecaudos = $data['recaudos_evaluacion'];
+        $documentosObligatorios = new DocumentosObligatorios($this->conexion());
+        $validacionRecaudos = $documentosObligatorios->validarSnapshotInscripcion(
+            $evaluacionRecaudos,
+            $data['recaudos']
         );
+        if ($validacionRecaudos['lista_desactualizada']) {
+            $errores['recaudos'] = 'La lista de recaudos cambió. Revísela antes de confirmar la inscripción.';
+        }
 
-        $bloqueantes = array_values(array_filter(
-            $faltantes,
-            static fn (array $faltante): bool => ($faltante['codigo'] ?? '') === DocumentosObligatorios::PERMISO_LOPNNA
-        ));
-        if ($bloqueantes !== []) {
-            $errores['recaudos'] = implode(' ', array_column($bloqueantes, 'mensaje'));
+        $faltantes = $validacionRecaudos['faltantes'];
+        if ($faltantes !== []) {
+            $errores['recaudos'] = 'Debe marcar como consignados los recaudos obligatorios: '
+                . implode('; ', array_map(
+                    static fn (array $faltante): string => $faltante['nombre']
+                        . ($faltante['persona_nombre'] ? ' de ' . $faltante['persona_nombre'] : ''),
+                    $faltantes
+                )) . '.';
         }
 
         return $errores;
+    }
+
+    /**
+     * Evalúa los recaudos actuales del formulario para el paso 6.
+     * El alta vuelve a calcularlos y validarlos en store().
+     */
+    public function evaluarRecaudos(): void
+    {
+        try {
+            $familiares = $this->decodificarFamiliares((string) ($_POST['familiares_json'] ?? '[]'));
+            $evaluacion = (new DocumentosObligatorios($this->conexion()))->evaluarInscripcion(
+                (int) ($_POST['id_grado'] ?? 0),
+                trim((string) ($_POST['fecha_nacimiento'] ?? '')),
+                $familiares,
+                date('Y-m-d'),
+                (int) ($_POST['id_institucion'] ?? 0) ?: null,
+                trim((string) ($_POST['ultimo_grado_cursado'] ?? '')),
+                (string) ($_POST['ingreso_primera_vez'] ?? '') === '1'
+            );
+            $publicos = array_map(
+                static fn (array $recaudo): array => [
+                    'clave' => $recaudo['clave'],
+                    'codigo' => $recaudo['codigo'],
+                    'nombre' => $recaudo['nombre'],
+                    'requerido' => $recaudo['requerido'],
+                    'persona_nombre' => $recaudo['persona_nombre'],
+                ],
+                $evaluacion
+            );
+            $this->jsonResponse(true, ['recaudos' => $publicos]);
+        } catch (Throwable $e) {
+            $this->jsonError($e, 'Evaluación de recaudos de inscripción');
+        }
     }
 
     private function validarGradoProcedencia(array $data, array &$errores): void

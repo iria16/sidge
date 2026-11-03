@@ -120,11 +120,50 @@
   strong {
     color: $dark;
     font-weight: 700;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   i {
     color: $secondary;
     font-size: 0.9rem;
+  }
+}
+
+.data-panel__filters--academic {
+  @include media-breakpoint-down(md) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    .data-panel__active-year {
+      grid-column: 1 / -1;
+      width: 100%;
+      min-width: 0;
+      flex: initial;
+    }
+
+    .form-select {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      flex: initial;
+    }
+
+    .data-panel__search {
+      grid-column: 1 / -1;
+      width: 100%;
+      min-width: 0;
+      order: 0;
+    }
+  }
+
+  @include media-breakpoint-down(sm) {
+    grid-template-columns: minmax(0, 1fr);
+
+    .form-select {
+      grid-column: 1;
+    }
   }
 }
 

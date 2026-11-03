@@ -141,7 +141,6 @@ ob_start();
       $wsIcono  = 'card-checklist';
       $wsTitulo = 'Encuesta de Ratificación';
       $wsCampos = [
-          ['¿Repite el grado?', null, !empty($item['repite_grado']) ? 'Sí' : 'No'],
           ['¿Posee Canaima?',   null, !empty($item['tiene_canaima']) ? ('Sí' . (!empty($item['serial_canaima']) ? ' (Serial: ' . $item['serial_canaima'] . ')' : '')) : 'No'],
           ['¿Ingreso SIGE?',    null, !empty($item['tiene_ingreso_sige']) ? ('Sí' . (!empty($item['fecha_ingreso_sige']) ? ' (' . $item['fecha_ingreso_sige'] . ')' : '')) : 'No'],
       ];
@@ -223,10 +222,6 @@ ob_start();
             <p class="content-card__title"><i class="bi bi-card-checklist me-2"></i> Encuesta de Ratificación</p>
           </div>
           <div class="content-card__body">
-            <div class="detail-list__item">
-              <div class="label-sigde">¿Repite el grado?</div>
-              <div class="detail-list__value fw-semibold"><?= !empty($item['repite_grado']) ? 'Sí' : 'No' ?></div>
-            </div>
             <div class="detail-list__item">
               <div class="label-sigde">¿Posee Canaima?</div>
               <div class="detail-list__value">

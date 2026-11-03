@@ -25,6 +25,9 @@ $recaudosEstudiante  = (int) ($recaudosEstudiante ?? 0);
 $recaudosEditable    = (bool) ($recaudosEditable ?? false);
 $recaudosBotonPropio = (bool) ($recaudosBotonPropio ?? true);
 $recaudosContenedor  = $recaudosContenedor ?? 'recaudosPanel';
+$recaudosEvaluados   = isset($recaudosEvaluados)
+    ? (bool) $recaudosEvaluados
+    : !empty($recaudos[0]['evaluado']);
 /* id del <tbody>. Solo el paso 5 del asistente lo necesita: su JavaScript (enrollments.js)
    engancha el cambio del switch a ese id. En la ficha y en el modal no lleva id porque
    allí los switches se atienden por delegación desde [data-recaudos-panel]. */
@@ -35,7 +38,7 @@ $pendientes = [];
 foreach ($recaudos as $r) {
     if (!empty($r['consignado'])) {
         $entregados++;
-    } else {
+    } elseif ($recaudosEvaluados) {
         $pendientes[] = $r['nombre'];
     }
 }
@@ -55,6 +58,12 @@ foreach ($recaudos as $r) {
       </div>
     </div>
   <?php endif; ?>
+  <?php if (!$recaudosEditable && !$recaudosEvaluados): ?>
+    <div class="alert alert-info py-2 px-3 mb-2" role="status">
+      <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+      Este expediente no tiene una evaluación de recaudos guardada.
+    </div>
+  <?php endif; ?>
 
   <?php /* El formulario se imprime siempre en modo editable, aunque no haya filas todavía:
            el modal de ratificar se renderiza antes de saber de qué estudiante se trata y lo
@@ -63,8 +72,9 @@ foreach ($recaudos as $r) {
            JS que el panel existe. */ ?>
   <?php if (!$recaudos && !$recaudosEditable): ?>
     <p class="text-support mb-0">
-      No hay recaudos registrados en el catálogo. Agrégalos en
-      Configuración → Tipo de Documento.
+      <?= $recaudosEvaluados
+        ? 'No hay recaudos guardados para esta inscripción.'
+        : 'No hay recaudos registrados porque esta inscripción es anterior a la evaluación dinámica.' ?>
     </p>
   <?php else: ?>
     <?php /* El envoltorio de formulario y el id oculto solo existen en modo editable. En la
@@ -120,7 +130,8 @@ foreach ($recaudos as $r) {
             <?php endif; ?>
             <?php foreach ($recaudos as $r): ?>
               <?php
-                $idRecaudo = (int) ($r['id'] ?? 0);
+                $idRecaudo = (string) ($r['id'] ?? '');
+                $idRecaudoSeguro = htmlspecialchars($idRecaudo, ENT_QUOTES, 'UTF-8');
                 $entregado = !empty($r['consignado']);
                 $obs       = (string) ($r['observacion'] ?? '');
               ?>
@@ -128,6 +139,9 @@ foreach ($recaudos as $r) {
                 <td>
                   <div class="fw-semibold">
                     <?= htmlspecialchars((string) $r['nombre']) ?>
+                    <?php if (!empty($r['persona_nombre'])): ?>
+                      — <?= htmlspecialchars((string) $r['persona_nombre']) ?>
+                    <?php endif; ?>
                     <?php if (!empty($r['requerido'])): ?>
                       <span class="text-danger" aria-hidden="true">*</span>
                     <?php endif; ?>
@@ -138,11 +152,11 @@ foreach ($recaudos as $r) {
                     <?php /* El oculto no es opcional: un checkbox sin marcar no viaja en el
                          POST, y sin él el servidor no distinguiría "no entregado" de
                          "este documento no estaba en la pantalla". */ ?>
-                    <input type="hidden" name="recaudos[<?= $idRecaudo ?>][consignado]" value="0">
+                    <input type="hidden" name="recaudos[<?= $idRecaudoSeguro ?>][consignado]" value="0">
                     <div class="form-check form-switch d-flex justify-content-center mb-0">
                       <input class="form-check-input" type="checkbox" role="switch"
-                             name="recaudos[<?= $idRecaudo ?>][consignado]"
-                             value="1" data-recaudo-toggle="<?= $idRecaudo ?>"
+                             name="recaudos[<?= $idRecaudoSeguro ?>][consignado]"
+                             value="1" data-recaudo-toggle="<?= $idRecaudoSeguro ?>"
                              <?= $entregado ? 'checked' : '' ?>>
                     </div>
                   <?php else: ?>
@@ -150,6 +164,8 @@ foreach ($recaudos as $r) {
                       <span class="status-badge status-badge--active">
                         <i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>Sí
                       </span>
+                    <?php elseif (!$recaudosEvaluados): ?>
+                      <span class="text-support">Sin evaluar</span>
                     <?php else: ?>
                       <span class="status-badge status-badge--inactive">
                         <i class="bi bi-x-circle me-1" aria-hidden="true"></i>No
@@ -159,9 +175,9 @@ foreach ($recaudos as $r) {
                 </td>
                 <td>
                   <?php if ($recaudosEditable): ?>
-                    <input type="text" class="form-control form-control-sm <?= $entregado ? '' : 'd-none' ?>"
-                           name="recaudos[<?= $idRecaudo ?>][observacion]"
-                           data-recaudo-observacion="<?= $idRecaudo ?>"
+                    <input type="text" class="form-control form-control-sm"
+                           name="recaudos[<?= $idRecaudoSeguro ?>][observacion]"
+                           data-recaudo-observacion="<?= $idRecaudoSeguro ?>"
                            value="<?= htmlspecialchars($obs) ?>"
                            maxlength="255"
                            placeholder="Ej.: copia ilegible, se pidió el original">

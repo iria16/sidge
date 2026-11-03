@@ -54,7 +54,7 @@ $modalBody = ob_get_clean();
 
 ob_start();
 ?>
-<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
 <button type="button" class="btn btn-success btn-sm" id="btnEjecutarConfirmacion">
   <i class="bi bi-check2-circle me-1"></i> Confirmar y Oficializar
 </button>

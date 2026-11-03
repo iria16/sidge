@@ -21,11 +21,8 @@
  * Utilidades
  * ------------------------------------------------------------------*/
 
-  function escHtml(str) {
-    return String(str == null ? '' : str)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-  }
+  /* El escape de HTML no está aquí: lo presta core/sigde-ui.js (SIGDEUI.escapeHtml), que es donde
+   * vive desde que el módulo de empleados y el de inscripción dejaron de traer su propia copia. */
 
   function soloDigitos(valor) { return String(valor || '').replace(/\D/g, ''); }
 
@@ -33,12 +30,20 @@
     return new Promise(function (resolve) { setTimeout(resolve, ms); });
   }
 
-      /* ¿El parentesco es el del padre o el de la madre? Se compara con el NOMBRE del catálogo,
- que es lo que viaja en el payload, y no con el id: los ids cambian si se rehace el
- catálogo. El PHP aplica la misma regla porque el JSON se puede armar a mano.*/
+      /* ¿El parentesco es el del padre o el de la madre? Se compara con el CÓDIGO
+ del catálogo (`data-codigo` del <option>), no con el nombre: el nombre se puede
+ corregir desde Catálogos y la regla no debe cambiar por eso. El nombre queda como
+ respaldo para una página cacheada sin `data-codigo`; el PHP usa `parentesco.codigo`
+ como fuente principal. */
   function esPadreOMadreSegun(parentesco) {
-    var nombre = String(parentesco || '').trim().toLowerCase();
-    return nombre === 'madre' || nombre === 'padre';
+    var el = document.getElementById('familiarParentesco');
+    var opcion = el && el.selectedOptions ? el.selectedOptions[0] : null;
+    var codigo = opcion ? String(opcion.getAttribute('data-codigo') || '') : '';
+
+    if (!codigo) codigo = String(parentesco || '');
+    codigo = codigo.trim().toLowerCase();
+
+    return codigo === 'madre' || codigo === 'padre';
   }
 
   /* ---------------------------------------------------------------------
@@ -164,8 +169,10 @@
  cédula. Se guardan aparte de los <select> porque sincronizar() los vacía
  mientras el bloque no aplica (solo se pregunta al representante y a la madre y
  al padre), y una persona se busca antes de marcar su rol. Ver buscarFamiliar.*/
-    var nivelPrecargado = '';
     var ocupacionPrecargada = '';
+    var estadoNacimientoPrecargado = 0;
+    var nacionalidadPrecargada = 0;
+    var direccionPrecargada = null;
 
     var cascada = null;      // SIGDEWizardUI.initCascadaUbicacion
     var foto = null;         // SIGDEWizardUI.initFoto
@@ -314,7 +321,7 @@
  domicilio coincidan con lo registrado no es información: se ve solo en
  que los campos están llenos. Los avisos que sí quedan son los que piden
  una decisión: que falta el domicilio, o qué va a cambiar.*/
-      var html = '<strong>Ya está registrada: ' + escHtml(nombreEncontrado) + '</strong>';
+      var html = '<strong>Ya está registrada: ' + SIGDEUI.escapeHtml(nombreEncontrado) + '</strong>';
       if (personaEncontrada.representante_de > 0) {
         html += '<br>Es representante legal de ' + personaEncontrada.representante_de + ' estudiante(s).';
       }
@@ -325,7 +332,7 @@
       }
 
       if (lista.length) {
-        html += '<br>Van a cambiar: ' + escHtml(lista.join(', ')) + '.';
+        html += '<br>Van a cambiar: ' + SIGDEUI.escapeHtml(lista.join(', ')) + '.';
       }
 
       /* La ubicación se carga en cascada y con dos peticiones: si no pudo
@@ -410,6 +417,18 @@
  * aviso se dispara desde el input de la cédula: si se vaciara también,
  * se borraría a sí mismo en cada tecla y el campo parecería bloqueado.
 */
+    function establecerNacionalidadPorDefecto() {
+      var nacEl = document.getElementById('familiarNacionalidad');
+      if (!nacEl) return;
+      var optVen = Array.prototype.find.call(nacEl.options, function (opt) {
+        var texto = opt.text.trim().toLowerCase();
+        return opt.value === '1' || texto === 'venezolano' || texto === 'venezolana';
+      });
+      if (optVen) {
+        nacEl.value = optVen.value;
+      }
+    }
+
     function vaciarSubModal(conservarDecisiones, excepto) {
       if (!modalEl) return;
 
@@ -419,9 +438,16 @@
       cedulaCargada = null;
       bloquearIdentidad(false);
       bloquearContacto(false);
+      var fallecidoEl = document.getElementById('familiarEsFallecido');
+      if (fallecidoEl) {
+        fallecidoEl.checked = false;
+        fallecidoEl.disabled = false;
+      }
       editandoIndice = null;
-      nivelPrecargado = '';
       ocupacionPrecargada = '';
+      estadoNacimientoPrecargado = 0;
+      nacionalidadPrecargada = 0;
+      direccionPrecargada = null;
       ['familiarIndiceEdicion', 'familiarIdRelacion', 'familiarEstadoRelacion'].forEach(function (id) {
         var campo = document.getElementById(id);
         if (campo) campo.value = '';
@@ -430,6 +456,7 @@
       modalEl.querySelectorAll('input[type="text"], input[type="email"], input[type="date"], textarea')
         .forEach(function (el) { if (el !== excepto) el.value = ''; });
       modalEl.querySelectorAll('input[type="radio"]').forEach(function (el) { el.checked = false; });
+      modalEl.querySelectorAll('input[type="checkbox"][data-doc-persona]').forEach(function (el) { el.checked = false; });
       modalEl.querySelectorAll('.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
 
       if (conservarDecisiones) {
@@ -454,13 +481,24 @@
           if (prefijo) prefijo.selectedIndex = 0;
         });
 
-        /* El nivel de instrucción y la ocupación también venían de esa persona.*/
-        ['familiarNivelInstruccion', 'familiarOcupacion'].forEach(function (id) {
+        /* La ocupación venía de esa persona. El nivel de instrucción ya no tiene
+           campo en el formulario, así que no se toca nada por él. */
+        ['familiarOcupacion'].forEach(function (id) {
           var campo = document.getElementById(id);
           if (campo) campo.selectedIndex = 0;
         });
+
+        establecerNacionalidadPorDefecto();
       } else {
         modalEl.querySelectorAll('select').forEach(function (el) { el.selectedIndex = 0; });
+        establecerNacionalidadPorDefecto();
+        /* Al abrir en blanco, los tres interruptores también vuelven a cero:
+           son decisiones de la fila anterior, no del familiar nuevo. */
+        ['familiarRepresentantePrincipal', 'familiarAutorizadoRetiros', 'familiarViveConEstudiante']
+          .forEach(function (id) {
+            var campo = document.getElementById(id);
+            if (campo) campo.checked = false;
+          });
         if (cascada) {
           cascada.reiniciar(document.getElementById('familiarMunicipio'));
           cascada.reiniciar(document.getElementById('familiarParroquia'));
@@ -533,7 +571,7 @@
 
         if (documento.length < 7 || documento.length > 8) return;
 
-        /* El estudiante viaja como contexto porque el nivel de instrucción y la
+        /* El estudiante viaja como contexto porque la ocupación y la
  ocupación del familiar se leen de la relación persona-estudiante, no de la
  persona: sin esto el servidor no sabría de cuál menor tomarlos. Solo
  ratificación tiene un id de estudiante en la página; en el alta todavía no
@@ -554,7 +592,7 @@
  cuando falla la consulta automática.*/
             if (!r.ok || !r.data || r.data.ok !== true) {
               texto.innerHTML = '<strong>No se pudo consultar el registro.</strong> '
-                + escHtml((r.data && r.data.mensaje) || 'Revisa la conexión o inténtalo de nuevo.');
+                + SIGDEUI.escapeHtml((r.data && r.data.mensaje) || 'Revisa la conexión o inténtalo de nuevo.');
               panel.classList.remove('d-none');
               return;
             }
@@ -587,13 +625,29 @@
             var claves = ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido'];
             CAMPOS_IDENTIDAD.slice(0, 4).forEach(function (id, i) { poner(id, persona[claves[i]]); });
             poner('familiarFechaNacimiento', persona.fecha_nacimiento);
+
+            /* Guardar datos precargados para que sincronizar() no los borre cuando el bloque aún no aplica */
+            estadoNacimientoPrecargado = parseInt(persona.id_estado_nacimiento, 10) || 0;
+            nacionalidadPrecargada = parseInt(persona.id_nacionalidad, 10) || 0;
+            ocupacionPrecargada = encontrado.ocupacion || '';
+            direccionPrecargada = encontrado.direccion || null;
+
             /* El familiar declara solo la entidad federal. El select se llama por id con
                prefijo y su name lleva `familiar_`, que es lo que viaja en el payload. */
-            poner('familiarEstadoNacimiento', persona.id_estado_nacimiento);
+            if (estadoNacimientoPrecargado > 0) {
+              poner('familiarEstadoNacimiento', estadoNacimientoPrecargado);
+            }
             /* La nacionalidad también se rellena sola si la persona ya está registrada:
-               es lo mismo que la fecha, un dato que viene del backend y no algo que la
-               secretaria tenga que volver a escribir. */
-            poner('familiarNacionalidad', persona.id_nacionalidad);
+               si no tiene registrada, se asegura la venezolana por defecto. */
+            if (nacionalidadPrecargada > 0) {
+              poner('familiarNacionalidad', nacionalidadPrecargada);
+            } else {
+              establecerNacionalidadPorDefecto();
+            }
+            var fallecidoEncontrado = document.getElementById('familiarEsFallecido');
+            if (fallecidoEncontrado) {
+              fallecidoEncontrado.checked = Number(persona.es_fallecido) === 1;
+            }
             marcarSexo(persona.sexo);
 
             if (encontrado.contacto) {
@@ -607,8 +661,6 @@
     /* Nivel de instrucción y ocupación: son datos DE ESA persona y no del parentesco, así que se
  traen. No se bloquean, a diferencia de los nombres y el sexo: cambian (dejó de estudiar,
  cambió de oficio) y quien registra es quien mejor los conoce.*/
-            nivelPrecargado = encontrado.nivel_instruccion || '';
-            ocupacionPrecargada = encontrado.ocupacion || '';
 
             /* Si el rol ya estaba marcado ANTES de buscar la cédula (representante
  legal, padre o madre), el bloque ya está visible y nadie volvía a llamar
@@ -716,13 +768,17 @@
       var direccionEl = document.getElementById('bloqueDireccionFamiliar');
       var retirosEl = document.getElementById('familiarAutorizadoRetiros');
       var viveConEl = document.getElementById('familiarViveConEstudiante');
+      var fallecidoEl = document.getElementById('familiarEsFallecido');
 
       /* Qué había en el interruptor de representante en la sincronización anterior.
  Sirve para una sola cosa: detectar el momento en que deja de ser
  representante, que es cuando "vive con el estudiante" hay que apagarlo.*/
       var representanteEra = switchEl.checked;
+      /* El permiso de retiro se fuerza al representante. Esta bandera distingue
+         "lo puso el sistema" de "lo marcó la secretaria", para no desmarcar a
+         una persona autorizada que se está editando. */
+      var retiroForzado = false;
       var datosRepresentanteEl = document.getElementById('bloqueDatosRepresentante');
-      var nivelEl = document.getElementById('familiarNivelInstruccion');
       var ocupacionEl = document.getElementById('familiarOcupacion');
       var parentescoEl = document.getElementById('familiarParentesco');
       var nacimientoEl = document.getElementById('bloqueLugarNacimientoFamiliar');
@@ -807,22 +863,34 @@
       }
 
       function sincronizar() {
+        var esFallecido = !!(fallecidoEl && fallecidoEl.checked);
+
+        /* Una persona fallecida no puede ser representante legal, no retira al
+           alumno y no comparte la casa. El interruptor se apaga y se bloquea
+           para que la regla no dependa solo del servidor. */
+        if (esFallecido) {
+          switchEl.checked = false;
+          switchEl.disabled = true;
+        } else {
+          switchEl.disabled = false;
+        }
+
         var esRepresentante = switchEl.checked;
 
-        /* El nivel de instrucción y la ocupación se piden en dos casos: cuando el
- familiar es el REPRESENTANTE LEGAL, y cuando es el padre o la madre del
+        /* La ocupación se pregunta en dos casos: cuando el familiar es el
+ REPRESENTANTE LEGAL, y cuando es el padre o la madre del
  menor. Lo segundo no es un capricho: aunque no sea el representante, el
  padre y la madre son los dos datos que la institución quiere del hogar del
  menor, y son los únicos dos parentescos que casi siempre la institución
  tiene o quiere tener. Para el resto de los familiares no se preguntan.*/
         var esPadreOMadre = esPadreOMadreSegun(parentescoEl ? parentescoEl.value : '');
 
-        /* El domicilio, el nivel de instrucción y el lugar de nacimiento se preguntan a
+        /* El domicilio, la ocupación y el lugar de nacimiento se preguntan a
         los MISMOS tres: el representante legal, la madre y el padre. Una sola variable
         para los tres, y no tres copias de la misma condición: cuando la regla cambie
         basta editar una línea y no queda ninguna por detrás. El contacto, en cambio, se
-        ve siempre. */
-        var pide = esRepresentante || esPadreOMadre;
+        ve siempre, salvo que la persona haya fallecido. */
+        var pide = !esFallecido && (esRepresentante || esPadreOMadre);
 
         /* Los dos bloques con la misma regla pasan por el mismo mecanismo. Antes cada
         uno tenía su propio bloque de código, cuatro renglones más abajo el otro, y por
@@ -831,13 +899,24 @@
         aplicarBloque(BLOQUES.domicilio, pide);
         aplicarBloque(BLOQUES.nacimiento, pide);
 
-        /* El nivel de instrucción y la ocupación se esconden enteros para los demás, en
-        vez de mostrarse vacíos. No van por aplicarBloque() porque no son un bloque con
-        cascada: son dos select sueltos. */
+        /* El contacto entero (teléfono, correo y dirección) desaparece y se
+           deshabilita cuando la persona falleció. Se reutiliza bloquearContacto()
+           para respetar además el caso de una persona con ficha propia. */
+        if (bloqueEl) bloqueEl.classList.toggle('d-none', esFallecido);
+        bloquearContacto(esFallecido || !contactoEditable(filaEnEdicion()));
+        var avisoBloqueo = document.getElementById('familiarInfoBloqueo');
+        if (avisoBloqueo && esFallecido) avisoBloqueo.classList.add('d-none');
+        if (ocupacionEl) ocupacionEl.disabled = esFallecido;
+
+        /* La ocupación se esconde entera para los demás, en vez de mostrarse vacía.
+        No va por aplicarBloque() porque no es un bloque con cascada: es un select
+        suelto. El asterisco lo lleva `data-requerido-instruccion`, que aunque se
+        llama así sigue apuntando a la profesión: el nombre del atributo quedó de
+        cuando también había nivel de instrucción. */
         var pideDatosPersonales = pide;
         if (datosRepresentanteEl) datosRepresentanteEl.classList.toggle('d-none', !pideDatosPersonales);
 
-        [nivelEl, ocupacionEl].forEach(function (campo) {
+        [ocupacionEl].forEach(function (campo) {
           if (!campo) return;
           if (pideDatosPersonales) {
             campo.setAttribute('required', '');
@@ -850,10 +929,58 @@
         /* Si el bloque aplica y los selectores están vacíos, se pone lo que traía la
  persona encontrada por cédula. Solo rellena un select VACÍO, así que no
  pisa lo que la secretaria haya elegido a mano.*/
-        if (pideDatosPersonales) {
-          if (nivelEl && nivelEl.value === '' && nivelPrecargado !== '') nivelEl.value = nivelPrecargado;
+        if (pide) {
+          /* Restaurar entidad federal si vino de la persona encontrada y el select está vacío */
+          var nacEstadoEl = document.getElementById('familiarEstadoNacimiento');
+          if (nacEstadoEl && (!nacEstadoEl.value || nacEstadoEl.value === '0') && estadoNacimientoPrecargado > 0) {
+            nacEstadoEl.value = String(estadoNacimientoPrecargado);
+          }
+
+          /* Restaurar ocupación si vino de la persona encontrada */
           if (ocupacionEl && ocupacionEl.value === '' && ocupacionPrecargada !== '') {
             ocupacionEl.value = ocupacionPrecargada;
+          }
+
+          /* Restaurar nacionalidad si vino de la persona encontrada o por defecto */
+          var nacEl = document.getElementById('familiarNacionalidad');
+          if (nacEl && (!nacEl.value || nacEl.value === '0')) {
+            if (nacionalidadPrecargada > 0) {
+              nacEl.value = String(nacionalidadPrecargada);
+            } else {
+              establecerNacionalidadPorDefecto();
+            }
+          }
+
+          /* Restaurar domicilio si vino de la persona encontrada */
+          if (direccionPrecargada) {
+            var sectorEl = document.getElementById('familiarSector');
+            if (sectorEl && !sectorEl.value && direccionPrecargada.sector) {
+              sectorEl.value = direccionPrecargada.sector;
+            }
+            var calleEl = document.getElementById('familiarCalle');
+            if (calleEl && !calleEl.value && direccionPrecargada.calle) {
+              calleEl.value = direccionPrecargada.calle;
+            }
+            var casaEl = document.getElementById('familiarCasa');
+            if (casaEl && !casaEl.value && direccionPrecargada.casa) {
+              casaEl.value = direccionPrecargada.casa;
+            }
+            var refEl = document.getElementById('familiarReferencia');
+            if (refEl && !refEl.value && direccionPrecargada.referencia) {
+              refEl.value = direccionPrecargada.referencia;
+            }
+
+            var parroquiaPrecargada = direccionPrecargada.parroquia || direccionPrecargada.id_parroquia;
+            if (cascada && parroquiaPrecargada) {
+              var estadoEl = document.getElementById('familiarEstado');
+              if (estadoEl && (!estadoEl.value || estadoEl.value === '0')) {
+                cascada.elegirParroquia(
+                  Number(direccionPrecargada.estado || direccionPrecargada.id_estado || 0),
+                  Number(direccionPrecargada.municipio || direccionPrecargada.id_municipio || 0),
+                  Number(parroquiaPrecargada)
+                );
+              }
+            }
           }
         }
 
@@ -876,7 +1003,10 @@
  el menor vive con su representante, así que ahí no hay nada que preguntar. Para los demás
  es una pregunta libre y nace apagada: se registra lo que la secretaria sabe.*/
         if (viveConEl) {
-          if (esRepresentante) {
+          if (esFallecido) {
+            viveConEl.checked = false;
+            viveConEl.disabled = true;
+          } else if (esRepresentante) {
             viveConEl.checked = true;
             viveConEl.disabled = true;
           } else {
@@ -892,14 +1022,23 @@
  se decidiera por su lado, la del representante se comería a la otra y
  dejaría el permiso apagado.*/
         if (retirosEl) {
-          if (esRepresentante) {
+          if (esFallecido) {
+            retirosEl.checked = false;
+            retirosEl.disabled = true;
+            retiroForzado = false;
+          } else if (esRepresentante) {
             retirosEl.checked = true;
             retirosEl.disabled = true;
+            retiroForzado = true;
           } else {
-            /* Al dejar de serlo se desmarca: ese permiso lo había puesto el sistema, no
- quien escribe, así que dejarlo prendido le regalaría a un familiar
- corriente la autorización de retiros.*/
-            retirosEl.checked = false;
+            /* Solo se desmarca si lo había puesto el sistema al ser representante.
+               Un familiar que ya estaba autorizado conserva su marca al editarse;
+               si se apagara en cada sincronización, guardar cualquier otro cambio
+               le quitaría la autorización sin que nadie lo pidiera. */
+            if (retiroForzado) {
+              retirosEl.checked = false;
+            }
+            retiroForzado = false;
             retirosEl.disabled = false;
           }
         }
@@ -910,6 +1049,7 @@
  "Madre", así que elegirlo tiene que reevaluar las reglas. Sin este listener,
  el bloque solo aparecería al tocar otro interruptor.*/
       if (parentescoEl) parentescoEl.addEventListener('change', sincronizar);
+      if (fallecidoEl) fallecidoEl.addEventListener('change', sincronizar);
       document.addEventListener('DOMContentLoaded', sincronizar);
       sincronizar();
 
@@ -950,11 +1090,14 @@
       var base = filaEnEdicion();
       var parentescoEl = document.getElementById('familiarParentesco');
       var parentesco = parentescoEl ? parentescoEl.value : '';
-      var esRepresentante = (document.getElementById('familiarRepresentantePrincipal') || {}).checked === true;
+      var esFallecido = (document.getElementById('familiarEsFallecido') || {}).checked === true;
+      var esRepresentante = !esFallecido
+        && (document.getElementById('familiarRepresentantePrincipal') || {}).checked === true;
       var valor = function (id) { return (document.getElementById(id) || {}).value || ''; };
 
-      /* Misma condición que sincronizar(): representante legal, o padre o madre.*/
-      var pideDatosPersonales = esRepresentante || esPadreOMadreSegun(parentesco);
+      /* Misma condición que sincronizar(): representante legal, o padre o madre.
+         Un fallecido no necesita ocupación, contacto ni domicilio. */
+      var pideDatosPersonales = !esFallecido && (esRepresentante || esPadreOMadreSegun(parentesco));
       var primerNombre = valor('familiarPrimerNombre');
       var segundoNombre = valor('familiarSegundoNombre');
       var primerApellido = valor('familiarPrimerApellido');
@@ -974,7 +1117,7 @@
       };
       /* El domicilio solo se manda para representante, madre o padre; para los demás
  no se envían datos que pudieran quedar de una apertura anterior.*/
-      var pideDireccion = esRepresentante || esPadreOMadreSegun(parentesco);
+      var pideDireccion = !esFallecido && (esRepresentante || esPadreOMadreSegun(parentesco));
       var tieneDireccion = pideDireccion
         && Object.keys(direccion).some(function (k) { return direccion[k] !== ''; });
 
@@ -985,7 +1128,13 @@
       var contactoBloqueado = base && !contactoEditable(base) ? base : null;
 
       var contacto;
-      if (contactoBloqueado && !esRepresentante) {
+      if (esFallecido) {
+        /* No se pide contacto nuevo, pero si la persona ya lo tenía guardado no
+           se borra: el dato histórico se conserva y la ficha no pierde lo que
+           había antes de marcarla como fallecida. */
+        contacto = (base && base.contacto)
+          || { codigo: '', numero: '', codigo_alt: '', numero_alt: '', correo: '' };
+      } else if (contactoBloqueado && !esRepresentante) {
         contacto = contactoBloqueado.contacto
           || { codigo: '', numero: '', codigo_alt: '', numero_alt: '', correo: '' };
       } else {
@@ -1000,7 +1149,9 @@
 
       /* Igual para el domicilio.*/
       var direccionFinal;
-      if (contactoBloqueado && !esRepresentante) {
+      if (esFallecido) {
+        direccionFinal = (base && base.direccion) || null;
+      } else if (contactoBloqueado && !esRepresentante) {
         direccionFinal = contactoBloqueado.direccion || null;
       } else {
         direccionFinal = tieneDireccion ? direccion : null;
@@ -1016,17 +1167,24 @@
  servidor no tenga que adivinarlo.*/
         solo_autorizado:         0,
         representante_principal: esRepresentante ? 1 : 0,
+        /* El fallecimiento es de la persona, no del vínculo. Viaja aquí porque es
+           el formulario donde se declara. */
+        es_fallecido: esFallecido ? 1 : 0,
         /* Si esa persona vive con el menor (migración 0003). Es de la relación
  estudiante-persona, no de la persona, por eso va con el familiar y no en el
  payload del estudiante.*/
-        vive_con_estudiante: (document.getElementById('familiarViveConEstudiante') || {}).checked === true ? 1 : 0,
+        vive_con_estudiante: !esFallecido
+          && (document.getElementById('familiarViveConEstudiante') || {}).checked === true ? 1 : 0,
         /* Nivel de instrucción y ocupación, por NOMBRE del catálogo (igual que el
  parentesco): el modelo los resuelve a id. Solo se mandan si el familiar es el
  representante o el padre o la madre; para los demás los selects ni siquiera
- están a la vista y vienen vacíos.*/
-        nivel_instruccion: pideDatosPersonales ? valor('familiarNivelInstruccion') : '',
-        ocupacion: pideDatosPersonales ? valor('familiarOcupacion') : '',
-        autorizado_retiros: esRepresentante ? 1 : (document.getElementById('familiarAutorizadoRetiros') || {}).checked ? 1 : 0,
+ están a la vista y vienen vacíos. */
+        ocupacion: esFallecido
+          ? (base && base.ocupacion ? base.ocupacion : '')
+          : (pideDatosPersonales ? valor('familiarOcupacion') : ''),
+        autorizado_retiros: !esFallecido && (esRepresentante
+          ? true
+          : (document.getElementById('familiarAutorizadoRetiros') || {}).checked === true) ? 1 : 0,
         nombre_referencia: nombre,
         /* Los cuatro nombres por separado: es lo que se guarda en persona.*/
         primer_nombre: primerNombre,
@@ -1047,11 +1205,17 @@
         /* Al familiar solo se le declara la entidad federal: la parroquia es un dato
         que el sistema necesita del estudiante, no de sus familiares. El name lleva el
         prefijo `familiar_` porque el sub-modal reutiliza persona-form.php con prefijo.*/
-        id_estado_nacimiento: parseInt(valor('familiar_id_estado_nacimiento'), 10) || 0,
+        /* El id NO es el name: lugar-nacimiento-form.php llama al select
+           #familiarEstadoNacimiento y le pone el name familiar_id_estado_nacimiento.
+           Leer el name por aquí devolvía vacío siempre, así que la entidad federal
+           del familiar llegaba en 0 y no se guardaba nunca. */
+        id_estado_nacimiento: parseInt(valor('familiarEstadoNacimiento'), 10) || 0,
 
-        /* La nacionalidad se le pregunta a toda persona, al familiar included. El name
-        lleva el prefijo `familiar_` porque el sub-modal reutiliza persona-form.php.*/
-        id_nacionalidad: parseInt(valor('familiar_id_nacionalidad'), 10) || 0,
+        /* Se le pregunta a toda persona, al familiar incluido. El select es
+        #familiarNacionalidad: su name es familiar_id_nacionalidad, y leer ese name
+        en vez del id hacía que la nacionalidad llegara siempre en 0 y tampoco se
+        guardara. Mismo error que en la entidad federal. */
+        id_nacionalidad: parseInt(valor('familiarNacionalidad'), 10) || 0,
         /* El teléfono principal es obligatorio para cualquier familiar; el correo y el
  alternativo son opcionales.*/
         contacto: contacto,
@@ -1078,8 +1242,10 @@
 
       /* Quién es el representante legal lo elige quien registra. El permiso de retiro
  se fuerza para el representante (siempre puede retirar al estudiante) y queda
- libre para los demás.*/
-      var esRepresentante = (document.getElementById('familiarRepresentantePrincipal') || {}).checked === true;
+ libre para los demás. Un fallecido nunca puede ser representante. */
+      var esFallecido = (document.getElementById('familiarEsFallecido') || {}).checked === true;
+      var esRepresentante = !esFallecido
+        && (document.getElementById('familiarRepresentantePrincipal') || {}).checked === true;
 
       var valor = function (id) { return (document.getElementById(id) || {}).value || ''; };
 
@@ -1091,25 +1257,27 @@
       /* Si el contacto está apagado (familiar que ya estaba y no es representante), NO se
  pide nada: sus datos no se pueden cambiar desde acá y ya están guardados.*/
       var filaBase = filaEnEdicion();
-      var contactoEditableAhora = !(filaBase && !contactoEditable(filaBase) && !esRepresentante);
-      if (contactoEditableAhora
-          && (!valor('familiar_codigo') || !valor('familiar_numero'))) {
-        faltantes.push('el teléfono principal');
-      }
+      if (!esFallecido) {
+        var contactoEditableAhora = !(filaBase && !contactoEditable(filaBase) && !esRepresentante);
+        if (contactoEditableAhora
+            && (!valor('familiar_codigo') || !valor('familiar_numero'))) {
+          faltantes.push('el teléfono principal');
+        }
 
-      /* El domicilio se pide al representante legal, a la madre o al padre.*/
-      if (esRepresentante || esPadreOMadreSegun(parentesco)) {
-        var sinUbicacion = !valor('familiarEstado') || !valor('familiarMunicipio')
-          || !valor('familiarParroquia');
-        var sinCasa = !valor('familiarSector') || !valor('familiarCalle')
-          || !valor('familiarCasa');
+        /* El domicilio se pide al representante legal, a la madre o al padre.*/
+        if (esRepresentante || esPadreOMadreSegun(parentesco)) {
+          var sinUbicacion = !valor('familiarEstado') || !valor('familiarMunicipio')
+            || !valor('familiarParroquia');
+          var sinCasa = !valor('familiarSector') || !valor('familiarCalle')
+            || !valor('familiarCasa');
 
-        if (sinUbicacion && sinCasa) {
-          faltantes.push('el domicilio completo (estado, municipio, parroquia, sector, calle y N°)');
-        } else if (sinUbicacion) {
-          faltantes.push('el estado, el municipio y la parroquia');
-        } else if (sinCasa) {
-          faltantes.push('el sector, la calle y el número de casa');
+          if (sinUbicacion && sinCasa) {
+            faltantes.push('el domicilio completo (estado, municipio, parroquia, sector, calle y N°)');
+          } else if (sinUbicacion) {
+            faltantes.push('el estado, el municipio y la parroquia');
+          } else if (sinCasa) {
+            faltantes.push('el sector, la calle y el número de casa');
+          }
         }
       }
 
@@ -1119,8 +1287,14 @@
       if (!valor('familiarParentesco')) {
         faltantes.push('el parentesco con el estudiante');
       }
-      if (esRepresentante || esPadreOMadreSegun(parentesco)) {
-        if (!valor('familiarNivelInstruccion')) faltantes.push('el nivel de instrucción');
+      /* Solo la ocupación. El nivel de instrucción se quitó del formulario para
+         dejar un único dato profesional, pero esta comprobación siguió exigiéndolo:
+         como el input ya no existe, `valor()` devolvía vacío SIEMPRE y el mensaje
+         «complete el nivel de instrucción» salía en todos los guardados. Con un
+         representante marcado no se podía guardar nunca, y el campo que el
+         formulario ya no pedía era la causa. El servidor nunca lo exigió: ahora
+         tampoco lo hace el formulario. */
+      if (!esFallecido && (esRepresentante || esPadreOMadreSegun(parentesco))) {
         if (!valor('familiarOcupacion')) faltantes.push('la ocupación');
       }
       if (!valor('familiarNumeroDocumento')) {
@@ -1129,9 +1303,9 @@
       if (!valor('familiarFechaNacimiento')) {
         faltantes.push('su fecha de nacimiento');
       }
-      /* Se le pide a todo familiar, no solo al que declara el lugar de nacimiento. Por
-         eso va fuera del bloque de representante/madre/padre. */
-      if (!valor('familiarNacionalidad')) {
+      /* Se le pide a todo familiar vivo, no solo al que declara el lugar de nacimiento.
+         A un fallecido solo se le exigen los datos de identificación. */
+      if (!esFallecido && !valor('familiarNacionalidad')) {
         faltantes.push('la nacionalidad');
       }
 
@@ -1141,6 +1315,17 @@
       if (valor('familiarNumeroDocumento') !== '' && (digitosCedula.length < 7 || digitosCedula.length > 8)) {
         SIGDEUI.mostrarAviso('warning', 'Cédula incompleta', 'La cédula del representante debe tener 7 u 8 dígitos.');
         return;
+      }
+
+      var inputFechaFamiliar = document.getElementById('familiarFechaNacimiento');
+      if (inputFechaFamiliar && inputFechaFamiliar.value) {
+        var minF = inputFechaFamiliar.getAttribute('min');
+        var maxF = inputFechaFamiliar.getAttribute('max');
+        if ((minF && inputFechaFamiliar.value < minF) || (maxF && inputFechaFamiliar.value > maxF)) {
+          inputFechaFamiliar.classList.add('is-invalid');
+          SIGDEUI.mostrarAviso('warning', 'Edad fuera de rango', 'El familiar debe ser mayor de edad (entre 18 y 100 años).');
+          return;
+        }
       }
       if (faltantes.length) {
         SIGDEUI.mostrarAviso(
@@ -1214,7 +1399,8 @@
 */
     function hayRepresentante() {
       return familiares.some(function (f) {
-          return f.representante_principal && f.estado_relacion !== 'INACTIVO' && !f._desvincular;
+          return f.representante_principal && !f.es_fallecido
+            && f.estado_relacion !== 'INACTIVO' && !f._desvincular;
       });
     }
 
@@ -1236,7 +1422,20 @@
       poner('familiarPrimerApellido', f.primer_apellido || '');
       poner('familiarSegundoApellido', f.segundo_apellido || '');
       poner('familiarFechaNacimiento', f.fecha_nacimiento || '');
-      poner('familiarNacionalidad', f.id_nacionalidad || '');
+
+      estadoNacimientoPrecargado = parseInt(f.id_estado_nacimiento, 10) || 0;
+      ocupacionPrecargada = f.ocupacion || '';
+      direccionPrecargada = f.direccion || null;
+      nacionalidadPrecargada = parseInt(f.id_nacionalidad, 10) || 0;
+
+      if (nacionalidadPrecargada > 0) {
+        poner('familiarNacionalidad', nacionalidadPrecargada);
+      } else {
+        establecerNacionalidadPorDefecto();
+      }
+      if (estadoNacimientoPrecargado > 0) {
+        poner('familiarEstadoNacimiento', estadoNacimientoPrecargado);
+      }
 
       var sexo = document.querySelector('input[name="familiar_sexo"][value="' + (f.sexo || 'M') + '"]');
       if (sexo) sexo.checked = true;
@@ -1245,9 +1444,9 @@
  fila en `parentesco`.*/
       if (f.parentesco) poner('familiarParentesco', f.parentesco);
 
-      poner('familiarNivelInstruccion', f.nivel_instruccion || '');
       poner('familiarOcupacion', f.ocupacion || '');
 
+      marcar('familiarEsFallecido', f.es_fallecido);
       marcar('familiarRepresentantePrincipal', f.representante_principal);
       marcar('familiarAutorizadoRetiros', f.autorizado_retiros);
       marcar('familiarViveConEstudiante', f.vive_con_estudiante);
@@ -1290,6 +1489,9 @@
  representante quedaría editable cuando no debe.*/
         bloquearContacto(!contactoEditable(f));
         if (bloqueRepresentanteUI) bloqueRepresentanteUI.sincronizar();
+        if (f.id_estado_nacimiento) {
+          poner('familiarEstadoNacimiento', f.id_estado_nacimiento);
+        }
       });
     }
 
@@ -1340,6 +1542,9 @@
 
     function rolesDe(f) {
       var roles = [];
+      if (f.es_fallecido) {
+        roles.push('Fallecido(a)');
+      }
       if (f.representante_principal) {
         roles.push('Representante legal');
       } else if (f.solo_autorizado) {
@@ -1390,9 +1595,9 @@
 
         return '<button type="button" class="' + clase + '" data-desvincular="' + indice + '"'
           + (esRepresentante ? ' aria-disabled="true" data-motivo-bloqueo="representante"' : '')
-          + ' title="' + escHtml(titulo) + '">'
+          + ' title="' + SIGDEUI.escapeHtml(titulo) + '">'
           + '<i class="bi ' + icono + '" aria-hidden="true"></i>'
-          + '<span class="visually-hidden">' + escHtml(titulo) + '</span>'
+          + '<span class="visually-hidden">' + SIGDEUI.escapeHtml(titulo) + '</span>'
           + '</button>';
       }
 
@@ -1427,7 +1632,7 @@
         var seMuestraInactiva = inactivo || !!f._desvincular;
 
         return '<tr' + (seMuestraInactiva ? ' class="table-row--inactive"' : '') + '>' +
-          '<td>' + escHtml(f.nombre_referencia)
+          '<td>' + SIGDEUI.escapeHtml(f.nombre_referencia)
             /* La marca de "se va a desvincular" va en la propia celda del nombre, y no
  como fila aparte, para que la tabla no cambie de alto mientras la
  secretaria va marcando: si la fila desapareciera o saltara, el objetivo
@@ -1437,9 +1642,9 @@
                   + '<i class="bi bi-trash me-1" aria-hidden="true"></i>Se va a desvincular</span>'
                 : '') +
           '</td>' +
-          '<td>' + escHtml(f.parentesco_texto) + '</td>' +
+          '<td>' + SIGDEUI.escapeHtml(f.parentesco_texto) + '</td>' +
           '<td>' + (roles.length ? roles.map(function (r) {
-            return '<span class="status-badge status-badge--active">' + escHtml(r) + '</span>';
+            return '<span class="status-badge status-badge--active">' + SIGDEUI.escapeHtml(r) + '</span>';
           }).join(' ') : '—') + '</td>' +
           '<td class="text-center">' +
             '<div class="d-inline-flex align-items-center gap-3">' +
@@ -1524,7 +1729,7 @@
       if (!modalEl) return false;   // esta pantalla no tiene el sub-modal
 
       /* Previsualización, "quitar foto" y filtros de escritura delegan en
- public/assets/js/wizard-ui.js, el mismo módulo que consume el wizard de
+ public/assets/js/core/wizard-ui.js, el mismo módulo que consume el wizard de
  empleado: el comportamiento es idéntico en los tres formularios.*/
       foto = SIGDEWizardUI.initFoto({
         inputId: 'familiarFotoInput',
@@ -1535,6 +1740,7 @@
       iniciarCascada();
       iniciarBusquedaPorCedula();
       bloqueRepresentanteUI = iniciarBloqueRepresentante();
+      establecerNacionalidadPorDefecto();
 
       var btnGuardar = document.getElementById('btnGuardarFamiliar');
 
@@ -1600,7 +1806,8 @@
       /** Abre el sub-modal directamente sobre el representante legal activo.*/
       editarRepresentante: function () {
         var indice = familiares.findIndex(function (familiar) {
-          return familiar.representante_principal && familiar.estado_relacion !== 'INACTIVO';
+          return familiar.representante_principal && !familiar.es_fallecido
+            && familiar.estado_relacion !== 'INACTIVO';
         });
         if (indice < 0) return false;
         abrirParaEditar(indice, false);

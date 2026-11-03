@@ -1,6 +1,6 @@
 <?php
 /**
- * Paso 6 - Familiares y representante legal.
+ * Paso 5 - Familiares y representante legal.
  *
  * El estudiante es menor de edad, así que necesita un REPRESENTANTE LEGAL:
  * esa persona es la que autoriza los retiros y la que hay que localizar si

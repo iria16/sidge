@@ -117,11 +117,11 @@ $nameSexo = $prefixName . 'sexo';
       <?php
       $tipoDocId    = $prefixId ? $prefixId . 'TipoDocumento' : 'tipoDocumento';
       $tipoDocName  = $prefixName ? $prefixName . 'tipo_documento' : 'tipo_documento';
-      $tipoDocCol   = 'col-3';
+      $tipoDocCol   = 'col-12 col-md-3';
       // Las variables de opciones las provee el formulario padre o se dejan las default del componente hijo
       include __DIR__ . '/tipo-documento-select.php';
       ?>
-      <div class="col-5">
+      <div class="col-12 col-md-5">
         <label class="label-sigde" for="<?= $idNumeroDocumento ?>">Nro documento *</label>
         <div class="input-icon-group">
           <i class="bi bi-person-vcard" aria-hidden="true"></i>
@@ -139,7 +139,7 @@ $nameSexo = $prefixName . 'sexo';
             required>
         </div>
       </div>
-      <div class="col-4">
+      <div class="col-12 col-md-4">
         <label class="label-sigde" for="<?= $idFechaNacimiento ?>">Fecha de nacimiento *</label>
         <input
           type="date"

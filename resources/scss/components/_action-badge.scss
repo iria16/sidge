@@ -20,6 +20,11 @@
     color: shade-color($info, 5%);
   }
 
+  &--logout {
+    background: rgba($danger, 0.1);
+    color: shade-color($danger, 5%);
+  }
+
   &--create {
     background: rgba($success, 0.12);
     color: shade-color($success, 5%);

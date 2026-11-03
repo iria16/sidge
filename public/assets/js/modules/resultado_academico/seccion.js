@@ -192,8 +192,15 @@
       if (proyeccion) {
         proyeccion.innerHTML = '<div class="text-secondary"><i class="bi bi-arrow-right-short text-success"></i> Avanza: <strong>' + escapeHtml(textoGradoAvanza) + '</strong></div>';
       }
-      if (celdaBoleta && !celdaBoleta.querySelector('.btn-preview-certificado')) {
-        celdaBoleta.innerHTML = '<span class="text-warning small fst-italic" title="Guarde los cambios para emitir la boleta"><i class="bi bi-exclamation-circle me-1"></i>Por guardar</span>';
+      if (celdaBoleta) {
+        var nombreEst = fila ? (fila.querySelector('.nombre-estudiante') ? fila.querySelector('.nombre-estudiante').textContent : '') : '';
+        var documento = fila ? (fila.querySelector('.documento-estudiante') ? fila.querySelector('.documento-estudiante').textContent.trim() : '') : '';
+        celdaBoleta.innerHTML = '<button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1 btn-preview-certificado" ' +
+          'data-url-preview="<?= BASE_URL ?>certificadoCalificaciones/generarIndividual?id_estudiante=' + studentId + '&id_estructura=<?= $idEstructura ?>" ' +
+          'data-titulo="Certificado de Calificaciones" ' +
+          'data-subtitulo="' + escapeHtml(nombreEst + ' · ' + documento + ' (' + literal + ' - PROMOVIDO)') + '" ' +
+          'title="Visualizar e imprimir Certificado de Calificaciones">' +
+          '<i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>Visualizar</span></button>';
       }
     } else {
       if (inputEstado) inputEstado.value = 'NO_PROMOVIDO';
@@ -205,8 +212,15 @@
       if (proyeccion) {
         proyeccion.innerHTML = '<div class="text-secondary"><i class="bi bi-arrow-repeat text-danger"></i> Permanece: <strong>' + escapeHtml(gradoNombre) + '</strong></div>';
       }
-      if (celdaBoleta && !celdaBoleta.querySelector('.btn-preview-certificado')) {
-        celdaBoleta.innerHTML = '<span class="text-warning small fst-italic" title="Guarde los cambios para emitir la boleta"><i class="bi bi-exclamation-circle me-1"></i>Por guardar</span>';
+      if (celdaBoleta) {
+        var nombreEst = fila ? (fila.querySelector('.nombre-estudiante') ? fila.querySelector('.nombre-estudiante').textContent : '') : '';
+        var documento = fila ? (fila.querySelector('.documento-estudiante') ? fila.querySelector('.documento-estudiante').textContent.trim() : '') : '';
+        celdaBoleta.innerHTML = '<button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1 btn-preview-certificado" ' +
+          'data-url-preview="<?= BASE_URL ?>certificadoCalificaciones/generarIndividual?id_estudiante=' + studentId + '&id_estructura=<?= $idEstructura ?>" ' +
+          'data-titulo="Certificado de Calificaciones" ' +
+          'data-subtitulo="' + escapeHtml(nombreEst + ' · ' + documento + ' (' + literal + ' - NO PROMOVIDO)') + '" ' +
+          'title="Visualizar e imprimir Certificado de Calificaciones">' +
+          '<i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>Visualizar</span></button>';
       }
     }
 
@@ -233,28 +247,6 @@
 
   document.querySelectorAll('.select-literal-pill').forEach(function (select) {
     select.addEventListener('change', function () {
-      var anterior = normalizar(select.getAttribute('data-literal'));
-      var nuevo = normalizar(select.value);
-
-      if (promueve(anterior) && !promueve(nuevo) && anterior !== nuevo) {
-        SIGDEUI.confirmar({
-          titulo: 'Cambio de decisión',
-          texto: 'Vas a pasar de un literal que promueve a uno que no promueve. La decisión quedará como NO PROMOVIDO. ¿Confirmas el cambio?',
-          confirmar: 'Sí, cambiar',
-          cancelar: 'No, mantener',
-          icono: 'warning'
-        }).then(function (confirmado) {
-          if (!confirmado) {
-            select.value = anterior;
-            select.setAttribute('data-literal', anterior);
-            return;
-          }
-          actualizarFila(select);
-          marcarCambio(select.closest('tr'));
-        });
-        return;
-      }
-
       actualizarFila(select);
       marcarCambio(select.closest('tr'));
     });

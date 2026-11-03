@@ -1335,7 +1335,162 @@ function initWizardRegistro() {
   // ---------- Cascada estado->municipio->parroquia (paso 3) ----------
   // El mismo comportamiento del modal de edición: al cambiar el padre, el hijo
   // queda deshabilitado mostrando qué falta elegir. Está en SIGDEWizardUI.
-  iniciarCascadaUbicacion();
+  var cascadaRegistro = iniciarCascadaUbicacion();
+
+  // ---------- Persona ya registrada (paso 1) ----------
+  /* Si la cédula ya está en el sistema (por ejemplo, la persona se registró antes
+     como familiar de un estudiante), se traen sus datos para darla de alta como
+     empleado sin volver a escribirlos. Nombres, fecha y sexo quedan bloqueados:
+     son su identidad en el sistema. Contacto y dirección siguen editables.
+     El servidor ya reutiliza esa persona al guardar (PersonaModel::buscarOCrear). */
+  var busquedaPersona = (function iniciarBusquedaPersona() {
+    var inputDoc = formNuevo.querySelector('#numeroDocumento');
+    if (!inputDoc) return { limpiar: function () {} };
+
+    var IDENTIDAD = ['primerNombre', 'segundoNombre', 'primerApellido', 'segundoApellido', 'fechaNacimiento'];
+    var cedulaCargada = null;
+
+    var aviso = document.createElement('div');
+    aviso.className = 'alert py-2 mt-2 d-none';
+    aviso.setAttribute('role', 'status');
+    aviso.setAttribute('aria-live', 'polite');
+    var contenedorDoc = inputDoc.closest('.col-md-6, .col-md-8, .col-12, .mb-3') || inputDoc.parentNode;
+    contenedorDoc.appendChild(aviso);
+
+    function soloDigitos(v) { return String(v || '').replace(/\D/g, ''); }
+
+    function poner(id, valor) {
+      var el = formNuevo.querySelector('#' + id);
+      if (el && valor !== undefined && valor !== null && valor !== '' && valor !== 0) el.value = valor;
+    }
+
+    function ponerPorNombre(nombre, valor) {
+      var el = formNuevo.elements[nombre];
+      if (el && valor) el.value = valor;
+    }
+
+    function mostrarAviso(tipo, html) {
+      aviso.className = 'alert alert-' + tipo + ' py-2 mt-2';
+      aviso.innerHTML = html;
+    }
+
+    function bloquear(bloqueado) {
+      IDENTIDAD.forEach(function (id) {
+        var el = formNuevo.querySelector('#' + id);
+        if (!el) return;
+        if (bloqueado) el.setAttribute('readonly', '');
+        else el.removeAttribute('readonly');
+      });
+      /* Los radios del sexo NO se deshabilitan: un control disabled no viaja en el
+         FormData y el alta fallaría por "Selecciona el sexo". Se bloquea la tarjeta. */
+      formNuevo.querySelectorAll('[data-sexo-card]').forEach(function (card) {
+        card.classList.toggle('is-locked', bloqueado);
+        card.style.pointerEvents = bloqueado ? 'none' : '';
+      });
+    }
+
+    function limpiar(vaciarCampos) {
+      if (vaciarCampos && cedulaCargada !== null) {
+        IDENTIDAD.forEach(function (id) {
+          var el = formNuevo.querySelector('#' + id);
+          if (el) el.value = '';
+        });
+        formNuevo.querySelectorAll('input[name="sexo"]').forEach(function (r) {
+          r.checked = false;
+          r.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      }
+      cedulaCargada = null;
+      bloquear(false);
+      aviso.className = 'alert py-2 mt-2 d-none';
+      aviso.innerHTML = '';
+    }
+
+    function cargar(encontrado, documento) {
+      var p = encontrado.persona || {};
+      var nombre = [p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido]
+        .filter(Boolean).join(' ');
+
+      if (encontrado.es_empleado) {
+        mostrarAviso('warning', '<i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>'
+          + '<strong>' + SIGDEUI.escapeHtml(nombre) + '</strong> ya está registrado(a) como empleado.');
+        return;
+      }
+
+      poner('primerNombre', p.primer_nombre);
+      poner('segundoNombre', p.segundo_nombre);
+      poner('primerApellido', p.primer_apellido);
+      poner('segundoApellido', p.segundo_apellido);
+      poner('fechaNacimiento', p.fecha_nacimiento);
+      if (Number(p.id_estado_nacimiento) > 0) poner('nacimientoEstado', p.id_estado_nacimiento);
+      if (Number(p.id_nacionalidad) > 0) poner('nacionalidad', p.id_nacionalidad);
+      if (p.tipo_documento) poner('tipoDocumento', p.tipo_documento);
+
+      var radio = formNuevo.querySelector('input[name="sexo"][value="' + p.sexo + '"]');
+      if (radio) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      var c = encontrado.contacto;
+      if (c) {
+        ponerPorNombre('codigo_telefono_principal', c.codigo);
+        ponerPorNombre('numero_telefono_principal', c.numero);
+        ponerPorNombre('codigo_telefono_alternativo', c.codigo_alt);
+        ponerPorNombre('numero_telefono_alternativo', c.numero_alt);
+        ponerPorNombre('correo_electronico', c.correo);
+      }
+
+      var d = encontrado.direccion;
+      if (d) {
+        poner('sectorUrbanizacion', d.sector);
+        poner('calleAvenida', d.calle);
+        poner('nroCasaApto', d.casa);
+        poner('punto_referencia', d.referencia);
+        if (cascadaRegistro && Number(d.parroquia) > 0) {
+          cascadaRegistro.elegirParroquia(Number(d.estado || 0), Number(d.municipio || 0), Number(d.parroquia));
+        }
+      }
+
+      cedulaCargada = documento;
+      bloquear(true);
+
+      var html = '<i class="bi bi-info-circle me-1" aria-hidden="true"></i>'
+        + '<strong>Ya está registrada: ' + SIGDEUI.escapeHtml(nombre) + '.</strong> '
+        + 'Se cargaron sus datos; revise el contacto y la dirección y complete los datos laborales.';
+      if (Number(encontrado.representante_de) > 0) {
+        html += '<br>Es representante legal de ' + Number(encontrado.representante_de) + ' estudiante(s).';
+      }
+      mostrarAviso('info', html);
+    }
+
+    var buscar = SIGDEUI.esDebounced(500, function () {
+      var documento = soloDigitos(inputDoc.value);
+      if (documento.length < 7 || documento.length > 8) return;
+
+      SIGDEUI.enviar(baseUrl + rutaControlador + '/buscarPersona?documento=' + encodeURIComponent(documento), { metodo: 'GET' })
+        .then(function (r) {
+          // Si la cédula cambió mientras se consultaba, la respuesta ya no aplica.
+          if (soloDigitos(inputDoc.value) !== documento) return;
+          if (!r.ok || !r.data || r.data.ok !== true) return;
+          if (r.data.data) cargar(r.data.data, documento);
+          else limpiar(false);
+        })
+        .catch(function () { /* la búsqueda es una ayuda: si falla, se escribe a mano */ });
+    });
+
+    function alCambiarCedula() {
+      var documento = soloDigitos(inputDoc.value);
+      // Si se corrige la cédula de una persona cargada, se quitan sus datos.
+      if (cedulaCargada !== null && documento !== cedulaCargada) limpiar(true);
+      buscar();
+    }
+
+    inputDoc.addEventListener('input', alCambiarCedula);
+    inputDoc.addEventListener('change', alCambiarCedula);
+
+    return { limpiar: limpiar };
+  })();
 
   // ---------- Títulos académicos (paso 5) ----------
   function pintarTablaTitulos() {

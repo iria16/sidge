@@ -25,4 +25,55 @@ final class Tallas
     {
         return array_map('strval', range(24, 40));
     }
+
+    /**
+     * Comprueba las opciones que también se permiten en las columnas ENUM.
+     * La talla es opcional, por eso null y la cadena vacía son válidos.
+     */
+    public static function esValida(string $prenda, ?string $talla): bool
+    {
+        $opciones = match ($prenda) {
+            'camisa' => self::CAMISA,
+            'pantalon' => self::PANTALON,
+            'zapato' => self::zapato(),
+            default => [],
+        };
+
+        if ($opciones === []) {
+            return false;
+        }
+        if ($talla === null || trim($talla) === '') {
+            return true;
+        }
+
+        return in_array(trim($talla), $opciones, true);
+    }
+
+    /**
+     * Valida los campos enviados por inscripción o ratificación.
+     *
+     * @param array<string, mixed> $tallas
+     * @return array<string, string>
+     */
+    public static function errores(array $tallas): array
+    {
+        $errores = [];
+        $nombres = [
+            'camisa' => 'camisa',
+            'pantalon' => 'pantalón',
+            'zapato' => 'calzado',
+        ];
+
+        foreach ($nombres as $prenda => $nombre) {
+            $valor = $tallas[$prenda] ?? null;
+            $valorValido = $valor === null
+                || ((is_string($valor) || is_int($valor))
+                    && self::esValida($prenda, (string) $valor));
+            if (!$valorValido) {
+                $errores['talla_' . $prenda] = 'Seleccione una talla válida de ' . $nombre . '.';
+            }
+        }
+
+        return $errores;
+    }
 }

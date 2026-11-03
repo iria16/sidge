@@ -6,6 +6,7 @@
   "scripts": {
     "build": "npm run copy:vendor-js && npm run copy:vendor-icons && npm run sass:build && npm run sass:build:pdf",
     "verificar": "php scripts/verificar-assets.php && php scripts/verificar-ids.php && php scripts/verificar-vistas.php && php scripts/verificar-menu.php",
+    "test:inscripcion": "php scripts/test_documentos_obligatorios.php",
     "sass:build": "sass resources/scss/app.scss public/assets/css/app.css --style=compressed --no-source-map",
     "sass:watch": "sass --watch resources/scss/app.scss:public/assets/css/app.css",
     "sass:build:pdf": "sass resources/scss/pdf/constancia.scss public/assets/css/pdf/constancia.css --style=expanded --no-source-map && sass resources/scss/pdf/ficha-estudiante.scss public/assets/css/pdf/ficha-estudiante.css --style=expanded --no-source-map && sass resources/scss/pdf/nomina-seccion.scss public/assets/css/pdf/nomina-seccion.css --style=expanded --no-source-map && sass resources/scss/pdf/reporte-personal.scss public/assets/css/pdf/reporte-personal.css --style=expanded --no-source-map && sass resources/scss/pdf/reporte-oficial.scss public/assets/css/pdf/reporte-oficial.css --style=expanded --no-source-map",

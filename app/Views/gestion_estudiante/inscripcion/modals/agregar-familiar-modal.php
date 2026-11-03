@@ -58,6 +58,9 @@ ob_start();
   estudiante se incluye ANTES y pone la marca en true. Sin esta línea el familiar se
   terminaba印发 los tres niveles, que es lo que hacía. */
   $pideMunicipioParroquiaNacimiento = false;
+  $pideNacionalidad = true;
+  $nacionalidadSeleccionada = 0;
+  $nacionalidadEsRegistroExistente = false;
 
   include __DIR__ . '/../../components/persona-form.php';
   ?>

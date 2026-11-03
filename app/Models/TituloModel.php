@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use PDO;
+
 /**
  * TituloModel
  *
@@ -50,6 +52,31 @@ class TituloModel extends CatalogModel
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    /**
+     * @return array<int, array{id_grado_academico:int, nombre:string}>
+     */
+    public function gradosAcademicosActivos(): array
+    {
+        return $this->pdo->query(
+            "SELECT id_grado_academico, nombre
+               FROM grado_academico
+              WHERE estado = 'ACTIVO'
+              ORDER BY nombre"
+        )->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function gradoAcademicoActivo(int $idGrado): bool
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT COUNT(*)
+               FROM grado_academico
+              WHERE id_grado_academico = :id AND estado = 'ACTIVO'"
+        );
+        $stmt->execute(['id' => $idGrado]);
 
         return (int) $stmt->fetchColumn() > 0;
     }

@@ -231,41 +231,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  document.querySelectorAll('input[name="repite_grado"]').forEach(function (radio) {
-    radio.addEventListener('change', function () {
-      if (!selGrado || !modalRatificarEl) return;
-      const repite = this.value === '1';
-      const gId = repite
-        ? (modalRatificarEl.dataset.gradoOrigenId || '0')
-        : (modalRatificarEl.dataset.gradoDestinoId || '0');
-      const gNombre = repite
-        ? (modalRatificarEl.dataset.gradoOrigenNombre || 'el grado actual')
-        : (modalRatificarEl.dataset.gradoDestinoNombre || 'el grado siguiente');
-
-      const existe = !!gId && Array.prototype.some.call(selGrado.options, function (o) {
-        return o.value === String(gId);
-      });
-
-      selGrado.value = existe ? String(gId) : '';
-
-      if (repite) {
-        mostrarAvisoGrado(existe
-          ? 'Repite el grado: se conserva ' + gNombre + '.'
-          : 'El grado ' + gNombre + ' no tiene secciones registradas en ' + nombreAnioDestino() + '.');
-      } else {
-        mostrarAvisoGrado(existe
-          ? ''
-          : (gId ? 'A este alumno le tocaría ' + gNombre + ', que no está disponible en ' + nombreAnioDestino() + '. Elija el grado que cursará.' : 'Elija el grado que cursará el alumno.'));
-      }
-
-      cargarSecciones(
-        selGrado.value,
-        modalRatificarEl.dataset.seccionDestinoId || '0',
-        modalRatificarEl.dataset.turnoDestinoId || '0'
-      );
-    });
-  });
-
   /* ---------- Ver detalle de una ratificación ----------
  El botón "ver" solo se pinta cuando el estudiante ya está ratificado, así
  que el cuerpo llega con datos y no hay estado que deducir desde la fila.
@@ -360,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (avatarSpan) avatarSpan.textContent = iniciales ?? '';
     }
 
-    /* Guardar datos para responder a "¿Repite grado?" y resetear la encuesta */
+    /* Guardar datos para resetear la encuesta */
     if (modalRatificarEl) {
       modalRatificarEl.dataset.gradoOrigenId = dato('grado-origen-id', '0');
       modalRatificarEl.dataset.gradoOrigenNombre = dato('grado-origen', 'el grado actual');
@@ -368,15 +333,6 @@ document.addEventListener('DOMContentLoaded', function () {
       modalRatificarEl.dataset.gradoDestinoNombre = dato('grado-destino', 'el grado siguiente');
       modalRatificarEl.dataset.seccionDestinoId = dato('seccion-destino-id', '0');
       modalRatificarEl.dataset.turnoDestinoId = dato('turno-destino-id', '0');
-    }
-
-    const radRepiteNo = document.getElementById('repiteGradoNo');
-    const radRepiteSi = document.getElementById('repiteGradoSi');
-    const tipoPromo   = dato('promocion-tipo', 'pendiente');
-    if (tipoPromo === 'no_promovido') {
-      if (radRepiteSi) radRepiteSi.checked = true;
-    } else {
-      if (radRepiteNo) radRepiteNo.checked = true;
     }
 
     const radCanaimaNo = document.getElementById('tieneCanaimaNo');
@@ -559,7 +515,6 @@ document.addEventListener('DOMContentLoaded', function () {
  un <input readonly> no protege nada por sí solo, y el servidor necesita el id
  para saber a qué período se ratifica. El modelo lo contrasta con el año que
  él resuelve.*/
-      const repiteGradoVal = document.querySelector('input[name="repite_grado"]:checked')?.value || '0';
       const tieneCanaimaVal = document.querySelector('input[name="tiene_canaima"]:checked')?.value || '0';
       const serialCanaimaVal = (document.getElementById('serialCanaima')?.value || '').trim();
       const tieneSigeVal = document.querySelector('input[name="tiene_ingreso_sige"]:checked')?.value || '0';
@@ -579,7 +534,6 @@ document.addEventListener('DOMContentLoaded', function () {
         id_turno: (document.getElementById('ratificarTurnoNuevo') || {}).value || '',
         id_anio_escolar: (document.getElementById('ratificarAnioDestinoId') || {}).value || '',
         motivo: (document.getElementById('ratificarMotivo') || {}).value || '',
-        repite_grado: repiteGradoVal,
         tiene_canaima: tieneCanaimaVal,
         serial_canaima: serialCanaimaVal,
         tiene_ingreso_sige: tieneSigeVal,

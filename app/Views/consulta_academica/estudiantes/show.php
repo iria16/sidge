@@ -137,12 +137,13 @@ ob_start();
  documento faltante tiene que recorrer las pestañas para descubrir que existe.*/ ?>
 <?php
   $recaudos = $recaudos ?? [];
+  $recaudosEvaluados = !empty($recaudos[0]['evaluado']);
   $recaudosEntregados = 0;
   $recaudosPendientes  = [];
   foreach ($recaudos as $r) {
       if (!empty($r['consignado'])) {
           $recaudosEntregados++;
-      } else {
+      } elseif ($recaudosEvaluados) {
           $recaudosPendientes[] = $r['nombre'];
       }
   }

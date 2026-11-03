@@ -476,6 +476,22 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
 
             $id_persona = $personaModel->buscarOCrear($data);
 
+            /* Si la persona ya existía (por ejemplo, registrada como familiar de un
+               estudiante), buscarOCrear() la reutiliza sin tocar sus campos. Se guardan
+               aquí los datos que el wizard sí pide y que pueden faltarle. */
+            $actualizarPersona = [];
+            foreach (['id_estado_nacimiento', 'id_nacionalidad'] as $campo) {
+                if ((int) ($data[$campo] ?? 0) > 0) {
+                    $actualizarPersona[$campo] = (int) $data[$campo];
+                }
+            }
+            if (!empty($data['foto'])) {
+                $actualizarPersona['foto'] = $data['foto'];
+            }
+            if ($actualizarPersona !== []) {
+                $personaModel->updatePersona($id_persona, $actualizarPersona);
+            }
+
             $stmt = $this->pdo->prepare(
                     'INSERT INTO empleado (id_persona, fecha_ingreso, id_cargo, id_turno)
                      VALUES (:id_persona, :fecha_ingreso, :id_cargo, :id_turno)'

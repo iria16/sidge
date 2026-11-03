@@ -6,11 +6,13 @@ declare(strict_types=1);
  * Cabecera de la tabla del listado.
  *
  * @var array $tiposInstitucion
+ * @var bool $pideGrado
  */
 ?>
   <tr>
     <th scope="col">Nombre</th>
     <?php if (!empty($tiposInstitucion)): ?><th scope="col">Tipo</th><?php endif; ?>
+    <?php if (!empty($pideGrado)): ?><th scope="col">Grado académico</th><?php endif; ?>
     <th scope="col" class="text-center">Estado</th>
     <th scope="col" class="text-center">Acciones</th>
   </tr>

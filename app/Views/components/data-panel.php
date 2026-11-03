@@ -43,11 +43,12 @@ $panelSummaryId         = $panelSummaryId ?? '';
 $panelPagination        = $panelPagination ?? null;
 
 $panelToolbarTag = $panelFormAction !== '' ? 'form' : 'div';
+$panelFiltersClass = trim((string) ($panelFiltersClass ?? ''));
 ?>
 <div class="data-panel">
   <div class="data-panel__toolbar">
     <<?php echo $panelToolbarTag; ?>
-      class="data-panel__filters"
+      class="data-panel__filters<?php echo $panelFiltersClass !== '' ? ' ' . htmlspecialchars($panelFiltersClass) : ''; ?>"
       <?php if ($panelFormAction !== ''): ?>
         method="get" action="<?php echo htmlspecialchars($panelFormAction); ?>"
         <?php if ($panelFormId !== ''): ?>id="<?php echo htmlspecialchars($panelFormId); ?>"<?php endif; ?>
@@ -97,5 +98,5 @@ $panelToolbarTag = $panelFormAction !== '' ? 'form' : 'div';
   <?php endif; ?>
 </div>
 <?php
-unset($panelFilters, $panelFormAction, $panelFormId, $panelSearchName, $panelSearchValue, $panelSearchPlaceholder, $panelHideSearch, $panelColgroup, $panelTableClass, $panelTableHead, $panelTableBody, $panelTableBodyId, $panelSummary, $panelSummaryId, $panelPagination, $panelToolbarTag);
+unset($panelFilters, $panelFormAction, $panelFormId, $panelSearchName, $panelSearchValue, $panelSearchPlaceholder, $panelHideSearch, $panelColgroup, $panelTableClass, $panelTableHead, $panelTableBody, $panelTableBodyId, $panelSummary, $panelSummaryId, $panelPagination, $panelToolbarTag, $panelFiltersClass);
 ?>

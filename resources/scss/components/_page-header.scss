@@ -19,7 +19,12 @@
 }
 
 .page-header__main {
+  width: 100%;
   min-width: 0;
+
+  @include media-breakpoint-up(md) {
+    width: auto;
+  }
 }
 
 .page-header__title {
@@ -28,6 +33,7 @@
   color: $primary;
   margin-bottom: 0.25rem;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .page-header__subtitle {
@@ -35,6 +41,7 @@
   font-size: 0.9rem;
   margin-bottom: 0;
   max-width: 42rem;
+  overflow-wrap: anywhere;
 
   &--full {
     flex-basis: 100%;

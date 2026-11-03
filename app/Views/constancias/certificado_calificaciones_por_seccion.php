@@ -467,7 +467,7 @@ $directorDoc = $dirCedulaLimpia !== '' ? ($dirTipo . '-' . number_format((int)$d
   </div>
 
   <?php if ($idx < ($totalEst - 1)): ?>
-    <div class="page-break"></div>
+    <div class="page-break">&nbsp;</div>
   <?php endif; ?>
 <?php endforeach; ?>
 

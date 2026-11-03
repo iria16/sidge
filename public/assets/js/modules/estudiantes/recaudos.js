@@ -5,23 +5,12 @@ document.addEventListener('DOMContentLoaded', function () {
   const paneles = document.querySelectorAll('[data-recaudos-panel]');
   if (!paneles.length) return;
 
-  /* Mostrar la observación solo cuando el documento está marcado: una caja de texto
- escondida junto a un "No" invita a escribir en el lugar equivocado.*/
   function sincronizarFila(fila) {
     const toggle = fila.querySelector('[data-recaudo-toggle]');
-    const observacion = fila.querySelector('[data-recaudo-observacion]');
-    if (!toggle || !observacion) return;
-    observacion.classList.toggle('d-none', !toggle.checked);
-
-    /* Misma regla del asistente (enrollments.js): al desmarcar, la observación se borra.
- Si se dejara, "copia ilegible" se quedaría guardada en un documento marcado como NO
- entregado, y eso se lee como un documento entregado con nota.*/
+    if (!toggle) return;
     const pendiente = fila.querySelector('[data-recaudo-pendiente]');
     if (pendiente) {
       pendiente.classList.toggle('d-none', toggle.checked);
-      if (!toggle.checked && observacion.tagName === 'INPUT') {
-        observacion.value = '';
-      }
     }
   }
 
@@ -36,7 +25,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     const resumen = panel.querySelector('[data-recaudos-resumen]');
     if (resumen) {
-      resumen.textContent = marcados + ' de ' + filas.length + ' recaudos entregados.';
+      const evaluado = filas.length > 0
+        && Array.from(filas).every(function (fila) { return fila.dataset.evaluado === '1'; });
+      resumen.textContent = evaluado
+        ? marcados + ' de ' + filas.length + ' recaudos entregados.'
+        : 'Expediente sin evaluar (' + filas.length + ' recaudos registrados).';
     }
   }
 
@@ -48,7 +41,14 @@ document.addEventListener('DOMContentLoaded', function () {
     nombre.className = 'fw-semibold';
     /* textContent y no interpolado en el HTML: el nombre viene de la base y podría
  llevar una comilla o un "<".*/
-    nombre.textContent = r.nombre || '';
+    nombre.textContent = (r.nombre || '')
+      + (r.persona_nombre ? ' — ' + r.persona_nombre : '');
+    if (Number(r.requerido) === 1) {
+      const obligatorio = document.createElement('span');
+      obligatorio.className = 'text-danger';
+      obligatorio.textContent = ' *';
+      nombre.appendChild(obligatorio);
+    }
 
     const celdaNombre = document.createElement('td');
     celdaNombre.appendChild(nombre);
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
     casilla.name = 'recaudos[' + r.id + '][consignado]';
     casilla.value = '1';
     casilla.setAttribute('data-recaudo-toggle', r.id);
-    casilla.checked = !!r.consignado;
+    casilla.checked = Number(r.consignado) === 1;
 
     const celdaConsignado = document.createElement('td');
     celdaConsignado.className = 'text-center';
@@ -86,16 +86,15 @@ document.addEventListener('DOMContentLoaded', function () {
     observacion.maxLength = 255;
     observacion.placeholder = 'Ej.: copia ilegible, se pidió el original';
     observacion.value = r.observacion || '';
-    observacion.classList.toggle('d-none', !r.consignado);
 
     const celdaObservacion = document.createElement('td');
     celdaObservacion.appendChild(observacion);
 
     const pendiente = document.createElement('span');
     pendiente.className = 'text-support small';
-    pendiente.textContent = 'Pendiente';
+    pendiente.textContent = Number(r.evaluado) === 1 ? 'Pendiente' : 'Sin evaluar';
     pendiente.setAttribute('data-recaudo-pendiente', '');
-    if (r.consignado) pendiente.classList.add('d-none');
+    if (Number(r.consignado) === 1) pendiente.classList.add('d-none');
     celdaObservacion.appendChild(pendiente);
 
     const tr = document.createElement('tr');
@@ -120,14 +119,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!recaudos || !recaudos.length) {
       cuerpo.innerHTML = '<tr><td colspan="3" class="text-center py-3 text-support">'
-        + 'No hay recaudos registrados en el catálogo.</td></tr>';
+        + 'Este expediente no tiene una evaluación de recaudos guardada.</td></tr>';
       const resumen = panel.querySelector('[data-recaudos-resumen]');
       if (resumen) resumen.textContent = '';
       return;
     }
 
     cuerpo.innerHTML = '';
-    recaudos.forEach(function (r) { cuerpo.appendChild(fila(r)); });
+    recaudos.forEach(function (r) {
+      const tr = fila(r);
+      tr.dataset.evaluado = Number(r.evaluado) === 1 ? '1' : '0';
+      cuerpo.appendChild(tr);
+    });
 
     contar(panel);
   }

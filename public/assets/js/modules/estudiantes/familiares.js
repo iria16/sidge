@@ -170,6 +170,9 @@
  mientras el bloque no aplica (solo se pregunta al representante y a la madre y
  al padre), y una persona se busca antes de marcar su rol. Ver buscarFamiliar.*/
     var ocupacionPrecargada = '';
+    var estadoNacimientoPrecargado = 0;
+    var nacionalidadPrecargada = 0;
+    var direccionPrecargada = null;
 
     var cascada = null;      // SIGDEWizardUI.initCascadaUbicacion
     var foto = null;         // SIGDEWizardUI.initFoto
@@ -414,6 +417,18 @@
  * aviso se dispara desde el input de la cédula: si se vaciara también,
  * se borraría a sí mismo en cada tecla y el campo parecería bloqueado.
 */
+    function establecerNacionalidadPorDefecto() {
+      var nacEl = document.getElementById('familiarNacionalidad');
+      if (!nacEl) return;
+      var optVen = Array.prototype.find.call(nacEl.options, function (opt) {
+        var texto = opt.text.trim().toLowerCase();
+        return opt.value === '1' || texto === 'venezolano' || texto === 'venezolana';
+      });
+      if (optVen) {
+        nacEl.value = optVen.value;
+      }
+    }
+
     function vaciarSubModal(conservarDecisiones, excepto) {
       if (!modalEl) return;
 
@@ -430,6 +445,9 @@
       }
       editandoIndice = null;
       ocupacionPrecargada = '';
+      estadoNacimientoPrecargado = 0;
+      nacionalidadPrecargada = 0;
+      direccionPrecargada = null;
       ['familiarIndiceEdicion', 'familiarIdRelacion', 'familiarEstadoRelacion'].forEach(function (id) {
         var campo = document.getElementById(id);
         if (campo) campo.value = '';
@@ -469,8 +487,11 @@
           var campo = document.getElementById(id);
           if (campo) campo.selectedIndex = 0;
         });
+
+        establecerNacionalidadPorDefecto();
       } else {
         modalEl.querySelectorAll('select').forEach(function (el) { el.selectedIndex = 0; });
+        establecerNacionalidadPorDefecto();
         /* Al abrir en blanco, los tres interruptores también vuelven a cero:
            son decisiones de la fila anterior, no del familiar nuevo. */
         ['familiarRepresentantePrincipal', 'familiarAutorizadoRetiros', 'familiarViveConEstudiante']
@@ -604,13 +625,25 @@
             var claves = ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido'];
             CAMPOS_IDENTIDAD.slice(0, 4).forEach(function (id, i) { poner(id, persona[claves[i]]); });
             poner('familiarFechaNacimiento', persona.fecha_nacimiento);
+
+            /* Guardar datos precargados para que sincronizar() no los borre cuando el bloque aún no aplica */
+            estadoNacimientoPrecargado = parseInt(persona.id_estado_nacimiento, 10) || 0;
+            nacionalidadPrecargada = parseInt(persona.id_nacionalidad, 10) || 0;
+            ocupacionPrecargada = encontrado.ocupacion || '';
+            direccionPrecargada = encontrado.direccion || null;
+
             /* El familiar declara solo la entidad federal. El select se llama por id con
                prefijo y su name lleva `familiar_`, que es lo que viaja en el payload. */
-            poner('familiarEstadoNacimiento', persona.id_estado_nacimiento);
+            if (estadoNacimientoPrecargado > 0) {
+              poner('familiarEstadoNacimiento', estadoNacimientoPrecargado);
+            }
             /* La nacionalidad también se rellena sola si la persona ya está registrada:
-               es lo mismo que la fecha, un dato que viene del backend y no algo que la
-               secretaria tenga que volver a escribir. */
-            poner('familiarNacionalidad', persona.id_nacionalidad);
+               si no tiene registrada, se asegura la venezolana por defecto. */
+            if (nacionalidadPrecargada > 0) {
+              poner('familiarNacionalidad', nacionalidadPrecargada);
+            } else {
+              establecerNacionalidadPorDefecto();
+            }
             var fallecidoEncontrado = document.getElementById('familiarEsFallecido');
             if (fallecidoEncontrado) {
               fallecidoEncontrado.checked = Number(persona.es_fallecido) === 1;
@@ -628,7 +661,6 @@
     /* Nivel de instrucción y ocupación: son datos DE ESA persona y no del parentesco, así que se
  traen. No se bloquean, a diferencia de los nombres y el sexo: cambian (dejó de estudiar,
  cambió de oficio) y quien registra es quien mejor los conoce.*/
-            ocupacionPrecargada = encontrado.ocupacion || '';
 
             /* Si el rol ya estaba marcado ANTES de buscar la cédula (representante
  legal, padre o madre), el bloque ya está visible y nadie volvía a llamar
@@ -897,9 +929,58 @@
         /* Si el bloque aplica y los selectores están vacíos, se pone lo que traía la
  persona encontrada por cédula. Solo rellena un select VACÍO, así que no
  pisa lo que la secretaria haya elegido a mano.*/
-        if (pideDatosPersonales) {
+        if (pide) {
+          /* Restaurar entidad federal si vino de la persona encontrada y el select está vacío */
+          var nacEstadoEl = document.getElementById('familiarEstadoNacimiento');
+          if (nacEstadoEl && (!nacEstadoEl.value || nacEstadoEl.value === '0') && estadoNacimientoPrecargado > 0) {
+            nacEstadoEl.value = String(estadoNacimientoPrecargado);
+          }
+
+          /* Restaurar ocupación si vino de la persona encontrada */
           if (ocupacionEl && ocupacionEl.value === '' && ocupacionPrecargada !== '') {
             ocupacionEl.value = ocupacionPrecargada;
+          }
+
+          /* Restaurar nacionalidad si vino de la persona encontrada o por defecto */
+          var nacEl = document.getElementById('familiarNacionalidad');
+          if (nacEl && (!nacEl.value || nacEl.value === '0')) {
+            if (nacionalidadPrecargada > 0) {
+              nacEl.value = String(nacionalidadPrecargada);
+            } else {
+              establecerNacionalidadPorDefecto();
+            }
+          }
+
+          /* Restaurar domicilio si vino de la persona encontrada */
+          if (direccionPrecargada) {
+            var sectorEl = document.getElementById('familiarSector');
+            if (sectorEl && !sectorEl.value && direccionPrecargada.sector) {
+              sectorEl.value = direccionPrecargada.sector;
+            }
+            var calleEl = document.getElementById('familiarCalle');
+            if (calleEl && !calleEl.value && direccionPrecargada.calle) {
+              calleEl.value = direccionPrecargada.calle;
+            }
+            var casaEl = document.getElementById('familiarCasa');
+            if (casaEl && !casaEl.value && direccionPrecargada.casa) {
+              casaEl.value = direccionPrecargada.casa;
+            }
+            var refEl = document.getElementById('familiarReferencia');
+            if (refEl && !refEl.value && direccionPrecargada.referencia) {
+              refEl.value = direccionPrecargada.referencia;
+            }
+
+            var parroquiaPrecargada = direccionPrecargada.parroquia || direccionPrecargada.id_parroquia;
+            if (cascada && parroquiaPrecargada) {
+              var estadoEl = document.getElementById('familiarEstado');
+              if (estadoEl && (!estadoEl.value || estadoEl.value === '0')) {
+                cascada.elegirParroquia(
+                  Number(direccionPrecargada.estado || direccionPrecargada.id_estado || 0),
+                  Number(direccionPrecargada.municipio || direccionPrecargada.id_municipio || 0),
+                  Number(parroquiaPrecargada)
+                );
+              }
+            }
           }
         }
 
@@ -1341,8 +1422,20 @@
       poner('familiarPrimerApellido', f.primer_apellido || '');
       poner('familiarSegundoApellido', f.segundo_apellido || '');
       poner('familiarFechaNacimiento', f.fecha_nacimiento || '');
-      poner('familiarNacionalidad', f.id_nacionalidad || '');
-      poner('familiarEstadoNacimiento', f.id_estado_nacimiento || '');
+
+      estadoNacimientoPrecargado = parseInt(f.id_estado_nacimiento, 10) || 0;
+      ocupacionPrecargada = f.ocupacion || '';
+      direccionPrecargada = f.direccion || null;
+      nacionalidadPrecargada = parseInt(f.id_nacionalidad, 10) || 0;
+
+      if (nacionalidadPrecargada > 0) {
+        poner('familiarNacionalidad', nacionalidadPrecargada);
+      } else {
+        establecerNacionalidadPorDefecto();
+      }
+      if (estadoNacimientoPrecargado > 0) {
+        poner('familiarEstadoNacimiento', estadoNacimientoPrecargado);
+      }
 
       var sexo = document.querySelector('input[name="familiar_sexo"][value="' + (f.sexo || 'M') + '"]');
       if (sexo) sexo.checked = true;
@@ -1647,6 +1740,7 @@
       iniciarCascada();
       iniciarBusquedaPorCedula();
       bloqueRepresentanteUI = iniciarBloqueRepresentante();
+      establecerNacionalidadPorDefecto();
 
       var btnGuardar = document.getElementById('btnGuardarFamiliar');
 

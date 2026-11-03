@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Models\CatalogModel;
 use App\Models\InstitucionModel;
+use App\Models\TituloModel;
 use App\Support\Instituciones;
 use App\Support\Validator;
 use App\Traits\UbicacionTrait;
@@ -51,16 +52,15 @@ class CatalogController extends CrudController
         'parentesco'        => ['nombre' => 'Parentesco',         'icono'   => 'bi-people',              'modelClass' => 'ParentescoModel',     'formato' => 'titulo'],
         'motivo_retiro'     => ['nombre' => 'Motivo de Retiro',   'icono'   => 'bi-box-arrow-right',    'modelClass' => 'MotivoRetiroModel',   'formato' => 'oracion'],
         // Los pide el sub-modal de familiares para el representante legal.
-        'ocupacion'         => ['nombre' => 'Profesión',           'icono'  => 'bi-briefcase',          'modelClass' => 'OcupacionModel',        'formato' => 'titulo'],
+        'ocupacion'         => ['nombre' => 'Ocupación',           'icono'  => 'bi-briefcase',          'modelClass' => 'OcupacionModel',        'formato' => 'titulo'],
         'nacionalidad'      => ['nombre' => 'Nacionalidad',         'icono' => 'bi-globe-americas',     'modelClass' => 'NacionalidadModel',    'formato' => 'titulo'],
-        // Único catálogo con un campo propio además del nombre: el tipo. No es
-        // opcional ni decorativo: institucion.id_tipo_institucion es NOT NULL
-        // sin valor por defecto, así que sin tipo el INSERT no entra.
-        // 'maxLength' sube a 100, lo que admite la columna, porque los nombres
-        // de institución son largos. Los otros once catálogos siguen en 50.
+        // Institución requiere tipo y Título requiere grado académico; ambos
+        // campos son necesarios para respetar sus claves foráneas.
+        // 'maxLength' sube a 100 para los nombres de institución.
         // 'respetaSiglas': los nombres de institución traen siglas (UNEFA, UCV).
         'cargo'             => ['nombre' => 'Cargo',                'icono' => 'bi-person-badge',       'modelClass' => 'CargoModel',          'formato' => 'titulo', 'maxLength' => 50],
         'institucion'       => ['nombre' => 'Institución',          'icono' => 'bi-building',           'modelClass' => 'InstitucionModel',    'formato' => 'titulo', 'maxLength' => 100, 'pideTipo' => true, 'respetaSiglas' => true],
+        'titulo'            => ['nombre' => 'Título',               'icono' => 'bi-mortarboard',        'modelClass' => 'TituloModel',         'formato' => 'titulo', 'maxLength' => 100, 'pideGrado' => true],
     ];
 
     /** Largo máximo del nombre para los catálogos que no fijan el suyo. */
@@ -144,9 +144,17 @@ class CatalogController extends CrudController
             // catálogo pide tipo, la lista de categorías de institución.
             $catalogoMaxLength = self::CATALOGOS[$this->catalogoActivo]['maxLength'] ?? self::MAX_NOMBRE;
             $pideTipo           = self::CATALOGOS[$this->catalogoActivo]['pideTipo'] ?? false;
+            $pideGrado          = self::CATALOGOS[$this->catalogoActivo]['pideGrado'] ?? false;
             $tiposInstitucion  = $pideTipo
                 ? (new InstitucionModel($this->conexion()))->tiposFormulario(Instituciones::TIPOS)
                 : [];
+            $gradosAcademicos = $pideGrado
+                ? (new TituloModel($this->conexion()))->gradosAcademicosActivos()
+                : [];
+            $gradosAcademicosPorId = [];
+            foreach ($gradosAcademicos as $gradoAcademico) {
+                $gradosAcademicosPorId[(int) $gradoAcademico['id_grado_academico']] = $gradoAcademico['nombre'];
+            }
             // Ubicación: el <select> de estados solo lo necesitan institución y
             // los dos modales de alta que comparten sus reglas.
             $estadosGeo        = $pideTipo ? (new InstitucionModel($this->conexion()))->getEstadosGeo() : [];
@@ -256,7 +264,7 @@ class CatalogController extends CrudController
      * catálogo: 'titulo' (cada palabra) u 'oracion' (solo la primera letra).
      * Cubre store() y update().
      *
-     * @return array{nombre: string}
+     * @return array<string, mixed>
      */
     protected function extractData(array $source): array
     {
@@ -285,12 +293,16 @@ class CatalogController extends CrudController
             $data['codigo_dea']     = mb_strtoupper(trim((string) ($source['codigo_dea'] ?? '')), 'UTF-8');
         }
 
+        if (self::CATALOGOS[$this->catalogoActivo]['pideGrado'] ?? false) {
+            $data['id_grado_academico'] = (int) ($source['id_grado_academico'] ?? 0);
+        }
+
         return $data;
     }
 
     /**
      * Valida el nombre y devuelve el primer error: obligatorio, mínimo
-     * (1 en 'seccion', 2 en el resto), máximo 50 y no repetido.
+     * (1 en 'seccion', 2 en el resto), el máximo configurado y no repetido.
      * $excludeId omite al propio registro al editar.
      *
      * @return array<string, string>
@@ -313,7 +325,23 @@ class CatalogController extends CrudController
 
         $errors = $validator->validate();
 
-        if (empty($errors['nombre']) && $model->existeNombre($data['nombre'], $excludeId)) {
+        if (self::CATALOGOS[$this->catalogoActivo]['pideGrado'] ?? false) {
+            $idGrado = (int) ($data['id_grado_academico'] ?? 0);
+            if ($idGrado <= 0) {
+                $errors['id_grado_academico'] = 'Selecciona el grado académico.';
+            } elseif (!($model instanceof TituloModel) || !$model->gradoAcademicoActivo($idGrado)) {
+                $errors['id_grado_academico'] = 'El grado académico seleccionado no existe o está inactivo.';
+            }
+
+            if (
+                empty($errors['nombre'])
+                && empty($errors['id_grado_academico'])
+                && $model instanceof TituloModel
+                && $model->existeTituloEnGrado($data['nombre'], $idGrado, $excludeId)
+            ) {
+                $errors['nombre'] = 'Ya existe un título con ese nombre en el grado académico seleccionado.';
+            }
+        } elseif (empty($errors['nombre']) && $model->existeNombre($data['nombre'], $excludeId)) {
             $errors['nombre'] = 'Ya existe un registro con este nombre en el catálogo activo.';
         }
 

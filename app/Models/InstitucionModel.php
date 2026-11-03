@@ -305,6 +305,24 @@ class InstitucionModel extends CatalogModel
             return $errors;
         }
 
+        if (!\App\Support\Instituciones::esDeEstudiante($tipo)) {
+            $estado = (int) ($data['id_estado_geo'] ?? 0);
+            if ($estado > 0) {
+                if (!$this->existeEstadoGeo($estado)) {
+                    $errors['id_estado_geo'] = 'El estado seleccionado no existe.';
+                }
+                $municipio = (int) ($data['id_municipio'] ?? 0);
+                if ($municipio > 0 && !$this->municipioPerteneceAlEstado($municipio, $estado)) {
+                    $errors['id_municipio'] = 'El municipio seleccionado no pertenece a ese estado.';
+                }
+                $parroquia = (int) ($data['id_parroquia'] ?? 0);
+                if ($parroquia > 0 && !$this->parroquiaPerteneceAlMunicipio($parroquia, $municipio)) {
+                    $errors['id_parroquia'] = 'La parroquia seleccionada no pertenece a ese municipio.';
+                }
+            }
+            return $errors;
+        }
+
         $estado = (int) ($data['id_estado_geo'] ?? 0);
         if ($estado <= 0) {
             $errors['id_estado_geo'] = 'Selecciona el estado donde está la institución.';
@@ -324,10 +342,6 @@ class InstitucionModel extends CatalogModel
             $errors['id_parroquia'] = 'Selecciona la parroquia.';
         } elseif (!$this->parroquiaPerteneceAlMunicipio($parroquia, $municipio)) {
             $errors['id_parroquia'] = 'La parroquia seleccionada no pertenece a ese municipio.';
-        }
-
-        if (!\App\Support\Instituciones::esDeEstudiante($tipo)) {
-            return $errors;
         }
 
         $dea = mb_strtoupper(trim((string) ($data['codigo_dea'] ?? '')), 'UTF-8');

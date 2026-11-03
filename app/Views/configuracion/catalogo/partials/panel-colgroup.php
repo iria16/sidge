@@ -3,13 +3,14 @@ declare(strict_types=1);
 
 /**
  * Partial: catalogo/partials/panel-colgroup.php
- * Anchos de columna del listado: Nombre / Tipo (opcional) / Estado / Acciones.
+ * Anchos de columna del listado: Nombre / Tipo o grado (opcional) / Estado / Acciones.
  *
  * @var array $tiposInstitucion
+ * @var bool $pideGrado
  */
 ?>
   <colgroup>
-    <?php if (empty($tiposInstitucion)): ?>
+    <?php if (empty($tiposInstitucion) && empty($pideGrado)): ?>
       <col class="ancho-55 min-ancho-280px">
     <?php else: ?>
       <col class="ancho-45 min-ancho-280px">

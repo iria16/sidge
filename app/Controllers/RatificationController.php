@@ -8,6 +8,7 @@ use App\Models\RatificationModel;
 use App\Support\CedulaEscolar;
 use App\Support\Documento;
 use App\Support\DocumentosObligatorios;
+use App\Support\Tallas;
 use App\Support\Validator;
 use App\Traits\ContactoValidacionTrait;
 use App\Traits\FotoSubidaTrait;
@@ -589,11 +590,26 @@ class RatificationController extends CrudController
         $familiaresActuales = $this->modelo()->getFamiliares($idEstudiante);
         $representanteActual = $this->representanteLegal($familiaresActuales);
         $representanteNuevo = $this->representanteLegal($data['familiares']);
+        $recaudosParaValidar = $data['recaudos'];
+        $recaudosGuardados = (new \App\Models\EnrollmentModel($this->conexion()))
+            ->getRecaudosDeEstudiante($idEstudiante);
+        foreach ($recaudosGuardados as $recaudoGuardado) {
+            $clave = (string) ($recaudoGuardado['id'] ?? '');
+            $estado = $data['recaudos'][$clave] ?? null;
+            if (!is_array($estado)) {
+                continue;
+            }
+            $claveTipo = 'tipo_' . (int) $recaudoGuardado['id_tipo_documento'];
+            if (!isset($recaudosParaValidar[$claveTipo])
+                || !empty($estado['consignado'])) {
+                $recaudosParaValidar[$claveTipo] = $estado;
+            }
+        }
 
         if ($this->cambioElRepresentante($representanteActual, $representanteNuevo, $servicioDocumentos)) {
             $faltantes = $servicioDocumentos->faltantesPermisoLopnna(
                 $representanteNuevo,
-                $data['recaudos']
+                $recaudosParaValidar
             );
 
             if ($faltantes !== []) {
@@ -608,7 +624,7 @@ class RatificationController extends CrudController
         $faltantesRetiro = $this->faltantesRetiroNuevos(
             $data['familiares'],
             $familiaresActuales,
-            $data['recaudos'],
+            $recaudosParaValidar,
             $servicioDocumentos
         );
 
@@ -677,7 +693,7 @@ class RatificationController extends CrudController
  * normalizarEspacios(), que quita HTML: es un campo que escribe la secretaria y se
  * vuelve a mostrar en la ficha, y sin limpiar un "<script>" quedaría guardado.
  *
- * @return array<int, array{consignado: int, observacion: string}>
+ * @return array<int|string, array{consignado: int, observacion: string}>
 */
     private function decodificarRecaudos($crudo): array
     {
@@ -687,12 +703,13 @@ class RatificationController extends CrudController
 
         $recaudos = [];
         foreach ($crudo as $id => $estado) {
-            $id = (int) $id;
-            if ($id <= 0 || !is_array($estado)) {
+            $id = (string) $id;
+            if (!preg_match('/^(?:[1-9]\d*|tipo_[1-9]\d*)$/', $id) || !is_array($estado)) {
                 continue;
             }
+            $consignado = $estado['consignado'] ?? 0;
             $recaudos[$id] = [
-                'consignado'  => !empty($estado['consignado']) ? 1 : 0,
+                'consignado'  => in_array($consignado, [1, '1', true], true) ? 1 : 0,
                 'observacion' => mb_substr(
                     $this->normalizarEspacios((string) ($estado['observacion'] ?? '')),
                     0,
@@ -752,14 +769,7 @@ class RatificationController extends CrudController
             $errores['sexo'] = 'El sexo seleccionado no es válido.';
         }
 
-        /* Las tallas son opcionales: un valor vacío se guarda como '' (la columna es
-           NOT NULL). Si se proporciona un valor, no debe exceder 10 caracteres (varchar(10)). */
-        foreach (['camisa', 'pantalon', 'zapato'] as $talla) {
-            $val = (string) ($data['talla_uniforme'][$talla] ?? '');
-            if ($val !== '' && mb_strlen($val, 'UTF-8') > 10) {
-                $errores['talla_' . $talla] = 'La talla no puede superar los 10 caracteres.';
-            }
-        }
+        $errores = array_merge($errores, Tallas::errores($data['talla_uniforme'] ?? []));
 
         /* Mismo control que en la inscripción: ficha_medica.tipo_sangre es un ENUM y un valor
          fuera de la lista lo trunca la base en silencio dejando un 500 sin explicación.*/

@@ -37,8 +37,8 @@ ob_start();
 <?php
 $cuerpoFichaMedica = ob_get_clean();
 
-// Recaudos: barra de avance + un <li> por fila del paso 5 (verde entregado,
-// rojo pendiente). El texto sale de la tabla del paso 5, no de este archivo.
+// Recaudos: barra de avance + un <li> por fila del paso 6 (verde entregado,
+// rojo pendiente). El texto sale de la tabla de recaudos, no de este archivo.
 ob_start();
 ?>
 <div class="d-flex align-items-center gap-2 mb-3">
@@ -101,10 +101,20 @@ $filas = [
             ],
             'cuerpo' => $cuerpoFichaMedica,
         ],
+    ],
+    [
+        [
+            'titulo' => 'Familiares y representación',
+            'icono'  => 'people',
+            'paso'   => 5,
+            'cuerpo' => $cuerpoFamiliares,
+        ],
+    ],
+    [
         [
             'titulo' => 'Recaudos',
             'icono'  => 'file-earmark-text',
-            'paso'   => 5,
+            'paso'   => 6,
             'cuerpo' => $cuerpoRecaudos,
         ],
     ],
@@ -159,17 +169,6 @@ $filas = [
       <?php endforeach; ?>
     </div>
   <?php endforeach; ?>
-
-  <?php /* Familiares fuera de las filas: el grid reparte el ancho y las
- tarjetas de familiar necesitan la fila entera.*/ ?>
-  <?php
-  $wsCampos     = null;
-  $wsBody       = $cuerpoFamiliares;
-  $wsTitulo     = 'Familiares y representación';
-  $wsIcono      = 'people';
-  $wsEditarPaso = 6;
-  include __DIR__ . '/../../../components/wizard-summary-section.php';
-  ?>
 
   <div class="info-alert info-alert--warning">
     <div class="info-alert__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Traits;
 
 use App\Models\AuditLogModel;
+use App\Support\Documento;
 use PDO;
 use Throwable;
 
@@ -21,7 +22,91 @@ use Throwable;
 trait RecaudosModelTrait
 {
     /**
- * Recaudos del catálogo activo, para el paso 5 del asistente.
+     * Persiste la evaluación completa de una inscripción nueva como snapshot.
+     *
+     * @param array<int, array<string, mixed>> $evaluacion Requisitos generados por DocumentosObligatorios.
+     * @param array<string, array{consignado?: mixed, observacion?: mixed}> $estados
+     */
+    protected function guardarSnapshotRecaudos(
+        int $estudianteId,
+        array $evaluacion,
+        array $estados,
+        int $idUsuario
+    ): void {
+        $relaciones = $this->relacionesFamiliaresPorDocumento($estudianteId);
+        $insertar = $this->pdo->prepare(
+            'INSERT INTO estudiante_documento
+                (id_estudiante, id_persona_estudiante, id_persona_estudiante_unico, id_tipo_documento,
+                 consignado, requerido, observacion, actualizado_en, actualizado_por)
+             VALUES
+                (:estudiante, :persona_estudiante, :persona_estudiante_unico, :tipo, :consignado, :requerido,
+                 :observacion, :actualizado_en, :usuario)'
+        );
+
+        foreach ($evaluacion as $recaudo) {
+            $clave = (string) $recaudo['clave'];
+            $estado = $estados[$clave] ?? [];
+            $documentoPersona = $recaudo['documento_persona'] ?? null;
+            $idRelacion = null;
+            if ($documentoPersona !== null) {
+                $idRelacion = $relaciones[(string) $documentoPersona] ?? null;
+                if ($idRelacion === null) {
+                    throw new \RuntimeException(
+                        'No se encontró el vínculo con el estudiante para ' .
+                        (string) ($recaudo['persona_nombre'] ?? 'la persona autorizada') . '.'
+                    );
+                }
+            }
+
+            $observacion = trim((string) ($estado['observacion'] ?? ''));
+            $consignado = !empty($estado['consignado']) ? 1 : 0;
+            $insertar->execute([
+                'estudiante' => $estudianteId,
+                'persona_estudiante' => $idRelacion,
+                'persona_estudiante_unico' => $idRelacion ?? 0,
+                'tipo' => (int) $recaudo['id_tipo_documento'],
+                'consignado' => $consignado,
+                'requerido' => !empty($recaudo['requerido']) ? 1 : 0,
+                'observacion' => $observacion !== '' ? $observacion : null,
+                'actualizado_en' => $consignado ? date('Y-m-d H:i:s') : null,
+                'usuario' => $consignado && $idUsuario > 0 ? $idUsuario : null,
+            ]);
+        }
+
+        $marcarEvaluacion = $this->pdo->prepare(
+            'UPDATE inscripcion
+                SET documentos_evaluados_en = NOW()
+              WHERE id_estudiante = :estudiante'
+        );
+        $marcarEvaluacion->execute(['estudiante' => $estudianteId]);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function relacionesFamiliaresPorDocumento(int $estudianteId): array
+    {
+        $consulta = $this->pdo->prepare(
+            'SELECT pe.id_persona_estudiante, p.numero_documento
+               FROM persona_estudiante pe
+               JOIN persona p ON p.id_persona = pe.id_persona
+              WHERE pe.id_estudiante = :estudiante'
+        );
+        $consulta->execute(['estudiante' => $estudianteId]);
+
+        $relaciones = [];
+        foreach ($consulta->fetchAll(PDO::FETCH_ASSOC) as $fila) {
+            $documento = Documento::normalizar((string) $fila['numero_documento']);
+            if ($documento !== '') {
+                $relaciones[$documento] = (int) $fila['id_persona_estudiante'];
+            }
+        }
+
+        return $relaciones;
+    }
+
+    /**
+ * Recaudos del catálogo activo, usado por pantallas antiguas que editan un tipo a la vez.
  *
  * Se leen de la base y no del archivo para que agregar uno en Configuración lo muestre
  * de inmediato, y para que marcarlo INACTIVO lo retire de la lista sin borrar nada.
@@ -97,80 +182,88 @@ trait RecaudosModelTrait
     }
 
     /**
- * Recaudos de un estudiante para su ficha.
+ * Recaudos de un estudiante.
  *
- * LEFT JOIN desde el catálogo y no desde estudiante_documento a propósito: si mañana se
- * agrega un recaudo nuevo al catálogo, tiene que aparecer como pendiente en las fichas
- * de los que ya se inscribieron. Leyendo solo las filas guardadas, un alumno con los
- * documentos completos seguiría apareciendo completo y el nuevo requisito quedaría
- * invisible sin dar ninguna pista.
+ * Las inscripciones evaluadas leen el snapshot sin recalcular reglas. Las antiguas
+ * muestran el catálogo como "sin evaluar" y solo guardan cambios que la secretaría
+ * haga explícitamente; así no se crean pendientes retroactivos.
  *
  * @return array<int, array<string, mixed>>
 */
     public function getRecaudosDeEstudiante(int $estudianteId): array
     {
+        $evaluado = $this->recaudosEvaluados($estudianteId);
+        if (!$evaluado) {
+            $consulta = $this->pdo->prepare(
+                "SELECT CASE
+                            WHEN ed.id_estudiante_documento IS NULL
+                                THEN CONCAT('tipo_', t.id_tipo_documento)
+                            ELSE CAST(ed.id_estudiante_documento AS CHAR)
+                        END AS id,
+                        t.id_tipo_documento,
+                        t.nombre,
+                        t.codigo,
+                        COALESCE(ed.consignado, 0) AS consignado,
+                        ed.requerido,
+                        ed.observacion,
+                        ed.actualizado_en,
+                        u.nombre_usuario AS actualizado_por_nombre,
+                        NULL AS persona_nombre,
+                        0 AS evaluado
+                   FROM inscripcion i
+                   JOIN tipo_documento t ON t.estado = 'ACTIVO'
+                   LEFT JOIN estudiante_documento ed
+                          ON ed.id_estudiante = i.id_estudiante
+                         AND ed.id_tipo_documento = t.id_tipo_documento
+                         AND ed.id_persona_estudiante IS NULL
+                   LEFT JOIN usuario u ON u.id_usuario = ed.actualizado_por
+                  WHERE i.id_estudiante = :estudiante
+                    AND i.documentos_evaluados_en IS NULL
+               ORDER BY t.nombre"
+            );
+            $consulta->execute(['estudiante' => $estudianteId]);
+            return $consulta->fetchAll(PDO::FETCH_ASSOC);
+        }
+
         $consulta = $this->pdo->prepare(
-            "SELECT t.id_tipo_documento AS id,
+            "SELECT ed.id_estudiante_documento AS id,
+                    ed.id_tipo_documento,
                     t.nombre,
                     t.codigo,
-                    IFNULL(ed.consignado, 0) AS consignado,
+                    ed.consignado,
+                    ed.requerido,
                     ed.observacion,
                     ed.actualizado_en,
-                    u.nombre_usuario AS actualizado_por_nombre
-               FROM tipo_documento t
-               LEFT JOIN estudiante_documento ed
-                      ON ed.id_tipo_documento = t.id_tipo_documento
-                     AND ed.id_estudiante = :estudiante
+                    u.nombre_usuario AS actualizado_por_nombre,
+                    CONCAT_WS(' ', p.primer_nombre, p.segundo_nombre,
+                        p.primer_apellido, p.segundo_apellido) AS persona_nombre,
+                    i.documentos_evaluados_en IS NOT NULL AS evaluado
+               FROM estudiante_documento ed
+               JOIN tipo_documento t ON t.id_tipo_documento = ed.id_tipo_documento
                LEFT JOIN usuario u ON u.id_usuario = ed.actualizado_por
-              WHERE t.estado = 'ACTIVO'
-           ORDER BY t.nombre"
+               LEFT JOIN persona_estudiante pe
+                      ON pe.id_persona_estudiante = ed.id_persona_estudiante
+               LEFT JOIN persona p ON p.id_persona = pe.id_persona
+               LEFT JOIN inscripcion i ON i.id_estudiante = ed.id_estudiante
+              WHERE ed.id_estudiante = :estudiante
+           ORDER BY t.nombre, persona_nombre"
         );
         $consulta->execute(['estudiante' => $estudianteId]);
-        $filas = $consulta->fetchAll(PDO::FETCH_ASSOC);
+        return $consulta->fetchAll(PDO::FETCH_ASSOC);
+    }
 
-        // Requisitos por estudiante (reutiliza el método central).
-        $procedencia = $this->pdo->prepare(
-            'SELECT es_primer_ingreso, id_institucion, ult_grado_cursado
+    public function recaudosEvaluados(int $estudianteId): bool
+    {
+        $consulta = $this->pdo->prepare(
+            'SELECT documentos_evaluados_en
                FROM inscripcion
-              WHERE id_estudiante = :id
+              WHERE id_estudiante = :estudiante
               LIMIT 1'
         );
-        $procedencia->execute(['id' => $estudianteId]);
-        $proc = $procedencia->fetch(PDO::FETCH_ASSOC) ?: [];
+        $consulta->execute(['estudiante' => $estudianteId]);
+        $evaluadoEn = $consulta->fetchColumn();
 
-        $rep = $this->pdo->prepare(
-            'SELECT p.fecha_nacimiento, par.nombre AS parentesco
-               FROM persona_estudiante pe
-               JOIN persona p ON p.id_persona = pe.id_persona
-               LEFT JOIN parentesco par ON par.id_parentesco = pe.id_parentesco
-              WHERE pe.id_estudiante = :id
-                AND pe.es_representante_legal = 1
-              LIMIT 1'
-        );
-        $rep->execute(['id' => $estudianteId]);
-        $representante = $rep->fetch(PDO::FETCH_ASSOC) ?: null;
-
-        $familiares = $representante === null ? [] : [[
-            'parentesco' => (string) ($representante['parentesco'] ?? ''),
-            'representante_principal' => 1,
-        ]];
-
-        $servicio = new \App\Support\DocumentosObligatorios($this->pdo);
-        $requeridos = $servicio->codigosRequeridosInscripcion(
-            (int) ($proc['es_primer_ingreso'] ?? 1) === 1,
-            isset($proc['id_institucion']) ? (int) $proc['id_institucion'] : null,
-            (string) ($proc['ult_grado_cursado'] ?? ''),
-            $familiares,
-            isset($representante['fecha_nacimiento']) ? (string) $representante['fecha_nacimiento'] : null,
-            date('Y-m-d')
-        );
-
-        foreach ($filas as &$fila) {
-            $fila['requerido'] = in_array((string) ($fila['codigo'] ?? ''), $requeridos, true);
-        }
-        unset($fila);
-
-        return $filas;
+        return $evaluadoEn !== false && $evaluadoEn !== null;
     }
 
     /**
@@ -230,43 +323,93 @@ trait RecaudosModelTrait
             return 0;
         }
 
-        $consulta = $this->pdo->query("SELECT id_tipo_documento FROM tipo_documento WHERE estado = 'ACTIVO'");
-        $permitidos = array_map('intval', $consulta->fetchAll(PDO::FETCH_COLUMN));
-        if ($permitidos === []) {
-            return 0;
-        }
-
-        $upsert = $this->pdo->prepare(
-            'INSERT INTO estudiante_documento
-                 (id_estudiante, id_tipo_documento, consignado, observacion, actualizado_en, actualizado_por)
-             VALUES (:estudiante, :tipo, :consignado, :observacion, NOW(), :usuario)
-             ON DUPLICATE KEY UPDATE
-                consignado       = VALUES(consignado),
-                observacion      = VALUES(observacion),
-                actualizado_en  = NOW(),
-                actualizado_por = VALUES(actualizado_por)'
+        $actualizar = $this->pdo->prepare(
+            'UPDATE estudiante_documento
+                SET consignado = :consignado,
+                    observacion = :observacion,
+                    actualizado_en = NOW(),
+                    actualizado_por = :usuario
+              WHERE id_estudiante_documento = :id
+                AND id_estudiante = :estudiante'
         );
 
         $tocados = 0;
-        $cambios = [];
-        foreach ($recaudos as $id => $estado) {
-            $id = (int) $id;
-            if (!in_array($id, $permitidos, true)) {
+        $evaluado = $this->recaudosEvaluados($estudianteId);
+        $buscar = $this->pdo->prepare(
+            'SELECT id_tipo_documento, consignado, observacion
+               FROM estudiante_documento
+              WHERE id_estudiante_documento = :id
+                AND id_estudiante = :estudiante'
+        );
+        $buscarLegado = $this->pdo->prepare(
+            'SELECT id_estudiante_documento, consignado, observacion
+               FROM estudiante_documento
+              WHERE id_estudiante = :estudiante
+                AND id_tipo_documento = :tipo
+                AND id_persona_estudiante IS NULL'
+        );
+        $tipoActivo = $this->pdo->prepare(
+            "SELECT 1 FROM tipo_documento
+              WHERE id_tipo_documento = :tipo AND estado = 'ACTIVO'"
+        );
+        $insertarLegado = $this->pdo->prepare(
+            'INSERT INTO estudiante_documento
+                (id_estudiante, id_tipo_documento, consignado, requerido,
+                 observacion, actualizado_en, actualizado_por)
+             VALUES
+                (:estudiante, :tipo, :consignado, NULL, :observacion, NOW(), :usuario)
+             ON DUPLICATE KEY UPDATE
+                consignado = VALUES(consignado),
+                observacion = VALUES(observacion),
+                actualizado_en = NOW(),
+                actualizado_por = VALUES(actualizado_por)'
+        );
+        foreach ($recaudos as $clave => $estado) {
+            $clave = (string) $clave;
+            $observacion = trim((string) ($estado['observacion'] ?? ''));
+            $consignado = !empty($estado['consignado']) ? 1 : 0;
+
+            if (preg_match('/^tipo_([1-9]\d*)$/', $clave, $coincidencia)) {
+                if ($evaluado) {
+                    continue;
+                }
+                $idTipo = (int) $coincidencia[1];
+                $tipoActivo->execute(['tipo' => $idTipo]);
+                if ($tipoActivo->fetchColumn() === false) {
+                    continue;
+                }
+
+                $buscarLegado->execute(['estudiante' => $estudianteId, 'tipo' => $idTipo]);
+                $fila = $buscarLegado->fetch(PDO::FETCH_ASSOC);
+                if ($fila
+                    && (int) $fila['consignado'] === $consignado
+                    && (string) ($fila['observacion'] ?? '') === $observacion) {
+                    continue;
+                }
+
+                $insertarLegado->execute([
+                    'estudiante' => $estudianteId,
+                    'tipo' => $idTipo,
+                    'consignado' => $consignado,
+                    'observacion' => $observacion !== '' ? $observacion : null,
+                    'usuario' => $idUsuario > 0 ? $idUsuario : null,
+                ]);
+                $tocados++;
+                $cambios[] = ($consignado ? 'entregado' : 'pendiente')
+                    . ': ' . $this->nombreRecaudo($idTipo);
                 continue;
             }
 
-            $observacion = trim((string) ($estado['observacion'] ?? ''));
-            $consignado  = !empty($estado['consignado']) ? 1 : 0;
+            $idInstancia = (int) $clave;
+            if ($idInstancia <= 0) {
+                continue;
+            }
 
-            /* Se compara con lo que ya estaba para no escribir filas que no cambian nada:
- actualizar la hora de todos los recaudos al guardar haría que "actualizado
- el" dejara de significar cuándo se recibió el documento.*/
-            $antes = $this->pdo->prepare(
-                'SELECT consignado, observacion FROM estudiante_documento
-                  WHERE id_estudiante = :estudiante AND id_tipo_documento = :tipo'
-            );
-            $antes->execute(['estudiante' => $estudianteId, 'tipo' => $id]);
-            $fila = $antes->fetch(PDO::FETCH_ASSOC);
+            $buscar->execute(['id' => $idInstancia, 'estudiante' => $estudianteId]);
+            $fila = $buscar->fetch(PDO::FETCH_ASSOC);
+            if (!$fila) {
+                continue;
+            }
 
             if ($fila
                 && (int) $fila['consignado'] === $consignado
@@ -274,17 +417,26 @@ trait RecaudosModelTrait
                 continue;
             }
 
-            $upsert->execute([
-                'estudiante'  => $estudianteId,
-                'tipo'        => $id,
+            $actualizar->execute([
                 'consignado'  => $consignado,
                 'observacion' => $observacion !== '' ? $observacion : null,
                 'usuario'     => $idUsuario > 0 ? $idUsuario : null,
+                'id'          => $idInstancia,
+                'estudiante'  => $estudianteId,
             ]);
             $tocados++;
-            $cambios[] = ($consignado ? 'entregado' : 'pendiente') . ': ' . $this->nombreRecaudo($id);
+            $cambios[] = ($consignado ? 'entregado' : 'pendiente')
+                . ': ' . $this->nombreRecaudo((int) $fila['id_tipo_documento']);
         }
 
+        if ($tocados > 0 && $idUsuario > 0) {
+            (new AuditLogModel($this->pdo))->registrar(
+                $idUsuario,
+                'ACTUALIZACIÓN RECAUDOS ' . $this->descripcionEstudianteBruto($estudianteId)
+                    . ': ' . implode('; ', $cambios),
+                'Recaudos'
+            );
+        }
 
         return $tocados;
     }
