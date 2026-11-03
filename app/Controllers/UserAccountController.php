@@ -217,6 +217,7 @@ class UserAccountController extends CrudController
     {
         $model = $this->modelo();
 
+        $id   = (int) ($_POST['id'] ?? 0);
         $idActual = $this->idUsuarioActual();
         if ($idActual !== null && $id === $idActual) {
             $this->jsonResponse(false, null, 'No puedes modificar tu propia cuenta de usuario.', 403);
@@ -226,7 +227,6 @@ class UserAccountController extends CrudController
             $this->jsonResponse(false, null, 'Esta sección no admite edición de cuentas.', 405);
         }
 
-        $id   = (int) ($_POST['id'] ?? 0);
         $data = $this->extractData($_POST);
 
         $errores = $this->validate($data, $id);

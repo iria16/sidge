@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Support\AniosEscolares;
 use App\Support\ConQuienVive;
-use App\Support\Documento;
 use App\Support\Instituciones;
 use App\Interfaces\Listable;
 use App\Support\Matriculas;

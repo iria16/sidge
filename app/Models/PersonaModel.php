@@ -6,7 +6,6 @@ namespace App\Models;
 use App\Exceptions\DocumentoDuplicadoException;
 use App\Support\Documento;
 use PDOException;
-use Throwable;
 
 class PersonaModel extends BaseModel
 {

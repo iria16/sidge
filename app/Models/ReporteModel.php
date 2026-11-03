@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Support\AniosEscolares;
 use App\Support\ConQuienVive;
 use App\Support\Instituciones;
 use App\Support\Matriculas;
@@ -12,7 +11,6 @@ use Throwable;
 
 /**
  * ReporteModel
- * ------------
  * Consultas consolidadas para reportes institucionales, estadísticos y nóminas:
  * - Estadístico general oficial (Matrícula inicial / mensual por grado, sexo y edad).
  * - Listado general de estudiantes por sección con datos del representante.

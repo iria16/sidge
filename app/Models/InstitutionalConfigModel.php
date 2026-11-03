@@ -764,6 +764,18 @@ class InstitutionalConfigModel extends BaseModel
         // 9. PRIMERO: Realizar el UPDATE en la base de datos
         $valorAGuardar = $esFirmaOSello ? $nombreArchivo : ('/uploads/institucion/' . $nombreArchivo);
 
+        // Definir nombre legible antes del try para evitar warning en IDE
+        $nombreLegible = match ($clave) {
+            'ministerio_logo'        => 'Logo del Ministerio',
+            'plantel_logo'           => 'Logo del Plantel',
+            'director_firma'         => 'Firma del Director',
+            'institucion_sello'      => 'Sello Institucional',
+            'cdce_director_firma'    => 'Firma del Director CDCE',
+            'cdce_institucion_sello' => 'Sello CDCE Estadal',
+            'plantel_cintillo'       => 'Franja Tricolor',
+            default                  => $clave,
+        };
+
         $commitOcurrido = false;
         try {
             $this->pdo->beginTransaction();

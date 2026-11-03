@@ -356,7 +356,9 @@ class CatalogController extends CrudController
                 $errors['tipo'] = 'El tipo de institución no tiene categoría asignada.';
             }
 
-            $errores = $model->validarUbicacion($data, $excludeId);
+            $errores = $model instanceof InstitucionModel 
+                ? $model->validarUbicacion($data, $excludeId) 
+                : [];
             return array_merge($errors, $errores);
         }
 

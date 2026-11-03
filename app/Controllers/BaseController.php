@@ -189,7 +189,7 @@ abstract class BaseController
  * Registra un error en el log del servidor con su ubicación y la traza de llamadas.
  * Solo va al log: la traza puede incluir valores y nunca debe llegar al usuario.
 */
-    private function registrarError(Throwable $e, string $seccion): void
+    protected function registrarError(Throwable $e, string $seccion): void
     {
         error_log(
             static::class . " [{$seccion}]: {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}\n"

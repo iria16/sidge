@@ -1,11 +1,11 @@
-/* ==========================================================================
+/* 
    SIGDE - catalogo.js
    Comportamiento específico de la vista de Gestión de Catálogos:
    selector de tipo de catálogo, toggle de estado, alta y edición de
    elementos vía AJAX.
    Depende de: Bootstrap 5 (modales), SweetAlert2 (opcional),
    window.BASE_URL (definido globalmente en layouts/app.php).
-   ========================================================================== */
+   */
 
 // --- Inicialización Módulo ---
 function initCatalogoModule() {

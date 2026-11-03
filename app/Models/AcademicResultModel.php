@@ -85,13 +85,13 @@ class AcademicResultModel extends BaseModel
      */
     public function getSeccionesPorAnio(?int $idAnioEscolar = null, int $idUsuario = 0, string $rol = 'admin'): array
     {
+        $idDocente = 0; // Inicializar para evitar warning en IDE
+
         // El docente únicamente puede visualizar el período escolar activo
         if (strtolower($rol) === 'docente') {
             $idAnioEscolar = AniosEscolares::idEnCurso($this->pdo) ?: 0;
             if ($idUsuario > 0) {
                 $idDocente = $this->getIdDocentePorUsuario($idUsuario);
-            } else {
-                $idDocente = 0;
             }
             if ($idDocente <= 0) {
                 return []; // El docente no tiene perfil asignado; no puede ver secciones ajenas

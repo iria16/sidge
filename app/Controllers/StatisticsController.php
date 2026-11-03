@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
-use App\Models\Configuracion;
+use App\Support\Configuracion;
 use App\Models\StatisticsModel;
 use App\Support\EstadisticaExport;
 use PDO;
