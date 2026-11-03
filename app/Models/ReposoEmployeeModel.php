@@ -10,12 +10,7 @@ use PDO;
 use Throwable;
 
 /**
- * Reposos del personal: empleados y docentes.
- *
- * El reposo es un evento con inicio y fin. Su ciclo de vida administrativo vive en
- * `estado` (VIGENTE, CERRADO, ANULADO), mientras que "está de reposo hoy" se
- * calcula SIEMPRE con CONDICION_VIGENTE: estado VIGENTE y la fecha de hoy dentro
- * del rango. No se repite esa condición en otros modelos ni en las vistas.
+ * Reposos del personal: empleados y docentes. El reposo es un evento con inicio y fin.
  */
 class ReposoEmployeeModel extends BaseModel implements Creatable, Updatable
 {
@@ -39,11 +34,10 @@ class ReposoEmployeeModel extends BaseModel implements Creatable, Updatable
                     AND ' . self::CONDICION_VIGENTE . ')';
 
     /**
-     * Alta de un reposo.
-     *
-     * @param array $data 'id_empleado', 'fecha_inicio', 'fecha_fin', 'motivo',
-     *                    'observacion' e 'id_usuario_registro' (nullable).
-     */
+ * Alta de un reposo. 'observacion' e 'id_usuario_registro' (nullable).
+ *
+ * @param array $data 'id_empleado', 'fecha_inicio', 'fecha_fin', 'motivo',
+ */
     public function create(array $data): bool
     {
         $this->pdo->prepare(
@@ -167,11 +161,9 @@ class ReposoEmployeeModel extends BaseModel implements Creatable, Updatable
     }
 
     /**
-     * ¿Hay un reposo VIGENTE solapado con el rango dado?
-     *
-     * Los reposos CERRADO y ANULADO se ignoran a propósito: ya no ocupan agenda.
-     * `$ignorarId` excluye el propio reposo al editar.
-     */
+ * ¿Hay un reposo VIGENTE solapado con el rango dado? Los reposos CERRADO y ANULADO se
+ * ignoran a propósito: ya no ocupan agenda.
+ */
     public function haySolapamiento(int $idEmpleado, string $fechaInicio, string $fechaFin, ?int $ignorarId = null): ?array
     {
         $fin = $fechaFin !== '' ? $fechaFin : '9999-12-31';
@@ -276,19 +268,13 @@ class ReposoEmployeeModel extends BaseModel implements Creatable, Updatable
     }
 
     /**
-     * Registra un reposo con bloqueo del empleado, control de solapamiento y
-     * bitácora dentro de la misma transacción.
-     *
-     * El bloqueo va antes de comprobar el solapamiento porque el motor corre en
-     * REPEATABLE READ: consultar primero fijaría una vista vieja. Así dos altas
-     * simultáneas sobre el mismo empleado se serializan.
-     *
-     * No responde HTTP: devuelve qué pasó. El controlador traduce `motivo` al
-     * código y mensaje que correspondan.
-     *
-     * @param array{id_empleado:int,fecha_inicio:string,fecha_fin:string,motivo:string} $datos
-     * @return array{ok:bool,motivo?:string,id_reposo?:int}
-     */
+ * Registra un reposo con bloqueo del empleado, control de solapamiento y bitácora
+ * dentro de la misma transacción. Así dos altas simultáneas sobre el mismo empleado
+ * se serializan.
+ *
+ * @param array{id_empleado:int,fecha_inicio:string,fecha_fin:string,motivo:string} $datos
+ * @return array{ok:bool,motivo?:string,id_reposo?:int}
+ */
     public function registrarConBloqueo(array $datos, ?int $idUsuario = null): array
     {
         $this->pdo->beginTransaction();
@@ -347,12 +333,12 @@ class ReposoEmployeeModel extends BaseModel implements Creatable, Updatable
     }
 
     /**
-     * Edita un reposo vigente con bloqueo del empleado y control de
-     * solapamiento, excluyendo el propio registro de la comparación.
-     *
-     * @param array{id_empleado:int,fecha_inicio:string,fecha_fin:string,motivo:string} $datos
-     * @return array{ok:bool,motivo?:string,id_reposo?:int}
-     */
+ * Edita un reposo vigente con bloqueo del empleado y control de solapamiento,
+ * excluyendo el propio registro de la comparación.
+ *
+ * @param array{id_empleado:int,fecha_inicio:string,fecha_fin:string,motivo:string} $datos
+ * @return array{ok:bool,motivo?:string,id_reposo?:int}
+ */
     public function actualizarConBloqueo(int $idReposo, array $datos, ?int $idUsuario = null): array
     {
         $this->pdo->beginTransaction();

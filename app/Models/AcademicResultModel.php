@@ -12,21 +12,11 @@ use Throwable;
 
 /**
  * AcademicResultModel
- * -----------------------------------------------------------------------------
- * Modelo de los resultados académicos de fin de año (Promoción y No Promoción).
- *
- * El docente registra el literal (A-E) y el estado se deriva de él:
- *  - A-D         = PROMOVIDO
- *  - E           = NO_PROMOVIDO
- *  - Sin literal = PENDIENTE
- *
- * Al cerrar el año escolar los literales quedan bloqueados: solo se
- * consulta y se guarda sobre el período en curso.
- *
- * Reglas de negocio:
- *  - Solo el docente asignado a la sección puede modificar sus literales.
- *  - Literal válido: A, B, C, D o E.
- *  - El literal E exige una observación.
+ * ----------------------------------------------------------------------------- Modelo
+ * de los resultados académicos de fin de año (Promoción y No Promoción). El docente
+ * registra el literal (A-E) y el estado se deriva de él: - A-D         = PROMOVIDO - E
+ *           = NO_PROMOVIDO - Sin literal = PENDIENTE Al cerrar el año escolar los
+ * literales quedan bloqueados: solo se consulta y se guarda sobre el período en curso.
  */
 class AcademicResultModel extends BaseModel
 {
@@ -217,17 +207,11 @@ class AcademicResultModel extends BaseModel
             return null;
         }
 
-        /* Alcance de la consulta, por rol.
-         *
-         * Para todo rol que no sea admin o directivo:
-         *   - el período escolar debe ser el que está en curso;
-         *   - y, si el rol es docente, además la sección debe ser la suya.
-         *
-         * La pertenencia de sección solo significa algo para el docente, que es el
-         * único rol con asignación en `asignacion_docente`. Para el coordinador la
-         * sección no es suya ni de nadie: su ámbito es la consulta de todas las
-         * secciones del período, y por eso lo que se le acota es el año, no la
-         * sección. */
+        /**
+ * Alcance de la consulta, por rol. Para todo rol que no sea admin o directivo: - el
+ * período escolar debe ser el que está en curso; - y, si el rol es docente, además
+ * la sección debe ser la suya.
+ */
         $rolNormalizado = strtolower($rol);
         $esPrivilegiado = in_array($rolNormalizado, ['admin', 'directivo'], true);
 
@@ -873,12 +857,10 @@ class AcademicResultModel extends BaseModel
     }
 
     /**
-     * Decide si el dashboard del docente muestra la tarjeta de literales.
-     *
-     * Se muestra siempre que ya haya al menos un literal registrado, o cuando
-     * la fecha actual está dentro de los días previos al cierre del año escolar.
-     * Si el cierre es nulo o inválido, la condición por fecha no aplica.
-     */
+ * Decide si el dashboard del docente muestra la tarjeta de literales. Se muestra
+ * siempre que ya haya al menos un literal registrado, o cuando la fecha actual está
+ * dentro de los días previos al cierre del año escolar.
+ */
     public function debeMostrarAvanceLiterales(int $registrados, ?string $fechaCierre): bool
     {
         if ($fechaCierre === null || trim($fechaCierre) === '') {
@@ -897,13 +879,13 @@ class AcademicResultModel extends BaseModel
     }
 
     /**
-     * Avance de literales cargados para el dashboard del docente.
-     * Cuenta lo registrado por el docente (literal IS NOT NULL),
-     * el total de matriculados y calcula los pendientes y porcentaje.
-     *
-     * @param int $idEstructura
-     * @return array{total: int, registrados: int, pendientes: int, porcentaje: float, literales_validos: list<string>, escala_texto: string}
-     */
+ * Avance de literales cargados para el dashboard del docente. Cuenta lo registrado por
+ * el docente (literal IS NOT NULL), el total de matriculados y calcula los pendientes y
+ * porcentaje.
+ *
+ * @param int $idEstructura
+ * @return array{total: int, registrados: int, pendientes: int, porcentaje: float, literales_validos: list<string>, escala_texto: string}
+ */
     public function getAvanceLiteralesDocente(int $idEstructura): array
     {
         $stmt = $this->pdo->prepare(

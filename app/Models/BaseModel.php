@@ -110,11 +110,11 @@ abstract class BaseModel extends Model
     }
 
     /**
-     * Inserta un registro validando que las columnas existan en la tabla
-     * y asociando parámetros con prefijo nombrado :p_columna.
-     *
-     * @throws \InvalidArgumentException si $data está vacío o contiene columnas inexistentes.
-     */
+ * Inserta un registro validando que las columnas existan en la tabla y asociando
+ * parámetros con prefijo nombrado :p_columna.
+ *
+ * @throws \InvalidArgumentException si $data está vacío o contiene columnas inexistentes.
+ */
     public function create(array $data): bool
     {
         if (empty($data)) {
@@ -136,12 +136,11 @@ abstract class BaseModel extends Model
     }
 
     /**
-     * Actualiza las columnas indicadas en $data del registro con ese id.
-     * Excluye la clave primaria del SET antes de validar que queden datos por actualizar.
-     *
-     * @throws \InvalidArgumentException si no hay datos para actualizar tras excluir la PK
-     *                                   o si se especifican columnas ajenas a la tabla.
-     */
+ * Actualiza las columnas indicadas en $data del registro con ese id. o si se
+ * especifican columnas ajenas a la tabla.
+ *
+ * @throws \InvalidArgumentException si no hay datos para actualizar tras excluir la PK
+ */
     public function update(int $id, array $data): bool
     {
         unset($data[$this->primaryKey]);
@@ -185,6 +184,27 @@ abstract class BaseModel extends Model
                 WHERE `{$this->primaryKey}` = :p_pk";
         
         return $this->pdo->prepare($sql)->execute([':p_pk' => $id]);
+    }
+
+    /**
+     * Comprueba de manera genérica y segura si existe un registro por una columna dada.
+     * Opcionalmente permite ignorar un ID específico (útil en validaciones de edición).
+     */
+    public function existsBy(string $column, mixed $value, ?int $exceptId = null): bool
+    {
+        $column = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
+        $sql = "SELECT COUNT(*) FROM `{$this->table}` WHERE `{$column}` = :valor";
+        $params = [':valor' => $value];
+
+        if ($exceptId !== null && $exceptId > 0) {
+            $sql .= " AND `{$this->primaryKey}` != :except_id";
+            $params[':except_id'] = $exceptId;
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn() > 0;
     }
 
     /**

@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Exceptions\AnioEscolarCerradoException;
-use App\Exceptions\DatoFamiliarIncompletoException;
 use App\Support\AniosEscolares;
 use App\Interfaces\Creatable;
 use App\Interfaces\Listable;
-use App\Support\Documento;
 use App\Support\Instituciones;
 use App\Support\Matriculas;
 
@@ -17,7 +15,6 @@ use App\Traits\CupoEstructuraTrait;
 use App\Traits\FamiliaresModelTrait;
 use App\Traits\RecaudosModelTrait;
 use App\Traits\RetiradoTrait;
-use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -39,11 +36,11 @@ class EnrollmentModel extends BaseModel implements Listable, Creatable
     use CupoEstructuraTrait;
 
     /**
- * Indica si el bloque de talla trae algo que guardar; si el wizard no lo
- * completó no se crea la fila, para no dejar un registro vacío.
+ * Indica si el bloque de talla trae algo que guardar; si el wizard no lo completó no
+ * se crea la fila, para no dejar un registro vacío.
  *
  * @param array<string, mixed> $talla
-*/
+ */
     private function tieneTalla(array $talla): bool
     {
         foreach (['camisa', 'pantalon', 'zapato', 'observaciones'] as $campo) {
@@ -56,15 +53,12 @@ class EnrollmentModel extends BaseModel implements Listable, Creatable
     }
 
     /**
- * Indica si el bloque de ficha médica trae algo que guardar.
- *
- * Existe el mismo control para la talla (tieneTalla()) y faltaba para la ficha: el
- * `if (!empty($data['ficha_medica']))` de abajo era SIEMPRE cierto, porque extractData()
+ * Indica si el bloque de ficha médica trae algo que guardar. Existe el mismo control
+ * para la talla (tieneTalla()) y faltaba para la ficha: el `if
+ * (!empty($data['ficha_medica']))` de abajo era SIEMPRE cierto, porque extractData()
  * arma el arreglo con sus claves puestas a null aunque la secretaria no haya escrito
- * nada. Resultado: cada inscripción dejaba una ficha médica vacía, y una ficha en
- * blanco no significa "sin datos" sino "no se registró", que no es lo mismo en un
- * expediente escolar.
-*/
+ * nada.
+ */
     private function tieneFichaMedica(array $ficha): bool
     {
         foreach (['condiciones_especiales', 'medicamentos', 'observaciones', 'alergias', 'enfermedades', 'tipo_sangre'] as $campo) {
@@ -165,11 +159,7 @@ $row['id']          = (int) $row['id'];
 
     /**
  * Métricas del listado, del AÑO SELECCIONADO.
- *
- * Antes leía sola `AniosEscolares::idEnCurso()`, así que al elegir un año pasado
- * en el selector las tarjetas seguían enseñando los números del año en curso: el
- * listadoHistorical y su resumen contaban cosas distintas.
-*/
+ */
     public function getStats(?int $idTurno = null, ?int $idAnioEscolar = null): array
     {
         $idAnio = $idAnioEscolar !== null && $idAnioEscolar > 0
@@ -256,20 +246,12 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
-     * Cupos por combinación grado/sección del turno y año indicados.
-     *
-     * Usa la misma definición de «cursando» que getStats(), para que la suma de
-     * «disponibles» coincida con la tarjeta «Cupos disponibles». El LEFT JOIN
-     * conserva las estructuras sin matrículas.
-     *
-     * @return array{
-     *     filas: array<int, array{
-     *         grado:string, seccion:string, capacidad:int,
-     *         inscritos:int, disponibles:int, ocupacion:int
-     *     }>,
-     *     totales: array{capacidad:int, inscritos:int, disponibles:int, ocupacion:int}
-     * }
-     */
+ * Cupos por combinación grado/sección del turno y año indicados. Usa la misma
+ * definición de «cursando» que getStats(), para que la suma de «disponibles»
+ * coincida con la tarjeta «Cupos disponibles».
+ *
+ * @return array{
+ */
     public function getCuposPorEstructura(int $idTurno, int $idAnioEscolar): array
     {
         $stmt = $this->pdo->prepare(
@@ -350,19 +332,13 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
- * Grados y secciones que TIENEN estructura en un año escolar.
- *
- * Los filtros de grado y sección se alimentan de aquí y no de getOptions(): el
- * catálogo de grados y secciones es global, así que con el catálogo a secas el
- * filtro ofrecería combinaciones que ese año nunca tuvo. Al mirar un año
- * anterior, solo deben ofrecerse los grados y secciones que de verdad se
- * impartieron.
- *
- * Si el año no tiene estructuras devuelve la lista vacía: no hay nada que
- * filtrar, y es preferible a ofrecer el catálogo entero.
+ * Grados y secciones que TIENEN estructura en un año escolar. Los filtros de grado y
+ * sección se alimentan de aquí y no de getOptions(): el catálogo de grados y
+ * secciones es global, así que con el catálogo a secas el filtro ofrecería
+ * combinaciones que ese año nunca tuvo.
  *
  * @return array<int, string>
-*/
+ */
     public function getGradosSeccionesDelAnio(int $idAnioEscolar, string $tipo): array
     {
         $columna = match ($tipo) {
@@ -404,11 +380,12 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
- * Instituciones de procedencia del estudiante: solo etapas del sistema escolar (preescolar o escuela), no una universidad.
- * Usa App\Support\Instituciones, la misma clase que el wizard de empleados usa para el caso contrario.
+ * Instituciones de procedencia del estudiante: solo etapas del sistema escolar
+ * (preescolar o escuela), no una universidad. Usa App\Support\Instituciones, la misma
+ * clase que el wizard de empleados usa para el caso contrario.
  *
  * @return array<int, array<string, mixed>>
-*/
+ */
     public function getInstituciones(): array
     {
         // El filtro va por id_tipo_institucion, no por `institucion.tipo`: la
@@ -465,15 +442,12 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
-     * Nacionalidades para el <select> del paso 1 del estudiante.
-     *
-     * Va aparte de getFamiliarCatalogs() a propósito: ese método arma el sub-modal de
-     * familiares, que no lleva nacionalidad, y meterla ahí mezclaría dos formularios
-     * que no se parecen. Trae `id_por_defecto` porque el campo del estudiante arranca
-     * en Venezolano en vez de en "Seleccione".
-     *
-     * @return array{nacionalidades:array<int,array<string,mixed>>,id_por_defecto:int}
-     */
+ * Nacionalidades para el <select> del paso 1 del estudiante. Va aparte de
+ * getFamiliarCatalogs() a propósito: ese método arma el sub-modal de familiares, que
+ * no lleva nacionalidad, y meterla ahí mezclaría dos formularios que no se parecen.
+ *
+ * @return array{nacionalidades:array<int,array<string,mixed>>,id_por_defecto:int}
+ */
     public function getNacionalidades(): array
     {
         return [
@@ -517,28 +491,22 @@ $row['id']          = (int) $row['id'];
                          ->fetchAll(\PDO::FETCH_ASSOC);
     }
 
-    /* ¿Ese documento ya está en el sistema? Consulta `persona` y NO `estudiante`, a propósito:
- preguntar solo por `estudiante` dejaba pasar a quien ya tuviera ficha sin ser alumno, como
- un docente o el representante de otro alumno. La inscripción comparte la tabla `persona`.*/
+    /**
+ * ¿Ese documento ya está en el sistema? Consulta `persona` y NO `estudiante`, a
+ * propósito: preguntar solo por `estudiante` dejaba pasar a quien ya tuviera ficha sin
+ * ser alumno, como un docente o el representante de otro alumno.
+ */
     public function existeDocumento(string $documento): bool
     {
-        if (trim($documento) === '') {
-            return false;
-        }
-        $stmt = $this->pdo->prepare(
-            'SELECT 1 FROM persona WHERE numero_documento = :doc LIMIT 1'
-        );
-        $stmt->execute(['doc' => trim($documento)]);
-        return $stmt->fetchColumn() !== false;
+        return (new PersonaModel($this->pdo))->existeDocumento($documento);
     }
 
     /**
- * Por qué ese documento no se puede usar para una inscripción, o null si no está en uso.
- *
- * Los tres casos se responden distinto porque la secretaria tiene que saber a qué
+ * Por qué ese documento no se puede usar para una inscripción, o null si no está en
+ * uso. Los tres casos se responden distinto porque la secretaria tiene que saber a qué
  * módulo acudir: un alumno que ya existe se ratifica, un docente o empleado no se
  * inscribe desde aquí, y un familiar tampoco.
-*/
+ */
     public function descripcionDocumentoExistente(string $documento): ?string
     {
         $documento = trim($documento);
@@ -588,12 +556,14 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
- * Orden del próximo hijo de un representante legal, para la cédula escolar [letra][orden][año][7 dígitos del representante].
- * Se deduce contando los hijos del representante con el mismo AÑO de nacimiento (no fecha completa, porque la cédula lleva solo 2 dígitos del año),
- * incluidos los ya inactivos, para que el orden no cambie si un hermano se gradúa o se retira.
+ * Orden del próximo hijo de un representante legal, para la cédula escolar
+ * [letra][orden][año][7 dígitos del representante]. Se deduce contando los hijos del
+ * representante con el mismo AÑO de nacimiento (no fecha completa, porque la cédula
+ * lleva solo 2 dígitos del año), incluidos los ya inactivos, para que el orden no
+ * cambie si un hermano se gradúa o se retira.
  *
  * @param string $cedulaRepresentante Cédula del representante (con o sin letra), porque el familiar del wizard aún no está en la base.
-*/
+ */
     /** Año escolar activo para el paso 3 del wizard (solo lectura).*/
     public function getAnioActivo(): array
     {
@@ -606,13 +576,13 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
- * Datos del paso 3 (Académico) del wizard; las opciones salen de `estructura_academica` y no del catálogo,
- * así solo se ofrecen las combinaciones registradas para el año activo.
- * Cada combinación trae lo ocupado y lo que queda, para mostrar deshabilitado el turno lleno.
+ * Datos del paso 3 (Académico) del wizard; las opciones salen de
+ * `estructura_academica` y no del catálogo, así solo se ofrecen las combinaciones
+ * registradas para el año activo. Cada combinación trae lo ocupado y lo que queda,
+ * para mostrar deshabilitado el turno lleno.
  *
  * @return array{anio:array<string,mixed>, grados:array, secciones:array,
- * turnos:array, combinaciones:array}
-*/
+ */
     public function opcionesPasoAcademico(?int $idTurno = null): array
     {
         $anio     = $this->getAnioActivo();
@@ -638,19 +608,11 @@ $row['id']          = (int) $row['id'];
     }
 
 /**
- * Folio de inscripción siguiente dentro de un año escolar: 1, 2, 3... y vuelve a 1 en el año nuevo.
- *
- * Es un consecutivo de negocio, no el `id_inscripcion`: ese es un AUTO_INCREMENT técnico que deja huecos
- * (si se borra una inscripción, el siguiente número salta) y nunca se reinicia, así que no sirve como folio
- * para citar en un documento. El UNIQUE (id_anio_escolar, numero_inscripcion) es lo que garantiza que no se repita.
- *
- * El FOR UPDATE sobre la fila del año serializa a las secretarias: sin él, dos inscripciones simultáneas del
- * mismo año leerían el mismo MAX() y el INSERT de la segunda moriría con duplicate key (1062).
- * El orden de bloqueos es estructura (reservarCupo, antes) y luego año (aquí), y ningún otro camino del
- * proyecto bloquea el año, así que ese orden no se cruza con nadie.
+ * Folio de inscripción siguiente dentro de un año escolar: 1, 2, 3... y vuelve a 1 en
+ * el año nuevo.
  *
  * @throws \RuntimeException si el año escolar indicado no existe.
-*/
+ */
     private function siguienteFolio(int $idAnioEscolar): int
     {
         $lock = $this->pdo->prepare(
@@ -944,24 +906,22 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
- * El año escolar en curso, sin caché a propósito: si dentro del proceso se abre
- * o cierra un año, un valor guardado haría que inscripciones y ratificación se
+ * El año escolar en curso, sin caché a propósito: si dentro del proceso se abre o
+ * cierra un año, un valor guardado haría que inscripciones y ratificación se
  * contradigan.
-*/
+ */
     private function anioEnCurso(): int
     {
         return AniosEscolares::idEnCurso($this->pdo);
     }
 
     /**
- * Años escolares existentes, para el selector del listado.
- *
- * Trae el estado de cada uno porque la vista lo necesita para decidir si el año
- * seleccionado admite inscripciones: un año cerrado es de consulta y no debe
- * ofrecer escrituras. Sin el estado aquí, la vista tendría que adivinarlo.
+ * Años escolares existentes, para el selector del listado. Trae el estado de cada uno
+ * porque la vista lo necesita para decidir si el año seleccionado admite
+ * inscripciones: un año cerrado es de consulta y no debe ofrecer escrituras.
  *
  * @return array<int, array{id:int, nombre:string, estado:string, es_lectura:bool}>
-*/
+ */
     public function getAniosEscolares(): array
     {
         $filas = $this->pdo->query(
@@ -984,14 +944,11 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
- * El año que muestra la lista: siempre el ACTIVO. Este listado no tiene selector
- * de período, así que el año no se toma de la URL.
- *
- * Si no hay ningún año abierto se cae al más reciente, que llega marcado como
- * cerrado y deja la pantalla en solo lectura.
+ * El año que muestra la lista: siempre el ACTIVO. Este listado no tiene selector de
+ * período, así que el año no se toma de la URL.
  *
  * @return array{id:int, nombre:string, estado:string, es_lectura:bool}
-*/
+ */
     public function getAnioSeleccionado(): array
     {
         $anios   = $this->getAniosEscolares();
@@ -1034,13 +991,13 @@ $row['id']          = (int) $row['id'];
             $params['id_turno'] = (int) $filters['id_turno'];
         }
 
-        /* Estado del alumno: por defecto solo los que NO están retirados.
- El retiro no es una inscripción nueva, es el mismo alumno que dejó de
- estar activo, así que el filtro trabaja sobre el alumno (EXISTS) y no sobre
- el tipo de la fila: la fila RETIRO no tiene fila en `inscripcion` y
- filtrar por `matricula.tipo` no sacaría al alumno de la lista.
- Con estado=todos se ve también, con su insignia, y sin acciones de
- edición: el registro se consulta igual de uno u otro modo.*/
+        /**
+ * Estado del alumno: por defecto solo los que NO están retirados. El retiro no es una
+ * inscripción nueva, es el mismo alumno que dejó de estar activo, así que el filtro
+ * trabaja sobre el alumno (EXISTS) y no sobre el tipo de la fila: la fila RETIRO no
+ * tiene fila en `inscripcion` y filtrar por `matricula.tipo` no sacaría al alumno de
+ * la lista.
+ */
         if (($filters['estado'] ?? 'activos') !== 'todos') {
             $where[] = 'NOT ' . self::retiradoSql('m');
         }

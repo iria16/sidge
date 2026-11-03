@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Interfaces\Listable;
-
+use App\Traits\OpcionesCatalogoTrait;
 use Throwable;
 
 /**
@@ -14,6 +14,8 @@ use Throwable;
 */
 class TeacherAssignmentModel extends BaseModel implements Listable
 {
+    use OpcionesCatalogoTrait;
+
     protected string $table = 'asignacion_docente';
     protected string $primaryKey = 'id_asignacion';
 
@@ -115,55 +117,6 @@ class TeacherAssignmentModel extends BaseModel implements Listable
         ];
     }
 
-    /** Catálogos activos (id + nombre); anio_escolar usa nombre_periodo y se aliasa a 'nombre' para que las vistas usen una sola clave.*/
-    public function getOptions(string $table): array
-    {
-        $catalogos = [
-            'anio_escolar' => ['etiqueta' => 'nombre_periodo', 'orden' => 'anio_inicio DESC'],
-            'grado'        => ['etiqueta' => 'nombre', 'orden' => 'nombre'],
-            'seccion'      => ['etiqueta' => 'nombre', 'orden' => 'nombre'],
-            'turno'        => ['etiqueta' => 'nombre', 'orden' => 'nombre'],
-        ];
-        if (!isset($catalogos[$table])) {
-            return [];
-        }
-        $etiqueta = $catalogos[$table]['etiqueta'];
-        $orden    = $catalogos[$table]['orden'];
-        $stmt = $this->pdo->query(
-            "SELECT id_{$table} AS id, {$etiqueta} AS nombre
-             FROM {$table} WHERE estado = 'ACTIVO' ORDER BY {$orden}"
-        );
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    }
-
-    public function getActiveSchoolYearId(): ?int
-    {
-        $stmt = $this->pdo->query(
-            "SELECT id_anio_escolar
-               FROM anio_escolar
-              WHERE estado = 'ACTIVO'
-              ORDER BY anio_inicio DESC
-              LIMIT 1"
-        );
-        $id = $stmt->fetchColumn();
-
-        return $id === false ? null : (int) $id;
-    }
-
-    public function getActiveSchoolYearName(): ?string
-    {
-        $stmt = $this->pdo->query(
-            "SELECT nombre_periodo
-               FROM anio_escolar
-              WHERE estado = 'ACTIVO'
-              ORDER BY anio_inicio DESC
-              LIMIT 1"
-        );
-        $name = $stmt->fetchColumn();
-
-        return $name === false ? null : (string) $name;
-    }
-
     public function getStructures(): array
     {
         $sql = "SELECT ea.id_estructura_academica AS id,
@@ -217,18 +170,12 @@ class TeacherAssignmentModel extends BaseModel implements Listable
     }
 
     /**
-     * Sección que el docente tiene asignada en el año escolar activo.
-     *
-     * El punto de partida es `usuario.id_usuario`, NO el `id_docente` que llega por
-     * GET: es el servidor quien resuelve a quién es la sesión. Así un docente no
-     * puede ver la sección de otro manipulando la URL.
-     *
-     * Se resuelve una sola porque la regla vigente es un docente, una sección y
-     * solo del turno que le corresponde. Si algún día la regla se relaja, este
-     * método es el punto a cambiar, junto con `validarAsignacion()`.
-     *
-     * @return array<string, mixed>|null null si el docente no tiene asignación vigente.
-     */
+ * Sección que el docente tiene asignada en el año escolar activo. El punto de partida
+ * es `usuario.id_usuario`, NO el `id_docente` que llega por GET: es el servidor quien
+ * resuelve a quién es la sesión.
+ *
+ * @return array<string, mixed>|null null si el docente no tiene asignación vigente.
+ */
     public function getSeccionActivaDeDocente(int $idUsuario): ?array
     {
         $stmt = $this->pdo->prepare(

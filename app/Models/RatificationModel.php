@@ -37,14 +37,10 @@ class RatificationModel extends BaseModel implements Listable
 
 
     /**
- * La ratificación ESCRIBE en `matricula`, no en una tabla propia.
- *
- * Antes esta propiedad apuntaba a una tabla `ratificacion` que no existe en la base
- * (solo quedaba en un dump viejo) y que el modelo nunca usó: todas sus consultas son
- * SQL escrito a mano sobre `matricula`, `estudiante` y `estructura_academica`.
- * Apuntar aquí a `matricula` es lo que hace el CRUD genérico de BaseModel coherente con
- * lo que el modelo realmente hace, y quita la tabla fantasma de en medio.
-*/
+ * La ratificación ESCRIBE en `matricula`, no en una tabla propia. Apuntar aquí a
+ * `matricula` es lo que hace el CRUD genérico de BaseModel coherente con lo que el
+ * modelo realmente hace, y quita la tabla fantasma de en medio.
+ */
     protected string $table = 'matricula';
     protected string $primaryKey = 'id_matricula';
 
@@ -62,13 +58,12 @@ class RatificationModel extends BaseModel implements Listable
         $inicio = $this->inicioDelAnioEnCurso();
 
         return "LEFT JOIN matricula m ON m.id_matricula = (
-                    /* La última matrícula del alumno de un año ANTERIOR al en curso.
-
- Va como subconsulta ESCALAR en el ON y no como derived table
- con WHERE correlacionado: MariaDB no tiene LATERAL, así que
- una tabla derivada que menciona `est` en su WHERE no se
- puede resolver. Un subescalar en el ON sí ve la fila de
- afuera.*/
+                    /**
+ * La última matrícula del alumno de un año ANTERIOR al en curso. Va como subconsulta
+ * ESCALAR en el ON y no como derived table con WHERE correlacionado: MariaDB no tiene
+ * LATERAL, así que una tabla derivada que menciona `est` en su WHERE no se puede
+ * resolver.
+ */
                     SELECT m2.id_matricula
                       FROM matricula m2
                       JOIN anio_escolar a2 ON a2.id_anio_escolar = m2.id_anio_escolar
@@ -127,11 +122,11 @@ class RatificationModel extends BaseModel implements Listable
     public const FLUJO_RATIFICACION = 'RATIFICACION';
 
     /**
- * EL CRITERIO: ¿tiene el estudiante alguna matrícula previa? No → INSCRIPCIÓN; sí → RATIFICACIÓN.
- * Cuenta cualquier matrícula (también RATIFICACION, RETIRO y EGRESO), no solo el tipo de la última.
+ * EL CRITERIO: ¿tiene el estudiante alguna matrícula previa? No → INSCRIPCIÓN; sí
+ * → RATIFICACIÓN.
  *
  * @return self::FLUJO_*
-*/
+ */
     public function flujoPara(int $estudianteId): string
     {
         $stmt = $this->pdo->prepare(
@@ -296,22 +291,12 @@ class RatificationModel extends BaseModel implements Listable
     }
 
     /**
- * El año escolar al que se ratifica: el único y fijo para toda la pantalla.
- *
- * Es el ACTIVO porque solo en un período abierto tiene sentido registrar una
- * matrícula nueva. Pero para que el formulario no se quede mudo al cierre del
- * período —cuando ya no hay año activo y la secretaria todavía tiene el
- * formulario abierto— se cae al siguiente PLANIFICADO y se marca como no
- * escribible. Mostrar el año que viene en lugar de un "—" deja claro a qué
- * período se está trabajando, y `es_escribible` en false es lo que impide
- * confundir "se ve el próximo" con "se puede ratificar en el próximo".
- *
- * Se ordena por fecha de inicio y no por id: los ids son de inserción y no
- * siguen el orden de los períodos, así que el "próximo" podría salir un año
- * anterior.
+ * El año escolar al que se ratifica: el único y fijo para toda la pantalla. Es el
+ * ACTIVO porque solo en un período abierto tiene sentido registrar una matrícula
+ * nueva.
  *
  * @return array{id:int,nombre:string,estado:string,es_escribible:bool}
-*/
+ */
     public function getAnioDestino(): array
     {
         $stmt = $this->pdo->prepare(
@@ -338,17 +323,12 @@ class RatificationModel extends BaseModel implements Listable
     }
 
     /**
- * Secciones que existen para un grado en el año escolar indicado.
- *
- * Lo usa el selector de sección del modal cuando la secretaria cambia el grado
- * (ratificacion/secciones, por AJAX). Sale de `estructura_academica` y no del
- * catálogo de `seccion` a propósito: el catálogo es global y ofrecería secciones
- * que ese grado no tuvo en ese período, que es justo el caso que la secretaria
- * necesita que NO le aparezca (elegir una sección sin estructura no deja
- * ratificar y el error llega tarde).
+ * Secciones que existen para un grado en el año escolar indicado. Lo usa el selector
+ * de sección del modal cuando la secretaria cambia el grado (ratificacion/secciones,
+ * por AJAX).
  *
  * @return array<int, array{id:int,nombre:string}>
-*/
+ */
     public function getSeccionesPorGrado(int $idGrado, int $idAnioEscolar): array
     {
         if ($idGrado <= 0 || $idAnioEscolar <= 0) {
@@ -372,18 +352,12 @@ class RatificationModel extends BaseModel implements Listable
     }
 
     /**
- * Combinaciones registradas en el año en curso, para los <select> del modal.
- *
- * Se manda la lista UNA vez en el HTML y el navegador filtra por grado y por
- * sección, igual que hace el paso 3 del wizard de inscripción
- * (enrollments.js::cascadaAcademica). Traerla por alumno sería una petición
- * por cada fila del listado, y la lista no depende del alumno: depende del
- * año, que es el mismo para todos los de la pantalla.
+ * Combinaciones registradas en el año en curso, para los <select> del modal. Se manda
+ * la lista UNA vez en el HTML y el navegador filtra por grado y por sección, igual que
+ * hace el paso 3 del wizard de inscripción (enrollments.js::cascadaAcademica).
  *
  * @return array<int, array{id_grado:int,id_seccion:int,id_turno:int,
- * grado:string,seccion:string,turno:string,
- * ocupados:int,capacidad:int,disponibles:int}>
-*/
+ */
     public function getCombinacionesAnioEnCurso(?int $idTurno = null): array
     {
         if ($this->anioEnCurso() <= 0) {
@@ -417,16 +391,15 @@ class RatificationModel extends BaseModel implements Listable
     }
 
     /**
- * Datos del estudiante para el modal de edición, y también su id_persona.
- *
- * Devuelve persona + talla + ficha en una sola consulta con subconsultas
- * escalares, que es lo mismo que se hace al escribir (ver
- * actualizarEstudiante()): leer y escribir tienen que mirar los mismos
- * campos, o el formulario se llenaría con unos y se guardarían otros.
+ * Datos del estudiante para el modal de edición, y también su id_persona. Devuelve
+ * persona + talla + ficha en una sola consulta con subconsultas escalares, que es lo
+ * mismo que se hace al escribir (ver actualizarEstudiante()): leer y escribir tienen
+ * que mirar los mismos campos, o el formulario se llenaría con unos y se guardarían
+ * otros.
  *
  * @param bool $incluirDatosSensibles false para docentes: no trae tallas ni ficha médica.
  * @return array<string, mixed>|null null si el estudiante no existe.
-*/
+ */
     public function getEstudianteEditable(int $idEstudiante, bool $incluirDatosSensibles = true): ?array
     {
         $datosSensibles = $incluirDatosSensibles
@@ -463,22 +436,13 @@ class RatificationModel extends BaseModel implements Listable
     }
 
     /**
- * Guarda los datos editables del estudiante: persona, talla y ficha médica.
- *
- * NO toca la matrícula ni el año escolar: ratificar no es el proceso de
- * cambiar de grado, y el destino lo elige la secretaria en su propio modal.
- * Editar estos datos tampoco debe tocar el cupo ni la estructura.
- *
- * Las tallas y la ficha son UPSERT por `id_estudiante`, que es UNIQUE en las
- * dos tablas: un alumno que nunca tuvo ficha la recibe ahora, y una que ya la
- * tenía se le actualiza sin borrarla.
+ * Guarda los datos editables del estudiante: persona, talla y ficha médica. NO toca la
+ * matrícula ni el año escolar: ratificar no es el proceso de cambiar de grado, y el
+ * destino lo elige la secretaria en su propio modal.
  *
  * @param array $data ['persona'=>[...], 'talla_uniforme'=>[...],
- * 'ficha_medica'=>[...], 'foto'=>?string]
  * @param array $familiares bloques ya normalizados por el controlador. Van
- * en la MISMA transacción que el resto: guardar a la secretaria pero
- * no a sus familiares es peor que no guardar nada.
-*/
+ */
     public function actualizarEstudiante(int $idEstudiante, array $data, array $familiares = []): bool
     {
         $idPersona = (int) ($this->getEstudianteEditable($idEstudiante)['id_persona'] ?? 0);
@@ -561,13 +525,11 @@ class RatificationModel extends BaseModel implements Listable
  secretaria necesita ver para saber que no hay nada ratificado.*/
             $this->guardarFamiliares($idEstudiante, $familiares, true);
 
-            /* Los recaudos van en la MISMA transacción y no en una llamada aparte del
- controlador: el modal "Actualizar expediente" tiene un solo botón de
- guardar, y Guardar Cambios tiene que guardar todo o nada. Si los recaudos
- se escribieran después del commit, un fallo en ellos dejaría los datos del
- alumno guardados y los documentos sin registrar, sin que nadie lo notara.
- actualizarRecaudos() no abre su propia transacción: por eso puede invocarse
- aquí sin anidar una dentro de otra.*/
+            /**
+ * Los recaudos van en la MISMA transacción y no en una llamada aparte del controlador:
+ * el modal "Actualizar expediente" tiene un solo botón de guardar, y Guardar Cambios
+ * tiene que guardar todo o nada.
+ */
             $this->guardarRecaudosEnTransaccion(
                 $idEstudiante,
                 $data['recaudos'] ?? [],
@@ -605,14 +567,11 @@ class RatificationModel extends BaseModel implements Listable
 
 
     /**
-     * Nacionalidades para el <select> del paso 1 del estudiante.
-     *
-     * El modal de edición reutiliza el paso 1 de la inscripción, así que necesita la
-     * misma lista. Va aparte de getCatalogosFamiliar() porque ese método es del
-     * sub-modal de familiares, que no lleva nacionalidad.
-     *
-     * @return array{nacionalidades:array<int,array<string,mixed>>,id_por_defecto:int}
-     */
+ * Nacionalidades para el <select> del paso 1 del estudiante. El modal de edición
+ * reutiliza el paso 1 de la inscripción, así que necesita la misma lista.
+ *
+ * @return array{nacionalidades:array<int,array<string,mixed>>,id_por_defecto:int}
+ */
     public function getNacionalidades(): array
     {
         return [
@@ -625,15 +584,13 @@ class RatificationModel extends BaseModel implements Listable
 
     /**
  * Catálogos del sub-modal de familiares: parentescos, nivel de instrucción y
- * ocupación.
- *
- * Los tres vienen juntos porque el formulario los necesita siempre juntos: el
- * nivel y la ocupación solo se preguntan cuando el familiar es el
- * representante o el padre o la madre (ver FamiliaresModelTrait), pero leer
- * las tres listas de una vez evita dos peticiones más al abrir el modal.
+ * ocupación. Los tres vienen juntos porque el formulario los necesita siempre juntos:
+ * el nivel y la ocupación solo se preguntan cuando el familiar es el representante o
+ * el padre o la madre (ver FamiliaresModelTrait), pero leer las tres listas de una vez
+ * evita dos peticiones más al abrir el modal.
  *
  * @return array{parentescos:array,nivelInstruccion:array,ocupaciones:array}
-*/
+ */
     public function getCatalogosFamiliar(): array
     {
         return [
@@ -656,29 +613,19 @@ class RatificationModel extends BaseModel implements Listable
     }
 
     /**
- * Familiares de un estudiante, con el contacto y el domicilio, listos para
- * que el formulario venga con lo guardado y no haya que re-declararlo.
- *
- * La forma de cada elemento es la INVERSA de decodificarFamiliares(), que es
- * la que espera guardarFamiliares(). Que sean las dos caras de la misma
- * moneda es lo que hace que editar no pierda lo que ya estaba: si el
- * formulario leyera un campo que el guardado no lee, ese campo se perdería
- * en silencio al guardar.
+ * Familiares de un estudiante, con el contacto y el domicilio, listos para que el
+ * formulario venga con lo guardado y no haya que re-declararlo. La forma de cada
+ * elemento es la INVERSA de decodificarFamiliares(), que es la que espera
+ * guardarFamiliares().
  *
  * @param bool $sinDatosSensibles Cuando es true, las columnas de documento de
- *        identidad y nacionalidad NO se piden a la base: llegan vacías y el
- *        dato ni siquiera sale del servidor. Es el camino del docente, que no
- *        necesita el documento de un tercero. El resto de los usuarios (secretaría
- *        al inscribir, coordinación al consultar) lo piden normal.
- *
  * @return array<int, array<string, mixed>>
-*/
+ */
     public function getFamiliares(int $idEstudiante, bool $sinDatosSensibles = false): array
     {
-        /* Columnas que se sustituyen por NULL cuando el destino es el docente.
-           NULL y no '' a propósito: que un documento venga vacío de verdad es
-           distinta cosa de que no se haya consultado, y así el código que lo
-           recibe se comporta igual que antes. */
+        /**
+ * Columnas que se sustituyen por NULL cuando el destino es el docente.
+ */
         $columnasDocumento = $sinDatosSensibles
             ? 'NULL AS tipo_documento, NULL AS numero_documento'
             : 'p.tipo_documento, p.numero_documento';
@@ -719,12 +666,11 @@ es.nombre AS estado_nombre
                     LEFT JOIN estado es            ON es.id_estado            = mu.id_estado
                      LEFT JOIN nacionalidad nac      ON nac.id_nacionalidad  = p.id_nacionalidad
                  WHERE pe.id_estudiante = :id
-                   /* Solo las relaciones VIGENTES (hallazgo MEDIO 4.7).
- Lo desvinculado se marca estado_relacion = INACTIVO y se conserva
- la fila: es un menor, y su parentesco con el alumno es un hecho
- que no se borra porque la secretaria lo quitó de la lista. Con el
- filtro, además, la pantalla deja de ofrecer datos que el guardado
- no volvería a escribir.*/
+                   /**
+ * Solo las relaciones VIGENTES (hallazgo MEDIO 4.7). Lo desvinculado se marca
+ * estado_relacion = INACTIVO y se conserva la fila: es un menor, y su parentesco con el
+ * alumno es un hecho que no se borra porque la secretaria lo quitó de la lista.
+ */
                    AND pe.estado_relacion = :estado
                  ORDER BY pe.es_representante_legal DESC, p.primer_nombre, p.primer_apellido'
           );
@@ -817,30 +763,20 @@ es.nombre AS estado_nombre
  * nombre en la lista del niño parecía un familiar cuando podía no serlo.*/
 
     /**
- * Parentescos que describen un vínculo logístico y no un lazo familiar.
- *
- * Con "Otro" alcanza: es lo que se usa para el transporte y para quien se
- * autoriza por confianza sin parentesco. La lista queda como constante y no
- * como comparación suelta en el código para que, si el negocio decide que
- * "Responsable" o "Tutor" también son logísticos, sea agregar un valor y no
- * reescribir la regla.
-*/
+ * Parentescos que describen un vínculo logístico y no un lazo familiar. Con "Otro"
+ * alcanza: es lo que se usa para el transporte y para quien se autoriza por confianza
+ * sin parentesco.
+ */
     private const PARENTESCOS_LOGISTICOS = ['Otro'];
 
     /**
- * Los vinculados al alumno, ya separados en los dos grupos de la ficha.
- *
- * No reemplaza a getFamiliares(): esa sigue devolviendo la lista completa y
- * plana, que es lo que necesitan el modal de edición de ratificación y el
- * alta de inscripción. Aquí solo se agrupa lo que ya vino, sin volver a
- * consultar: la separación es de lectura, no un dato nuevo de la base.
+ * Los vinculados al alumno, ya separados en los dos grupos de la ficha. No reemplaza a
+ * getFamiliares(): esa sigue devolviendo la lista completa y plana, que es lo que
+ * necesitan el modal de edición de ratificación y el alta de inscripción.
  *
  * @param bool $soloDocente true cuando quien lee es un docente: se quitan el
- *        documento de identidad y la nacionalidad de los terceros. Del alumno se
- *        los conserva porque son suyos y la ficha se los muestra.
- *
  * @return array{nucleo: array<int, array<string,mixed>>, autorizados: array<int, array<string,mixed>>}
-*/
+ */
     public function getFamiliaresParaExpediente(int $idEstudiante, bool $soloDocente = false): array
     {
         $nucleo = [];
@@ -872,11 +808,11 @@ es.nombre AS estado_nombre
             }
         }
 
-        /* El docente verifica de quién se trata mirando a la persona y con su
-           teléfono. El documento de un tercero y su nacionalidad no le hacen falta,
-           así que no se piden arriba (getFamiliares) y además se quitan aquí. Es
-           doble barrera a propósito: la consulta evita traerlos y el unset evita
-           que lleguen a la vista si algo los colara de nuevo. */
+        /**
+ * El docente verifica de quién se trata mirando a la persona y con su teléfono. El
+ * documento de un tercero y su nacionalidad no le hacen falta, así que no se piden
+ * arriba (getFamiliares) y además se quitan aquí.
+ */
         if ($soloDocente) {
             foreach ([&$nucleo, &$autorizados] as &$grupo) {
                 foreach ($grupo as &$persona) {
@@ -895,45 +831,23 @@ es.nombre AS estado_nombre
     }
 
     /**
- * Guarda los familiares de un estudiante.
- *
- * Es un envoltorio sobre el trait, y existe para que el controlador no
- * tenga que alcanzar un método protected ni conocer de qué modelo viene.
-*/
+ * Guarda los familiares de un estudiante. Es un envoltorio sobre el trait, y existe
+ * para que el controlador no tenga que alcanzar un método protected ni conocer de qué
+ * modelo viene.
+ */
     public function guardarFamiliaresDeEstudiante(int $idEstudiante, array $familiares): void
     {
         $this->guardarFamiliares($idEstudiante, $familiares, true);
     }
 
     /**
- * ¿Cuáles de estas personas tienen ficha PROPIA en el plantel?
- *
- * `contacto` y `direccion` tienen UNIQUE(id_persona): hay una sola fila por
- * persona, compartida por todos sus roles. Quien es a la vez empleado y
- * representante legal tiene, por tanto, UN teléfono y UNA dirección, y son los
- * mismos que aparecen en su expediente laboral.
- *
- * Eso convertía una actualización de rutina —la secretaria corrige el teléfono
- * del representante desde el modal de ratificación— en una modificación del
- * registro de personal de un empleado, sin que ninguna de las dos pantallas lo
- * pidiera. No es hipotético: en la base actual 11 de las 12 relaciones
- * pertenecen a personas que también son empleadas, y tres de ellas tienen
- * cuenta de usuario (dos administradores y una directiva).
- *
- * La Etapa 0 no crea una tabla de contactos por rol: el negocio todavía no
- * distingue "teléfono del trabajo" de "celular de casa", así que no se paga
- * una migración por una distinción que nadie ha pedido. Lo que hace es que el
- * dato de la persona se consideration única —la fuente de verdad es su
- * expediente— y desde la pantalla de matrícula no se escriba.
- *
- * Se cuentan `empleado` (que ya cubre a `docente`, porque docente cuelga de
- * empleado) y `estudiante` (ser alumno del mismo plantel). Ser familiar de
- * OTRO alumno NO cuenta: para eso está la fila de persona_estudiante y cada
- * relación lleva su propio parentesco.
+ * ¿Cuáles de estas personas tienen ficha PROPIA en el plantel? `contacto` y
+ * `direccion` tienen UNIQUE(id_persona): hay una sola fila por persona, compartida por
+ * todos sus roles.
  *
  * @param int[] $idsPersona
  * @return array<int, true> Clave = id_persona con ficha propia.
-*/
+ */
     public function personasConPropiaFicha(array $idsPersona): array
     {
         $ids = array_values(array_unique(array_filter(
@@ -965,12 +879,11 @@ es.nombre AS estado_nombre
     }
 
     /**
- * Contacto y domicilio del representante legal, ya aplanados para que el
- * formulario los pinte directo. Devuelve [] si el estudiante no tiene
- * representante marcado.
+ * Contacto y domicilio del representante legal, ya aplanados para que el formulario los
+ * pinte directo. Devuelve [] si el estudiante no tiene representante marcado.
  *
  * @return array<string, mixed>
-*/
+ */
     public function getRepresentanteLegal(int $idEstudiante): array
     {
         $stmt = $this->pdo->prepare(
@@ -1013,12 +926,11 @@ es.nombre AS estado_nombre
     }
 
     /**
- * Busca una persona por cédula para el sub-modal de familiares.
- *
- * El estudiante se pasa como contexto porque el nivel de instrucción y la
- * ocupación están en la relación persona-estudiante, no en la persona: sin él no
- * se sabría de qué menor tomar esos dos datos. Ver PersonaModel.
-*/
+ * Busca una persona por cédula para el sub-modal de familiares. El estudiante se pasa
+ * como contexto porque el nivel de instrucción y la ocupación están en la relación
+ * persona-estudiante, no en la persona: sin él no se sabría de qué menor tomar esos
+ * dos datos.
+ */
     public function buscarPersonaPorDocumento(string $documento, ?int $idEstudiante = null): ?array
     {
         return (new PersonaModel($this->pdo))->buscarPersonaPorDocumento($documento, $idEstudiante);
@@ -1030,32 +942,16 @@ es.nombre AS estado_nombre
  según el tipo; quitar aquí 'V' de una cédula escolar haría fallar el UNIQUE.*/
     public function existeDocumento(string $documento, ?int $ignorarId = null): bool
     {
-        $sql = 'SELECT COUNT(*) FROM persona WHERE numero_documento = :d';
-        $params = ['d' => trim($documento)];
-        if ($ignorarId !== null) {
-            $sql .= ' AND id_persona <> :ignorar';
-            $params['ignorar'] = $ignorarId;
-        }
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-        return (int) $stmt->fetchColumn() > 0;
+        return (new PersonaModel($this->pdo))->existeDocumento($documento, $ignorarId);
     }
 
     /**
- * Detalle de una ratificación ya registrada, para el modal de "ver".
- *
- * Trae las DOS matrículas del alumno: la del año anterior (de dónde viene)
- * y la del año en curso (a dónde llegó). Con una sola no se puede explicar
- * una ratificación, que es justamente un salto de una a otra: ver solo el
- * destino esconde en qué grado estaba y por eso lo ratificaron.
- *
- * El destino es la fila del año en curso cuyo tipo significa "cursando"
- * (INSCRIPCION o RATIFICACION). No se filtra por RATIFICACION porque un
- * alumno que se inscribe este año también aparece como ya matriculado en el
- * listado, y mostrarle una ratificación que nunca tuvo sería inventar el dato.
+ * Detalle de una ratificación ya registrada, para el modal de "ver". Trae las DOS
+ * matrículas del alumno: la del año anterior (de dónde viene) y la del año en curso
+ * (a dónde llegó).
  *
  * @return array<string, mixed>|null null si el estudiante no existe.
-*/
+ */
     public function getDetalle(int $idEstudiante): ?array
     {
         $stmt = $this->pdo->prepare(
@@ -1139,11 +1035,11 @@ es.nombre AS estado_nombre
 
     /** Proyecta al siguiente grado e inserta la ratificación.*/
     /**
+ * elige la secretaria en el modal. Lo que no venga se deduce de la matrícula de origen
+ * (ver estructuraDestino()).
+ *
  * @param array $destino ['id_grado'=>int,'id_seccion'=>int,'id_turno'=>int] que
- * elige la secretaria en el modal. Lo que no venga se deduce de la
- * matrícula de origen (ver estructuraDestino()). El año NO se recibe:
- * es el activo y no se puede cambiar.
-*/
+ */
     public function ratificar(int $estudianteId, array $destino = [], int $idUsuario = 0): array
     {
         /* Sin año en curso no hay destino posible. Se dice antes de mirar al alumno porque
@@ -1287,12 +1183,10 @@ es.nombre AS estado_nombre
                 $abrioTransaccion = true;
             }
 
-    /* El cupo se comprueba PRIMERO, antes de cualquier otra lectura. reservarCupo() abre con un
- SELECT ... FOR UPDATE sobre estructura_academica, y ese bloqueo es lo que serializa a dos
- secretarias ratificando la misma sección. El orden importa porque este modelo corre en
- REPEATABLE READ: un SELECT COUNT previo fijaría la vista de lectura antes del bloqueo, y la
- segunda secretaria vería el estado viejo. Bloquear y solo entonces comprobar da 0
- sobrematrículas; al revés, 22 de 25.*/
+    /**
+ * reservarCupo() abre con un SELECT ... FOR UPDATE sobre estructura_academica, y ese
+ * bloqueo es lo que serializa a dos secretarias ratificando la misma sección.
+ */
             $this->reservarCupo((int) $estructura['id']);
 
             /* La revalidación va DESPUÉS del bloqueo, no antes. Sigue haciendo falta: el
@@ -1355,12 +1249,11 @@ es.nombre AS estado_nombre
             if ($abrioTransaccion && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            /* Comprobar el cupo antes que la revalidación invierte la prioridad de los dos
- mensajes, y el código la cuida a propósito: al revés se le decía "sección
- llena" a quien ya estaba ratificado. El caso que eso invierte es uno solo:
- que otra secretaria ratifique a este alumno Y la sección se llene en la
- misma carrera. Aquí, ya fuera de transacción, la lectura es fresca, así que
- se recupera la prioridad sin tocar el orden del bloqueo.*/
+            /**
+ * El caso que eso invierte es uno solo: que otra secretaria ratifique a este alumno Y
+ * la sección se llene en la misma carrera. Aquí, ya fuera de transacción, la lectura
+ * es fresca, así que se recupera la prioridad sin tocar el orden del bloqueo.
+ */
             if ($this->yaRatificado($matriculaVigente['id_matricula'])) {
                 return ['ok' => false, 'mensaje' => 'El estudiante ya tiene matrícula en el año escolar en curso: ya está ratificado.'];
             }
@@ -1465,19 +1358,11 @@ es.nombre AS estado_nombre
     }
 
     /**
- * Regla de progresión de grado al ratificar.
- *
- * Continuar al siguiente es lo normal; repetir el mismo grado es legítimo (quien no
- * alcanzó el nivel). Retroceder NO se permite: bajar de nivel es una decisión que
- * pertenece a otro proceso, no a la continuidad anual. Adelantar más de un nivel se
- * permite, pero exige un motivo escrito que queda en la matrícula.
- *
- * Los mensajes usan el NOMBRE del grado del catálogo ("2do Grado") y no el número con
- * un sufijo inventado: en español el ordinal no se abrevia igual en todos los niveles
- * (1er, 2do, 3er, 4to…) y escribirlos a mano producía textos como "2er grado".
+ * Regla de progresión de grado al ratificar. Continuar al siguiente es lo normal;
+ * repetir el mismo grado es legítimo (quien no alcanzó el nivel).
  *
  * @return string|null Mensaje de error, o null si la progresión es válida.
-*/
+ */
     private function validarProgresionGrado(
         int $ordinalOrigen,
         ?string $nombreOrigen,
@@ -1545,22 +1430,13 @@ es.nombre AS estado_nombre
 
     /** Estructura destino: grado siguiente, misma sección y turno, en el año en curso.*/
     /**
- * Estructura destino de la ratificación, en el año en curso.
- *
- * Lo que elige la secretaria tiene prioridad sobre lo que se deduciría:
- * grado, sección y turno vienen en $destino cuando el modal los manda. Lo que
- * no venga se deduce de la matrícula de origen (el grado siguiente, la misma
- * sección, el mismo turno), que es lo que se hizo siempre.
- *
- * El grado NO se valida contra "el siguiente" porque hay casos legítimos en
- * que no es ese: un alumno que repite, o uno al que se le adelanta el
- * egreso. Si viene algo que no sea un grado existente, no hay estructura y el
- * modelo lo dice; no se cae de vuelta al siguiente en silencio, porque
- * registrarían al alumno en un grado que nadie eligió.
+ * Estructura destino de la ratificación, en el año en curso. Lo que elige la
+ * secretaria tiene prioridad sobre lo que se deduciría: grado, sección y turno vienen
+ * en $destino cuando el modal los manda.
  *
  * @param array $matricula la matrícula de origen
  * @param array $destino ['id_grado'=>int,'id_seccion'=>int,'id_turno'=>int], opcional
-*/
+ */
     private function estructuraDestino(array $matricula, array $destino = []): ?array
     {
         $gradoElegido = (int) ($destino['id_grado'] ?? 0);
@@ -1660,8 +1536,11 @@ es.nombre AS estado_nombre
     /** Fecha de inicio del año en curso, para comparar años por fecha y no por id (los ids son de inserción y no siguen el orden).*/
     private function inicioDelAnioEnCurso(): string
     {
-        /* Con comillas: sin ellas MySQL lee `2026-12-10` como aritmética y la pantalla sale vacía sin error.
- Si no hay año en curso el helper devuelve 9999-12-31, y todo cuenta como anterior.*/
+        /**
+ * Con comillas: sin ellas MySQL lee `2026-12-10` como aritmética y la pantalla sale
+ * vacía sin error. Si no hay año en curso el helper devuelve 9999-12-31, y todo
+ * cuenta como anterior.
+ */
         return "'" . AniosEscolares::inicioEnCurso($this->pdo) . "'";
     }
 

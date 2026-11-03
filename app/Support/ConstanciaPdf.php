@@ -10,6 +10,7 @@ use DateTimeZone;
 use DomainException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use App\Support\PdfRecursos;
 use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
@@ -379,6 +380,7 @@ class ConstanciaPdf
             'dirDocTexto'       => ($dirNumFormatted !== '') ? ($dirLetra . '-' . $dirNumFormatted) : '',
             'docEstEtiqueta'    => $docEstEtiqueta,
             'recuadroModo'      => $config['constancia_recuadro_modo'] ?? 'completo',
+            'estilosPdf'        => PdfRecursos::estilos('constancia'),
         ];
     }
 
@@ -402,14 +404,7 @@ class ConstanciaPdf
             throw $e;
         }
 
-        $options = new Options();
-        $options->set('isRemoteEnabled', false); // data URIs funcionan localmente sin acceso remoto
-        $options->set('isHtml5ParserEnabled', true);
-        $options->set('defaultFont', 'Times-Roman');
-        $options->set('chroot', [
-            Configuracion::getProjectRoot(),
-            Configuracion::getPublicRoot(),
-        ]);
+        $options = PdfRecursos::opciones('Times-Roman');
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html, 'UTF-8');

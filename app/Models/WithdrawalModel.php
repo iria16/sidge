@@ -8,27 +8,23 @@ use App\Support\AniosEscolares;
 use App\Support\Documento;
 use App\Interfaces\Creatable;
 use App\Support\Matriculas;
+use App\Traits\OpcionesCatalogoTrait;
 use App\Traits\RetiradoTrait;
 use App\Interfaces\Listable;
 use Throwable;
 
 /**
- * WithdrawalModel
- * ---------------------------------------------------------------
+ * WithdrawalModel ---------------------------------------------------------------
  * Solicitudes de retiro (retiro): estado_solicitud
  * ENUM('PENDIENTE','APROBADO','RECHAZADO') y motivos de retiro.
- * La fecha de solicitud se toma de matricula.fecha_matricula.
- *
- * Listable: la secretaria y el directivo consultan el listado.
- * Creatable: la secretaria registra los retiros (CrudController::store()).
- * Resolverlos (aprobar/rechazar) es updateStatus(), del directivo.
-*/
+ */
 class WithdrawalModel extends BaseModel implements Listable, Creatable
 {
     /* Estado "retirado" derivado y compartido con EnrollmentModel, para que los dos
  módulos consulten el mismo registro y no tengan cada uno su idea de si un alumno
  está retirado. Ver RetiradoTrait.*/
     use RetiradoTrait;
+    use OpcionesCatalogoTrait;
     protected string $table = 'retiro';
     protected string $primaryKey = 'id_retiro';
 
@@ -57,13 +53,13 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
                        CONCAT(p.tipo_documento, '-', p.numero_documento) AS cedula,
                        g.nombre AS grado, s.nombre AS seccion, mr.nombre AS motivo,
                        p.foto AS avatar_img,
-                       /* NULLIF alrededor del CONCAT_WS: si el usuario no existe, los dos
- nombres vienen NULL y CONCAT_WS devuelve '' (cadena vacía), NO NULL.
- Por eso el COALESCE de fuera no se activaba nunca y `registrado_por`
- llegaba vacío al mapRow, que solo reemplaza los NULL por
- 'Sin registro': las solicitudes sin autor salían con un hueco en
- vez de decir que no hay registro. NULLIF convierte el '' en NULL y el
- COALESCE vuelve a hacer su trabajo.*/
+                       /**
+ * NULLIF alrededor del CONCAT_WS: si el usuario no existe, los dos nombres vienen NULL
+ * y CONCAT_WS devuelve '' (cadena vacía), NO NULL. Por eso el COALESCE de fuera no se
+ * activaba nunca y `registrado_por` llegaba vacío al mapRow, que solo reemplaza los
+ * NULL por 'Sin registro': las solicitudes sin autor salían con un hueco en vez de
+ * decir que no hay registro.
+ */
                        r.id_usuario_registro AS id_usuario_registro,
                     COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
                        COALESCE(NULLIF(CONCAT_WS(' ', ru.primer_nombre, ru.primer_apellido), ''), '') AS resuelto_por,
@@ -98,20 +94,13 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     }
 
     /**
- * Una solicitud de retiro por su id, para el modal de detalle.
- *
- * Devuelve exactamente los mismos campos que getAll(), porque pasa por el mismo
- * mapRow: así el modal y la fila del listado no pueden mostrar dos versiones de
- * un mismo dato (por ejemplo, una fecha de solicitud en un formato y otra en el
- * otro lado).
- *
- * Existe porque el botón de la fila ya no lleva los datos en atributos data-:
- * duplicar el modelo en el markup obliga a mantenerlo en dos lugares y se
- * desincroniza solo. Con el id alcanza y el detalle se pide al servidor, que es
- * quien tiene la fuente de verdad.
+ * Una solicitud de retiro por su id, para el modal de detalle. Devuelve exactamente los
+ * mismos campos que getAll(), porque pasa por el mismo mapRow: así el modal y la fila
+ * del listado no pueden mostrar dos versiones de un mismo dato (por ejemplo, una fecha
+ * de solicitud en un formato y otra en el otro lado).
  *
  * @return array<string, mixed>|null Null si no existe (el controller responde 404).
-*/
+ */
     public function getDetail(int $id): ?array
     {
         if ($id <= 0) {
@@ -158,26 +147,13 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     }
 
     /**
- * Alumnos que YA están retirados: los que tienen fila `matricula.tipo = 'RETIRO'`.
- *
- * Es la lista de consulta del módulo de Retiro. NO es la lista de solicitudes
- * (esa es getAll(), y son cosas distintas: aquí ya se retiró, en la otra se pide
- * retirarlo). No tiene acciones y no se puede modificar desde aquí: el retiro no
- * se deshace, y por eso no hay botón de reactivar.
- *
- * Se apoya en la fila RETIRO, no en la de `inscripcion` ni en el `retiro` de la
- * solicitud: la fila de la inscripción sigue apuntando a su propia matrícula, que
- * es la que conserva el histórico. Ver RetiradoTrait.
+ * Alumnos que YA están retirados: los que tienen fila `matricula.tipo = 'RETIRO'`. Es
+ * la lista de consulta del módulo de Retiro.
  *
  * @param string|null $q Búsqueda por nombre o cédula.
  * @param int|null $idTurno Turno a acotar. `null` = sin filtro, que es lo que
- * recibe la directiva: el retiro es un hecho del alumno, no una tarea de un
- * turno, y la dirección ve el histórico completo. La secretaria recibe su
- * turno (BaseController::turnoSecretariaActual) y solo ve el suyo. El 0 que
- * devuelve esa rutina cuando la secretaria no tiene turno asignado deja la
- * lista vacía, que es lo mismo que hace el listado de solicitudes.
  * @return array<int, array<string, mixed>>
-*/
+ */
     public function getRetirados(?string $q = null, ?int $idTurno = null, int $limite = 200): array
     {
         $where = ["m.tipo = 'RETIRO'"];
@@ -289,18 +265,12 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     }
 
     /**
- * Aprueba o rechaza una solicitud.
- *
- * Además del estado guarda QUIÉN lo resolvió y CUÁNDO: sin eso la aprobación no deja
- * rastro y la bitácora sola no alcanza, porque una solicitud puede estar rechazada y
- * Approved sin que se sepa quién la tocó.
- *
- * Ojo con rowCount(): execute() devuelve true aunque no se haya
- * afectado ninguna fila, así que un id inexistente se reportaría como
- * éxito si solo se mirara el execute().
+ * Aprueba o rechaza una solicitud. Además del estado guarda QUIÉN lo resolvió y
+ * CUÁNDO: sin eso la aprobación no deja rastro y la bitácora sola no alcanza, porque
+ * una solicitud puede estar rechazada y Approved sin que se sepa quién la tocó.
  *
  * @param int $idUsuario quién resuelve; 0 si no hay sesión (no se audita, pero no falla)
-*/
+ */
     public function updateStatus(int $id, string $status, int $idUsuario = 0): bool
     {
         /* El año se comprueba antes de abrir la transacción: si el período se cerró después
@@ -329,18 +299,10 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
                 && $this->pdo->query('SELECT ROW_COUNT()')->fetchColumn() > 0;
 
             if ($ok && $status === 'APROBADO') {
-                /* El retiro aprobado crea una fila de tipo RETIRO, al lado de la
- del año en que el alumno estaba. No le cambia el tipo a esa fila.
-
- La fila del año dice "cursó este grado"; la de RETIRO dice "se
- fue antes de terminar". Si se tocara la de arriba, el historial
- perdería el hecho de que estuvo en ese grado, y un alumno que
- se va en tercero dejaría de tener registro de que entró a
- tercero. Es el mismo motivo por el que el egreso es fila propia.
-
- El motivo del retiro sigue en la fila de `retiro`, que ahora
- apunta a la de RETIRO: el tipo dice QUÉ y la tabla de al lado
- dice POR QUÉ.*/
+                /**
+ * El retiro aprobado crea una fila de tipo RETIRO, al lado de la del año en que el
+ * alumno estaba. No le cambia el tipo a esa fila.
+ */
                 $origen = $this->pdo->query(
                     'SELECT m.id_estudiante, m.id_anio_escolar, m.id_estructura_academica, m.tipo
                        FROM retiro r
@@ -399,9 +361,11 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
                 }
             }
 
-            /* Se audita al final, ya con la transacción aún abierta: si algo de lo anterior
- falla y se revierte, la bitácora tampoco deja constancia de una aprobación que
- no ocurrió. Va en la misma conexión a propósito.*/
+            /**
+ * Se audita al final, ya con la transacción aún abierta: si algo de lo anterior falla
+ * y se revierte, la bitácora tampoco deja constancia de una aprobación que no
+ * ocurrió. Va en la misma conexión a propósito.
+ */
             $this->registrarBitacora(
                 $idUsuario,
                 ($status === 'APROBADO' ? 'RETIRO APROBADO ' : 'RETIRO RECHAZADO ')
@@ -428,14 +392,11 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     }
 
     /**
- * Traduce el fallo de la base al mensaje que la secretaria puede entender.
- *
- * Lo que falla aquí casi nunca es el UPDATE: es la fila de RETIRO que se inserta después
- * y que el trigger de la base puede rechazar porque el alumno ya cerró su ciclo, o
- * porque el cierre no puede ir en un año anterior. Con "No se pudo actualizar la
- * solicitud" la.directiva se quedaba sin saber qué hacer, y la solicitud quedaba
- * PENDIENTE para siempre.
-*/
+ * Traduce el fallo de la base al mensaje que la secretaria puede entender. Lo que falla
+ * aquí casi nunca es el UPDATE: es la fila de RETIRO que se inserta después y que el
+ * trigger de la base puede rechazar porque el alumno ya cerró su ciclo, o porque el
+ * cierre no puede ir en un año anterior.
+ */
     private function mensajeDeFallo(\Throwable $e): string
     {
         $sqlstate = (string) $e->getCode();
@@ -458,36 +419,16 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
 
     public function getYears(): array
     {
-        return $this->pdo->query('SELECT id_anio_escolar AS id, nombre_periodo AS nombre FROM anio_escolar ORDER BY anio_inicio DESC')
-                        ->fetchAll(\PDO::FETCH_ASSOC);
+        return $this->getOptions('anio_escolar');
     }
 
     /**
- * Busca estudiantes por cédula para el formulario de la secretaria.
- *
- * SOLO por documento, a propósito. Un retiro identifica a una persona, y el
- * documento es lo único que no se repite; buscar por nombre traía a homónimos
- * ("Leo Pinto" y otro "Pinto") y hacía elegir entre alumnos que en realidad
- * no se podían distinguir. Con el documento hay un solo resultado o ninguno.
- *
- * Trae TAMBIÉN a los que no se pueden retirar, con el motivo. Sin eso el
- * formulario responde "no se encontró" igual para un alumno que no existe
- * y para uno que ya egresó, y la secretaria no sabe si escribió mal la
- * cédula o si llegó tarde.
- *
- * La matrícula que se mira es la ÚLTIMA de cada alumno, y "última" se decide
- * por la FECHA del año, nunca por el id del año.
- *
- * Los ids de `anio_escolar` son de inserción: un año cargado antes puede
- * tener un id mayor que uno cargado después, así que comparar años por id
- * invierte el orden sin que nada parezca roto. Con 175 = 2025-2026 y
- * 238 = 2026-2027 los ids y las fechas coinciden y el error no aparece;
- * aparece en cuanto se carga un año viejo, que es justo lo que se hace al
- * abrir un período nuevo. Por eso el subquery ordena por `a2.anio_inicio`.
+ * SOLO por documento, a propósito. Un retiro identifica a una persona, y el documento
+ * es lo único que no se repite; buscar por nombre traía a homónimos ("Leo Pinto" y
+ * otro "Pinto") y hacía elegir entre alumnos que en realidad no se podían distinguir.
  *
  * @return array<int, array{id_matricula:?int,nombre:string,cedula:string,grado:string,
- * seccion:string,anio:string,elegible:bool,motivo:string}>
-*/
+ */
     public function buscarPorDocumento(string $documento, int $limite = 10, ?int $idTurno = null): array
     {
         $digitos = Documento::normalizar($documento);
@@ -498,13 +439,12 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
             return [];
         }
 
-        /* La comparación va sobre los dígitos de la columna y no sobre la columna
- tal cual: `numero_documento` guarda el prefijo DENTRO del valor en las
- cédulas escolares ("V1162586313"), mientras que en las de identidad
- guarda solo el número ("25863136"). Buscar "1162" contra el valor crudo
- no encontraría al alumno que lleva la cédula escolar. Se normaliza el
- lado de la columna para no depender de cómo quedó guardado cada
- documento, y así el prefijo es opcional al escribir.*/
+        /**
+ * La comparación va sobre los dígitos de la columna y no sobre la columna tal cual:
+ * `numero_documento` guarda el prefijo DENTRO del valor en las cédulas escolares
+ * ("V1162586313"), mientras que en las de identidad guarda solo el número
+ * ("25863136").
+ */
         $inicioEnCurso = AniosEscolares::inicioEnCurso($this->pdo);
 
         $sql = "        SELECT m.id_matricula AS id_matricula,
@@ -554,13 +494,10 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     }
 
     /**
- * Traduce una fila de buscarPorDocumento() y calcula si se puede registrar.
- *
- * La regla de "se puede" es la misma de siempre: una fila de matricula de
- * tipo INSCRIPCION o RATIFICACION que todavía no tenga retiro. El texto del
- * bloqueo sale de Matriculas para que el motivo se lea igual aquí que en el
- * resto del sistema.
-*/
+ * Traduce una fila de buscarPorDocumento() y calcula si se puede registrar. La regla de
+ * "se puede" es la misma de siempre: una fila de matricula de tipo INSCRIPCION o
+ * RATIFICACION que todavía no tenga retiro.
+ */
     private function mapBusqueda(array $fila): array
     {
         $tipo = $fila['tipo'] ?? null;
@@ -593,16 +530,12 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     }
 
     /**
- * Registra el retiro de un estudiante (contrato Creatable).
- *
- * La fila nace siempre en estado PENDIENTE: aprobar o rechazar es una
- * decisión posterior del directivo (updateStatus). Las validaciones de
- * negocio (motivo existente, retiro duplicado) las hace el controlador
- * en validate() antes de llegar acá.
+ * Registra el retiro de un estudiante (contrato Creatable). La fila nace siempre en
+ * estado PENDIENTE: aprobar o rechazar es una decisión posterior del directivo
+ * (updateStatus).
  *
  * @param array $data ['id_matricula' => int, 'id_motivo_retiro' => int,
- * 'observaciones' => string, 'id_usuario' => ?int]
-*/
+ */
     /**
      * Obtiene los representantes legales y personas autorizadas de retiro de un estudiante.
      *
@@ -737,11 +670,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
 
     /**
  * Por qué esa matrícula no admite un retiro nuevo, o cadena vacía si sí lo admite.
- *
- * Vive en el modelo y no en el buscador para que la regla se aplique igual por la
- * pantalla y por un POST directo: antes `elegible=false` era solo una etiqueta del
- * formulario, y una petición hecha a mano se saltaba la regla entera.
-*/
+ */
     public function bloqueoParaRetiro(int $idMatricula): string
     {
         $stmt = $this->pdo->prepare(

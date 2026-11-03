@@ -7,15 +7,8 @@ namespace App\Models;
 use PDO;
 
 /**
- * GradeCertificateModel
- * ----------------------------
- * Modelo para la gestión de Certificados de Calificaciones (según Art. 108 RGLOE).
- *
- * Este modelo gestiona:
- * - El almacenamiento de los Certificados de Calificaciones en el sistema
- * - La verificación de certificados existentes
- * - La comparación con las hojas físicas del colegio
- * - El historial de generación de certificados
+ * GradeCertificateModel ---------------------------- Modelo para la gestión de
+ * Certificados de Calificaciones (según Art. 108 RGLOE).
  */
 class GradeCertificateModel extends BaseModel
 {

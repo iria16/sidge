@@ -11,13 +11,7 @@ use PDO;
 use Throwable;
 
 /**
- * StatisticsModel
- * ----------------
- * Modelo centralizado para la consolidación analítica institucional:
- * - Control de Representantes y Hermanos
- * - Demografía y Capacidad Escolar por Aula
- * - Familias, Parentescos, Empleados Representantes y Recaudos
- * - Salud, Tallas y Personal Escolar
+ * StatisticsModel.
  */
 class StatisticsModel extends Model
 {

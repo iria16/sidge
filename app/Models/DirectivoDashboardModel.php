@@ -13,9 +13,9 @@ use Throwable;
 /**
  * DirectivoDashboardModel
  * -----------------------------------------------------------------------------
- * Lecturas y agregaciones para el panel de Dirección y Coordinación:
- * métricas demográficas de matrícula, capacidad institucional, personal escolar,
- * avance de literales y alertas operativas.
+ * Lecturas y agregaciones para el panel de Dirección y Coordinación: métricas
+ * demográficas de matrícula, capacidad institucional, personal escolar, avance de
+ * literales y alertas operativas.
  */
 class DirectivoDashboardModel extends Model
 {
@@ -287,18 +287,12 @@ class DirectivoDashboardModel extends Model
     }
 
     /**
-     * Estadísticas agregadas de la ficha médica de los estudiantes que cursan.
-     *
-     * No devuelve nombres ni textos clínicos: solo cuántos estudiantes tienen
-     * cada dato registrado. Así Dirección y Coordinación ven la cobertura y las
-     * alertas sin exponer la salud individual de un alumno.
-     *
-     * @return array{
-     *   resumen: array<string, int>,
-     *   por_grado: list<array<string, mixed>>,
-     *   tipos_sangre: array<string, int>
-     * }
-     */
+ * Así Dirección y Coordinación ven la cobertura y las alertas sin exponer la salud
+ * individual de un alumno. resumen: array<string, int>, por_grado: list<array<string,
+ * mixed>>, tipos_sangre: array<string, int> }.
+ *
+ * @return array{
+ */
     public function getEstadisticasSalud(?int $idAnio = null): array
     {
         $idAnio = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
@@ -394,16 +388,11 @@ class DirectivoDashboardModel extends Model
     }
 
     /**
-     * Estadísticas agregadas de medidas antropométricas por grado.
-     *
-     * Solo cuenta valores registrados: un peso o una estatura vacíos no se
-     * interpretan como cero. La cobertura exige ambas medidas.
-     *
-     * @return array{
-     *   resumen: array<string, int|float|null>,
-     *   por_grado: list<array<string, mixed>>
-     * }
-     */
+ * Estadísticas agregadas de medidas antropométricas por grado. Solo cuenta valores
+ * registrados: un peso o una estatura vacíos no se interpretan como cero.
+ *
+ * @return array{
+ */
     public function getEstadisticasAntropometricas(?int $idAnio = null): array
     {
         $idAnio = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
@@ -520,18 +509,11 @@ class DirectivoDashboardModel extends Model
     }
 
     /**
-     * Estadísticas agregadas de tallas de uniforme por grado y por prenda.
-     *
-     * Solo devuelve conteos: no expone la talla de un estudiante concreto. Las
-     * tallas vacías cuentan como "sin_registrar"; las que ya no están en el
-     * catálogo (datos históricos) se conservan para no ocultarlas.
-     *
-     * @return array{
-     *   resumen: array<string, int>,
-     *   por_grado: list<array<string, mixed>>,
-     *   por_prenda: array<string, array{titulo: string, tallas: array<string, int>, total: int}>
-     * }
-     */
+ * Estadísticas agregadas de tallas de uniforme por grado y por prenda. Solo devuelve
+ * conteos: no expone la talla de un estudiante concreto.
+ *
+ * @return array{
+ */
     public function getEstadisticasTallas(?int $idAnio = null): array
     {
         $idAnio = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
@@ -909,11 +891,11 @@ class DirectivoDashboardModel extends Model
     }
 
     /**
-     * Alertas accionables para Dirección y Coordinación: retiros pendientes de resolución
-     * (solo para directivo), secciones con estudiantes y sin docente, y literales pendientes.
-     *
-     * @return list<array<string, mixed>>
-     */
+ * Alertas accionables para Dirección y Coordinación: retiros pendientes de
+ * resolución.
+ *
+ * @return list<array<string, mixed>>
+ */
     public function getAlertas(?int $idAnio = null, ?string $rol = null): array
     {
         $alertas = [];

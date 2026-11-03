@@ -12,10 +12,11 @@ use PDO;
 use Throwable;
 
 /**
- * Bitácora del sistema: registrar() audita acciones (tolerante a fallos, solo deja error_log) y el resto es lectura para la vista de auditoría.
- * Extiende Model y no BaseModel a propósito: registrar() es la única vía de escritura y no expone create/update/delete genéricos.
- * Tabla bitacora: id_bitacora, id_usuario, fecha, hora, accion (texto libre, no ENUM), modulo, direccion_ip.
-*/
+ * Bitácora del sistema: registrar() audita acciones (tolerante a fallos, solo deja
+ * error_log) y el resto es lectura para la vista de auditoría. Extiende Model y no
+ * BaseModel a propósito: registrar() es la única vía de escritura y no expone
+ * create/update/delete genéricos.
+ */
 class AuditLogModel extends Model implements Listable
 {
     use AvatarTrait;
@@ -68,12 +69,12 @@ class AuditLogModel extends Model implements Listable
         'EDITAR'        => 'update',
         'UPDATE'        => 'update',
         'ACTUALIZACION' => 'update',
-        /* Faltaba la variante CON tilde. Sin ella, una acción que empieza por
- "ACTUALIZACIÓN ..." caía en el último recurso de normalizarTipo() y la
- auditoría la mostraba como "Consulta": cambiar un dato de un alumno es
- justamente lo que esa pantalla tiene que dejar a la vista, y se escondeía
- detrás de la etiqueta de solo leer. CREACIÓN, INSCRIPCIÓN y EXPORTACIÓN ya
- tenían su variante acentuada; esta se había quedado sin ella.*/
+        /**
+ * Faltaba la variante CON tilde. Sin ella, una acción que empieza por "ACTUALIZACIÓN
+ * ..." caía en el último recurso de normalizarTipo() y la auditoría la mostraba como
+ * "Consulta": cambiar un dato de un alumno es justamente lo que esa pantalla tiene que
+ * dejar a la vista, y se escondeía detrás de la etiqueta de solo leer.
+ */
         'ACTUALIZACIÓN' => 'update',
         'ELIMINAR'      => 'delete',
         'DELETE'        => 'delete',
@@ -104,12 +105,9 @@ class AuditLogModel extends Model implements Listable
     ];
 
     /**
- * Prefijos de `accion` que pertenecen a cada tipo, para poder FILTRAR por tipo.
- *
- * El filtro no puede ser `accion = 'x'`: el texto lleva detrás el detalle del
- * proceso. Con la igualdad, filtrar por "Inscripción" no encontraba nada y el
- * desplegable acababa ofreciendo una opción por cada acción registrada.
-*/
+ * Prefijos de `accion` que pertenecen a cada tipo, para poder FILTRAR por tipo. El
+ * filtro no puede ser `accion = 'x'`: el texto lleva detrás el detalle del proceso.
+ */
     private const PREFIJOS_POR_TIPO = [
         'login'        => ["'LOGIN'"],
         'logout'       => ["'LOGOUT'"],

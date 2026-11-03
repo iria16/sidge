@@ -428,7 +428,7 @@ class EgresoModel extends BaseModel implements Listable
  * Así el id y el grado salen siempre de la misma matrícula.
  *
  * @return array{id_matricula:int,grado:?string,id_turno:int}|null
-*/
+ */
     private function matriculaVigenteConGrado(int $estudianteId): ?array
     {
         $stmt = $this->pdo->prepare(
@@ -464,11 +464,12 @@ class EgresoModel extends BaseModel implements Listable
     }
 
     /**
- * Id del catálogo del grado que se egresa (6to), resuelto por su número y no por id fijo ni por nombre.
- * En `grado` los ids no siguen el orden (el 2do es 6 y el 6to es 5). Se cachea durante la corrida.
+ * Id del catálogo del grado que se egresa (6to), resuelto por su número y no por id
+ * fijo ni por nombre. En `grado` los ids no siguen el orden (el 2do es 6 y el 6to es
+ * 5).
  *
  * @return int 0 si el catálogo no tiene ese grado.
-*/
+ */
     private function idGradoEgreso(): int
     {
         if ($this->idGradoEgreso !== null) {

@@ -148,11 +148,10 @@ class PasswordRecoveryModel extends BaseModel implements Listable
     }
 
     /**
-     * Traduce una fila cruda del JOIN al contrato que espera la vista
-     * (ver el docblock de usuarios/recuperacion/index.php):
-     * id, usuario_id, fecha, hora, nombre, cargo, usuario, avatar_tipo,
-     * avatar_foto, avatar_color, iniciales, estado, origen.
-     */
+ * Traduce una fila cruda del JOIN al contrato que espera la vista (ver el docblock de
+ * usuarios/recuperacion/index.php): id, usuario_id, fecha, hora, nombre, cargo,
+ * usuario, avatar_tipo, avatar_foto, avatar_color, iniciales, estado, origen.
+ */
     private function normalizarFila(array $row): array
     {
         $ts = strtotime((string) $row['fecha_solicitud']);
@@ -266,12 +265,11 @@ class PasswordRecoveryModel extends BaseModel implements Listable
             ($row['admin_primer_nombre'] ?? '') . ' ' . ($row['admin_primer_apellido'] ?? '')
         );
 
-        /* La hora de la atención se guardaba con 'h:i A' ("02:28 PM") mientras
-           la de la solicitud se guardaba con 'h:i a' ("02:28 pm"). Dos formatos
-           distintos en el mismo modal, y a simple vista parecía un dato mal
-           guardado. Ahora las dos son de 24 horas: en un registro de atención
-           importa más no tener que interpretar "PM" a la mitad de leer, y el
-           orden de las horas coincide con el orden real. */
+        /**
+ * La hora de la atención se guardaba con 'h:i A' ("02:28 PM") mientras la de la
+ * solicitud se guardaba con 'h:i a' ("02:28 pm"). Dos formatos distintos en el mismo
+ * modal, y a simple vista parecía un dato mal guardado.
+ */
         $detalle['fecha_atencion'] = $ts ? date('d/m/Y H:i', $ts) : null;
         $detalle['admin_atendio']  = $adminNombre !== '' ? $adminNombre : null;
         $detalle['numero_documento'] = $row['numero_documento'] ?? null;
@@ -347,15 +345,11 @@ class PasswordRecoveryModel extends BaseModel implements Listable
     }
 
     /**
-     * Restablecimiento manual: no hay solicitud previa, así que la fila en
-     * recuperacion_acceso se crea ya resuelta, con origen ADMIN.
-     * El estado insertado debe coincidir EXACTO con el ENUM real de la BD
-     * (PENDIENTE/APROVADO/RECHAZADO — APROVADO con V, confirmado por
-     * SHOW COLUMNS). Un valor fuera del ENUM causa SQLSTATE[01000]
-     * "Data truncated" con el modo estricto activo, o se trunca
-     * silenciosamente a '' sin él — cualquiera de los dos deja la fila
-     * "atendida" pero mostrada como Pendiente en la vista.
-     */
+ * Restablecimiento manual: no hay solicitud previa, así que la fila en
+ * recuperacion_acceso se crea ya resuelta, con origen ADMIN. El estado insertado debe
+ * coincidir EXACTO con el ENUM real de la BD (PENDIENTE/APROVADO/RECHAZADO — APROVADO
+ * con V, confirmado por SHOW COLUMNS).
+ */
     public function resetPassword(int $usuarioId, int $idAdmin): string
     {
         $usuario = $this->getUsuarioBasico($usuarioId);

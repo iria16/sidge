@@ -18,12 +18,14 @@ estudiantes, retiros, egresos y configuración académica de una escuela.
 
 ## Datos del proyecto
 
-- **Institución:** ¿Qué institución debe figurar?
-- **Autores:** ¿Quiénes deben figurar como autores?
-- **Estado:** Preparación de despliegue; falta definir el dominio y probar HTTPS en
-  el VPS.
-- **Licencia:** Los manifiestos de Composer y npm indican `ISC`, pero no hay un
-  archivo `LICENSE`. ¿Confirmas que esa licencia aplica al proyecto?
+- **Institución Universitaria:** Universidad Politécnica Territorial de Valencia (UPTVAL).
+- **Institución Educativa Beneficiaria:** Escuela Básica "Isidro Ramírez" (Valencia, Estado Carabobo).
+- **Autores / Desarrolladores:**
+  - Iriamar Maita
+  - Erickmar Sánchez
+  - Elyenay Ocanto
+- **Estado:** Proyecto culminado y operativo; en fase de validación académica y preparación para despliegue en servidor de producción (VPS con HTTPS).
+- **Licencia:** MIT / Proyecto Académico Institucional (propiedad intelectual compartida UPTVAL - E.B. "Isidro Ramírez").
 
 ## Requisitos
 

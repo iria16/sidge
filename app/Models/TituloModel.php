@@ -7,13 +7,11 @@ namespace App\Models;
 use PDO;
 
 /**
- * TituloModel
- *
- * Catálogo `titulo`: desde que la tabla `titulo` tiene la columna
- * `id_grado_academico` (NOT NULL, FK a grado_academico), todo título
- * pertenece a un grado. Por eso sobrescribe create()/update() de
- * CatalogModel (que solo permite la columna 'nombre') con SQL directo,
- * igual que hace InstitucionModel con la columna `tipo`.
+ * TituloModel Catálogo `titulo`: desde que la tabla `titulo` tiene la columna
+ * `id_grado_academico` (NOT NULL, FK a grado_academico), todo título pertenece a un
+ * grado. Por eso sobrescribe create()/update() de CatalogModel (que solo permite la
+ * columna 'nombre') con SQL directo, igual que hace InstitucionModel con la columna
+ * `tipo`.
  */
 class TituloModel extends CatalogModel
 {
@@ -25,15 +23,12 @@ class TituloModel extends CatalogModel
     protected string $campoNombre = 'nombre';
 
     /**
-     * Un mismo nombre de título puede existir en varios grados académicos
-     * (p. ej. "sistema" en Licenciatura y en Ingeniería). CatalogModel::existeNombre()
-     * solo mira el nombre, así que el duplicado del alto rápido se valida aquí,
-     * por grado.
-     *
-     * @param string      $nombre    Nombre normalizado (case-insensitive).
-     * @param int         $idGrado   Grado académico donde se intenta guardar.
-     * @param int|null    $excludeId Id de título a ignorar (edición).
-     */
+ * Un mismo nombre de título puede existir en varios grados académicos (p. ej.
+ *
+ * @param string      $nombre    Nombre normalizado (case-insensitive).
+ * @param int         $idGrado   Grado académico donde se intenta guardar.
+ * @param int|null    $excludeId Id de título a ignorar (edición).
+ */
     public function existeTituloEnGrado(string $nombre, int $idGrado, ?int $excludeId = null): bool
     {
         $sql = 'SELECT COUNT(*)

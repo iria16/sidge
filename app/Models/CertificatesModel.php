@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\OpcionesCatalogoTrait;
 use PDO;
 
 /**
- * CertificatesModel
- * ---------------
- * Modelo unificado para la gestión y consulta de datos académicos requeridos en la
- * emisión de Constancias oficiales (Estudio, Inscripción / Ratificación, Prosecución y Retiro).
- *
- * Los datos se resuelven exclusivamente desde la base de datos a partir de
- * las tablas estudiante, persona, matricula, estructura_academica, grado,
- * seccion, anio_escolar, parroquia, municipio, estado, retiro y resultado_academico.
+ * CertificatesModel --------------- Modelo unificado para la gestión y consulta de
+ * datos académicos requeridos en la emisión de Constancias oficiales (Estudio,
+ * Inscripción / Ratificación, Prosecución y Retiro).
  */
 class CertificatesModel extends BaseModel
 {
+    use OpcionesCatalogoTrait;
+
     protected string $table = 'estudiante';
     protected string $primaryKey = 'id_estudiante';
 
@@ -25,11 +23,10 @@ class CertificatesModel extends BaseModel
     protected array $allowedColumns = ['id_estudiante', 'id_persona'];
 
     /**
-     * Fragmento SQL canónico de la condición única de elegibilidad para Constancia de Estudio:
-     * - Persona con estado ACTIVO.
-     * - Matrícula de tipo INSCRIPCION o RATIFICACION en el año escolar activo.
-     * - Último movimiento del estudiante distinto de RETIRO y EGRESO (ordenado por fecha_matricula DESC, id_matricula DESC).
-     */
+ * Fragmento SQL canónico de la condición única de elegibilidad para Constancia de
+ * Estudio: - Persona con estado ACTIVO. - Matrícula de tipo INSCRIPCION o RATIFICACION
+ * en el año escolar activo.
+ */
     public function sqlCondicionElegibilidadEstudio(): string
     {
         return "p.estado = 'ACTIVO'
@@ -209,11 +206,11 @@ class CertificatesModel extends BaseModel
     }
 
     /**
-     * Valida si un estudiante o registro de egreso es elegible para el Certificado de Educación Primaria:
-     * Opera exclusivamente mientras el año escolar está ACTIVO.
-     * El estudiante cursa 6to grado en el año escolar activo y tiene literal aprobatorio (A, B, C o D)
-     * cargado por el docente o un registro formal en la tabla egreso.
-     */
+ * Valida si un estudiante o registro de egreso es elegible para el Certificado de
+ * Educación Primaria: Opera exclusivamente mientras el año escolar está ACTIVO. El
+ * estudiante cursa 6to grado en el año escolar activo y tiene literal aprobatorio (A,
+ * B, C o D) cargado por el docente o un registro formal en la tabla egreso.
+ */
     public function esElegibleParaEgreso(int $idEgreso, ?int $idEstudiante = null): bool
     {
         if ($idEgreso <= 0 && ($idEstudiante === null || $idEstudiante <= 0)) {
@@ -265,15 +262,15 @@ class CertificatesModel extends BaseModel
     }
 
     /**
-     * MÉTODO UNIFICADO DE LISTADO:
-     * Retorna las filas para el listado según el tipo seleccionado y sus condiciones de elegibilidad.
-     *
-     * @param string $tipo 'estudio' | 'inscripcion' | 'prosecucion' | 'retiro' | 'egreso'
-     * @param array $filters
-     * @param int $page
-     * @param int $perPage
-     * @return array
-     */
+ * MÉTODO UNIFICADO DE LISTADO: Retorna las filas para el listado según el tipo
+ * seleccionado y sus condiciones de elegibilidad.
+ *
+ * @param string $tipo 'estudio' | 'inscripcion' | 'prosecucion' | 'retiro' | 'egreso'
+ * @param array $filters
+ * @param int $page
+ * @param int $perPage
+ * @return array
+ */
     public function getListado(string $tipo, array $filters = [], int $page = 1, int $perPage = 10): array
     {
         return match ($tipo) {
@@ -823,12 +820,6 @@ class CertificatesModel extends BaseModel
         ];
     }
 
-    public function getAniosEscolares(): array
-    {
-        return $this->pdo->query("SELECT id_anio_escolar, nombre_periodo, estado FROM anio_escolar ORDER BY anio_inicio DESC")
-                         ->fetchAll(PDO::FETCH_ASSOC);
-    }
-
     public function getGrados(): array
     {
         return $this->pdo->query("SELECT DISTINCT nombre FROM grado WHERE estado = 'ACTIVO' ORDER BY nombre ASC")
@@ -1145,11 +1136,8 @@ class CertificatesModel extends BaseModel
     }
 
     /**
-     * Listado para Certificado de Educación Primaria / Egreso:
-     * Reconoce automáticamente a todos los estudiantes de 6to grado en el año escolar activo
-     * que tengan literal aprobatorio (A, B, C o D) cargado por el docente o que ya posean
-     * un registro en la tabla egreso.
-     */
+ * Listado para Certificado de Educación Primaria / Egreso:.
+ */
     public function getEstudiantesEgreso(array $filters = [], int $page = 1, int $perPage = 10): array
     {
         $idAnioActivo = \App\Support\AniosEscolares::idEnCurso($this->pdo);
@@ -1403,14 +1391,12 @@ class CertificatesModel extends BaseModel
     }
 
     /**
-     * Tipos de constancia que puede emitir un rol.
-     *
-     * Estudio e Inscripción están abiertos a los roles con acceso al módulo;
-     * Prosecución, Retiro y Egreso son exclusivos de secretaría. La regla vive
-     * aquí y no en el controlador para que una nueva vista no la reimplemente.
-     *
-     * @return array<string, string> clave técnica => etiqueta visible
-     */
+ * Tipos de constancia que puede emitir un rol. Estudio e Inscripción están abiertos a
+ * los roles con acceso al módulo; Prosecución, Retiro y Egreso son exclusivos de
+ * secretaría.
+ *
+ * @return array<string, string> clave técnica => etiqueta visible
+ */
     public static function tiposPermitidosPorRol(string $rol): array
     {
         $tipos = [
@@ -1428,12 +1414,12 @@ class CertificatesModel extends BaseModel
     }
 
     /**
-     * Carga la configuración institucional reutilizando la conexión del request.
-     * Configuracion guarda el PDO en estático; inyectarlo aquí evita que abra
-     * una segunda conexión y mantiene el PDO fuera del controlador.
-     *
-     * @return array<string, string>
-     */
+ * Carga la configuración institucional reutilizando la conexión del request.
+ * Configuracion guarda el PDO en estático; inyectarlo aquí evita que abra una segunda
+ * conexión y mantiene el PDO fuera del controlador.
+ *
+ * @return array<string, string>
+ */
     public function getConfiguracion(): array
     {
         \App\Support\Configuracion::setPdo($this->pdo);

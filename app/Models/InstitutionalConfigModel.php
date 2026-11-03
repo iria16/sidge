@@ -9,28 +9,9 @@ use PDO;
 use Throwable;
 
 /**
- * Modelo para la gestión y persistencia de la Configuración Institucional y Directiva.
- *
- * Extiende BaseModel (la clase base compartida por todos los modelos del proyecto).
- *
- * Responsabilidades:
- * 1. Consulta y actualización de parámetros oficiales en la tabla `configuracion_institucional`
- *    utilizando INSERT ... ON DUPLICATE KEY UPDATE.
- * 2. Validación estricta antes de GD:
- *    - Tamaño máximo 2 MB.
- *    - MIME type real con finfo_file.
- *    - Ancho mínimo de 300 px.
- *    - Rechazo inmediato de imágenes con más de 4000 px por lado (protección de memoria).
- *    - Firma y sello: estrictamente PNG.
- * 3. Re-codificación y reducción de escala con GD:
- *    - Si el lado largo supera los 1000 px, se reduce proporcionalmente a un máximo de 1000 px.
- *    - Se preserva el canal alfa en imágenes PNG.
- * 4. Almacenamiento seguro y orden de operaciones:
- *    - Logos institucionales en public/uploads/institucion/.
- *    - Firma y sello fuera de public/ (storage/institucion/).
- *    - PRIMERO se realiza el UPDATE en la base de datos; SOLO si es exitoso se borra el archivo anterior.
- *      Si la base de datos falla, el archivo nuevo generado se elimina y el anterior queda intacto.
- * 5. Registro automático de cada cambio en la tabla `bitacora`.
+ * Modelo para la gestión y persistencia de la Configuración Institucional y
+ * Directiva. Extiende BaseModel (la clase base compartida por todos los modelos del
+ * proyecto).
  */
 class InstitutionalConfigModel extends BaseModel
 {
@@ -272,14 +253,13 @@ class InstitutionalConfigModel extends BaseModel
     ];
 
     /**
-     * Valida y actualiza en masa los parámetros textuales en la base de datos.
-     * INSERT ... ON DUPLICATE KEY UPDATE.
-     *
-     * @param array<string, string> $datos Arreglo asociativo [clave => valor]
-     * @param int $idUsuario ID del administrador que realiza la modificación.
-     * @param string|null $seccion Nombre de la sección para guardado independiente ('plantel', 'directiva', 'membrete' o null).
-     * @return array{ok: bool, mensaje: string, errores?: array<string, string>}
-     */
+ * Valida y actualiza en masa los parámetros textuales en la base de datos. INSERT ...
+ *
+ * @param array<string, string> $datos Arreglo asociativo [clave => valor]
+ * @param int $idUsuario ID del administrador que realiza la modificación.
+ * @param string|null $seccion Nombre de la sección para guardado independiente ('plantel', 'directiva', 'membrete' o null).
+ * @return array{ok: bool, mensaje: string, errores?: array<string, string>}
+ */
     public function guardarTextos(array $datos, int $idUsuario, ?string $seccion = null): array
     {
         $errores = [];
@@ -498,13 +478,12 @@ class InstitutionalConfigModel extends BaseModel
     }
 
     /**
-     * Valida la coherencia de la jerarquía territorial estado -> municipio -> parroquia.
-     * Si llegan IDs, valida estrictamente por IDs y retorna los nombres canónicos de la BD.
-     * Si llegan nombres, valida estrictamente por nombres y retorna los nombres canónicos de la BD.
-     * Sin operadores OR entre nombre e ID en el SQL.
-     *
-     * @return array{estado_nombre: string, municipio_nombre: string, parroquia_nombre: string}|null
-     */
+ * Valida la coherencia de la jerarquía territorial estado -> municipio -> parroquia.
+ * Si llegan IDs, valida estrictamente por IDs y retorna los nombres canónicos de la
+ * BD.
+ *
+ * @return array{estado_nombre: string, municipio_nombre: string, parroquia_nombre: string}|null
+ */
     public function validarCoherenciaTerritorial(string $estado, string $municipio, string $parroquia): ?array
     {
         $estadoTrim = trim($estado);
@@ -577,19 +556,13 @@ class InstitutionalConfigModel extends BaseModel
     }
 
     /**
-     * Valida, re-codifica con GD y guarda una imagen subida.
-     *
-     * Orden de operaciones:
-     * 1. Validación estricta y generación del nuevo archivo temporal re-codificado.
-     * 2. PRIMERO se realiza el UPDATE en la base de datos.
-     * 3. SOLO SI el UPDATE es exitoso, se elimina el archivo anterior del disco.
-     * 4. Si la base de datos falla, se borra el archivo nuevo generado y el anterior permanece intacto.
-     *
-     * @param string $clave Clave de la imagen a actualizar.
-     * @param array $fileArray Arreglo $_FILES['campo'] correspondiente.
-     * @param int $idUsuario ID del administrador autenticado.
-     * @return array{ok: bool, mensaje: string, ruta?: string, asset_url?: string}
-     */
+ * Valida, re-codifica con GD y guarda una imagen subida. Orden de operaciones: 1.
+ *
+ * @param string $clave Clave de la imagen a actualizar.
+ * @param array $fileArray Arreglo $_FILES['campo'] correspondiente.
+ * @param int $idUsuario ID del administrador autenticado.
+ * @return array{ok: bool, mensaje: string, ruta?: string, asset_url?: string}
+ */
     public function procesarYGuardarImagen(string $clave, array $fileArray, int $idUsuario): array
     {
         if (!in_array($clave, self::CLAVES_IMAGEN, true)) {

@@ -17,11 +17,10 @@ class NacionalidadModel extends CatalogModel
     public const ID_POR_DEFECTO = 1;
 
     /**
-     * ¿La nacionalidad existe y está ACTIVA?
-     *
-     * Se consulta el catálogo y no se confía en el id del formulario: un POST
-     * manipulado con un id viejo o desactivado no debe guardarse.
-     */
+ * ¿La nacionalidad existe y está ACTIVA? Se consulta el catálogo y no se confía en
+ * el id del formulario: un POST manipulado con un id viejo o desactivado no debe
+ * guardarse.
+ */
     public function estaActiva(int $idNacionalidad): bool
     {
         if ($idNacionalidad <= 0) {

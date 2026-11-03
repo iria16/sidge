@@ -10,14 +10,11 @@ use PDO;
 use Throwable;
 
 /**
- * Modelo de Perfil de Usuario
- *
- * Consulta la información consolidada del usuario conectado:
- * - Cuenta y rol (usuario, rol)
- * - Datos personales y demográficos (persona, nacionalidad)
- * - Datos laborales e institucionales (empleado, cargo, turno)
- * - Información de contacto y dirección (contacto, direccion, parroquia, municipio, estado)
- * - Último acceso a la plataforma (bitacora)
+ * Modelo de Perfil de Usuario Consulta la información consolidada del usuario
+ * conectado: - Cuenta y rol (usuario, rol) - Datos personales y demográficos (persona,
+ * nacionalidad) - Datos laborales e institucionales (empleado, cargo, turno) -
+ * Información de contacto y dirección (contacto, direccion, parroquia, municipio,
+ * estado) - Último acceso a la plataforma (bitacora).
  */
 class ProfileModel extends BaseModel
 {
@@ -30,11 +27,11 @@ class ProfileModel extends BaseModel
     protected array $allowedColumns = ['id_usuario', 'id_persona', 'id_rol', 'nombre_usuario', 'fecha_creacion', 'fecha_actualizacion', 'estado'];
 
     /**
-     * Obtiene el perfil completo y estructurado para la vista de solo lectura.
-     *
-     * @param int $idUsuario
-     * @return array<string, mixed>|null
-     */
+ * Obtiene el perfil completo y estructurado para la vista de solo lectura.
+ *
+ * @param int $idUsuario
+ * @return array<string, mixed>|null
+ */
     public function getPerfilUsuario(int $idUsuario): ?array
     {
         $sql = "SELECT 
@@ -110,11 +107,11 @@ class ProfileModel extends BaseModel
     }
 
     /**
-     * Formatea y complementa los campos para presentación en la vista.
-     *
-     * @param array<string, mixed> $r
-     * @return array<string, mixed>
-     */
+ * Formatea y complementa los campos para presentación en la vista.
+ *
+ * @param array<string, mixed> $r
+ * @return array<string, mixed>
+ */
     private function formatearPerfil(array $r): array
     {
         // Nombre completo
@@ -261,11 +258,11 @@ class ProfileModel extends BaseModel
         ];
     }
 /**
-     * Obtiene los datos básicos de persona asociados al usuario en sesión.
-     *
-     * @param int $idUsuario
-     * @return array<string, mixed>|null
-     */
+ * Obtiene los datos básicos de persona asociados al usuario en sesión.
+ *
+ * @param int $idUsuario
+ * @return array<string, mixed>|null
+ */
     public function getPersonaUsuario(int $idUsuario): ?array
     {
         $sql = "SELECT p.id_persona, p.foto
@@ -286,12 +283,12 @@ class ProfileModel extends BaseModel
     }
 
     /**
-     * Actualiza la foto de perfil en la tabla persona.
-     *
-     * @param int $idPersona
-     * @param string|null $rutaFoto
-     * @return bool
-     */
+ * Actualiza la foto de perfil en la tabla persona.
+ *
+ * @param int $idPersona
+ * @param string|null $rutaFoto
+ * @return bool
+ */
     public function actualizarFotoPersona(int $idPersona, ?string $rutaFoto): bool
     {
         try {
