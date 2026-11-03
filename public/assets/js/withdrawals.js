@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
       SIGDEUI.confirmar({ titulo: aprobado ? '¿Aprobar retiro?' : '¿Rechazar retiro?' }).then(function (confirmado) {
         if (!confirmado) return;
         var body = new URLSearchParams({ id: button.dataset.id, estado: aprobado ? 'APROBADO' : 'RECHAZADO' });
-        SIGDEUI.enviar(route + 'updateEstado', { metodo: 'POST', cuerpo: body })
+        SIGDEUI.enviar(route + 'updateStatus', { metodo: 'POST', cuerpo: body })
           .then(function (answer) { if (!answer.ok || !answer.data.ok) { SIGDEUI.mostrarError(answer.data.mensaje || 'No se pudo actualizar el retiro.'); return; } window.location.reload(); })
           .catch(function () { SIGDEUI.mostrarError('No se pudo conectar con el servidor.'); });
       });

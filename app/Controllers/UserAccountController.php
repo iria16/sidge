@@ -139,7 +139,7 @@ class UserAccountController extends CrudController
         return $errores;
     }
 
-    public function getDetalle(): void
+    public function getDetail(): void
     {
         $this->responderDetalle(
             'getDetalleCompletoById',

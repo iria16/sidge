@@ -11,6 +11,7 @@ use App\Interfaces\Updatable;
 use App\Models\AuditLogModel;
 use App\Models\EmployeeModel;
 use App\Models\InstitucionModel;
+use App\Models\ReposoEmployeeModel;
 use App\Models\TituloModel;
 use App\Services\ExpedienteEmpleadoService;
 use App\Support\Instituciones;
@@ -71,7 +72,11 @@ class EmployeeController extends CrudController
 
     private function servicioExpedientes(): ExpedienteEmpleadoService
     {
-        return $this->expedientes ??= new ExpedienteEmpleadoService($this->conexion());
+        return $this->expedientes ??= new ExpedienteEmpleadoService(
+            $this->modelo(),
+            new ReposoEmployeeModel($this->conexion()),
+            new InstitucionModel($this->conexion())
+        );
     }
 
     /**

@@ -280,7 +280,7 @@ class PasswordRecoveryModel extends BaseModel implements Listable
         return $detalle;
     }
 
-    // --- Transiciones de estado (usadas por updateEstado()) ---
+    // --- Transiciones de estado (usadas por updateStatus()) ---
 
     public function aprobarSolicitud(int $idSolicitud, int $idAdmin): ?array
     {

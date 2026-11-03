@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
+use App\Models\EnrollmentModel;
+use App\Models\RatificationModel;
 use App\Models\StudentsModel;
 use App\Services\ExpedienteEstudianteService;
 use PDO;
+use LogicException;
 use Throwable;
 use function App\Traits\sigde_rol_clave;
 
@@ -28,7 +31,21 @@ class StudentsController extends ReadOnlyController
 
     private function servicioExpedientes(): ExpedienteEstudianteService
     {
-        return $this->expedientes ??= new ExpedienteEstudianteService($this->conexion());
+        return $this->expedientes ??= new ExpedienteEstudianteService(
+            $this->modelo(),
+            new RatificationModel($this->conexion()),
+            new EnrollmentModel($this->conexion())
+        );
+    }
+
+    private function modelo(): StudentsModel
+    {
+        $model = $this->getModel();
+        if (!$model instanceof StudentsModel) {
+            throw new LogicException('El controlador requiere un StudentsModel.');
+        }
+
+        return $model;
     }
 
     private function esSecretariaActual(): bool

@@ -13,7 +13,7 @@ use Throwable;
 /**
  * Lado administrador de la recuperación de acceso: aprueba o rechaza solicitudes (creadas por AuthController::requestRecovery).
  * Al aprobar genera una clave provisional; también permite restablecer la clave de cualquier usuario sin solicitud.
- * Vistas en Views/usuarios/recuperacion; updateEstado, getDetalle y resetPassword deben estar en el whitelist de public/index.php.
+ * Vistas en Views/usuarios/recuperacion; updateStatus, getDetail y resetPassword deben estar en el whitelist de public/index.php.
  */
 class PasswordRecoveryController extends BaseController
 {
@@ -82,11 +82,11 @@ class PasswordRecoveryController extends BaseController
     }
 
     /**
-     * Aprueba o rechaza una solicitud pendiente (recuperacionAcceso/updateEstado, POST, JSON).
+     * Aprueba o rechaza una solicitud pendiente (recuperacionAcceso/updateStatus, POST, JSON).
      * Recibe `id` y `accion` ('aprobar' o 'rechazar'); aprobar devuelve la clave provisional en `data`.
      * Si el modelo devuelve null/false la solicitud ya fue atendida o no existe (409), evitando doble proceso.
      */
-    public function updateEstado(): void
+    public function updateStatus(): void
     {
         $id     = (int) ($_POST['id'] ?? 0);
         $accion = (string) ($_POST['accion'] ?? '');
@@ -122,10 +122,10 @@ class PasswordRecoveryController extends BaseController
     }
 
     /**
-     * Devuelve el detalle de una solicitud en JSON para el modal (recuperacionAcceso/getDetalle?id=..., GET).
+     * Devuelve el detalle de una solicitud en JSON para el modal (recuperacionAcceso/getDetail?id=..., GET).
      * Delega el flujo estándar 400/404/500/200 en responderDetalle() de DetalleJsonTrait.
      */
-    public function getDetalle(): void
+    public function getDetail(): void
     {
         $this->responderDetalle(
             'getDetalleSolicitud',

@@ -62,7 +62,7 @@ async function aprobarSolicitud(btn) {
 
   btn.disabled = true;
   try {
-    var sobre = sobreDe(await SIGDEUI.postForm(baseUrl + rutaControlador + '/updateEstado', {
+    var sobre = sobreDe(await SIGDEUI.postForm(baseUrl + rutaControlador + '/updateStatus', {
       id: id,
       accion: 'aprobar'
     }));
@@ -117,7 +117,7 @@ async function rechazarSolicitud(btn) {
 
   btn.disabled = true;
   try {
-    var sobre = sobreDe(await SIGDEUI.postForm(baseUrl + rutaControlador + '/updateEstado', {
+    var sobre = sobreDe(await SIGDEUI.postForm(baseUrl + rutaControlador + '/updateStatus', {
       id: id,
       accion: 'rechazar'
     }));
@@ -161,7 +161,7 @@ function cargarYMostrarDetalle(id, modalDetalleEl) {
     elAvatar.className = 'avatar avatar--lg avatar--primary mb-2';
   }
 
-  SIGDEUI.getJson(baseUrl + rutaControlador + '/getDetalle?id=' + encodeURIComponent(id))
+  SIGDEUI.getJson(baseUrl + rutaControlador + '/getDetail?id=' + encodeURIComponent(id))
     .then(function (respuesta) {
       var sobre = sobreDe(respuesta);
       if (!sobre.ok) {

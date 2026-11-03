@@ -10,7 +10,6 @@ use App\Models\ReposoEmployeeModel;
 use App\Support\Configuracion;
 use App\Support\FichaEmpleadoPdf;
 use App\Support\Instituciones;
-use PDO;
 
 final class ExpedienteEmpleadoService
 {
@@ -18,11 +17,14 @@ final class ExpedienteEmpleadoService
     private ReposoEmployeeModel $reposos;
     private InstitucionModel $instituciones;
 
-    public function __construct(PDO $pdo)
-    {
-        $this->employees = new EmployeeModel($pdo);
-        $this->reposos = new ReposoEmployeeModel($pdo);
-        $this->instituciones = new InstitucionModel($pdo);
+    public function __construct(
+        EmployeeModel $employees,
+        ReposoEmployeeModel $reposos,
+        InstitucionModel $instituciones
+    ) {
+        $this->employees = $employees;
+        $this->reposos = $reposos;
+        $this->instituciones = $instituciones;
     }
 
     /**

@@ -10,7 +10,6 @@ use App\Models\StudentsModel;
 use App\Support\Configuracion;
 use App\Support\FichaEstudiantePdf;
 use App\Support\ImagenPdf;
-use PDO;
 
 final class ExpedienteEstudianteService
 {
@@ -18,11 +17,14 @@ final class ExpedienteEstudianteService
     private RatificationModel $ratifications;
     private EnrollmentModel $enrollments;
 
-    public function __construct(PDO $pdo)
-    {
-        $this->students = new StudentsModel($pdo);
-        $this->ratifications = new RatificationModel($pdo);
-        $this->enrollments = new EnrollmentModel($pdo);
+    public function __construct(
+        StudentsModel $students,
+        RatificationModel $ratifications,
+        EnrollmentModel $enrollments
+    ) {
+        $this->students = $students;
+        $this->ratifications = $ratifications;
+        $this->enrollments = $enrollments;
     }
 
     /**

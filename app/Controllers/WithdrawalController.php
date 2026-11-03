@@ -13,10 +13,10 @@ use PDO;
 use function App\Traits\sigde_rol_clave;
 
 /**
- * Retiros (gestion_estudiante/retiro): la secretaria los registra (store) y el directivo los resuelve (updateEstado).
+ * Retiros (gestion_estudiante/retiro): la secretaria los registra (store) y el directivo los resuelve (updateStatus).
  * Es un proceso de matrícula, igual que inscripción, ratificación y egreso; las notificaciones solo lo avisan.
  * Endpoints: withdrawal/index (GET), withdrawal/buscarEstudiante (GET, secretaria),
- * withdrawal/store (POST, secretaria) y withdrawal/updateEstado (POST, directivo).
+ * withdrawal/store (POST, secretaria) y withdrawal/updateStatus (POST, directivo).
  * El alta usa store() de CrudController (el modelo implementa Creatable); aquí solo se arman extractData() y validate().
 */
 class WithdrawalController extends CrudController
@@ -253,7 +253,7 @@ class WithdrawalController extends CrudController
 
     /**
  * Aprueba o rechaza una solicitud pendiente.
- * Ruta: withdrawal/updateEstado (POST, responde JSON). Solo directivo.
+ * Ruta: withdrawal/updateStatus (POST, responde JSON). Solo directivo.
 */
     /* Detalle de una solicitud de retiro (GET withdrawal/ver/{id}). El botón "ver" de la fila ya no
  lleva los datos en atributos data-: duplicar el modelo en el markup obliga a mantenerlo en dos
@@ -288,7 +288,7 @@ class WithdrawalController extends CrudController
         require __DIR__ . "/../Views/{$this->viewPath}/ver.php";
     }
 
-    public function updateEstado(): void
+    public function updateStatus(): void
     {
         // 1. Validar que la petición sea POST (aunque las rutas devuelvan 405, es buena defensa en profundidad)
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -347,7 +347,7 @@ class WithdrawalController extends CrudController
                 $ok ? 200 : 409
             );
         } catch (\Throwable $e) {
-            error_log('Error en WithdrawalController::updateEstado: ' . $e->getMessage());
+            error_log('Error en WithdrawalController::updateStatus: ' . $e->getMessage());
             $this->jsonResponse(false, null, 'Ocurrió un error interno al actualizar el estado.', 500);
         }
     }

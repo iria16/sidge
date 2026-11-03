@@ -177,6 +177,7 @@ if ($controller === null || $action === null) {
 // 7. MATRIZ DE RUTAS Y ROLES PERMITIDOS
 // Lista blanca: controlador => accion => roles con permiso. 'publico' = sin login.
 // Lo que no este aqui responde 404, aunque la clase y el metodo existan.
+// Las acciones nuevas usan ingles camelCase; las anteriores se conservan como alias temporales.
 $rutasPermitidas = [
     'auth' => [
         'login' => ['publico'],
@@ -202,7 +203,7 @@ $rutasPermitidas = [
         'edit' => ['admin'],
         'update' => ['admin'],
         'toggleStatus' => ['admin'],
-        'getDetalle' => ['admin']
+        'getDetail' => ['admin']
     ],
     'bitacora' => [
         'index' => ['admin'],
@@ -210,8 +211,8 @@ $rutasPermitidas = [
     ],
     'recuperacionAcceso' => [
         'index' => ['admin'],
-        'getDetalle' => ['admin'],
-        'updateEstado' => ['admin'],
+        'getDetail' => ['admin'],
+        'updateStatus' => ['admin'],
         'resetPassword' => ['admin']
     ],
     'notificacion' => [
@@ -286,7 +287,7 @@ $rutasPermitidas = [
         'buscarEstudiante' => ['secretaria'],
         'store' => ['secretaria'],
         'evaluarRecaudos' => ['secretaria'],
-        'updateEstado' => ['directivo']
+        'updateStatus' => ['directivo']
     ],
     'estudiantes' => [
         'index' => ['directivo', 'coordinador', 'secretaria', 'docente'],
@@ -374,13 +375,13 @@ $rutasPermitidas = [
 $accionesSoloPost = [
     'auth' => ['authenticate', 'updatePassword', 'requestRecovery'],
     'cuentaUsuario' => ['store', 'update', 'toggleStatus'],
-    'recuperacionAcceso' => ['updateEstado', 'resetPassword'],
+    'recuperacionAcceso' => ['updateStatus', 'resetPassword'],
     'catalogo' => ['store', 'update', 'toggleStatus'],
     'empleado' => ['store', 'update', 'toggleStatus', 'guardarTitulo', 'guardarInstitucion', 'registrarReposo', 'updateReposo', 'cambiarEstado', 'cerrarReposo', 'anularReposo'],
     'academicYear' => ['store', 'update', 'iniciar', 'cerrar', 'reabrir'],
     'academicStructure' => ['store', 'update'],
     'teacherAssignment' => ['asignar', 'actualizar', 'retirar'],
-    'withdrawal' => ['store', 'updateEstado'],
+    'withdrawal' => ['store', 'updateStatus'],
     'notificacion' => ['leer', 'leerTodas'],
     'estudiantes' => ['guardarRecaudos'],
     'inscripciones' => ['store', 'evaluarRecaudos', 'guardarInstitucion'],

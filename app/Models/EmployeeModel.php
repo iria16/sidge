@@ -585,7 +585,7 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
             "SELECT COUNT(*)
                FROM cargo
               WHERE id_cargo = :cargo
-                AND nombre IN ('Docente de Aula', 'Docente de Educación Especial')"
+                AND nombre = 'Docente de Aula'"
         );
         $cargo->execute(['cargo' => $idCargo]);
         if ((int) $cargo->fetchColumn() === 0) {
