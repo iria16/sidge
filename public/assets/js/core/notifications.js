@@ -89,6 +89,15 @@
       if (tipo.indexOf('danger') !== -1 || tipo.indexOf('error') !== -1 || tipo.indexOf('alerta') !== -1) {
         icon = 'bi-exclamation-octagon';
         iconTone = 'danger';
+      } else if (tipo.indexOf('retiro_rechazado') !== -1) {
+        icon = 'bi-x-circle';
+        iconTone = 'danger';
+      } else if (tipo.indexOf('retiro_aprobado') !== -1) {
+        icon = 'bi-check-circle';
+        iconTone = 'success';
+      } else if (tipo.indexOf('retiro') !== -1 || tipo.indexOf('pendiente') !== -1) {
+        icon = 'bi-box-arrow-right';
+        iconTone = 'warning';
       } else if (tipo.indexOf('warning') !== -1 || tipo.indexOf('atencion') !== -1) {
         icon = 'bi-exclamation-triangle';
         iconTone = 'warning';

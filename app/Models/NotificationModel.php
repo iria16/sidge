@@ -15,16 +15,26 @@ class NotificationModel
      *
      * @return int[]
      */
-    public function destinatariosPorRol(string $rol): array
+    /**
+     * @param string|string[] $roles
+     * @return int[]
+     */
+    public function destinatariosPorRol(string|array $roles): array
     {
+        $listaRoles = is_array($roles) ? array_values(array_filter($roles)) : [$roles];
+        if ($listaRoles === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($listaRoles), '?'));
         $stmt = $this->pdo->prepare(
             "SELECT u.id_usuario
                FROM usuario u
                INNER JOIN rol r ON r.id_rol = u.id_rol
               WHERE u.estado = 'ACTIVO'
-                AND r.nombre = :rol"
+                AND r.nombre IN ({$placeholders})"
         );
-        $stmt->execute(['rol' => $rol]);
+        $stmt->execute($listaRoles);
 
         return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
     }

@@ -202,7 +202,7 @@ $rutasPermitidas = [
         'edit' => ['admin'],
         'update' => ['admin'],
         'toggleStatus' => ['admin'],
-        'getDetail' => ['admin']
+        'getDetalle' => ['admin']
     ],
     'bitacora' => [
         'index' => ['admin'],
@@ -210,8 +210,8 @@ $rutasPermitidas = [
     ],
     'recuperacionAcceso' => [
         'index' => ['admin'],
-        'getDetail' => ['admin'],
-        'updateStatus' => ['admin'],
+        'getDetalle' => ['admin'],
+        'updateEstado' => ['admin'],
         'resetPassword' => ['admin']
     ],
     'notificacion' => [
@@ -279,14 +279,15 @@ $rutasPermitidas = [
         'getDocentesPorEstructura' => ['coordinador', 'directivo']
     ],
     'withdrawal' => [
-        'index' => ['directivo', 'secretaria'],
+        'index' => ['directivo', 'secretaria', 'admin'],
         // Detalle de una solicitud (GET withdrawal/ver/{id}). Lo consume el botón
         // "ver" del listado: devuelve SOLO el cuerpo del modal cuando viene por AJAX.
-        'ver' => ['directivo', 'secretaria'],
+        'ver' => ['directivo', 'secretaria', 'admin'],
         'buscarEstudiante' => ['secretaria'],
         'store' => ['secretaria'],
         'evaluarRecaudos' => ['secretaria'],
-        'updateStatus' => ['directivo']
+        'updateEstado' => ['directivo', 'admin'],
+        'updateStatus' => ['directivo', 'admin']
     ],
     'estudiantes' => [
         'index' => ['directivo', 'coordinador', 'secretaria', 'docente'],
@@ -374,13 +375,13 @@ $rutasPermitidas = [
 $accionesSoloPost = [
     'auth' => ['authenticate', 'updatePassword', 'requestRecovery'],
     'cuentaUsuario' => ['store', 'update', 'toggleStatus'],
-    'recuperacionAcceso' => ['updateStatus', 'resetPassword'],
+    'recuperacionAcceso' => ['updateEstado', 'resetPassword'],
     'catalogo' => ['store', 'update', 'toggleStatus'],
     'empleado' => ['store', 'update', 'toggleStatus', 'guardarTitulo', 'guardarInstitucion', 'registrarReposo', 'updateReposo', 'cambiarEstado', 'cerrarReposo', 'anularReposo'],
     'academicYear' => ['store', 'update', 'iniciar', 'cerrar', 'reabrir'],
     'academicStructure' => ['store', 'update'],
     'teacherAssignment' => ['asignar', 'actualizar', 'retirar'],
-    'withdrawal' => ['store', 'updateStatus'],
+    'withdrawal' => ['store', 'updateEstado', 'updateStatus'],
     'notificacion' => ['leer', 'leerTodas'],
     'estudiantes' => ['guardarRecaudos'],
     'inscripciones' => ['store', 'evaluarRecaudos', 'guardarInstitucion'],
