@@ -79,7 +79,7 @@ ob_start();
              familiares que se incluye más abajo no lleva el campo, así que la bandera
              no le afecta aunque siga en el scope. */
       $showPhoto = false;
-      $nacionalidadEsRegistroExistente = true;
+      $nacionalidadEsRegistroExistente = false;
       include __DIR__ . '/../../inscripcion/enrollments-steps/step-1-personales.php';
       ?>
       <!-- Bloque para cambio de año con Cédula Escolar (CE) -->
@@ -108,7 +108,7 @@ ob_start();
          hidden arranca con "[]": si no viniera la lista, un guardado no debe
          borrar a los familiares que ya están. -->
     <div class="tab-pane fade" id="pane-familiares" role="tabpanel">
-      <?php include __DIR__ . '/../../inscripcion/enrollments-steps/step-6-familiares.php'; ?>
+      <?php include __DIR__ . '/../../inscripcion/enrollments-steps/step-5-familiares.php'; ?>
       <input type="hidden" name="familiares_json" id="familiaresJson" value="[]">
     </div>
 

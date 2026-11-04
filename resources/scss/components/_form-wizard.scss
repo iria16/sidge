@@ -341,12 +341,26 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 1.5rem;
+
+  > .wizard-summary__section {
+    margin-top: 0 !important;
+  }
 }
 
+/* Separación entre secciones consecutivas dentro del wizard y modales */
 .wizard-summary__section {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.wizard-panel > .wizard-summary__section + .wizard-summary__section,
+.tab-pane > .wizard-summary__section + .wizard-summary__section,
+.modal-body > .wizard-summary__section + .wizard-summary__section,
+form > .wizard-summary__section + .wizard-summary__section,
+.wizard-summary__card + .wizard-summary__section,
+.wizard-summary__row + .wizard-summary__section {
+  margin-top: 1.5rem;
 }
 
 .wizard-summary__section-header {

@@ -49,6 +49,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
+    var modalBody = wizardModalEl.querySelector('.modal-body');
+    if (modalBody) {
+      modalBody.scrollTop = 0;
+    }
+
     wizardModalEl.querySelectorAll('.wizard-panel').forEach(function (panel) {
       panel.classList.toggle('is-active', Number(panel.dataset.step) === numero);
     });
@@ -99,7 +104,11 @@ document.addEventListener('DOMContentLoaded', function () {
       var faltanteObligatorio = recaudosActuales.find(function (recaudo) {
         var fila = recaudosTbody.querySelector('[data-recaudo-clave="' + recaudo.clave + '"]');
         var toggle = fila && fila.querySelector('[data-recaudo-toggle]');
-        return recaudo.requerido && (!toggle || !toggle.checked);
+        /* Solo estos cuatro pueden ser obligatorios, y solo en el caso que los exige; el
+           servidor ya marca `requerido` únicamente en ellos. Lo demás nunca bloquea. */
+        var obligatorios = ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'];
+        return recaudo.requerido && obligatorios.indexOf(recaudo.codigo) !== -1
+          && (!toggle || !toggle.checked);
       });
       if (faltanteObligatorio) {
         SIGDEUI.mostrarAviso(
@@ -502,7 +511,8 @@ document.addEventListener('DOMContentLoaded', function () {
       titulo.className = 'fw-semibold';
       titulo.textContent = recaudo.nombre
         + (recaudo.persona_nombre ? ' — ' + recaudo.persona_nombre : '');
-      if (recaudo.requerido) {
+      var obligatorios = ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'];
+      if (recaudo.requerido && obligatorios.indexOf(recaudo.codigo) !== -1) {
         var asterisco = document.createElement('span');
         asterisco.className = 'text-danger';
         asterisco.setAttribute('aria-label', 'Obligatorio');

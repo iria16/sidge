@@ -325,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (avatarSpan) avatarSpan.textContent = iniciales ?? '';
     }
 
-    /* Guardar datos para resetear la encuesta */
+    /* Guardar datos para responder a "¿Repite grado?" y resetear la encuesta */
     if (modalRatificarEl) {
       modalRatificarEl.dataset.gradoOrigenId = dato('grado-origen-id', '0');
       modalRatificarEl.dataset.gradoOrigenNombre = dato('grado-origen', 'el grado actual');
@@ -614,6 +614,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  /* Los expedientes viejos pueden tener una talla que ya no está en el catálogo
+     (por ejemplo, pantalón "M"). Se conserva como opción heredada al editar para
+     que abrir el modal y guardar no borre el dato sin que nadie lo cambie. */
+  function ponerTalla(campo, valor) {
+    const el = document.getElementById(campo);
+    const actual = valor == null ? '' : String(valor);
+    if (el && el.tagName === 'SELECT' && actual !== ''
+        && !Array.from(el.options).some(function (opcion) { return opcion.value === actual; })) {
+      const opcion = document.createElement('option');
+      opcion.value = actual;
+      opcion.textContent = actual;
+      el.appendChild(opcion);
+    }
+    poner(campo, actual);
+  }
+
   function marcarSexo(sexo) {
     const radio = document.querySelector('#pane-personales input[name="sexo"][value="' + sexo + '"]');
     if (radio) radio.checked = true;
@@ -722,28 +738,191 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  let recaudosBaseEstudiante = [];
+  let idEstudianteActual = 0;
+  let representanteInicial = null;
+
+  function sincronizarRecaudosDinamicos() {
+    const panelRec = document.getElementById('recaudosModalEditar');
+    if (!panelRec || !window.SIGDERecaudos) return;
+
+    // 1. Guardar estado visible actual marcado en la tabla
+    const estadosActuales = {};
+    panelRec.querySelectorAll('[data-recaudo-row]').forEach(function (tr) {
+      const toggle = tr.querySelector('[data-recaudo-toggle]');
+      const obs = tr.querySelector('[data-recaudo-observacion]');
+      if (toggle) {
+        const key = toggle.getAttribute('data-recaudo-toggle');
+        estadosActuales[key] = {
+          consignado: toggle.checked ? 1 : 0,
+          observacion: obs ? obs.value : ''
+        };
+      }
+    });
+
+    const familiares = familiaresUI.lista();
+    const repActual = familiares.find(function (f) {
+      return (Number(f.representante_principal) === 1 || f.representante_principal === true)
+        && f.estado_relacion !== 'INACTIVO'
+        && !f.es_fallecido;
+    });
+
+    const repNombre = repActual ? (repActual.primer_nombre + ' ' + (repActual.primer_apellido || '')).trim() : '';
+    const parentescoRep = repActual ? (repActual.parentesco || '').toLowerCase().trim() : '';
+    const esPadreMadre = ['padre', 'madre', 'papa', 'papá', 'mama', 'mamá'].indexOf(parentescoRep) !== -1;
+    const exigeLopnna = !!(repActual && !esPadreMadre);
+
+    const repInicialDoc = (representanteInicial && representanteInicial.numero_documento)
+      ? String(representanteInicial.numero_documento).replace(/\D/g, '')
+      : '';
+    const repActualDoc = (repActual && repActual.numero_documento)
+      ? String(repActual.numero_documento).replace(/\D/g, '')
+      : '';
+    const cambioDeRepresentante = repActualDoc !== '' && repInicialDoc !== '' && repActualDoc !== repInicialDoc;
+
+    // 2. Filtrar autorizados para retiro que NO sean el representante ni padre/madre
+    const autorizadosRetiro = familiares.filter(function (f) {
+      if (f.estado_relacion === 'INACTIVO' || f.es_fallecido) return false;
+      if (Number(f.representante_principal) === 1 || f.representante_principal === true) return false;
+      const p = (f.parentesco || '').toLowerCase().trim();
+      if (['padre', 'madre', 'papa', 'papá', 'mama', 'mamá'].indexOf(p) !== -1) return false;
+      return (Number(f.autorizado_retiros) === 1 || f.autorizado_retiros === true);
+    });
+
+    // 3. Reconstruir lista limpia de recaudos
+    const lista = [];
+
+    // 3.1 Documentos fijos del alumno
+    recaudosBaseEstudiante.forEach(function (r) {
+      if (['partida_nacimiento', 'foto_alumno', 'constancia_vacuna', 'constancia_prosecucion', 'cedula_alumno'].indexOf(r.codigo) !== -1) {
+        const item = Object.assign({}, r);
+        if (estadosActuales[item.id]) {
+          item.consignado = estadosActuales[item.id].consignado;
+          item.observacion = estadosActuales[item.id].observacion;
+        }
+        lista.push(item);
+      }
+    });
+
+    // 3.2 Foto y Cédula del Representante Legal (SIEMPRE con el nombre del representante actual)
+    const baseFotoRep = recaudosBaseEstudiante.find(function (r) { return r.codigo === 'foto_representante'; });
+    const fotoKey = cambioDeRepresentante ? 'tipo_5' : (baseFotoRep ? baseFotoRep.id : 'tipo_5');
+    lista.push({
+      id: fotoKey,
+      codigo: 'foto_representante',
+      nombre: 'Fotos del representante legal',
+      requerido: 0,
+      consignado: estadosActuales[fotoKey] !== undefined
+        ? estadosActuales[fotoKey].consignado
+        : (cambioDeRepresentante ? 0 : (baseFotoRep ? Number(baseFotoRep.consignado) : 0)),
+      observacion: estadosActuales[fotoKey] !== undefined
+        ? estadosActuales[fotoKey].observacion
+        : (cambioDeRepresentante ? '' : (baseFotoRep ? (baseFotoRep.observacion || '') : '')),
+      persona_nombre: repNombre,
+      evaluado: 1
+    });
+
+    const baseCedulaRep = recaudosBaseEstudiante.find(function (r) { return r.codigo === 'cedula_representante'; });
+    const cedulaKey = cambioDeRepresentante ? 'tipo_9' : (baseCedulaRep ? baseCedulaRep.id : 'tipo_9');
+    lista.push({
+      id: cedulaKey,
+      codigo: 'cedula_representante',
+      nombre: 'Cédula del representante legal',
+      requerido: 0,
+      consignado: estadosActuales[cedulaKey] !== undefined
+        ? estadosActuales[cedulaKey].consignado
+        : (cambioDeRepresentante ? 0 : (baseCedulaRep ? Number(baseCedulaRep.consignado) : 0)),
+      observacion: estadosActuales[cedulaKey] !== undefined
+        ? estadosActuales[cedulaKey].observacion
+        : (cambioDeRepresentante ? '' : (baseCedulaRep ? (baseCedulaRep.observacion || '') : '')),
+      persona_nombre: repNombre,
+      evaluado: 1
+    });
+
+    // 3.3 Permiso de la LOPNNA: SOLO si el representante actual no es padre ni madre
+    if (exigeLopnna) {
+      const baseLopnna = recaudosBaseEstudiante.find(function (r) { return r.codigo === 'permiso_lopnna'; });
+      const lopnnaKey = cambioDeRepresentante ? 'tipo_12' : (baseLopnna ? baseLopnna.id : 'tipo_12');
+      lista.push({
+        id: lopnnaKey,
+        codigo: 'permiso_lopnna',
+        nombre: 'Permiso de la LOPNNA',
+        requerido: 1,
+        consignado: estadosActuales[lopnnaKey] !== undefined
+          ? estadosActuales[lopnnaKey].consignado
+          : (cambioDeRepresentante ? 0 : (baseLopnna ? Number(baseLopnna.consignado) : 0)),
+        observacion: estadosActuales[lopnnaKey] !== undefined
+          ? estadosActuales[lopnnaKey].observacion
+          : (cambioDeRepresentante ? '' : (baseLopnna ? (baseLopnna.observacion || '') : '')),
+        persona_nombre: repNombre,
+        evaluado: 1
+      });
+    }
+
+    // 3.4 Documentos para personas autorizadas a retirar (no padre/madre)
+    autorizadosRetiro.forEach(function (aut) {
+      const autNombre = (aut.primer_nombre + ' ' + (aut.primer_apellido || '')).trim();
+      const autDoc = (aut.numero_documento || '').replace(/\D/g, '');
+      const keyRetiro = 'tipo_10' + (autDoc ? '_' + autDoc : '');
+      const keyCedula = 'tipo_11' + (autDoc ? '_' + autDoc : '');
+
+      const baseRetiro = recaudosBaseEstudiante.find(function (r) {
+        return r.codigo === 'autorizacion_retiro' && (r.persona_nombre || '').trim() === autNombre;
+      });
+      const baseCedulaAut = recaudosBaseEstudiante.find(function (r) {
+        return r.codigo === 'cedula_autorizada' && (r.persona_nombre || '').trim() === autNombre;
+      });
+
+      const idRetiro = baseRetiro ? baseRetiro.id : keyRetiro;
+      const idCedula = baseCedulaAut ? baseCedulaAut.id : keyCedula;
+
+      lista.push({
+        id: idRetiro,
+        codigo: 'autorizacion_retiro',
+        nombre: 'Autorización de retiro',
+        requerido: 1,
+        consignado: estadosActuales[idRetiro] !== undefined
+          ? estadosActuales[idRetiro].consignado
+          : (baseRetiro ? Number(baseRetiro.consignado) : 0),
+        observacion: estadosActuales[idRetiro] !== undefined
+          ? estadosActuales[idRetiro].observacion
+          : (baseRetiro ? (baseRetiro.observacion || '') : ''),
+        persona_nombre: autNombre,
+        evaluado: 1
+      });
+
+      lista.push({
+        id: idCedula,
+        codigo: 'cedula_autorizada',
+        nombre: 'Cédula de la persona autorizada',
+        requerido: 1,
+        consignado: estadosActuales[idCedula] !== undefined
+          ? estadosActuales[idCedula].consignado
+          : (baseCedulaAut ? Number(baseCedulaAut.consignado) : 0),
+        observacion: estadosActuales[idCedula] !== undefined
+          ? estadosActuales[idCedula].observacion
+          : (baseCedulaAut ? (baseCedulaAut.observacion || '') : ''),
+        persona_nombre: autNombre,
+        evaluado: 1
+      });
+    });
+
+    window.SIGDERecaudos.rellenar(panelRec, lista, Number(idEstudianteActual));
+  }
+
   /* Familiares. La lista llega del servidor y solo se edita el contacto del REPRESENTANTE
  LEGAL; el resto de los vínculos es de consulta.*/
   const familiaresUI = FamiliaresUI.init({
     baseRoute: BASE_URL + 'ratificacion/',
-      jsonInputId: 'familiaresJson',
-      /* La papelera SOLO aquí. En inscripción la lista se está armando y quitar a
- alguien de la tabla es "me equivoqué al escribirlo", no "esta persona deja de
- ser familiar"; por eso allí sigue el switch de activar/desactivar.
- Con esto la papelera sustituye al switch: los dos significan lo mismo y
- dejar los dos a la vez sería una trampa — el switch dejaba a la persona en el
- payload y el backend la volvía a guardar entera; la papelera la saca del
- payload y es el diff del backend el que marca la relación como desvinculada.*/
-      permitirDesvinculo: true,
-    /* Solo el representante legal: es el contacto con el que la institución ubica y
- se comunica con el estudiante, que al ser menor no tiene los suyos.*/
-  /* El contacto de un familiar solo se edita si es el REPRESENTANTE LEGAL: es lo único que la
- secretaria puede cambiar de un vínculo ya guardado (mudanza, otro teléfono). El servidor
- aplica la misma regla, porque el formulario se puede mandar a mano.*/
-      contactoEditable: function (familiar) {
-        if (!familiar || !familiar.representante_principal) return false;
-        return !familiar.contacto_bloqueado;
-      }
+    jsonInputId: 'familiaresJson',
+    permitirDesvinculo: false,
+    permitirDesactivar: true,
+    contactoEditable: function (familiar) {
+      return true;
+    },
+    alCambiar: function () {
+      sincronizarRecaudosDinamicos();
+    }
   });
 
   async function abrirEditor(id, tabInicial, editarRepresentante) {
@@ -779,6 +958,25 @@ document.addEventListener('DOMContentLoaded', function () {
  formulario se abriría VACÍO: el modal parece funcionar y no muestra nada.*/
       const est = d.estudiante || {};
 
+      const formEl = document.getElementById('formEditarEstudiante');
+      if (formEl) {
+        formEl.classList.remove('was-validated');
+        if (window.SIGDEUI && SIGDEUI.limpiarErroresDeCampos) {
+          SIGDEUI.limpiarErroresDeCampos(formEl);
+        }
+        formEl.querySelectorAll('.is-invalid').forEach(function (el) {
+          el.classList.remove('is-invalid');
+        });
+        formEl.dataset.tipoDocOriginal = est.tipo_documento || '';
+        formEl.dataset.fechaOriginal = est.fecha_nacimiento ? String(est.fecha_nacimiento).slice(0, 10) : '';
+      }
+      const bloqueCE = document.getElementById('bloqueCambioAnioCE');
+      const motivoInput = document.getElementById('motivo_cambio_anio');
+      const contadorMotivo = document.getElementById('contadorMotivoCE');
+      if (bloqueCE) bloqueCE.classList.add('d-none');
+      if (motivoInput) motivoInput.value = '';
+      if (contadorMotivo) contadorMotivo.textContent = '40';
+
       poner('tipoDocumento', est.tipo_documento);
       poner('numeroDocumento', est.numero_documento);
       poner('fechaNacimiento', est.fecha_nacimiento ? String(est.fecha_nacimiento).slice(0, 10) : '');
@@ -788,6 +986,14 @@ document.addEventListener('DOMContentLoaded', function () {
       poner('segundoApellido', est.segundo_apellido);
       marcarSexo(est.sexo);
       poner('nacionalidad', est.id_nacionalidad);
+      const elNac = document.getElementById('nacionalidad');
+      if (elNac) {
+        if (est.id_nacionalidad) {
+          elNac.classList.remove('is-invalid');
+        } else {
+          elNac.classList.add('is-invalid');
+        }
+      }
 
       /* El lugar de nacimiento también sale en d.estudiante, pero los tres selects no se
          pueden pintar con `poner`: el municipio depende del estado y la parroquia del
@@ -801,14 +1007,16 @@ document.addEventListener('DOMContentLoaded', function () {
       if (cascadaNac && est.id_parroquia_nacimiento) {
         cascadaNac.cargando.then(function () {
           return cascadaNac.elegirParroquia(
-            est.id_estado_nacimiento || 0, 0, est.id_parroquia_nacimiento
+            est.id_estado_nacimiento || 0,
+            est.id_municipio_nacimiento || 0,
+            est.id_parroquia_nacimiento
           );
         });
       }
 
-      poner('tallaCamisa', est.talla_camisa);
-      poner('tallaPantalon', est.talla_pantalon);
-      poner('tallaZapato', est.talla_zapato);
+      ponerTalla('tallaCamisa', est.talla_camisa);
+      ponerTalla('tallaPantalon', est.talla_pantalon);
+      ponerTalla('tallaZapato', est.talla_zapato);
       poner('tallaObservaciones', est.talla_observaciones);
 
       poner('tipoSangre', est.tipo_sangre);
@@ -832,7 +1040,13 @@ document.addEventListener('DOMContentLoaded', function () {
  módulo se responsible de dejar la lista y el hidden de acuerdo, y porque así
  el modal arranca siempre igual: si el fetch falló, la lista queda vacía en
  vez de conservar los datos de otro estudiante.*/
+      idEstudianteActual = id;
+      recaudosBaseEstudiante = Array.isArray(d.recaudos) ? d.recaudos.slice() : [];
+      representanteInicial = (d.familiares || []).find(function (f) {
+        return (Number(f.representante_principal) === 1 || f.representante_principal === true);
+      }) || null;
       familiaresUI.cargar(d.familiares || []);
+      sincronizarRecaudosDinamicos();
 
       // Los bloques plegables se abren si hay algo guardado adentro.
     ['talla', 'medica'].forEach(function (clave) {
@@ -846,24 +1060,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
       bootstrap.Modal.getOrCreateInstance(modalEditarEl).show();
-      /* Los recaudos llegan en la misma respuesta que los demás datos y se pintan en su
- pestaña del modal. Es el mismo panel que usa la ficha: la secretaria no tiene por
- qué ver una cosa en el expediente y otra al editar.*/
-      if (window.SIGDERecaudos) {
-        const panelRec = document.getElementById('recaudosModalEditar');
-        if (panelRec) {
-          /* El panel se rellena igual aunque no haya botón propio: aquí los recaudos los
- guarda el mismo "Guardar Cambios" del modal, que ya envía el formulario
- completo con los campos recaudos[...] dentro.*/
-          const cuerpoRec = panelRec.querySelector('[data-recaudos-form] [data-cuerpo]');
-          if (cuerpoRec) {
-            cuerpoRec.innerHTML = '<div class="text-center py-3">'
-              + '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>'
-              + ' Consultando recaudos...</div>';
-          }
-          window.SIGDERecaudos.rellenar(panelRec, d.recaudos || [], Number(id));
-        }
-      }
 
       const paneId = ['pane-personales', 'pane-adicional', 'pane-familiares', 'pane-recaudos'].includes(tabInicial)
         ? tabInicial
@@ -905,6 +1101,52 @@ async function guardarDatosEstudiante() {
  igual, o se queda pegado al campo que ya corrigió.*/
       SIGDEUI.limpiarErroresDeCampos(form);
 
+      const bloqueCE = document.getElementById('bloqueCambioAnioCE');
+      const motivoInput = document.getElementById('motivo_cambio_anio');
+      if (bloqueCE && !bloqueCE.classList.contains('d-none')) {
+        const motivo = (motivoInput ? motivoInput.value : '').trim();
+        if (!motivo) {
+          SIGDEUI.mostrarAviso('error', 'Debe indicar el motivo del cambio de año de nacimiento.');
+          motivoInput?.focus();
+          return;
+        }
+        if (motivo.length > 40) {
+          SIGDEUI.mostrarAviso('error', 'El motivo no puede exceder 40 caracteres.');
+          motivoInput?.focus();
+          return;
+        }
+      }
+
+      // Validar recaudos obligatorios en el cliente antes de confirmar
+      const panelRec = document.getElementById('recaudosModalEditar');
+      if (panelRec) {
+        let faltante = null;
+        let toggleFaltante = null;
+        const filas = panelRec.querySelectorAll('[data-recaudo-row]');
+        for (let i = 0; i < filas.length; i++) {
+          const fila = filas[i];
+          const asterisco = fila.querySelector('.text-danger');
+          const toggle = fila.querySelector('[data-recaudo-toggle]');
+          if (asterisco && toggle && !toggle.checked) {
+            const nombreEl = fila.querySelector('.fw-semibold');
+            faltante = nombreEl ? nombreEl.textContent.replace('*', '').trim() : 'un documento obligatorio';
+            toggleFaltante = toggle;
+            break;
+          }
+        }
+        if (faltante) {
+          const tabBtn = modalEditarEl.querySelector('[data-bs-target="#pane-recaudos"]');
+          if (tabBtn) bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+          SIGDEUI.mostrarAviso(
+            'warning',
+            'Documento obligatorio pendiente',
+            'Debe consignar "' + faltante + '" antes de guardar la actualización.'
+          );
+          if (toggleFaltante) toggleFaltante.focus();
+          return;
+        }
+      }
+
       bloquearBoton(btn,
         '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...');
 
@@ -934,9 +1176,8 @@ async function guardarDatosEstudiante() {
  `observaciones` llega de las tallas y `observaciones_medicas` de la
  ficha, y son campos distintos a propósito.*/
           pasos: {
-            /* No hay un input con este nombre: los familiares se editan en un
- sub-modal, así que el aviso lleva a su pestaña y no a un campo.*/
-            familiares: 'pane-familiares'
+            familiares: 'pane-familiares',
+            recaudos: 'pane-recaudos'
           },
           titulo: 'No se pudo guardar',
           /* La pestaña se deduce del panel que contiene el campo, no de una tabla:
@@ -975,6 +1216,34 @@ async function guardarDatosEstudiante() {
       e.preventDefault();
       guardarDatosEstudiante();
     });
+
+    const inputFecha = document.getElementById('fechaNacimiento');
+    const bloqueCE = document.getElementById('bloqueCambioAnioCE');
+    const motivoInput = document.getElementById('motivo_cambio_anio');
+    const contadorMotivo = document.getElementById('contadorMotivoCE');
+
+    if (inputFecha) {
+      inputFecha.addEventListener('change', function () {
+        if (!bloqueCE) return;
+        const tipoOrig = formEditar.dataset.tipoDocOriginal || '';
+        const fechaOrig = formEditar.dataset.fechaOriginal || '';
+        const anioOrig = fechaOrig ? fechaOrig.slice(0, 4) : '';
+        const anioNuevo = this.value ? this.value.slice(0, 4) : '';
+
+        if (tipoOrig === 'CE' && anioOrig && anioNuevo && anioOrig !== anioNuevo) {
+          bloqueCE.classList.remove('d-none');
+        } else {
+          bloqueCE.classList.add('d-none');
+        }
+      });
+    }
+
+    if (motivoInput && contadorMotivo) {
+      motivoInput.addEventListener('input', function () {
+        const quedan = 40 - this.value.length;
+        contadorMotivo.textContent = String(Math.max(0, quedan));
+      });
+    }
   }
 
   // Al cerrar el modal de editar, volver a abrir el de ratificar.

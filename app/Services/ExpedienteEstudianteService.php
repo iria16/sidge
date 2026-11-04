@@ -140,6 +140,9 @@ final class ExpedienteEstudianteService
             'historialAcademico'   => $this->historial($estudianteId, $turno, $esDocente),
             'datosEditables'       => $this->ratifications->getEstudianteEditable($estudianteId, !$esDocente) ?? [],
             'estados'              => $catFamiliares['estados'],
+            /* El sub-modal "Editar familiar" pinta sus <select> de parentesco y profesión
+               desde este catálogo; sin él quedan vacíos y el valor guardado no se puede elegir. */
+            'catFamiliares'        => $catFamiliares,
             'nacionalidades'       => $this->ratifications->getNacionalidades(),
             'familiaresNucleo'     => $vinculados['nucleo'],
             'autorizadosParaRetiro' => $vinculados['autorizados'],

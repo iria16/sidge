@@ -207,19 +207,21 @@ document.addEventListener('DOMContentLoaded', function () {
       });
       enviar('reabrir', { method: 'POST', body: cuerpo })
         .then(function (answer) {
-          if (!answer.ok || !answer.data.ok) {
+          if (!answer.response.ok || !answer.data.ok) {
             if (answer.data && answer.data.mensaje && answer.data.mensaje.indexOf('ya se encuentra activo') !== -1) {
-              SIGDEUI.exito(answer.data.mensaje);
-              SIGDEUI.ocultarModal(document.getElementById('reabrirAnioModal'));
-              window.location.reload();
+              SIGDEUI.exito(answer.data.mensaje).then(function () {
+                SIGDEUI.ocultarModal(document.getElementById('reabrirAnioModal'));
+                window.location.reload();
+              });
               return;
             }
             SIGDEUI.mostrarError(answer.data.mensaje || 'No se pudo reabrir el año escolar.');
             return;
           }
-          SIGDEUI.exito(answer.data.mensaje || "Año escolar reabierto correctamente.");
           SIGDEUI.ocultarModal(document.getElementById('reabrirAnioModal'));
-          window.location.reload();
+          SIGDEUI.exito(answer.data.mensaje || "Año escolar reabierto correctamente.").then(function () {
+            window.location.reload();
+          });
         })
         .catch(function () {
           SIGDEUI.mostrarError('No se pudo conectar con el servidor.');

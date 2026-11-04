@@ -357,7 +357,7 @@ $codigosBase = [
 ];
 foreach ($codigosBase as $codigo) {
     $item = recaudoPorCodigo($base, $codigo);
-    comprobar($item !== null && $item['requerido'], "El recaudo base {$codigo} debe ser obligatorio.");
+    comprobar($item !== null && !$item['requerido'], "El recaudo base {$codigo} debe ser opcional.");
 }
 comprobar(
     recaudoPorCodigo($base, DocumentosObligatorios::PERMISO_LOPNNA) === null,
@@ -486,8 +486,24 @@ $faltantes = $reglas->faltantesObligatorios($edadExacta, $estados);
 comprobar($faltantes === [], 'La cédula opcional pendiente no debe bloquear la inscripción.');
 $faltantes = $reglas->faltantesObligatorios($edadExacta, []);
 comprobar(
-    count($faltantes) === count($codigosBase),
-    'Los cinco recaudos base pendientes deben bloquear la inscripción.'
+    $faltantes === [],
+    'Sin ningún recaudo consignado y sin casos especiales, la inscripción no debe bloquearse.'
+);
+$pruebas++;
+
+$repitente = (new DocumentosObligatorios(new EnrollmentTestPdo(
+    institutionType: 8
+)))->evaluarInscripcion(3, '2018-06-01', [representante()], '2026-11-02', 10, '3er Grado');
+comprobar(
+    recaudoPorCodigo($repitente, DocumentosObligatorios::CONSTANCIA_PROSECUCION) === null,
+    'Un repitente no debe exigir constancia de prosecución.'
+);
+$primerIngreso = (new DocumentosObligatorios(new EnrollmentTestPdo(
+    institutionType: 8
+)))->evaluarInscripcion(3, '2018-06-01', [representante()], '2026-11-02', 10, '2do Grado', true);
+comprobar(
+    recaudoPorCodigo($primerIngreso, DocumentosObligatorios::CONSTANCIA_PROSECUCION) === null,
+    'El primer ingreso no debe exigir constancia de prosecución.'
 );
 $pruebas++;
 

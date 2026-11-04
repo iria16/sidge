@@ -258,7 +258,7 @@ if ($pideNacionalidad) {
   <?= $slotTrasIdentificacion ?>
 <?php endif; ?>
 
-<section class="wizard-summary__section mt-2">
+<section class="wizard-summary__section">
   <div class="wizard-summary__section-header">
     <span class="wizard-summary__icon"><i class="bi bi-person" aria-hidden="true"></i></span>
     <span class="wizard-summary__section-title">Nombres y apellidos</span>
@@ -323,7 +323,7 @@ if ($pideNacionalidad) {
   </div>
 </section>
 
-<section class="wizard-summary__section mt-2">
+<section class="wizard-summary__section">
   <div class="wizard-summary__section-header">
     <span class="wizard-summary__icon"><i class="bi bi-gender-ambiguous" aria-hidden="true"></i></span>
     <span class="wizard-summary__section-title">Sexo</span>

@@ -240,10 +240,12 @@ trait FamiliaresModelTrait
  el formulario y como lo devuelve getFamiliares(). Con el documento en
  crudo, "V-12345678" y "12345678" serían dos personas distintas.*/
         $documentosPayload = [];
+        $estadosPayload = [];
         foreach ($enviados as $f) {
             $digitos = preg_replace('/\D/', '', (string) ($f['numero_documento'] ?? ''));
             if ($digitos !== '') {
                 $documentosPayload[$digitos] = true;
+                $estadosPayload[$digitos] = strtoupper((string) ($f['estado_relacion'] ?? 'ACTIVO'));
             }
         }
 
@@ -291,13 +293,29 @@ trait FamiliaresModelTrait
 
         $aReactivar = [];
         foreach ($vigentes as $relacion) {
-            $viene = isset($documentosPayload[$relacion['documento']]);
+            $doc = $relacion['documento'];
+            $viene = isset($documentosPayload[$doc]);
+            $estadoDeseado = $estadosPayload[$doc] ?? 'ACTIVO';
 
             if ($viene) {
-                /* Volvió a la lista. Si estaba desvinculada se reactiva, y con ella
- su parentesco, nivel de instrucción y ocupación.*/
-                if ($relacion['estado_relacion'] !== 'ACTIVO') {
-                    $aReactivar[] = (int) $relacion['id_persona'];
+                if ($estadoDeseado === 'ACTIVO') {
+                    if ($relacion['estado_relacion'] !== 'ACTIVO') {
+                        $aReactivar[] = (int) $relacion['id_persona'];
+                    }
+                } else {
+                    if ($relacion['estado_relacion'] !== 'INACTIVO') {
+                        $this->pdo->prepare(
+                            'UPDATE persona_estudiante
+                                SET estado_relacion = :estado_nuevo
+                              WHERE id_persona = :persona AND id_estudiante = :estudiante
+                                AND estado_relacion <> :estado_previo'
+                        )->execute([
+                            'estado_nuevo' => 'INACTIVO',
+                            'estado_previo'=> 'INACTIVO',
+                            'persona'      => (int) $relacion['id_persona'],
+                            'estudiante'   => $estudianteId,
+                        ]);
+                    }
                 }
                 continue;
             }

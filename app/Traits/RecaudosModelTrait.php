@@ -126,7 +126,10 @@ trait RecaudosModelTrait
            ORDER BY nombre"
         )->fetchAll(PDO::FETCH_ASSOC);
 
-        $siempre = ['partida_nacimiento', 'foto_alumno', 'foto_representante', 'constancia_vacuna', 'cedula_representante'];
+        /* Ningún recaudo es obligatorio de forma fija: los únicos obligatorios dependen del caso
+           (prosecución, permiso LOPNNA, autorización y cédula del autorizado) y los evalúa
+           DocumentosObligatorios. */
+        $siempre = [];
         foreach ($filas as &$fila) {
             $fila['requerido'] = in_array((string) ($fila['codigo'] ?? ''), $siempre, true);
         }
@@ -222,7 +225,15 @@ trait RecaudosModelTrait
                ORDER BY t.nombre"
             );
             $consulta->execute(['estudiante' => $estudianteId]);
-            return $consulta->fetchAll(PDO::FETCH_ASSOC);
+            $filas = $consulta->fetchAll(PDO::FETCH_ASSOC);
+            $permitidos = ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'];
+            foreach ($filas as &$f) {
+                if (!in_array((string) ($f['codigo'] ?? ''), $permitidos, true)) {
+                    $f['requerido'] = 0;
+                }
+            }
+            unset($f);
+            return $filas;
         }
 
         $consulta = $this->pdo->prepare(
@@ -249,7 +260,15 @@ trait RecaudosModelTrait
            ORDER BY t.nombre, persona_nombre"
         );
         $consulta->execute(['estudiante' => $estudianteId]);
-        return $consulta->fetchAll(PDO::FETCH_ASSOC);
+        $filas = $consulta->fetchAll(PDO::FETCH_ASSOC);
+        $permitidos = ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'];
+        foreach ($filas as &$f) {
+            if (!in_array((string) ($f['codigo'] ?? ''), $permitidos, true)) {
+                $f['requerido'] = 0;
+            }
+        }
+        unset($f);
+        return $filas;
     }
 
     public function recaudosEvaluados(int $estudianteId): bool
@@ -369,10 +388,7 @@ trait RecaudosModelTrait
             $observacion = trim((string) ($estado['observacion'] ?? ''));
             $consignado = !empty($estado['consignado']) ? 1 : 0;
 
-            if (preg_match('/^tipo_([1-9]\d*)$/', $clave, $coincidencia)) {
-                if ($evaluado) {
-                    continue;
-                }
+            if (preg_match('/^tipo_([1-9]\d*)(?:_.*)?$/', $clave, $coincidencia)) {
                 $idTipo = (int) $coincidencia[1];
                 $tipoActivo->execute(['tipo' => $idTipo]);
                 if ($tipoActivo->fetchColumn() === false) {

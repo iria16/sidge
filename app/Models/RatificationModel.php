@@ -422,10 +422,12 @@ class RatificationModel extends BaseModel implements Listable
                     ' . ConQuienVive::expresionSql('e.id_estudiante') . ' AS con_quien_vive,
                     p.tipo_documento, p.numero_documento, p.fecha_nacimiento,
                     p.id_estado_nacimiento, p.id_parroquia_nacimiento, p.id_nacionalidad,
+                    pn.id_municipio AS id_municipio_nacimiento,
                     p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
                     p.sexo, p.foto' . $datosSensibles . '
                FROM estudiante e
                INNER JOIN persona p ON p.id_persona = e.id_persona
+               LEFT JOIN parroquia pn ON pn.id_parroquia = p.id_parroquia_nacimiento
               WHERE e.id_estudiante = :id
               LIMIT 1'
         );
@@ -524,6 +526,64 @@ class RatificationModel extends BaseModel implements Listable
  lista sin marcar salía con los contadores sin recalcular, que es justo el caso que la
  secretaria necesita ver para saber que no hay nada ratificado.*/
             $this->guardarFamiliares($idEstudiante, $familiares, true);
+
+            // Sincronizar vínculos de persona_estudiante en estudiante_documento si cambió el representante
+            $stmtRep = $this->pdo->prepare(
+                'SELECT pe.id_persona_estudiante, pa.codigo AS parentesco_codigo
+                   FROM persona_estudiante pe
+                   LEFT JOIN parentesco pa ON pa.id_parentesco = pe.id_parentesco
+                  WHERE pe.id_estudiante = :id
+                    AND pe.es_representante_legal = 1
+                    AND pe.estado_relacion = :estado
+                  LIMIT 1'
+            );
+            $stmtRep->execute(['id' => $idEstudiante, 'estado' => self::ESTADO_VIGENTE]);
+            $repVigente = $stmtRep->fetch(PDO::FETCH_ASSOC);
+
+            if ($repVigente) {
+                $idPeRep = (int) $repVigente['id_persona_estudiante'];
+                $parentescoRep = strtolower(trim((string) ($repVigente['parentesco_codigo'] ?? '')));
+                $esPadreMadre = in_array($parentescoRep, ['padre', 'madre'], true);
+
+                $this->pdo->prepare(
+                    'UPDATE estudiante_documento ed
+                       JOIN tipo_documento t ON t.id_tipo_documento = ed.id_tipo_documento
+                        SET ed.id_persona_estudiante = :pe,
+                            ed.id_persona_estudiante_unico = :pe
+                      WHERE ed.id_estudiante = :estudiante
+                        AND t.codigo IN (\'foto_representante\', \'cedula_representante\')'
+                )->execute([
+                    'pe'         => $idPeRep,
+                    'estudiante' => $idEstudiante,
+                ]);
+
+                if (!$esPadreMadre) {
+                    $this->pdo->prepare(
+                        'UPDATE estudiante_documento ed
+                           JOIN tipo_documento t ON t.id_tipo_documento = ed.id_tipo_documento
+                            SET ed.id_persona_estudiante = :pe,
+                                ed.id_persona_estudiante_unico = :pe,
+                                ed.requerido = 1
+                          WHERE ed.id_estudiante = :estudiante
+                            AND t.codigo = \'permiso_lopnna\''
+                    )->execute([
+                        'pe'         => $idPeRep,
+                        'estudiante' => $idEstudiante,
+                    ]);
+                } else {
+                    $this->pdo->prepare(
+                        'UPDATE estudiante_documento ed
+                           JOIN tipo_documento t ON t.id_tipo_documento = ed.id_tipo_documento
+                            SET ed.id_persona_estudiante = NULL,
+                                ed.id_persona_estudiante_unico = 0,
+                                ed.requerido = 0
+                          WHERE ed.id_estudiante = :estudiante
+                            AND t.codigo = \'permiso_lopnna\''
+                    )->execute([
+                        'estudiante' => $idEstudiante,
+                    ]);
+                }
+            }
 
             /**
  * Los recaudos van en la MISMA transacción y no en una llamada aparte del controlador:
@@ -725,7 +785,7 @@ es.nombre AS estado_nombre
  expediente laboral (o de su propia ficha de estudiante), y desde
  acá no se escriben. El sub-modal lo consulta con
  contactoEditable() para desactivar los campos y mostrar el aviso.*/
-                  'contacto_bloqueado'       => isset($conOtroRol[(int) $fila['id_persona']]) ? 1 : 0,
+                  'contacto_bloqueado'       => 0,
 
                 'contacto' => [
                     'codigo'    => (string) ($fila['codigo_telefono_principal'] ?? ''),

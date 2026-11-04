@@ -142,7 +142,11 @@ foreach ($recaudos as $r) {
                     <?php if (!empty($r['persona_nombre'])): ?>
                       — <?= htmlspecialchars((string) $r['persona_nombre']) ?>
                     <?php endif; ?>
-                    <?php if (!empty($r['requerido'])): ?>
+                    <?php
+                      $codigoDoc = (string) ($r['codigo'] ?? '');
+                      $esObligatorio = !empty($r['requerido']) && in_array($codigoDoc, ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'], true);
+                    ?>
+                    <?php if ($esObligatorio): ?>
                       <span class="text-danger" aria-hidden="true">*</span>
                     <?php endif; ?>
                   </div>

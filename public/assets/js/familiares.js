@@ -26,6 +26,10 @@
 
   function soloDigitos(valor) { return String(valor || '').replace(/\D/g, ''); }
 
+  function esBooleanoVerdadero(v) {
+    return v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+  }
+
   function esperar(ms) {
     return new Promise(function (resolve) { setTimeout(resolve, ms); });
   }
@@ -936,9 +940,16 @@
             nacEstadoEl.value = String(estadoNacimientoPrecargado);
           }
 
-          /* Restaurar ocupación si vino de la persona encontrada */
-          if (ocupacionEl && ocupacionEl.value === '' && ocupacionPrecargada !== '') {
-            ocupacionEl.value = ocupacionPrecargada;
+          /* Restaurar ocupación si vino de la persona encontrada o precargada */
+          if (ocupacionEl && (!ocupacionEl.value || ocupacionEl.value === '') && ocupacionPrecargada) {
+            var matchOcu = Array.prototype.find.call(ocupacionEl.options, function (opt) {
+              return opt.value.trim().toLowerCase() === String(ocupacionPrecargada).trim().toLowerCase();
+            });
+            if (matchOcu) {
+              ocupacionEl.value = matchOcu.value;
+            } else {
+              ocupacionEl.value = ocupacionPrecargada;
+            }
           }
 
           /* Restaurar nacionalidad si vino de la persona encontrada o por defecto */
@@ -1050,6 +1061,13 @@
  el bloque solo aparecería al tocar otro interruptor.*/
       if (parentescoEl) parentescoEl.addEventListener('change', sincronizar);
       if (fallecidoEl) fallecidoEl.addEventListener('change', sincronizar);
+      if (ocupacionEl) {
+        ocupacionEl.addEventListener('change', function () {
+          if (ocupacionEl.value) {
+            ocupacionPrecargada = ocupacionEl.value;
+          }
+        });
+      }
       document.addEventListener('DOMContentLoaded', sincronizar);
       sincronizar();
 
@@ -1348,7 +1366,11 @@
 
         if (anteriorIndice >= 0 && anteriorIndice !== editandoIndice) {
           var anterior = familiares[anteriorIndice];
-          pendiente = { datos: armarFamiliar(), estado: estadoFamiliar };
+          pendiente = {
+            datos: armarFamiliar(),
+            estado: estadoFamiliar,
+            indice: editandoIndice
+          };
 
           SIGDEUI.mostrarAviso(
             'warning',
@@ -1385,6 +1407,9 @@
         var pendienteActual = pendiente;
         pendiente = null;
         await esperar(250);
+        editandoIndice = pendienteActual.indice !== undefined ? pendienteActual.indice : null;
+        var hiddenIndice = document.getElementById('familiarIndiceEdicion');
+        if (hiddenIndice) hiddenIndice.value = editandoIndice !== null ? editandoIndice : '';
         if (pendienteActual.estado) estadoFamiliar = pendienteActual.estado;
         await llenarDesdeFamiliar(pendienteActual.datos);
         SIGDEUI.mostrarModal(modalEl);
@@ -1399,7 +1424,7 @@
 */
     function hayRepresentante() {
       return familiares.some(function (f) {
-          return f.representante_principal && !f.es_fallecido
+          return esBooleanoVerdadero(f.representante_principal) && !f.es_fallecido
             && f.estado_relacion !== 'INACTIVO' && !f._desvincular;
       });
     }
@@ -1412,7 +1437,7 @@
       };
       var marcar = function (id, v) {
         var el = document.getElementById(id);
-        if (el) el.checked = v === true || v === 1;
+        if (el) el.checked = esBooleanoVerdadero(v);
       };
 
       poner('familiarTipoDocumento', f.tipo_documento || 'V');
@@ -1444,12 +1469,27 @@
  fila en `parentesco`.*/
       if (f.parentesco) poner('familiarParentesco', f.parentesco);
 
-      poner('familiarOcupacion', f.ocupacion || '');
-
       marcar('familiarEsFallecido', f.es_fallecido);
       marcar('familiarRepresentantePrincipal', f.representante_principal);
       marcar('familiarAutorizadoRetiros', f.autorizado_retiros);
       marcar('familiarViveConEstudiante', f.vive_con_estudiante);
+
+      /* Sincronizar de inmediato para que los bloques dependientes (profesión, domicilio, nacimiento)
+         se muestren sin esperar la cascada asíncrona de dirección */
+      if (bloqueRepresentanteUI) bloqueRepresentanteUI.sincronizar();
+
+      var ocuValor = f.ocupacion || f.profesion || ocupacionPrecargada || '';
+      var ocupacionEl = document.getElementById('familiarOcupacion');
+      if (ocuValor && ocupacionEl) {
+        var matchOcu = Array.prototype.find.call(ocupacionEl.options, function (opt) {
+          return opt.value.trim().toLowerCase() === String(ocuValor).trim().toLowerCase();
+        });
+        if (matchOcu) {
+          ocupacionEl.value = matchOcu.value;
+        } else {
+          ocupacionEl.value = ocuValor;
+        }
+      }
 
     /* Si la persona ya está en el sistema su identidad se bloquea también aquí, no solo al
  buscarla por cédula. Antes, editar un familiar desde la lista dejaba el sexo escribible y
@@ -1545,7 +1585,7 @@
       if (f.es_fallecido) {
         roles.push('Fallecido(a)');
       }
-      if (f.representante_principal) {
+      if (esBooleanoVerdadero(f.representante_principal)) {
         roles.push('Representante legal');
       } else if (f.solo_autorizado) {
         roles.push('No familiar');
@@ -1581,7 +1621,7 @@
 */
       function htmlPapelera(f, indice) {
         var marcado = !!f._desvincular;
-        var esRepresentante = !!f.representante_principal && !marcado;
+        var esRepresentante = esBooleanoVerdadero(f.representante_principal) && !marcado;
 
         var icono = marcado ? 'bi-arrow-counterclockwise' : 'bi-trash';
         var clase = marcado
@@ -1624,7 +1664,7 @@
               + (inactivo ? 'Activar este familiar' : 'Desactivar este familiar') + '">' +
               '<input type="checkbox" data-estado-familiar="' + i + '"'
                 + (inactivo ? '' : ' checked')
-                + (f.representante_principal && !inactivo ? ' disabled' : '') + '>' +
+                + (esBooleanoVerdadero(f.representante_principal) && !inactivo ? ' disabled' : '') + '>' +
               '<span class="wizard-switch__slider"></span>' +
             '</label>'
           : '';
@@ -1686,9 +1726,9 @@
  backend lo rechaza igual (guarda 2 de sincronizarFamiliares), y es mejor
  decirlo antes que devolver un error al guardar, con el formulario entero
  ya cheio. Si es el único, el aviso lo dice explícitamente.*/
-          if (f.representante_principal) {
+          if (esBooleanoVerdadero(f.representante_principal)) {
             var otros = familiares.filter(function (otro) {
-              return otro.representante_principal && !otro._desvincular;
+              return esBooleanoVerdadero(otro.representante_principal) && !otro._desvincular;
             }).length;
             SIGDEUI.mostrarAviso(
               'warning',
@@ -1806,7 +1846,7 @@
       /** Abre el sub-modal directamente sobre el representante legal activo.*/
       editarRepresentante: function () {
         var indice = familiares.findIndex(function (familiar) {
-          return familiar.representante_principal && !familiar.es_fallecido
+          return esBooleanoVerdadero(familiar.representante_principal) && !familiar.es_fallecido
             && familiar.estado_relacion !== 'INACTIVO';
         });
         if (indice < 0) return false;

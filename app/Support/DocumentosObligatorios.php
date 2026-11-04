@@ -41,6 +41,17 @@ final class DocumentosObligatorios
     public const CEDULA_REPRESENTANTE   = 'cedula_representante';
 
     /**
+     * Únicos documentos que pueden ser obligatorios, y solo en el caso que los exige.
+     * Cualquier otro (fotos, partida, vacuna, cédulas) es opcional y nunca bloquea.
+     */
+    public const CODIGOS_OBLIGATORIOS = [
+        self::CONSTANCIA_PROSECUCION,
+        self::PERMISO_LOPNNA,
+        self::AUTORIZACION_RETIRO,
+        self::CEDULA_AUTORIZADA,
+    ];
+
+    /**
      * Evalúa el snapshot de recaudos de una inscripción nueva.
      *
      * @param array<int, array<string, mixed>> $familiares
@@ -66,13 +77,13 @@ final class DocumentosObligatorios
             self::PARTIDA_NACIMIENTO,
             self::CONSTANCIA_VACUNA,
         ] as $codigo) {
-            $instancias[] = $this->instancia($catalogo, $codigo, true);
+            $instancias[] = $this->instancia($catalogo, $codigo, false);
         }
 
         $representante = $this->representanteLegal($familiares);
         if ($representante !== null) {
             foreach ([self::FOTO_REPRESENTANTE, self::CEDULA_REPRESENTANTE] as $codigo) {
-                $instancias[] = $this->instanciaPersona($catalogo, $codigo, true, $representante);
+                $instancias[] = $this->instanciaPersona($catalogo, $codigo, false, $representante);
             }
 
             if ($this->exigePermisoLopnna($representante)) {
@@ -80,7 +91,7 @@ final class DocumentosObligatorios
             }
         } else {
             foreach ([self::FOTO_REPRESENTANTE, self::CEDULA_REPRESENTANTE] as $codigo) {
-                $instancias[] = $this->instancia($catalogo, $codigo, true);
+                $instancias[] = $this->instancia($catalogo, $codigo, false);
             }
         }
 
@@ -94,13 +105,12 @@ final class DocumentosObligatorios
             $nombreGrado = $nombre === false ? null : (string) $nombre;
         }
         $ordinalGrado = $nombreGrado !== null ? Instituciones::ordinalGrado($nombreGrado) : null;
-        $ordinalUltimoGrado = Instituciones::ordinalGrado($ultimoGradoCursado);
-        if ($ordinalGrado !== null
-            && $ordinalGrado >= 2
-            && $ordinalGrado <= 6
-            && $ordinalUltimoGrado !== $ordinalGrado
-            && !$esPrimerIngreso
-            && $this->esInstitucionEscuela($idInstitucionProcedencia)) {
+        if ($this->exigeConstanciaProsecucion(
+            $ordinalGrado,
+            $ultimoGradoCursado,
+            $esPrimerIngreso,
+            $idInstitucionProcedencia
+        )) {
             $instancias[] = $this->instancia($catalogo, self::CONSTANCIA_PROSECUCION, true);
         }
 
@@ -133,6 +143,7 @@ final class DocumentosObligatorios
         foreach ($evaluacion as $recaudo) {
             $clave = (string) $recaudo['clave'];
             if (!empty($recaudo['requerido'])
+                && in_array((string) ($recaudo['codigo'] ?? ''), self::CODIGOS_OBLIGATORIOS, true)
                 && empty($estados[$clave]['consignado'])) {
                 $faltantes[] = [
                     'clave' => $clave,
@@ -206,32 +217,16 @@ final class DocumentosObligatorios
         ?string $ultimoGrado,
         array $familiares,
         ?string $fechaNacimientoAlumno = null,
-        ?string $fechaInscripcion = null
+        ?string $fechaInscripcion = null,
+        ?int $ordinalGradoDestino = null
     ): array {
-        $requeridos = [
-            self::PARTIDA_NACIMIENTO,
-            self::FOTO_ALUMNO,
-            self::FOTO_REPRESENTANTE,
-            self::CONSTANCIA_VACUNA,
-            self::CEDULA_REPRESENTANTE,
-        ];
+        /* Solo hay obligatorios en los cuatro casos de la regla de negocio (prosecución,
+           permiso LOPNNA, autorización de retiro y cédula del autorizado). Foto, partida,
+           vacuna y cédula del representante son opcionales y nunca bloquean. */
+        $requeridos = [];
 
-        $gradoOrdinal = Instituciones::ordinalGrado($ultimoGrado);
-        $requiereProsecucion = false;
-        if ($this->esInstitucionEscuela($idInstitucion)
-            && Instituciones::esGradoDePrimaria($gradoOrdinal)) {
-            if ($gradoOrdinal !== null && $gradoOrdinal >= 2) {
-                $requiereProsecucion = true;
-            } elseif ($gradoOrdinal === 1 && !$primerIngreso) {
-                $requiereProsecucion = true;
-            }
-        }
-        if ($requiereProsecucion) {
+        if ($this->exigeConstanciaProsecucion($ordinalGradoDestino, $ultimoGrado, $primerIngreso, $idInstitucion)) {
             $requeridos[] = self::CONSTANCIA_PROSECUCION;
-        }
-
-        if ($this->alumnoTiene9AniosOMas($fechaNacimientoAlumno, $fechaInscripcion)) {
-            $requeridos[] = self::CEDULA_ALUMNO;
         }
 
         $representante = $this->representanteLegal($familiares);
@@ -258,7 +253,8 @@ final class DocumentosObligatorios
         array $recaudos,
         bool $incluirRegla3 = true,
         ?string $fechaNacimientoAlumno = null,
-        ?string $fechaInscripcion = null
+        ?string $fechaInscripcion = null,
+        ?int $ordinalGradoDestino = null
     ): array {
         $requeridos = $this->codigosRequeridosInscripcion(
             $primerIngreso,
@@ -266,7 +262,8 @@ final class DocumentosObligatorios
             $ultimoGrado,
             $familiares,
             $fechaNacimientoAlumno,
-            $fechaInscripcion
+            $fechaInscripcion,
+            $ordinalGradoDestino
         );
 
         $faltantes = [];
@@ -390,15 +387,23 @@ final class DocumentosObligatorios
         }
 
         $stmt = $this->pdo->prepare(
-            'SELECT p.fecha_nacimiento
+            'SELECT p.fecha_nacimiento,
+                    (SELECT g.nombre
+                       FROM inscripcion i
+                       JOIN estructura_academica ea ON ea.id_estructura_academica = i.id_estructura_academica
+                       JOIN grado g ON g.id_grado = ea.id_grado
+                      WHERE i.id_estudiante = e.id_estudiante
+                      LIMIT 1) AS grado_inscripcion
                FROM estudiante e
                JOIN persona p ON p.id_persona = e.id_persona
               WHERE e.id_estudiante = :id
               LIMIT 1'
         );
         $stmt->execute(['id' => $idEstudiante]);
-        $fechaNacimiento = $stmt->fetchColumn();
-        $fechaNacimiento = $fechaNacimiento === false ? null : (string) $fechaNacimiento;
+        $datos = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $fechaNacimiento = isset($datos['fecha_nacimiento']) ? (string) $datos['fecha_nacimiento'] : null;
+        /* El grado al que entró decide si fue repitente: se compara con el último que cursó. */
+        $ordinalDestino = Instituciones::ordinalGrado((string) ($datos['grado_inscripcion'] ?? ''));
 
         return $this->faltantesInscripcion(
             (int) $procedencia['es_primer_ingreso'] === 1,
@@ -408,8 +413,31 @@ final class DocumentosObligatorios
             $recaudos,
             false,
             $fechaNacimiento,
-            null
+            null,
+            $ordinalDestino
         );
+    }
+
+    /**
+     * Regla 1: la constancia de prosecución se exige solo si el estudiante NO es repitente
+     * (el último grado que cursó es distinto al grado al que entra) y viene de OTRA
+     * escuela. Aplica a 2.º–6.º grado; no es primer ingreso.
+     */
+    private function exigeConstanciaProsecucion(
+        ?int $ordinalGradoDestino,
+        ?string $ultimoGradoCursado,
+        bool $esPrimerIngreso,
+        ?int $idInstitucionProcedencia
+    ): bool {
+        if ($ordinalGradoDestino === null || $ordinalGradoDestino < 2 || $ordinalGradoDestino > 6) {
+            return false;
+        }
+        if ($esPrimerIngreso) {
+            return false;
+        }
+        $esRepitente = Instituciones::ordinalGrado($ultimoGradoCursado) === $ordinalGradoDestino;
+
+        return !$esRepitente && $this->esInstitucionEscuela($idInstitucionProcedencia);
     }
 
     /**
@@ -740,7 +768,7 @@ final class DocumentosObligatorios
             'codigo' => $codigo,
             'id_tipo_documento' => $catalogo[$codigo]['id'],
             'nombre' => $catalogo[$codigo]['nombre'],
-            'requerido' => $requerido,
+            'requerido' => $requerido && in_array($codigo, self::CODIGOS_OBLIGATORIOS, true),
             'documento_persona' => $persona === null ? null : (string) $numero,
             'persona_nombre' => $nombrePersona,
         ];

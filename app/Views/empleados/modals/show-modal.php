@@ -85,7 +85,7 @@ ob_start();
   </div>
 </div>
 
-<div class="wizard-summary__section mt-2">
+<div class="wizard-summary__section">
   <div class="wizard-summary__section-header">
     <span class="wizard-summary__icon"><i class="bi bi-telephone" aria-hidden="true"></i></span>
     <span class="wizard-summary__section-title">Información de contacto</span>
@@ -117,7 +117,7 @@ ob_start();
   </div>
 </div>
 
-<div class="wizard-summary__section mt-2">
+<div class="wizard-summary__section">
   <div class="wizard-summary__section-header">
     <span class="wizard-summary__icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
     <span class="wizard-summary__section-title">Dirección de habitación</span>
@@ -127,7 +127,7 @@ ob_start();
   </div>
 </div>
 
-<div class="wizard-summary__section mt-2">
+<div class="wizard-summary__section">
   <div class="wizard-summary__section-header">
     <span class="wizard-summary__icon"><i class="bi bi-mortarboard" aria-hidden="true"></i></span>
     <span class="wizard-summary__section-title">Formación académica</span>
@@ -137,7 +137,7 @@ ob_start();
   </div>
 </div>
 
-<div class="wizard-summary__section mt-2" id="seccionRepososEmpleado">
+<div class="wizard-summary__section" id="seccionRepososEmpleado">
   <div class="wizard-summary__section-header d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
       <span class="wizard-summary__icon"><i class="bi bi-heart-pulse" aria-hidden="true"></i></span>

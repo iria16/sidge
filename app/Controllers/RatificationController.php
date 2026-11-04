@@ -591,6 +591,14 @@ class RatificationController extends CrudController
         $representanteActual = $this->representanteLegal($familiaresActuales);
         $representanteNuevo = $this->representanteLegal($data['familiares']);
         $recaudosParaValidar = $data['recaudos'];
+        foreach ($data['recaudos'] as $k => $est) {
+            if (preg_match('/^tipo_([1-9]\d*)(?:_.*)?$/', (string) $k, $m)) {
+                $claveBase = 'tipo_' . $m[1];
+                if (!isset($recaudosParaValidar[$claveBase]) || !empty($est['consignado'])) {
+                    $recaudosParaValidar[$claveBase] = $est;
+                }
+            }
+        }
         $recaudosGuardados = (new \App\Models\EnrollmentModel($this->conexion()))
             ->getRecaudosDeEstudiante($idEstudiante);
         foreach ($recaudosGuardados as $recaudoGuardado) {
@@ -606,7 +614,20 @@ class RatificationController extends CrudController
             }
         }
 
-        if ($this->cambioElRepresentante($representanteActual, $representanteNuevo, $servicioDocumentos)) {
+        $cambioRepresentante = $this->cambioElRepresentante($representanteActual, $representanteNuevo, $servicioDocumentos);
+        if ($cambioRepresentante) {
+            // El permiso LOPNNA guardado era del representante anterior: el nuevo debe consignar el suyo si aplica
+            $estadoLopnnaEnviado = $data['recaudos']['tipo_12'] ?? null;
+            if ($estadoLopnnaEnviado === null) {
+                foreach ($data['recaudos'] as $claveRec => $valRec) {
+                    if (str_starts_with((string) $claveRec, 'tipo_12')) {
+                        $estadoLopnnaEnviado = $valRec;
+                        break;
+                    }
+                }
+            }
+            $recaudosParaValidar['tipo_12'] = $estadoLopnnaEnviado ?? ['consignado' => 0];
+
             $faltantes = $servicioDocumentos->faltantesPermisoLopnna(
                 $representanteNuevo,
                 $recaudosParaValidar
@@ -704,7 +725,7 @@ class RatificationController extends CrudController
         $recaudos = [];
         foreach ($crudo as $id => $estado) {
             $id = (string) $id;
-            if (!preg_match('/^(?:[1-9]\d*|tipo_[1-9]\d*)$/', $id) || !is_array($estado)) {
+            if (!preg_match('/^(?:[1-9]\d*|tipo_[1-9]\d*(?:_[A-Za-z0-9]+)?)$/', $id) || !is_array($estado)) {
                 continue;
             }
             $consignado = $estado['consignado'] ?? 0;
@@ -840,27 +861,21 @@ class RatificationController extends CrudController
             $documento = preg_replace('/\D/', '', (string) ($familiar['numero_documento'] ?? ''));
             $existe = $documento !== '' && isset($guardados[$documento]);
 
-            $esRepresentante = (int) ($familiar['representante_principal'] ?? 0) === 1;
-            $tieneFichaPropia = $existe
-                && isset($conPropiaFicha[(int) $guardados[$documento]['id_persona']]);
-
-            /* El único caso en que el contacto se escribe es: es el representante legal
- Y no tiene ficha propia en el plantel. Los dos criterios hacen falta:
- uno solo deja pasar al empleado que además es representante.*/
-            if ($esRepresentante && !$tieneFichaPropia) {
-                continue;
-            }
-
             if (!$existe) {
                 continue;   // familiar nuevo: no hay nada que preservar
             }
 
-            /* Se reponen los dos bloques completos. Es deliberado no hacerlo campo por
- campo: si se mezclara lo enviado con lo guardado, un campo vacío en el
- payload pondría el teléfono a NULL. Aquí o va el contacto entero del
- servidor, o va el entero que se envió para un familiar nuevo.*/
-            $familiares[$i]['contacto']  = $guardados[$documento]['contacto'];
-            $familiares[$i]['direccion'] = $guardados[$documento]['direccion'];
+            /* Si no se enviaron datos de contacto o vienen vacíos pero ya existían guardados, preservar los guardados.
+               Si se enviaron nuevos datos de teléfono o dirección, se respetan para guardarlos. */
+            $telEnviado = trim((string) ($familiar['contacto']['numero'] ?? ''));
+            if ($telEnviado === '' && !empty($guardados[$documento]['contacto']['numero'])) {
+                $familiares[$i]['contacto'] = $guardados[$documento]['contacto'];
+            }
+
+            $parroquiaEnviada = (int) ($familiar['direccion']['id_parroquia'] ?? 0);
+            if ($parroquiaEnviada <= 0 && !empty($guardados[$documento]['direccion']['id_parroquia'])) {
+                $familiares[$i]['direccion'] = $guardados[$documento]['direccion'];
+            }
         }
 
         return $familiares;
