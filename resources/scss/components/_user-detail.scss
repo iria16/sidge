@@ -668,14 +668,48 @@ table.table.expediente-formacion-table {
 }
 
 // Asignaciones del expediente: 8 columnas. En pantallas medianas se reduce el
-// aire lateral para que la última columna no quede recortada.
-.expediente-asignaciones-table {
-  @include media-breakpoint-down(lg) {
-    th,
-    td {
-      padding-right: 0.65rem;
-      padding-left: 0.65rem;
-    }
+// aire lateral para que la última columna no quede recortada, y min-width garantiza
+// que nunca se amontonen las columnas.
+table.table.expediente-asignaciones-table {
+  min-width: 860px;
+
+  th,
+  td {
+    padding: 0.75rem 0.65rem;
+    vertical-align: middle;
+  }
+
+  th {
+    white-space: nowrap;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: $dark;
+  }
+
+  td {
+    font-size: 0.85rem;
+  }
+}
+
+table.table.expediente-reposos-table {
+  min-width: 780px;
+
+  th,
+  td {
+    padding: 0.75rem 0.65rem;
+    vertical-align: middle;
+  }
+}
+
+table.table.expediente-historial-table {
+  min-width: 680px;
+
+  th,
+  td {
+    padding: 0.75rem 0.65rem;
+    vertical-align: middle;
   }
 }
 

@@ -11,7 +11,13 @@ use PDO;
 use Throwable;
 
 /**
- * StatisticsModel.
+ * StatisticsModel
+ * ----------------
+ * Modelo centralizado para la consolidación analítica institucional:
+ * - Control de Representantes y Hermanos
+ * - Demografía y Capacidad Escolar por Aula
+ * - Familias, Parentescos, Empleados Representantes y Recaudos
+ * - Salud, Tallas y Personal Escolar
  */
 class StatisticsModel extends Model
 {
@@ -687,7 +693,11 @@ class StatisticsModel extends Model
                     INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                     INNER JOIN persona p ON p.id_persona = e.id_persona
                     LEFT JOIN direccion d ON d.id_persona = p.id_persona
-                    LEFT JOIN parroquia par ON par.id_parroquia = d.id_parroquia
+                    LEFT JOIN persona_estudiante pe ON pe.id_estudiante = e.id_estudiante 
+                        AND pe.es_representante_legal = 1 
+                        AND pe.estado_relacion = 'ACTIVO'
+                    LEFT JOIN direccion d_rep ON d_rep.id_persona = pe.id_persona
+                    LEFT JOIN parroquia par ON par.id_parroquia = COALESCE(d.id_parroquia, d_rep.id_parroquia)
                     LEFT JOIN municipio mun ON mun.id_municipio = par.id_municipio
                     WHERE m.id_anio_escolar = :anio
                       AND {$condCursando}

@@ -279,15 +279,16 @@ $rutasPermitidas = [
         'getDocentesPorEstructura' => ['coordinador', 'directivo']
     ],
     'withdrawal' => [
-        'index' => ['directivo', 'secretaria', 'admin'],
+        'index' => ['directivo', 'secretaria'],
         // Detalle de una solicitud (GET withdrawal/ver/{id}). Lo consume el botón
         // "ver" del listado: devuelve SOLO el cuerpo del modal cuando viene por AJAX.
-        'ver' => ['directivo', 'secretaria', 'admin'],
+        'ver' => ['directivo', 'secretaria'],
         'buscarEstudiante' => ['secretaria'],
         'store' => ['secretaria'],
         'evaluarRecaudos' => ['secretaria'],
-        'updateEstado' => ['directivo', 'admin'],
-        'updateStatus' => ['directivo', 'admin']
+        'updateEstado' => ['directivo'],
+        'updateStatus' => ['directivo'],
+        'delete' => ['directivo', 'secretaria']
     ],
     'estudiantes' => [
         'index' => ['directivo', 'coordinador', 'secretaria', 'docente'],
@@ -381,7 +382,7 @@ $accionesSoloPost = [
     'academicYear' => ['store', 'update', 'iniciar', 'cerrar', 'reabrir'],
     'academicStructure' => ['store', 'update'],
     'teacherAssignment' => ['asignar', 'actualizar', 'retirar'],
-    'withdrawal' => ['store', 'updateEstado', 'updateStatus'],
+    'withdrawal' => ['store', 'updateEstado', 'updateStatus', 'delete'],
     'notificacion' => ['leer', 'leerTodas'],
     'estudiantes' => ['guardarRecaudos'],
     'inscripciones' => ['store', 'evaluarRecaudos', 'guardarInstitucion'],

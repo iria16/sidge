@@ -81,7 +81,7 @@ class WithdrawalController extends CrudController
             'aniosEscolares' => $model->getYears(),
             'motivos'        => $model->getReasons(),
             'puedeRegistrar' => $esSecretaria,
-            'puedeResolver'  => in_array($rol, ['directivo', 'admin'], true),
+            'puedeResolver'  => $rol === 'directivo',
         ];
     }
 
@@ -218,7 +218,15 @@ class WithdrawalController extends CrudController
             if ($ok) {
                 try {
                     $estudiante = $this->modelo()->descripcionEstudiantePublica((int) $data['id_matricula']);
-                    $directivos = (new \App\Models\NotificationModel($this->conexion()))->destinatariosPorRol(['Directivo', 'Admin']);
+                } catch (\Throwable $e) {
+                    error_log('Notificacion retiro descripcion: ' . $e->getMessage());
+                    $estudiante = 'la matrícula ' . (int) $data['id_matricula'];
+                }
+                try {
+                    $directivos = (new \App\Models\NotificationModel($this->conexion()))->destinatariosPorRol('Directivo');
+                    if ($directivos === []) {
+                        error_log('Notificacion retiro: no hay usuarios activos con rol Directivo/Directora/Director.');
+                    }
                     (new \App\Models\NotificationModel($this->conexion()))->crear(
                         $directivos,
                         'retiro_pendiente',
@@ -228,7 +236,7 @@ class WithdrawalController extends CrudController
                         (int) $data['id_matricula']
                     );
                 } catch (\Throwable $e) {
-                    error_log('Notificacion retiro: ' . $e->getMessage());
+                    error_log('Notificacion retiro crear: ' . $e->getMessage());
                 }
                 $this->jsonResponse(true, null, 'Solicitud de retiro registrada correctamente.');
             } else {
@@ -296,9 +304,9 @@ class WithdrawalController extends CrudController
             return; // Detiene la ejecución
         }
 
-        // 2. Control de autorización (solo directivo y admin)
+        // 2. Control de autorización (exclusivo para directivo)
         $rol = sigde_rol_clave($_SESSION['rol'] ?? '');
-        if ($rol !== 'directivo' && $rol !== 'admin') {
+        if ($rol !== 'directivo') {
             $this->jsonResponse(false, null, 'Solo el personal directivo puede resolver solicitudes de retiro.', 403);
             return;
         }
@@ -325,19 +333,27 @@ class WithdrawalController extends CrudController
                     $detalle = $model->getDetail($id);
                     $idRegistrante = (int) ($detalle['id_usuario_registro'] ?? 0);
                     $estudiante = (string) ($detalle['estudiante'] ?? 'el estudiante');
-                    if ($idRegistrante > 0) {
+                } catch (\Throwable $e) {
+                    error_log('Notificacion retiro estado detalle: ' . $e->getMessage());
+                    $idRegistrante = 0;
+                    $estudiante = 'el estudiante';
+                }
+                if ($idRegistrante > 0) {
+                    try {
                         $verbo = $estado === 'APROBADO' ? 'aprobada' : 'rechazada';
                         (new \App\Models\NotificationModel($this->conexion()))->crear(
                             $idRegistrante,
                             'retiro_' . strtolower($estado),
-                            'Retiro ' . $verbo,
-                            'Tu solicitud de retiro de ' . $estudiante . ' fue ' . $verbo,
-                            BASE_URL . 'withdrawal/ver/' . $id,
+                            'Solicitud de retiro ' . $verbo,
+                            'Tu solicitud de retiro de ' . $estudiante . ' fue ' . $verbo . '.',
+                            BASE_URL . 'withdrawal/index',
                             $id
                         );
+                    } catch (\Throwable $e) {
+                        error_log('Notificacion retiro estado crear: ' . $e->getMessage());
                     }
-                } catch (\Throwable $e) {
-                    error_log('Notificacion retiro estado: ' . $e->getMessage());
+                } else {
+                    error_log('Notificacion retiro estado: no hay id_usuario_registro para notificar (retiro id=' . $id . ').');
                 }
             }
             $this->jsonResponse(
@@ -355,5 +371,43 @@ class WithdrawalController extends CrudController
     public function updateStatus(): void
     {
         $this->updateEstado();
+    }
+
+    /**
+     * Elimina una solicitud de retiro rechazada o pendiente.
+     * Ruta: withdrawal/delete (POST, responde JSON).
+     */
+    public function delete(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->jsonResponse(false, null, 'Método no permitido.', 405);
+            return;
+        }
+
+        $rol = sigde_rol_clave($_SESSION['rol'] ?? '');
+        if ($rol !== 'secretaria' && $rol !== 'directivo') {
+            $this->jsonResponse(false, null, 'Solo secretaría y dirección pueden eliminar solicitudes de retiro.', 403);
+            return;
+        }
+
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $this->jsonResponse(false, null, 'ID no válido.', 400);
+            return;
+        }
+
+        try {
+            $ok = $this->modelo()->delete($id);
+            if ($ok) {
+                $this->jsonResponse(true, null, 'Solicitud de retiro eliminada correctamente.');
+            } else {
+                $this->jsonResponse(false, null, 'No se encontró la solicitud de retiro a eliminar.', 404);
+            }
+        } catch (\DomainException $e) {
+            $this->jsonResponse(false, null, $e->getMessage(), 422);
+        } catch (\Throwable $e) {
+            error_log('Error en WithdrawalController::delete: ' . $e->getMessage());
+            $this->jsonResponse(false, null, 'No se pudo eliminar la solicitud de retiro.', 500);
+        }
     }
 }

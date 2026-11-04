@@ -7,14 +7,27 @@ declare(strict_types=1);
  *
  * @var bool  $esDocente
  * @var bool  $esSecretaria
+ * @var array $aniosEscolares
  * @var array $grados
  * @var array $secciones
  * @var array $filters
  */
 ?>
-  <?php /* El listado opera sobre el año escolar activo para docente/secretaría y sobre el
-           archivo institucional para dirección; el expediente acumula el historial completo. */ ?>
+  <?php /* Selector de Año Escolar para Dirección y Coordinación.
+           Secretaría y Docente quedan acotados al año escolar activo. */ ?>
+  <?php if (!$esDocente && !$esSecretaria): ?>
+  <label for="filtroAnio" class="visually-hidden">Año Escolar</label>
+  <select id="filtroAnio" name="anio" class="form-select" aria-label="Filtrar por año escolar">
+    <option value="">Año Escolar (Todos)</option>
+    <?php foreach (($aniosEscolares ?? []) as $ae): ?>
+      <option value="<?= (int) $ae['id'] ?>" <?= (string) ($filters['anio'] ?? '') === (string) $ae['id'] ? 'selected' : '' ?>>
+        <?= htmlspecialchars($ae['nombre']) ?><?= ($ae['estado'] ?? '') === 'ACTIVO' ? ' (Activo)' : ' (Cerrado)' ?>
+      </option>
+    <?php endforeach; ?>
+  </select>
+  <?php else: ?>
   <input type="hidden" name="anio" value="<?= htmlspecialchars((string) ($filters['anio'] ?? '')) ?>">
+  <?php endif; ?>
 
   <?php /* Grado y sección se pintan fuera del rol docente. El selector de Estado solo se
          pinta para Dirección/Coordinación, ya que Secretaría y Docente únicamente consultan

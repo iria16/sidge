@@ -162,7 +162,15 @@ ob_start();
     ?>
   </div>
 
-
+  <?php if (in_array(strtolower((string) $item['estado']), ['rechazado', 'pendiente'], true)): ?>
+    <div class="d-flex justify-content-end mt-3 pt-2 border-top">
+      <button type="button" class="btn btn-outline-danger btn-sm eliminar-retiro"
+        data-id="<?= (int) $item['id'] ?>"
+        data-estudiante="<?= htmlspecialchars($nombre) ?>">
+        <i class="bi bi-trash me-1"></i> Eliminar solicitud
+      </button>
+    </div>
+  <?php endif; ?>
 
 <?php else: ?>
   <?php /* Página completa: aquí sí el layout de dos columnas, que aprovecha el ancho.*/ ?>
@@ -223,10 +231,17 @@ ob_start();
     </div>
   </div>
 
-  <div class="d-flex justify-content-between mt-4">
+  <div class="d-flex justify-content-between align-items-center mt-4">
     <a href="<?= BASE_URL ?>withdrawal/index" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-arrow-left"></i> Volver al listado
     </a>
+    <?php if (in_array(strtolower((string) $item['estado']), ['rechazado', 'pendiente'], true)): ?>
+      <button type="button" class="btn btn-outline-danger btn-sm eliminar-retiro"
+        data-id="<?= (int) $item['id'] ?>"
+        data-estudiante="<?= htmlspecialchars($nombre) ?>">
+        <i class="bi bi-trash me-1"></i> Eliminar solicitud
+      </button>
+    <?php endif; ?>
   </div>
 <?php endif; ?>
 

@@ -196,6 +196,14 @@ class CertificatesModel extends BaseModel
                 AND (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
                 AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
                 AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                /* Constancia de Procesución: solo si el estudiante tiene un retiro aprobado
+                   (se retiró y, además, fue promovido). Sin retiro aprobado no se emite. */
+                AND EXISTS (
+                    SELECT 1 FROM retiro r
+                    INNER JOIN matricula m ON m.id_matricula = r.id_matricula
+                   WHERE m.id_estudiante = ra.id_estudiante
+                     AND r.estado_solicitud = 'APROBADO'
+                )
               LIMIT 1"
         );
         $stmt->execute([
@@ -633,11 +641,18 @@ class CertificatesModel extends BaseModel
                 INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ra.id_estructura_academica
                 INNER JOIN anio_escolar a ON a.id_anio_escolar = ra.id_anio_escolar
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
-                LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
-                LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                WHERE (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
-                  AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
-                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5";
+                 LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
+                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
+                 WHERE (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
+                   AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
+                   AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                   /* Constancia de Procesución: solo estudiantes con retiro aprobado. */
+                   AND EXISTS (
+                       SELECT 1 FROM retiro r
+                       INNER JOIN matricula m2 ON m2.id_matricula = r.id_matricula
+                      WHERE m2.id_estudiante = est.id_estudiante
+                        AND r.estado_solicitud = 'APROBADO'
+                   )";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -680,7 +695,14 @@ class CertificatesModel extends BaseModel
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
                 WHERE (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
                   AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
-                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5";
+                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                  /* Constancia de Procesución: solo estudiantes con retiro aprobado. */
+                  AND EXISTS (
+                      SELECT 1 FROM retiro r
+                      INNER JOIN matricula m2 ON m2.id_matricula = r.id_matricula
+                     WHERE m2.id_estudiante = est.id_estudiante
+                       AND r.estado_solicitud = 'APROBADO'
+                  )";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -1110,11 +1132,18 @@ class CertificatesModel extends BaseModel
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                WHERE ra.id_resultado = :id_resultado
-                  AND (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
-                  AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
-                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
-                LIMIT 1";
+                 WHERE ra.id_resultado = :id_resultado
+                   AND (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
+                   AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
+                   AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                   /* Constancia de Procesución: solo si el estudiante tiene un retiro aprobado. */
+                   AND EXISTS (
+                       SELECT 1 FROM retiro r
+                       INNER JOIN matricula m2 ON m2.id_matricula = r.id_matricula
+                      WHERE m2.id_estudiante = est.id_estudiante
+                        AND r.estado_solicitud = 'APROBADO'
+                   )
+                 LIMIT 1";
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(['id_resultado' => $idResultado]);

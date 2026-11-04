@@ -135,12 +135,10 @@ $badgesReposo = [
             <span class="label-sigde">Cargo asignado</span>
             <strong><?= htmlspecialchars((string) ($empleado['cargo'] ?? 'Sin cargo')) ?></strong>
           </div>
-          <?php if (!empty($empleado['turno'])): ?>
-            <div class="student-record__field">
-              <span class="label-sigde">Turno de trabajo</span>
-              <strong><?= htmlspecialchars((string) $empleado['turno']) ?></strong>
-            </div>
-          <?php endif; ?>
+          <div class="student-record__field">
+            <span class="label-sigde">Turno de trabajo</span>
+            <strong><?= htmlspecialchars((string) ($empleado['turno'] ?? 'Sin turno')) ?></strong>
+          </div>
           <div class="student-record__field">
             <span class="label-sigde">Fecha de ingreso</span>
             <strong><?= htmlspecialchars($fecha($empleado['fecha_ingreso'] ?? null)) ?></strong>
@@ -175,10 +173,10 @@ $badgesReposo = [
               <tbody>
                 <?php foreach ($formacion as $fila): ?>
                   <tr>
-                    <td data-label="Título"><?= htmlspecialchars((string) $fila['titulo']) ?></td>
-                    <td data-label="Grado académico"><?= htmlspecialchars((string) $fila['grado_academico']) ?></td>
-                    <td data-label="Institución"><?= htmlspecialchars((string) $fila['institucion']) ?></td>
-                    <td data-label="Fecha de obtención"><?= htmlspecialchars($fecha($fila['fecha_obtencion'] ?? null)) ?></td>
+                    <td><?= htmlspecialchars((string) $fila['titulo']) ?></td>
+                    <td><?= htmlspecialchars((string) $fila['grado_academico']) ?></td>
+                    <td><?= htmlspecialchars((string) $fila['institucion']) ?></td>
+                    <td><?= htmlspecialchars($fecha($fila['fecha_obtencion'] ?? null)) ?></td>
                   </tr>
                 <?php endforeach; ?>
               </tbody>
@@ -203,21 +201,30 @@ $badgesReposo = [
           </div>
         <?php else: ?>
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 expediente-asignaciones-table">
               <thead class="table-light">
-                <tr><th>Período</th><th>Grado</th><th>Sección</th><th>Turno</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr>
+                <tr>
+                  <th style="min-width: 105px;">Período</th>
+                  <th style="min-width: 95px;">Grado</th>
+                  <th style="min-width: 70px;" class="text-center">Sección</th>
+                  <th style="min-width: 90px;">Turno</th>
+                  <th style="min-width: 160px;">Tipo</th>
+                  <th style="min-width: 110px;">Desde</th>
+                  <th style="min-width: 110px;">Hasta</th>
+                  <th style="min-width: 100px;">Estado</th>
+                </tr>
               </thead>
               <tbody>
                 <?php foreach ($asignaciones as $asignacion): ?>
                   <tr>
-                    <td><?= htmlspecialchars((string) $asignacion['periodo']) ?></td>
-                    <td><?= htmlspecialchars((string) $asignacion['grado']) ?></td>
-                    <td><?= htmlspecialchars((string) $asignacion['seccion']) ?></td>
-                    <td><?= htmlspecialchars((string) $asignacion['turno']) ?></td>
+                    <td class="text-nowrap"><?= htmlspecialchars((string) $asignacion['periodo']) ?></td>
+                    <td class="text-nowrap"><?= htmlspecialchars((string) $asignacion['grado']) ?></td>
+                    <td class="text-nowrap text-center"><?= htmlspecialchars((string) $asignacion['seccion']) ?></td>
+                    <td class="text-nowrap"><?= htmlspecialchars((string) $asignacion['turno']) ?></td>
                     <td><?= htmlspecialchars((string) $asignacion['tipo_asignacion']) ?></td>
-                    <td><?= htmlspecialchars($fecha($asignacion['fecha_inicio'] ?? null)) ?></td>
-                    <td><?= htmlspecialchars($fecha($asignacion['fecha_fin'] ?? null)) ?></td>
-                    <td>
+                    <td class="text-nowrap"><?= htmlspecialchars($fecha($asignacion['fecha_inicio'] ?? null)) ?></td>
+                    <td class="text-nowrap"><?= htmlspecialchars($fecha($asignacion['fecha_fin'] ?? null)) ?></td>
+                    <td class="text-nowrap">
                       <?php
                       $badgeLabel  = !empty($asignacion['activa']) ? 'Activa' : 'Finalizada';
                       $badgeStatus = !empty($asignacion['activa']) ? 'active' : 'inactive';
@@ -288,7 +295,7 @@ $badgesReposo = [
         <?php endif; ?>
 
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
+          <table class="table table-hover align-middle mb-0 expediente-reposos-table">
             <thead class="table-light">
               <tr><th>Período</th><th>Motivo</th><th>Estado</th><th>Registrado por</th><th>Observación</th><?php if ($puedeGestionar): ?><th class="text-end">Acciones</th><?php endif; ?></tr>
             </thead>
@@ -358,7 +365,7 @@ $badgesReposo = [
           </div>
         <?php else: ?>
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 expediente-historial-table">
               <thead class="table-light">
                 <tr><th>Fecha efectiva</th><th>Cambio</th><th>Motivo</th><th>Registrado por</th><th>Registrado el</th></tr>
               </thead>

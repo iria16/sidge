@@ -117,7 +117,17 @@
     </td>
 
     <td class="resultado-col-boleta text-center text-nowrap" id="boleta_accion_<?= $idEst ?>">
-      <?php if ($literal !== ''): ?>
+      <?php
+      $esSextoPromovido = \App\Models\GradeCertificateModel::esGradoSexto($gradoNombre ?? '')
+          && in_array(strtoupper(trim($literal)), ['A', 'B', 'C', 'D'], true);
+      ?>
+      <?php if ($esSextoPromovido): ?>
+        <span class="badge bg-light text-muted border py-1 px-2 d-inline-flex align-items-center gap-1"
+              title="El Certificado de Culminación de Primaria (Egreso) es emitido por Secretaría">
+          <i class="bi bi-mortarboard text-primary" aria-hidden="true"></i>
+          <span>Emisión en Secretaría</span>
+        </span>
+      <?php elseif ($literal !== ''): ?>
         <button type="button"
                 class="btn btn-sm btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1 btn-preview-certificado"
                 data-url-preview="<?= BASE_URL ?>certificadoCalificaciones/generarIndividual?id_estudiante=<?= $idEst ?>&id_estructura=<?= $idEstructura ?>"

@@ -26,15 +26,33 @@ class NotificationModel
             return [];
         }
 
-        $placeholders = implode(',', array_fill(0, count($listaRoles), '?'));
+        $rolesLower = [];
+        foreach ($listaRoles as $r) {
+            $rLower = mb_strtolower(trim((string) $r), 'UTF-8');
+            if ($rLower === '') {
+                continue;
+            }
+            $rolesLower[] = $rLower;
+            if (in_array($rLower, ['directivo', 'director', 'directora'], true)) {
+                $rolesLower[] = 'directivo';
+                $rolesLower[] = 'director';
+                $rolesLower[] = 'directora';
+            }
+        }
+        $rolesLower = array_values(array_unique($rolesLower));
+        if ($rolesLower === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($rolesLower), '?'));
         $stmt = $this->pdo->prepare(
             "SELECT u.id_usuario
                FROM usuario u
                INNER JOIN rol r ON r.id_rol = u.id_rol
-              WHERE u.estado = 'ACTIVO'
-                AND r.nombre IN ({$placeholders})"
+              WHERE UPPER(u.estado) = 'ACTIVO'
+                AND LOWER(TRIM(r.nombre)) IN ({$placeholders})"
         );
-        $stmt->execute($listaRoles);
+        $stmt->execute($rolesLower);
 
         return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
     }

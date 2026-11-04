@@ -193,14 +193,20 @@
         proyeccion.innerHTML = '<div class="text-secondary"><i class="bi bi-arrow-right-short text-success"></i> Avanza: <strong>' + escapeHtml(textoGradoAvanza) + '</strong></div>';
       }
       if (celdaBoleta) {
-        var nombreEst = fila ? (fila.querySelector('.nombre-estudiante') ? fila.querySelector('.nombre-estudiante').textContent : '') : '';
-        var documento = fila ? (fila.querySelector('.documento-estudiante') ? fila.querySelector('.documento-estudiante').textContent.trim() : '') : '';
-        celdaBoleta.innerHTML = '<button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1 btn-preview-certificado" ' +
-          'data-url-preview="<?= BASE_URL ?>certificadoCalificaciones/generarIndividual?id_estudiante=' + studentId + '&id_estructura=<?= $idEstructura ?>" ' +
-          'data-titulo="Certificado de Calificaciones" ' +
-          'data-subtitulo="' + escapeHtml(nombreEst + ' · ' + documento + ' (' + literal + ' - PROMOVIDO)') + '" ' +
-          'title="Visualizar e imprimir Certificado de Calificaciones">' +
-          '<i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>Visualizar</span></button>';
+        var esSexto = /^6|sexto/i.test(gradoNombre || '');
+        if (esSexto) {
+          celdaBoleta.innerHTML = '<span class="badge bg-light text-muted border py-1 px-2 d-inline-flex align-items-center gap-1" title="El Certificado de Culminación de Primaria (Egreso) es emitido por Secretaría"><i class="bi bi-mortarboard text-primary"></i><span>Emisión en Secretaría</span></span>';
+        } else {
+          var nombreEst = fila ? (fila.querySelector('.nombre-estudiante') ? fila.querySelector('.nombre-estudiante').textContent : '') : '';
+          var documento = fila ? (fila.querySelector('.documento-estudiante') ? fila.querySelector('.documento-estudiante').textContent.trim() : '') : '';
+          var estructuraId = (form && form.querySelector('input[name="id_estructura_academica"]')) ? form.querySelector('input[name="id_estructura_academica"]').value : '';
+          celdaBoleta.innerHTML = '<button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1 btn-preview-certificado" ' +
+            'data-url-preview="' + (window.BASE_URL || '/') + 'certificadoCalificaciones/generarIndividual?id_estudiante=' + studentId + '&id_estructura=' + estructuraId + '" ' +
+            'data-titulo="Certificado de Calificaciones" ' +
+            'data-subtitulo="' + escapeHtml(nombreEst + ' · ' + documento + ' (' + literal + ' - PROMOVIDO)') + '" ' +
+            'title="Visualizar e imprimir Certificado de Calificaciones">' +
+            '<i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>Visualizar</span></button>';
+        }
       }
     } else {
       if (inputEstado) inputEstado.value = 'NO_PROMOVIDO';
@@ -215,8 +221,9 @@
       if (celdaBoleta) {
         var nombreEst = fila ? (fila.querySelector('.nombre-estudiante') ? fila.querySelector('.nombre-estudiante').textContent : '') : '';
         var documento = fila ? (fila.querySelector('.documento-estudiante') ? fila.querySelector('.documento-estudiante').textContent.trim() : '') : '';
+        var estructuraId = (form && form.querySelector('input[name="id_estructura_academica"]')) ? form.querySelector('input[name="id_estructura_academica"]').value : '';
         celdaBoleta.innerHTML = '<button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1 btn-preview-certificado" ' +
-          'data-url-preview="<?= BASE_URL ?>certificadoCalificaciones/generarIndividual?id_estudiante=' + studentId + '&id_estructura=<?= $idEstructura ?>" ' +
+          'data-url-preview="' + (window.BASE_URL || '/') + 'certificadoCalificaciones/generarIndividual?id_estudiante=' + studentId + '&id_estructura=' + estructuraId + '" ' +
           'data-titulo="Certificado de Calificaciones" ' +
           'data-subtitulo="' + escapeHtml(nombreEst + ' · ' + documento + ' (' + literal + ' - NO PROMOVIDO)') + '" ' +
           'title="Visualizar e imprimir Certificado de Calificaciones">' +

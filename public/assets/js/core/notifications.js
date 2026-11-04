@@ -145,6 +145,9 @@
           showConfirmButton: false,
           timer: 2500
         });
+        /* Cuando llega una notificación nueva, recarga la lista para que
+           se vea en el campanita sin tener que abrir el dropdown. */
+        cargarLista();
       }
       ultimoContador = total;
       if (total > 0) {

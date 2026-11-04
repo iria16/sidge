@@ -50,7 +50,10 @@ ob_start();
     <i class="bi bi-arrow-left" aria-hidden="true"></i>
     <span>Volver</span>
   </a>
-  <?php if ($resumen['con_literal'] > 0): ?>
+  <?php
+  $esSextoGrado = \App\Models\GradeCertificateModel::esGradoSexto((string) $gradoNombre);
+  ?>
+  <?php if ($resumen['con_literal'] > 0 && !$esSextoGrado): ?>
     <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm btn-preview-certificado"
             data-url-preview="<?= BASE_URL ?>certificadoCalificaciones/generarPorSeccion?id_estructura=<?= $idEstructura ?>"
             data-titulo="Certificados de Calificaciones"
@@ -58,6 +61,12 @@ ob_start();
       <i class="bi bi-eye me-1" aria-hidden="true"></i>
       <span>Visualizar Certificados de la Sección</span>
     </button>
+  <?php elseif ($esSextoGrado): ?>
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-2 px-3 d-inline-flex align-items-center gap-1"
+          title="Los estudiantes promovidos de 6.° grado reciben el Certificado de Educación Primaria expedido por la Dirección y Secretaría">
+      <i class="bi bi-mortarboard me-1" aria-hidden="true"></i>
+      <span>Certificados de Egreso emitidos por Secretaría</span>
+    </span>
   <?php endif; ?>
 </div>
 <?php

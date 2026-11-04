@@ -68,6 +68,14 @@ declare(strict_types=1);
               <i class="bi bi-x-circle"></i>
             </button>
           <?php endif; ?>
+          <?php if (in_array($estado, ['rechazado', 'pendiente'], true)): ?>
+            <button type="button" class="action-btn action-btn--danger eliminar-retiro"
+              data-id="<?= (int) $item['id'] ?>"
+              data-estudiante="<?= htmlspecialchars($estudiante) ?>"
+              title="Eliminar solicitud">
+              <i class="bi bi-trash"></i>
+            </button>
+          <?php endif; ?>
         </div>
       </td>
     </tr>

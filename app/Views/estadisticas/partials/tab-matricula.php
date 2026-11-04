@@ -271,7 +271,7 @@ $donutIngresosConfig = [
           </div>
 
           <!-- Representantes que son Personal de la Institución -->
-          <div class="mb-3">
+          <div class="mb-0">
             <div class="small fw-semibold text-secondary text-uppercase mb-2">
               Representantes que son Personal del Plantel (<?= (int) ($estadisticasFamilias['total_reps_empleados'] ?? 0) ?>):
             </div>
@@ -293,15 +293,6 @@ $donutIngresosConfig = [
                 <?php endforeach; ?>
               </div>
             <?php endif; ?>
-          </div>
-
-          <!-- Contacto Incompleto -->
-          <div class="p-2 bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded small d-flex align-items-center gap-2">
-            <i class="bi bi-exclamation-triangle-fill fs-5" aria-hidden="true"></i>
-            <div>
-              <strong>Representantes con contacto incompleto:</strong>
-              <?= (int) ($estadisticasFamilias['incompletos'] ?? 0) ?> responsable(s) legal(es) sin número de teléfono o sin cédula registrada.
-            </div>
           </div>
         </div>
       </div>

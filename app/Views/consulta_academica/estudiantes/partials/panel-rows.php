@@ -38,7 +38,12 @@ declare(strict_types=1);
       <?php if (!$esDocente): ?>
         <td class="text-support text-wrap" data-label="Grado y sección">
           <div class="fw-medium text-dark text-break"><?= htmlspecialchars($estudiante['grado'] ?? 'Sin grado') ?></div>
-          <div class="text-muted small">Sección <?= htmlspecialchars($estudiante['seccion'] ?? '—') ?></div>
+          <div class="text-muted small">
+            Sección <?= htmlspecialchars($estudiante['seccion'] ?? '—') ?>
+            <?php if (!empty($estudiante['anio_escolar'])): ?>
+              · <?= htmlspecialchars($estudiante['anio_escolar']) ?>
+            <?php endif; ?>
+          </div>
         </td>
       <?php endif; ?>
       <td class="text-center" data-label="Estado">

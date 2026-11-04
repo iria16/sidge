@@ -90,12 +90,13 @@ class StudentsModel extends BaseModel implements Listable
                 $turnoCondition = ' WHERE ea_filtro.id_turno = :matricula_turno';
                 $params['matricula_turno'] = $idTurno;
             }
-/**
- * Sin año seleccionado se muestra la matrícula más reciente del alumno. ROW_NUMBER y
- * no MAX(id_anio_escolar): los ids de año son de inserción y no siguen el orden, así
- * que comparar por id invertía "último" y "primero" cuando se cargaba un año viejo,
- * que es justo lo que se hace al abrir un período.
- */
+/* Sin año seleccionado se muestra la matrícula más reciente del alumno.
+ ROW_NUMBER y no MAX(id_anio_escolar): los ids de año son de inserción y no
+ siguen el orden, así que comparar por id invertía "último" y "primero" cuando
+ se cargaba un año viejo, que es justo lo que se hace al abrir un período.
+ El desempate por id_matricula además deja UNA fila por estudiante: con
+ MAX() el alumno que tiene dos filas en el mismo año (inscripción y retiro)
+ salía duplicado en el listado.*/
             /* id_matricula tiene que estar en la proyección: el ON de más abajo
                (INNER JOIN matricula m ON m.id_matricula = ult.id_matricula) la
                necesita, y sin ella la consulta reventaba con "Unknown column
@@ -361,12 +362,17 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
     }
 
     /**
- * Restricción de un docente a las estructuras que tiene asignadas. Sin esto el docente
- * veía TODOS los expedientes de la institución, incluidos los de secciones en las que
- * no da clase.
+ * Restricción de un docente a las estructuras que tiene asignadas.
+ *
+ * Sin esto el docente veía TODOS los expedientes de la institución, incluidos los de
+ * secciones en las que no da clase. La asignación docente es la única fuente de "qué
+ * le toca a cada cual", así que se toma de ahí y no de un turno ni de un grado.
+ *
+ * Un docente sin asignaciones no ve a nadie: antes del filtro esto tampoco sefiltraba
+ * y por eso la pantalla queda vacía a propósito, con un aviso que lo explica.
  *
  * @return array{0:array<int,string>,1:array<string,int>}
- */
+*/
     private function restriccionDocente(?int $idDocente): array
     {
         if ($idDocente === null) {
@@ -393,12 +399,12 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
     }
 
     /**
- * Estructuras asignadas al docente en el año en curso; [] si no tiene ninguna. Existe
- * para que la interfaz pueda explicar una tabla vacía en lugar de dejar al usuario
- * pensando que la consulta falló.
+ * Estructuras asignadas al docente en el año en curso; [] si no tiene ninguna.
+ * Existe para que la interfaz pueda explicar una tabla vacía en lugar de dejar
+ * al usuario pensando que la consulta falló.
  *
  * @return array<int, int>
- */
+*/
     public function getEstructurasDocente(int $idDocente): array
     {
         $stmt = $this->pdo->prepare(
@@ -418,18 +424,25 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
         return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
     }
 
-    /**
- * ====================================================================== MÓDULO
- * DOCENTE Todo lo de aquí está acotado a UNA estructura académica: la que el
- * servidor resolvió desde la sesión.
- */
+    /* ======================================================================
+       MÓDULO DOCENTE
+       Todo lo de aquí está acotado a UNA estructura académica: la que el
+       servidor resolvió desde la sesión. La estructura viaja como parámetro
+       desde TeacherController, que la obtiene con
+       TeacherAssignmentModel::getSeccionActivaDeDocente() y NUNCA desde GET.
+       ====================================================================== */
 
     /**
- * Nombre completo de una persona, como expresión SQL reutilizable. El NULLIF en cada
- * parte no es cosmetico: CONCAT_WS separa con espacio pero NO salta las cadenas
- * vacías, así que un alumno sin segundo nombre salía como "Leo  Pinto " con espacio
- * doble y cola.
- */
+     * Nombre completo de una persona, como expresión SQL reutilizable.
+     *
+     * El NULLIF en cada parte no es cosmetico: CONCAT_WS separa con espacio pero
+     * NO salta las cadenas vacías, así que un alumno sin segundo nombre salía
+     * como "Leo  Pinto " con espacio doble y cola. Convirtiendo cada parte
+     * opcional en NULL, CONCAT_WS la omite y el nombre queda limpio.
+     *
+     * Se devuelve como expresión y no como resultado porque el buscador necesita
+     * el mismo nombre en el WHERE, y MySQL no deja usar un alias del SELECT ahí.
+     */
     private function exprNombre(string $alias): string
     {
         return "CONCAT_WS(' ', NULLIF({$alias}.primer_nombre, ''), NULLIF({$alias}.segundo_nombre, ''),
@@ -439,13 +452,22 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
 
 
     /**
- * Nómina de la sección del docente: una fila por estudiante matriculado. La búsqueda
- * y los filtros se aplican AQUÍ, en SQL, y no en el PHP: la pantalla pide que se
- * combinen entre sí y que el agrupado por representante respete lo filtrado.
- *
- * @param array{q?:string,sexo?:string,contacto?:string,
- * @return array<int,array<string,mixed>>
- */
+     * Nómina de la sección del docente: una fila por estudiante matriculado.
+     *
+     * La búsqueda y los filtros se aplican AQUÍ, en SQL, y no en el PHP: la
+     * pantalla pide que se combinen entre sí y que el agrupado por representante
+     * respete lo filtrado.
+     *
+     * NO calcula inferencia familiar: ni «con quién vive» ni cuántos compañeros de
+     * la sección comparten representante. No es que se escondan al pintar, es que
+     * no se piden. Se quitaron junto con los filtros `vive_con` y `hermanos`,
+     * que ningún controller enviaba y que además filtraban por esa misma
+     * información: quien no puede ver el dato tampoco puede buscarlo.
+     *
+     * @param array{q?:string,sexo?:string,contacto?:string,
+     *              autorizados?:string,literal?:string} $filtros
+     * @return array<int,array<string,mixed>>
+     */
     public function getNominaDocente(int $idEstructura, array $filtros = []): array
     {
         $where = ["m.id_estructura_academica = :estructura",
@@ -550,12 +572,22 @@ c.numero_telefono_principal,
     }
 
     /**
- * Nómina de solo lectura de la sección del docente (vistas nomina, contacto y
- * cumpleaneros). La pantalla y el PDF usan ESTA misma consulta.
- *
- * @param array{q?:string,sexo?:string,mes?:int|null,vista?:string} $filtros
- * @return array<int,array<string,mixed>>
- */
+     * Nómina de solo lectura de la sección del docente (vistas nomina, contacto
+     * y cumpleaneros). La pantalla y el PDF usan ESTA misma consulta.
+     *
+     * Los filtros llegan ya validados por el Controller (lista blanca); aquí se
+     * vuelven a acotar por tipo para que el método no dependa de quien lo llame.
+     *
+     * El representante legal no es una entidad propia: se deriva de
+     * `persona_estudiante` (es_representante_legal = 1, relación ACTIVA). Si un
+     * estudiante tuviera más de una fila marcada, se toma la más antigua para no
+     * duplicar al alumno en la lista.
+     *
+     * Nunca toca `ficha_medica`, `retiro` ni `motivo_retiro`.
+     *
+     * @param array{q?:string,sexo?:string,mes?:int|null,vista?:string} $filtros
+     * @return array<int,array<string,mixed>>
+     */
     public function nominaSeccion(int $seccionId, array $filtros = []): array
     {
         $where  = [
@@ -566,11 +598,14 @@ c.numero_telefono_principal,
 
         $vista = (string) ($filtros['vista'] ?? 'nomina');
 
-        /**
- * BÚSQUEDA: un solo campo para todas las vistas, y busca por nombre, apellido Y
- * representante legal. Cada parámetro nombrado se declara por separado porque con
- * prepares nativos un mismo marcador no puede repetirse en la sentencia.
- */
+        /* BÚSQUEDA: un solo campo para todas las vistas, y busca por nombre,
+           apellido Y representante legal. Antes solo lo buscaban el representante
+           en la vista de contacto, así que en Nómina y Cumpleañeros
+           escribir el nombre del representante no encontraba a nadie. Cada
+           parámetro nombrado se declara por separado porque con prepares nativos
+           un mismo marcador no puede repetirse en la sentencia. Se compara el
+           nombre completo además de cada campo suelto, para que "leo pinto"
+           encuentre a "Leo Pinto" y no solo a "leo". */
         $q = trim((string) ($filtros['q'] ?? ''));
         if ($q !== '') {
             $where[] = "({$this->exprNombre('p')} LIKE :q
@@ -594,11 +629,16 @@ c.numero_telefono_principal,
             $params['mes'] = $mes;
         }
 
-        /**
- * ORDEN. La pantalla permite cambiarlo sin recargar (lo reordena el JS sobre la lista
- * ya cargada) y el PDF se arma con el mismo criterio, así que la clave se define UNA
- * vez acá y el JS la replica.
- */
+        /* ORDEN. La pantalla permite cambiarlo sin recargar (lo reordena el JS
+           sobre la lista ya cargada) y el PDF se arma con el mismo criterio, así
+           que la clave se define UNA vez acá y el JS la replica. La collation de
+           las tablas es utf8mb4_uca1400_ai_ci, que ordena el español igual que
+           localeCompare('es').
+             - apellido: 1er apellido, 2do apellido, 1er nombre, 2do nombre
+             - nombre:    1er nombre, 1er apellido
+             - edad:      por fecha de nacimiento. Ascendente = del más joven al
+                          mayor, o sea fecha de nacimiento DESC.
+           Cumpleañeros no es ordenable: va siempre por día del mes. */
         $sentido = strtolower(trim((string) ($filtros['sentido'] ?? 'asc'))) === 'desc' ? 'DESC' : 'ASC';
         $clave   = strtolower(trim((string) ($filtros['orden'] ?? 'apellido')));
 
@@ -719,11 +759,17 @@ c.numero_telefono_principal,
             unset($f);
         }
 
-        /**
- * Orden FIJO de las personas autorizadas de cada estudiante: por apellido y luego por
- * nombre, con collation del español para que las tildes y la ñ caigan donde toca. La
- * consulta ya viene en ese orden; se repite aquí a propósito.
- */
+        /* Orden FIJO de las personas autorizadas de cada estudiante: por apellido y
+           luego por nombre, con collation del español para que las tildes y la ñ
+           caigan donde toca.
+
+           La consulta ya viene en ese orden; se repite aquí a propósito. El orden
+           de los AUTORIZADOS no lo elige el docente —el selector de la barra solo
+           mueve a los estudiantes de grupo en grupo—, así que la garantía tiene
+           que estar en el sitio donde se arma la lista y no depender de un
+           ORDER BY que alguien puede tocar sin darse cuenta. `apellidosNombres()`
+           devuelve "apellidos, nombres", y comparar el texto completo da el mismo
+           resultado: por apellido primero, y el nombre solo desempataría. */
         foreach ($filas as &$f) {
             if (!empty($f['autorizados']) && is_array($f['autorizados'])) {
                 usort(
@@ -737,11 +783,15 @@ c.numero_telefono_principal,
         }
         unset($f);
 
-        /**
- * Cumpleañeros: marcar a quién ya le pasó el cumpleaños del mes que se está
- * viendo. Sin esto, la columna se titula «Cumple» y al mirar un mes ya vencido parece
- * que todos los cumpleaños están por llegar.
- */
+        /* Cumpleañeros: marcar a quién ya le pasó el cumpleaños del mes que se está
+           viendo. Sin esto, la columna se titula «Cumple» y al mirar un mes ya
+           vencido parece que todos los cumpleaños están por llegar.
+
+           El mes es el que eligió el docente (o el que está en curso, que es lo
+           que el controller ya resuelve). Si es un mes anterior al actual, todos
+           cumplieron; si es el de hoy, solo los que ya pasaron su día; si es
+           posterior, ninguno. La comparación es de mes en mes, no de fechas, que
+           es lo que un docente entiende al mirar un mes del calendario. */
         if ($vista === 'cumpleaneros' && $filas !== []) {
             $hoyCaracas = new \DateTimeImmutable('now', new \DateTimeZone('America/Caracas'));
             $mesActual  = (int) $hoyCaracas->format('n');
@@ -787,12 +837,12 @@ c.numero_telefono_principal,
     }
 
     /**
- * Personas autorizadas para retirar a cada estudiante (sin el representante legal, que
- * ya sale en su propia columna), con su parentesco y sus teléfonos.
- *
- * @param  array<int,int> $idsEstudiantes
- * @return array<int,array<int,array{nombre:string,parentesco:string,telefonos:array<int,string>}>>
- */
+     * Personas autorizadas para retirar a cada estudiante (sin el representante
+     * legal, que ya sale en su propia columna), con su parentesco y sus teléfonos.
+     *
+     * @param  array<int,int> $idsEstudiantes
+     * @return array<int,array<int,array{nombre:string,parentesco:string,telefonos:array<int,string>}>>
+     */
     private function autorizadosRetiro(array $idsEstudiantes): array
     {
         $idsEstudiantes = array_values(array_unique(array_map('intval', $idsEstudiantes)));
@@ -877,11 +927,11 @@ c.numero_telefono_principal,
 
 
     /**
- * Resumen general de la sección para las stat-cards del dashboard docente.
- *
- * @param int $idEstructura
- * @return array{total: int, varones: int, pct_varones: float, hembras: int, pct_hembras: float, edad_promedio: float, edad_min: int|null, edad_max: int|null}
- */
+     * Resumen general de la sección para las stat-cards del dashboard docente.
+     *
+     * @param int $idEstructura
+     * @return array{total: int, varones: int, pct_varones: float, hembras: int, pct_hembras: float, edad_promedio: float, edad_min: int|null, edad_max: int|null}
+     */
     public function getResumenDashboardDocente(int $idEstructura): array
     {
         $filas = $this->getNominaDocente($idEstructura);
@@ -950,12 +1000,12 @@ c.numero_telefono_principal,
     }
 
     /**
- * Distribución de la sección por sexo y por edad cumplida. Calcula cantidades,
- * porcentajes y marca la edad más frecuente con 'es_mas_comun'.
- *
- * @param int $idEstructura
- * @return array{total: int, sexo: array{varones: int, pct_varones: float, hembras: int, pct_hembras: float}, edades: list<array{edad: int, cantidad: int, porcentaje: float, es_mas_comun: bool}>}
- */
+     * Distribución de la sección por sexo y por edad cumplida.
+     * Calcula cantidades, porcentajes y marca la edad más frecuente con 'es_mas_comun'.
+     *
+     * @param int $idEstructura
+     * @return array{total: int, sexo: array{varones: int, pct_varones: float, hembras: int, pct_hembras: float}, edades: list<array{edad: int, cantidad: int, porcentaje: float, es_mas_comun: bool}>}
+     */
     public function getDistribucionSeccion(int $idEstructura): array
     {
         $filas = $this->getNominaDocente($idEstructura);
@@ -1018,13 +1068,13 @@ c.numero_telefono_principal,
     }
 
     /**
- * Datos de cumpleaños para el dashboard docente: - Cumpleañero/a de hoy (tarjeta
- * destacada) - Lista de cumpleaños del mes actual con estados ("Pasado", "HOY", "En N
- * días").
- *
- * @param int $idEstructura
- * @return array{mes_nombre: string, cumpleanero_hoy: array|null, cumpleanos_mes: list<array>}
- */
+     * Datos de cumpleaños para el dashboard docente:
+     * - Cumpleañero/a de hoy (tarjeta destacada)
+     * - Lista de cumpleaños del mes actual con estados ("Pasado", "HOY", "En N días")
+     *
+     * @param int $idEstructura
+     * @return array{mes_nombre: string, cumpleanero_hoy: array|null, cumpleanos_mes: list<array>}
+     */
     public function getCumpleanosDashboard(int $idEstructura): array
     {
         // Forzar zona horaria local Venezuela
@@ -1141,11 +1191,19 @@ c.numero_telefono_principal,
     }
 
     /**
- * Obtiene el total de estudiantes cursando en la sección agrupados por continuidad:.
- *
- * @param int $idEstructura
- * @return array{
- */
+     * Obtiene el total de estudiantes cursando en la sección agrupados por continuidad:
+     * - Ratificados (tipo 'RATIFICACION')
+     * - Nuevos ingresos (tipo 'INSCRIPCION')
+     *
+     * @param int $idEstructura
+     * @return array{
+     *     total: int,
+     *     ratificados: int,
+     *     pct_ratificados: float,
+     *     nuevos: int,
+     *     pct_nuevos: float
+     * }
+     */
     public function getIngresoYRatificados(int $idEstructura): array
     {
         $condCursando = Matriculas::condicionCursando('m');

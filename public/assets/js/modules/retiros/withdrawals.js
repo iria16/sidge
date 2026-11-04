@@ -37,10 +37,41 @@ document.addEventListener('DOMContentLoaded', function () {
       SIGDEUI.confirmar({ titulo: aprobado ? '¿Aprobar retiro?' : '¿Rechazar retiro?' }).then(function (confirmado) {
         if (!confirmado) return;
         var body = new URLSearchParams({ id: button.dataset.id, estado: aprobado ? 'APROBADO' : 'RECHAZADO' });
-        SIGDEUI.enviar(route + 'updateStatus', { metodo: 'POST', cuerpo: body })
+        SIGDEUI.enviar(route + 'updateEstado', { metodo: 'POST', cuerpo: body })
           .then(function (answer) { if (!answer.ok || !answer.data.ok) { SIGDEUI.mostrarError(answer.data.mensaje || 'No se pudo actualizar el retiro.'); return; } window.location.reload(); })
           .catch(function () { SIGDEUI.mostrarError('No se pudo conectar con el servidor.'); });
       });
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    var button = e.target.closest('.eliminar-retiro');
+    if (!button) return;
+    var id = button.dataset.id;
+    if (!id) return;
+    var estudiante = button.dataset.estudiante || 'el estudiante';
+
+    SIGDEUI.confirmar({
+      titulo: '¿Eliminar solicitud de retiro?',
+      texto: 'Se eliminará la solicitud de retiro de ' + estudiante + '. Esto permitirá volver a registrar una nueva solicitud si la anterior fue rechazada por error.',
+      icono: 'warning',
+      confirmar: 'Sí, eliminar'
+    }).then(function (confirmado) {
+      if (!confirmado) return;
+      var body = new URLSearchParams({ id: id });
+      SIGDEUI.enviar(route + 'delete', { metodo: 'POST', cuerpo: body })
+        .then(function (answer) {
+          if (!answer.ok || !answer.data || !answer.data.ok) {
+            SIGDEUI.mostrarError((answer.data && answer.data.mensaje) || 'No se pudo eliminar la solicitud.');
+            return;
+          }
+          SIGDEUI.exito(answer.data.mensaje || 'Solicitud de retiro eliminada correctamente.', '¡Eliminado!').then(function () {
+            window.location.reload();
+          });
+        })
+        .catch(function () {
+          SIGDEUI.mostrarError('No se pudo conectar con el servidor.');
+        });
     });
   });
 
