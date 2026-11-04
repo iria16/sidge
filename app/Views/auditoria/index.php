@@ -150,8 +150,8 @@ ob_start();
             // El texto alternativo usa el mismo nombre que se muestra en
             // pantalla (usuario), para que coincida lo visual y lo accesible.
             $avatarSize     = 'sm';
-            $avatarSrc      = ($r['avatar_tipo'] ?? 'iniciales') === 'foto'
-                ? htmlspecialchars(BASE_URL . $r['avatar_foto'])
+            $avatarSrc      = ($r['avatar_tipo'] ?? 'iniciales') === 'foto' && !empty($r['avatar_foto'])
+                ? BASE_URL . ltrim((string) $r['avatar_foto'], '/')
                 : '';
             $avatarAlt      = $r['usuario'];
             $avatarTone     = $r['avatar_color'] ?? 'primary';

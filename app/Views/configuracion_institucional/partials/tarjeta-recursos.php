@@ -129,8 +129,8 @@ $logosConfigurados = !empty($ministerioLogoUrl) && !empty($plantelLogoUrl);
         </p>
       </div>
       <div class="d-flex align-items-center gap-3">
-        <span id="badge-plantel_cintillo" class="badge <?= $tieneCintillo ? 'bg-success' : 'bg-secondary' ?>">
-          <?= $tieneCintillo ? 'Personalizada' : 'Sin Franja' ?>
+        <span id="badge-plantel_cintillo" class="badge <?= $tieneCintillo ? ($esCintilloOficial ? 'bg-info' : 'bg-success') : 'bg-secondary' ?>">
+          <?= $tieneCintillo ? ($esCintilloOficial ? 'Predeterminada Oficial' : 'Personalizada') : 'Sin Franja' ?>
         </span>
         <i class="bi bi-chevron-down config-accordion-chevron" aria-hidden="true"></i>
       </div>
@@ -157,6 +157,14 @@ $logosConfigurados = !empty($ministerioLogoUrl) && !empty($plantelLogoUrl);
                   data-titulo="Franja Tricolor"
                   data-privado="0">
             <i class="bi bi-upload"></i> <?= $tieneCintillo ? 'Cambiar Imagen' : 'Cargar Franja' ?>
+          </button>
+          <button type="button"
+                  class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 btn-restablecer-cintillo-oficial <?= ($tieneCintillo && $esCintilloOficial) ? 'd-none' : '' ?>"
+                  id="btn-oficial-plantel_cintillo"
+                  data-clave="plantel_cintillo"
+                  data-titulo="Franja Tricolor"
+                  title="Restablecer franja oficial">
+            <i class="bi bi-arrow-counterclockwise"></i> Usar Franja Oficial
           </button>
           <button type="button"
                   class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 btn-quitar-imagen <?= $tieneCintillo ? '' : 'd-none' ?>"

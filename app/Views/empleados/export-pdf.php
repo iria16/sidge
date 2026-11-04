@@ -100,7 +100,7 @@ $direccionCompleta = !empty($dirPartes) ? implode(', ', $dirPartes) : '—';
   <?php include __DIR__ . '/../partials/pdf-encabezado.php'; ?>
 
   <!-- Título del Documento -->
-  <div class="doc-title">EXPEDIENTE OFICIAL DE PERSONAL<br><span style="font-size: 10pt; font-weight: normal; letter-spacing: 0;">FICHA INTEGRAL DEL EMPLEADO</span></div>
+  <div class="doc-title">EXPEDIENTE OFICIAL<br><span style="font-size: 10pt; font-weight: normal; letter-spacing: 0;">FICHA INTEGRAL DEL EMPLEADO</span></div>
 
   <!-- Cuadro de datos del empleado -->
   <div class="student-card">
@@ -170,7 +170,7 @@ $direccionCompleta = !empty($dirPartes) ? implode(', ', $dirPartes) : '—';
       <tbody>
         <tr>
           <td><strong><?= $escape((string) ($empleado['cargo'] ?? 'Sin cargo')) ?></strong></td>
-          <td><?= $escape((string) ($empleado['turno'] ?? '')) ?></td>
+          <td><?= $escape((string) ($empleado['turno'] ?? 'Sin turno')) ?></td>
           <td><?= $fechaFmt($empleado['fecha_ingreso'] ?? null) ?></td>
           <td>
             <?php if (!empty($empleado['en_reposo'])): ?>
@@ -210,40 +210,8 @@ $direccionCompleta = !empty($dirPartes) ? implode(', ', $dirPartes) : '—';
       <p class="empty-note">No posee títulos de formación académica registrados en el sistema.</p>
     <?php endif; ?>
 
-    <!-- Sección 3: Asignaciones Docentes (si aplica) -->
-    <?php if (!empty($asignaciones)): ?>
-      <div class="section-title">3. ASIGNACIONES ACADÉMICAS INSTITUCIONALES</div>
-      <table class="data-table mb-12">
-        <thead>
-          <tr>
-            <th class="ancho-20">Período Escolar</th>
-            <th class="ancho-25">Grado y Sección</th>
-            <th class="ancho-20">Turno</th>
-            <th class="ancho-20">Tipo Asignación</th>
-            <th class="ancho-15">Condición</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($asignaciones as $asig): ?>
-            <?php $esActiva = !empty($asig['activa']); ?>
-            <tr>
-              <td><?= $escape((string) ($asig['periodo'] ?? '—')) ?></td>
-              <td><strong><?= $escape((string) ($asig['grado'] ?? '—')) ?></strong> - Sección <?= $escape((string) ($asig['seccion'] ?? '—')) ?></td>
-              <td><?= $escape((string) ($asig['turno'] ?? '—')) ?></td>
-              <td><?= $escape((string) ($asig['tipo_asignacion'] ?? '—')) ?></td>
-              <td>
-                <span style="font-weight: bold; color: <?= $esActiva ? '#1a7f37' : '#666666' ?>;">
-                  <?= $esActiva ? 'Vigente' : 'Finalizada' ?>
-                </span>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    <?php endif; ?>
-
-    <!-- Sección 4: Historial de Reposos y Permisos Médicos -->
-    <div class="section-title"><?= !empty($asignaciones) ? '4' : '3' ?>. HISTORIAL DE REPOSOS Y LICENCIAS MÉDICAS</div>
+    <!-- Sección 3: Historial de Reposos y Licencias Médicas -->
+    <div class="section-title">3. HISTORIAL DE REPOSOS Y LICENCIAS MÉDICAS</div>
     <?php if (!empty($reposos)): ?>
       <table class="data-table mb-12">
         <thead>

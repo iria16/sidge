@@ -518,11 +518,6 @@ document.addEventListener('DOMContentLoaded', function () {
         asterisco.setAttribute('aria-label', 'Obligatorio');
         asterisco.textContent = ' *';
         titulo.appendChild(asterisco);
-      } else {
-        var opcional = document.createElement('span');
-        opcional.className = 'text-support small ms-1';
-        opcional.textContent = 'Opcional';
-        titulo.appendChild(opcional);
       }
       nombre.appendChild(titulo);
 
@@ -544,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function () {
       observacion.type = 'text';
       observacion.className = 'form-control form-control-sm';
       observacion.maxLength = 255;
-      observacion.placeholder = 'Observación opcional';
+      observacion.placeholder = 'Observación';
       observacion.setAttribute('data-recaudo-observacion', '');
       observacion.value = estado.observacion || '';
       celdaObservacion.appendChild(observacion);
@@ -824,9 +819,9 @@ document.addEventListener('DOMContentLoaded', function () {
           return item.clave === fila.dataset.recaudoClave;
         });
         var nombreDoc = fila.querySelector('.fw-semibold').textContent;
-        var tipo = recaudo && recaudo.requerido ? 'Obligatorio' : 'Opcional';
+        var tipo = recaudo && recaudo.requerido ? 'Obligatorio' : '';
         var estado = chk && chk.checked ? 'Consignado' : 'Pendiente';
-        var detalle = nombreDoc + ' · ' + tipo + ' · ' + estado;
+        var detalle = nombreDoc + (tipo ? ' · ' + tipo : '') + ' · ' + estado;
         if (chk && chk.checked) {
           marcadosDocs++;
           htmlDocs += '<li class="mb-2 text-success d-flex align-items-start"><i class="bi bi-check-circle-fill me-2 mt-1"></i><span>' + SIGDEUI.escapeHtml(detalle) + '</span></li>';

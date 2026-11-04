@@ -92,13 +92,14 @@ ob_start();
   <?php /* Cabecera + bloques de resumen: el mismo lenguaje que el modal de
  inscripción y el de ratificación.*/ ?>
   <div class="user-detail__header">
-    <span class="avatar avatar--xl avatar--<?= htmlspecialchars($item['avatar_color'] ?? 'primary') ?>">
-      <?php if (!empty($item['avatar_img'])): ?>
-        <img src="<?= htmlspecialchars($item['avatar_img']) ?>" alt="">
-      <?php else: ?>
-        <?= htmlspecialchars($item['iniciales'] ?? 'ES') ?>
-      <?php endif; ?>
-    </span>
+    <?php
+      $avatarSize     = 'xl';
+      $avatarTone     = $item['avatar_color'] ?? 'primary';
+      $avatarSrc      = $item['avatar_img'] ?? '';
+      $avatarAlt      = $nombre;
+      $avatarInitials = $item['iniciales'] ?? 'ES';
+      include $componentes . 'avatar.php';
+    ?>
     <div class="user-detail__name"><?= htmlspecialchars($nombre) ?></div>
     <div class="user-detail__meta">
       <span><?= htmlspecialchars($cedula) ?></span>

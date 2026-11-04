@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initValidacionesEnTiempoReal();
   initSubidaImagenes();
   initQuitarImagenes();
+  initRestablecerCintilloOficial();
 });
 
 /**
@@ -934,6 +935,55 @@ function restablecerPlaceholderPrivado(clave) {
 }
 
 /**
+ * Restablecimiento de la franja tricolor oficial predeterminada.
+ */
+function initRestablecerCintilloOficial() {
+  document.addEventListener('click', async function (e) {
+    var btn = e.target.closest('.btn-restablecer-cintillo-oficial');
+    if (!btn) return;
+
+    var confirmado = await SIGDEUI.confirmar({
+      titulo: '¿Restablecer Franja Tricolor Oficial?',
+      texto: 'Se aplicará el cintillo tricolor oficial predeterminado del sistema para el pie de página de las constancias.',
+      confirmar: 'Sí, usar franja oficial'
+    });
+
+    if (!confirmado) return;
+
+    var csrfToken = document.querySelector('input[name="csrf"]')?.value || '';
+    var fd = new FormData();
+    fd.append('clave', 'plantel_cintillo');
+    fd.append('csrf', csrfToken);
+
+    var url = (window.BASE_URL || '/') + 'configuracionInstitucional/restablecerOficial';
+
+    SIGDEUI.enviar(url, {
+      metodo: 'POST',
+      cuerpo: fd
+    })
+      .then(function (respuesta) {
+        var payload = respuesta.data;
+        if (respuesta.ok && payload && payload.ok) {
+          SIGDEUI.exito(
+            payload.mensaje || 'Se ha restablecido la franja tricolor oficial.',
+            '¡Franja Restablecida!'
+          );
+
+          var previewUrl = payload.data?.preview_url || '/assets/img/franjatricolor.png';
+          mostrarCintilloEnVista(previewUrl, true);
+          mostrarAvisoImagenActualizada('plantel_cintillo');
+          return;
+        }
+
+        SIGDEUI.mostrarError((payload && payload.mensaje) ? payload.mensaje : 'No se pudo restablecer la franja oficial.');
+      })
+      .catch(function () {
+        SIGDEUI.mostrarError('Error de conexión al intentar restablecer la franja oficial.');
+      });
+  });
+}
+
+/**
  * Restablece visualmente el contenedor de la franja tricolor cuando es retirada (sin cintillo).
  */
 function restablecerPlaceholderCintillo() {
@@ -941,6 +991,7 @@ function restablecerPlaceholderCintillo() {
   var badge = document.getElementById('badge-plantel_cintillo');
   var btnSubir = document.getElementById('btn-subir-plantel_cintillo');
   var btnQuitar = document.getElementById('btn-quitar-plantel_cintillo');
+  var btnOficial = document.getElementById('btn-oficial-plantel_cintillo');
 
   if (badge) {
     badge.className = 'badge bg-secondary';
@@ -952,7 +1003,7 @@ function restablecerPlaceholderCintillo() {
       box.removeChild(box.firstChild);
     }
     var div = document.createElement('div');
-    div.className = 'text-center text-secondary small py-1';
+    div.className = 'text-center text-secondary small py-2';
     div.id = 'placeholder-plantel_cintillo';
 
     var icon = document.createElement('i');
@@ -970,20 +1021,27 @@ function restablecerPlaceholderCintillo() {
     btnSubir.innerHTML = '<i class="bi bi-upload"></i> Cargar Franja';
   }
   if (btnQuitar) btnQuitar.classList.add('d-none');
+  if (btnOficial) btnOficial.classList.remove('d-none');
 }
 
 /**
- * Muestra dinámicamente la franja tricolor en el contenedor tras subida.
+ * Muestra dinámicamente la franja tricolor en el contenedor tras subida o restablecimiento.
  */
-function mostrarCintilloEnVista(previewUrl) {
+function mostrarCintilloEnVista(previewUrl, esOficial) {
   var box = document.getElementById('box-plantel_cintillo');
   var badge = document.getElementById('badge-plantel_cintillo');
   var btnSubir = document.getElementById('btn-subir-plantel_cintillo');
   var btnQuitar = document.getElementById('btn-quitar-plantel_cintillo');
+  var btnOficial = document.getElementById('btn-oficial-plantel_cintillo');
 
   if (badge) {
-    badge.className = 'badge bg-success';
-    badge.textContent = 'Personalizada';
+    if (esOficial) {
+      badge.className = 'badge bg-info';
+      badge.textContent = 'Predeterminada Oficial';
+    } else {
+      badge.className = 'badge bg-success';
+      badge.textContent = 'Personalizada';
+    }
   }
 
   var urlConBusting = previewUrl + (previewUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
@@ -1003,5 +1061,12 @@ function mostrarCintilloEnVista(previewUrl) {
     btnSubir.innerHTML = '<i class="bi bi-upload"></i> Cambiar Imagen';
   }
   if (btnQuitar) btnQuitar.classList.remove('d-none');
+  if (btnOficial) {
+    if (esOficial) {
+      btnOficial.classList.add('d-none');
+    } else {
+      btnOficial.classList.remove('d-none');
+    }
+  }
 }
 

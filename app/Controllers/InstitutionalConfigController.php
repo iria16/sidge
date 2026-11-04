@@ -143,7 +143,7 @@ class InstitutionalConfigController extends BaseController
             $tieneCintillo = Configuracion::tieneCintillo();
             $cintilloUrl   = $tieneCintillo ? Configuracion::asset('plantel_cintillo') : '';
             $valorCintillo = trim(Configuracion::get('plantel_cintillo'));
-            $esCintilloOficial = $tieneCintillo && str_contains($valorCintillo, 'franja_tricolor');
+            $esCintilloOficial = $tieneCintillo && (str_contains($valorCintillo, 'franja_tricolor') || str_contains($valorCintillo, 'franjatricolor'));
 
             $dirPrimerNombre    = (string) ($config['director_primer_nombre'] ?? '');
             $dirSegundoNombre   = (string) ($config['director_segundo_nombre'] ?? '');

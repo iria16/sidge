@@ -61,13 +61,14 @@ ob_start();
  wizard-summary armados con los componentes. El layout de página
  (content-card en dos columnas) se reserva para la vista completa.*/ ?>
 <div class="user-detail__header">
-  <span class="avatar avatar--xl avatar--<?= htmlspecialchars($item['avatar_color'] ?? 'primary') ?>">
-    <?php if (!empty($item['avatar_img'])): ?>
-      <img src="<?= htmlspecialchars($item['avatar_img']) ?>" alt="">
-    <?php else: ?>
-      <?= htmlspecialchars($item['iniciales'] ?? 'ES') ?>
-    <?php endif; ?>
-  </span>
+  <?php
+    $avatarSize     = 'xl';
+    $avatarTone     = $item['avatar_color'] ?? 'primary';
+    $avatarSrc      = $item['avatar_img'] ?? '';
+    $avatarAlt      = $nombre;
+    $avatarInitials = $item['iniciales'] ?? 'ES';
+    include __DIR__ . '/../../components/avatar.php';
+  ?>
   <div class="user-detail__name"><?= htmlspecialchars($nombre) ?></div>
   <div class="user-detail__meta">
     <span><?= htmlspecialchars($item['cedula'] ?? '—') ?></span>
@@ -134,13 +135,14 @@ include $componentes . 'wizard-summary-section.php';
       <div class="content-card__body">
 
         <div class="user-detail__header">
-          <span class="avatar avatar--xl avatar--<?= htmlspecialchars($item['avatar_color'] ?? 'primary') ?>">
-            <?php if (!empty($item['avatar_img'])): ?>
-              <img src="<?= htmlspecialchars($item['avatar_img']) ?>" alt="">
-            <?php else: ?>
-              <?= htmlspecialchars($item['iniciales'] ?? 'ES') ?>
-            <?php endif; ?>
-          </span>
+          <?php
+            $avatarSize     = 'xl';
+            $avatarTone     = $item['avatar_color'] ?? 'primary';
+            $avatarSrc      = $item['avatar_img'] ?? '';
+            $avatarAlt      = $nombre;
+            $avatarInitials = $item['iniciales'] ?? 'ES';
+            include __DIR__ . '/../../components/avatar.php';
+          ?>
           <div>
             <div class="user-detail__name"><?= htmlspecialchars($nombre) ?></div>
             <div class="user-detail__meta">

@@ -57,10 +57,12 @@ final class BinaryResponse
      */
     public function send(): never
     {
-        /* Algunos visores embeben el PDF en un iframe; SAMEORIGIN permite eso
-           sin abrir el documento a sitios externos. */
+        /* Algunos visores embeben el PDF en un iframe; SAMEORIGIN y frame-ancestors 'self'
+           permiten eso sin abrir el documento a sitios externos y evitan bloqueos
+           por discrepancia de esquema (HTTP/HTTPS) tras proxies inversos (InfinityFree/Cloudflare). */
         header_remove('X-Frame-Options');
         header('X-Frame-Options: SAMEORIGIN');
+        header("Content-Security-Policy: frame-ancestors 'self'");
         header('X-Content-Type-Options: nosniff');
         header('Content-Type: ' . $this->contentType);
         header(

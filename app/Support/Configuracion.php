@@ -189,7 +189,17 @@ class Configuracion
      */
     public static function getPublicRoot(): string
     {
-        return self::getProjectRoot() . DIRECTORY_SEPARATOR . 'public';
+        $projectPublic = self::getProjectRoot() . DIRECTORY_SEPARATOR . 'public';
+        if (is_dir($projectPublic)) {
+            return $projectPublic;
+        }
+
+        // Entornos de hosting compartido (ej. InfinityFree / htdocs) donde el contenido de public/ reside en la raíz pública
+        if (isset($_SERVER['DOCUMENT_ROOT']) && is_dir((string) $_SERVER['DOCUMENT_ROOT'])) {
+            return rtrim((string) $_SERVER['DOCUMENT_ROOT'], '/\\');
+        }
+
+        return self::getProjectRoot();
     }
 
     /**
@@ -231,15 +241,16 @@ class Configuracion
     }
 
     /**
-     * Retorna la ruta por defecto para logos en caso de que falte o no exista el archivo personalizado.
-     * La franja tricolor (plantel_cintillo) es opcional: si el usuario la retira (valor vacío),
-     * no debe recurrir a la imagen por defecto, sino permanecer vacía.
+     * Retorna la ruta por defecto para logos y cintillo en caso de que falte o no exista el archivo personalizado.
      */
     private static function getLogoPorDefecto(string $clave): string
     {
         return match ($clave) {
             'ministerio_logo'  => '/assets/img/ministerio_logo_bandera.png',
             'plantel_logo'     => '/assets/img/logo.png',
+            'plantel_cintillo' => is_file(self::getPublicRoot() . '/assets/img/franjatricolor.png')
+                ? '/assets/img/franjatricolor.png'
+                : '/assets/img/franja_tricolor.png',
             default            => '',
         };
     }
@@ -250,12 +261,21 @@ class Configuracion
     public static function tieneCintillo(): bool
     {
         $valor = trim(self::get('plantel_cintillo'));
-        if ($valor === '') {
+        $rutaElegida = $valor !== '' ? $valor : self::getLogoPorDefecto('plantel_cintillo');
+        if ($rutaElegida === '') {
             return false;
         }
 
-        $rutaLimpia = '/' . ltrim(str_replace('\\', '/', $valor), '/');
+        $rutaLimpia = '/' . ltrim(str_replace('\\', '/', $rutaElegida), '/');
         $rutaFisica = self::getPublicRoot() . str_replace('/', DIRECTORY_SEPARATOR, $rutaLimpia);
+
+        if (!is_file($rutaFisica)) {
+            $default = self::getLogoPorDefecto('plantel_cintillo');
+            if ($default !== '') {
+                $rutaLimpia = '/' . ltrim(str_replace('\\', '/', $default), '/');
+                $rutaFisica = self::getPublicRoot() . str_replace('/', DIRECTORY_SEPARATOR, $rutaLimpia);
+            }
+        }
 
         return is_file($rutaFisica);
     }

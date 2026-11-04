@@ -9,9 +9,28 @@ use PDO;
 use Throwable;
 
 /**
- * Modelo para la gestión y persistencia de la Configuración Institucional y
- * Directiva. Extiende BaseModel (la clase base compartida por todos los modelos del
- * proyecto).
+ * Modelo para la gestión y persistencia de la Configuración Institucional y Directiva.
+ *
+ * Extiende BaseModel (la clase base compartida por todos los modelos del proyecto).
+ *
+ * Responsabilidades:
+ * 1. Consulta y actualización de parámetros oficiales en la tabla `configuracion_institucional`
+ *    utilizando INSERT ... ON DUPLICATE KEY UPDATE.
+ * 2. Validación estricta antes de GD:
+ *    - Tamaño máximo 2 MB.
+ *    - MIME type real con finfo_file.
+ *    - Ancho mínimo de 300 px.
+ *    - Rechazo inmediato de imágenes con más de 4000 px por lado (protección de memoria).
+ *    - Firma y sello: estrictamente PNG.
+ * 3. Re-codificación y reducción de escala con GD:
+ *    - Si el lado largo supera los 1000 px, se reduce proporcionalmente a un máximo de 1000 px.
+ *    - Se preserva el canal alfa en imágenes PNG.
+ * 4. Almacenamiento seguro y orden de operaciones:
+ *    - Logos institucionales en public/uploads/institucion/.
+ *    - Firma y sello fuera de public/ (storage/institucion/).
+ *    - PRIMERO se realiza el UPDATE en la base de datos; SOLO si es exitoso se borra el archivo anterior.
+ *      Si la base de datos falla, el archivo nuevo generado se elimina y el anterior queda intacto.
+ * 5. Registro automático de cada cambio en la tabla `bitacora`.
  */
 class InstitutionalConfigModel extends BaseModel
 {
@@ -171,7 +190,7 @@ class InstitutionalConfigModel extends BaseModel
         'cdce_director_cedula'       => '',
         'ministerio_logo'            => '/assets/img/ministerio_logo_bandera.png',
         'plantel_logo'               => '/assets/img/logo.png',
-        'plantel_cintillo'           => '',
+        'plantel_cintillo'           => '/assets/img/franjatricolor.png',
         'director_firma'             => '',
         'institucion_sello'          => '',
         'cdce_director_firma'        => '',
@@ -253,13 +272,14 @@ class InstitutionalConfigModel extends BaseModel
     ];
 
     /**
- * Valida y actualiza en masa los parámetros textuales en la base de datos. INSERT ...
- *
- * @param array<string, string> $datos Arreglo asociativo [clave => valor]
- * @param int $idUsuario ID del administrador que realiza la modificación.
- * @param string|null $seccion Nombre de la sección para guardado independiente ('plantel', 'directiva', 'membrete' o null).
- * @return array{ok: bool, mensaje: string, errores?: array<string, string>}
- */
+     * Valida y actualiza en masa los parámetros textuales en la base de datos.
+     * INSERT ... ON DUPLICATE KEY UPDATE.
+     *
+     * @param array<string, string> $datos Arreglo asociativo [clave => valor]
+     * @param int $idUsuario ID del administrador que realiza la modificación.
+     * @param string|null $seccion Nombre de la sección para guardado independiente ('plantel', 'directiva', 'membrete' o null).
+     * @return array{ok: bool, mensaje: string, errores?: array<string, string>}
+     */
     public function guardarTextos(array $datos, int $idUsuario, ?string $seccion = null): array
     {
         $errores = [];
@@ -413,6 +433,8 @@ class InstitutionalConfigModel extends BaseModel
         try {
             $this->pdo->beginTransaction();
 
+            $usuarioDb = $this->resolverUsuarioValido($idUsuario);
+
             $sql = 'INSERT INTO configuracion_institucional (clave, valor, actualizado_por, fecha_actualizacion)
                     VALUES (:clave, :valor, :usuario, CURRENT_TIMESTAMP)
                     ON DUPLICATE KEY UPDATE
@@ -426,26 +448,28 @@ class InstitutionalConfigModel extends BaseModel
                 $stmt->execute([
                     'clave'   => $clave,
                     'valor'   => $valor,
-                    'usuario' => $idUsuario,
+                    'usuario' => $usuarioDb,
                 ]);
             }
 
-            // Registrar acción en la bitácora institucional
-            $detalleBitacora = match ($seccion) {
-                'plantel'   => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Datos del plantel y ubicación territorial',
-                'directiva' => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Autoridad directiva y firmante',
-                'membrete'  => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Membrete oficial de la República',
-                default     => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Datos del plantel y directiva',
-            };
+            // Registrar acción en la bitácora institucional si el usuario es válido
+            if ($usuarioDb !== null) {
+                $detalleBitacora = match ($seccion) {
+                    'plantel'   => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Datos del plantel y ubicación territorial',
+                    'directiva' => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Autoridad directiva y firmante',
+                    'membrete'  => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Membrete oficial de la República',
+                    default     => 'ACTUALIZAR CONFIGURACIÓN INSTITUCIONAL · Datos del plantel y directiva',
+                };
 
-            $bitacora = new AuditLogModel($this->pdo);
-            $bitacoraOk = $bitacora->registrar(
-                $idUsuario,
-                $detalleBitacora,
-                'Configuración'
-            );
-            if (!$bitacoraOk) {
-                throw new \RuntimeException('No se pudo registrar la auditoría en la bitácora.');
+                $bitacora = new AuditLogModel($this->pdo);
+                $bitacoraOk = $bitacora->registrar(
+                    $usuarioDb,
+                    $detalleBitacora,
+                    'Configuración'
+                );
+                if (!$bitacoraOk) {
+                    throw new \RuntimeException('No se pudo registrar la auditoría en la bitácora.');
+                }
             }
 
             $this->pdo->commit();
@@ -478,12 +502,13 @@ class InstitutionalConfigModel extends BaseModel
     }
 
     /**
- * Valida la coherencia de la jerarquía territorial estado -> municipio -> parroquia.
- * Si llegan IDs, valida estrictamente por IDs y retorna los nombres canónicos de la
- * BD.
- *
- * @return array{estado_nombre: string, municipio_nombre: string, parroquia_nombre: string}|null
- */
+     * Valida la coherencia de la jerarquía territorial estado -> municipio -> parroquia.
+     * Si llegan IDs, valida estrictamente por IDs y retorna los nombres canónicos de la BD.
+     * Si llegan nombres, valida estrictamente por nombres y retorna los nombres canónicos de la BD.
+     * Sin operadores OR entre nombre e ID en el SQL.
+     *
+     * @return array{estado_nombre: string, municipio_nombre: string, parroquia_nombre: string}|null
+     */
     public function validarCoherenciaTerritorial(string $estado, string $municipio, string $parroquia): ?array
     {
         $estadoTrim = trim($estado);
@@ -556,13 +581,19 @@ class InstitutionalConfigModel extends BaseModel
     }
 
     /**
- * Valida, re-codifica con GD y guarda una imagen subida. Orden de operaciones: 1.
- *
- * @param string $clave Clave de la imagen a actualizar.
- * @param array $fileArray Arreglo $_FILES['campo'] correspondiente.
- * @param int $idUsuario ID del administrador autenticado.
- * @return array{ok: bool, mensaje: string, ruta?: string, asset_url?: string}
- */
+     * Valida, re-codifica con GD y guarda una imagen subida.
+     *
+     * Orden de operaciones:
+     * 1. Validación estricta y generación del nuevo archivo temporal re-codificado.
+     * 2. PRIMERO se realiza el UPDATE en la base de datos.
+     * 3. SOLO SI el UPDATE es exitoso, se elimina el archivo anterior del disco.
+     * 4. Si la base de datos falla, se borra el archivo nuevo generado y el anterior permanece intacto.
+     *
+     * @param string $clave Clave de la imagen a actualizar.
+     * @param array $fileArray Arreglo $_FILES['campo'] correspondiente.
+     * @param int $idUsuario ID del administrador autenticado.
+     * @return array{ok: bool, mensaje: string, ruta?: string, asset_url?: string}
+     */
     public function procesarYGuardarImagen(string $clave, array $fileArray, int $idUsuario): array
     {
         if (!in_array($clave, self::CLAVES_IMAGEN, true)) {
@@ -653,12 +684,15 @@ class InstitutionalConfigModel extends BaseModel
             $directorioDestino = $projectRoot . DIRECTORY_SEPARATOR . 'storage'
                 . DIRECTORY_SEPARATOR . 'institucion' . DIRECTORY_SEPARATOR . $subcarpeta;
         } else {
-            $directorioDestino = $projectRoot . DIRECTORY_SEPARATOR . 'public'
+            $directorioDestino = Configuracion::getPublicRoot()
                 . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'institucion';
         }
 
-        if (!is_dir($directorioDestino) && !@mkdir($directorioDestino, 02775, true) && !is_dir($directorioDestino)) {
+        if (!is_dir($directorioDestino) && !@mkdir($directorioDestino, 0775, true) && !is_dir($directorioDestino)) {
             return ['ok' => false, 'mensaje' => 'No se pudo crear el directorio de almacenamiento en el servidor.'];
+        }
+        if (is_dir($directorioDestino) && !is_writable($directorioDestino)) {
+            @chmod($directorioDestino, 0775);
         }
 
         // 6. Generar nombre de archivo único e inalterable
@@ -737,32 +771,23 @@ class InstitutionalConfigModel extends BaseModel
         // 9. PRIMERO: Realizar el UPDATE en la base de datos
         $valorAGuardar = $esFirmaOSello ? $nombreArchivo : ('/uploads/institucion/' . $nombreArchivo);
 
-        // Definir nombre legible antes del try para evitar warning en IDE
-        $nombreLegible = match ($clave) {
-            'ministerio_logo'        => 'Logo del Ministerio',
-            'plantel_logo'           => 'Logo del Plantel',
-            'director_firma'         => 'Firma del Director',
-            'institucion_sello'      => 'Sello Institucional',
-            'cdce_director_firma'    => 'Firma del Director CDCE',
-            'cdce_institucion_sello' => 'Sello CDCE Estadal',
-            'plantel_cintillo'       => 'Franja Tricolor',
-            default                  => $clave,
-        };
-
         $commitOcurrido = false;
         try {
             $this->pdo->beginTransaction();
 
+            $usuarioDb = $this->resolverUsuarioValido($idUsuario);
+
             $stmt = $this->pdo->prepare(
-                'UPDATE configuracion_institucional
-                    SET valor = :valor,
-                        actualizado_por = :usuario,
-                        fecha_actualizacion = CURRENT_TIMESTAMP
-                  WHERE clave = :clave'
+                'INSERT INTO configuracion_institucional (clave, valor, actualizado_por, fecha_actualizacion)
+                 VALUES (:clave, :valor, :usuario, CURRENT_TIMESTAMP)
+                 ON DUPLICATE KEY UPDATE
+                     valor = VALUES(valor),
+                     actualizado_por = VALUES(actualizado_por),
+                     fecha_actualizacion = CURRENT_TIMESTAMP'
             );
             $stmt->execute([
                 'valor'   => $valorAGuardar,
-                'usuario' => $idUsuario,
+                'usuario' => $usuarioDb,
                 'clave'   => $clave,
             ]);
 
@@ -778,13 +803,15 @@ class InstitutionalConfigModel extends BaseModel
                 default                  => $clave,
             };
 
-            $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
-                $idUsuario,
-                "ACTUALIZACIÓN IMAGEN INSTITUCIONAL · {$nombreLegible}",
-                'Configuración'
-            );
-            if (!$bitacoraOk) {
-                throw new \RuntimeException('No se pudo registrar la auditoría en la bitácora.');
+            if ($usuarioDb !== null) {
+                $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
+                    $usuarioDb,
+                    "ACTUALIZACIÓN IMAGEN INSTITUCIONAL · {$nombreLegible}",
+                    'Configuración'
+                );
+                if (!$bitacoraOk) {
+                    throw new \RuntimeException('No se pudo registrar la auditoría en la bitácora.');
+                }
             }
 
             // Confirmar transacción
@@ -852,26 +879,31 @@ class InstitutionalConfigModel extends BaseModel
         try {
             $this->pdo->beginTransaction();
 
+            $usuarioDb = $this->resolverUsuarioValido($idUsuario);
+
             $stmt = $this->pdo->prepare(
-                'UPDATE configuracion_institucional
-                    SET valor = :valor,
-                        actualizado_por = :usuario,
-                        fecha_actualizacion = CURRENT_TIMESTAMP
-                  WHERE clave = :clave'
+                'INSERT INTO configuracion_institucional (clave, valor, actualizado_por, fecha_actualizacion)
+                 VALUES (:clave, :valor, :usuario, CURRENT_TIMESTAMP)
+                 ON DUPLICATE KEY UPDATE
+                     valor = VALUES(valor),
+                     actualizado_por = VALUES(actualizado_por),
+                     fecha_actualizacion = CURRENT_TIMESTAMP'
             );
             $stmt->execute([
                 'valor'   => $valorPorDefecto,
-                'usuario' => $idUsuario,
+                'usuario' => $usuarioDb,
                 'clave'   => $clave,
             ]);
 
-            $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
-                $idUsuario,
-                "ELIMINACIÓN / RESTABLECIMIENTO DE IMAGEN · {$clave}",
-                'Configuración'
-            );
-            if (!$bitacoraOk) {
-                throw new \RuntimeException('No se pudo registrar la auditoría en la bitácora.');
+            if ($usuarioDb !== null) {
+                $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
+                    $usuarioDb,
+                    "ELIMINACIÓN / RESTABLECIMIENTO DE IMAGEN · {$clave}",
+                    'Configuración'
+                );
+                if (!$bitacoraOk) {
+                    throw new \RuntimeException('No se pudo registrar la auditoría en la bitácora.');
+                }
             }
 
             $this->pdo->commit();
@@ -907,37 +939,42 @@ class InstitutionalConfigModel extends BaseModel
     }
 
     /**
-     * Restablece la franja tricolor oficial por defecto del sistema (/assets/img/franja_tricolor.png).
+     * Restablece la franja tricolor oficial por defecto del sistema (/assets/img/franjatricolor.png).
      */
     public function restablecerFranjaOficial(int $idUsuario): array
     {
         $valorAnterior = $this->get('plantel_cintillo');
-        $valorOficial = '/assets/img/franja_tricolor.png';
+        $valorOficial = '/assets/img/franjatricolor.png';
 
         $commitOcurrido = false;
         try {
             $this->pdo->beginTransaction();
 
+            $usuarioDb = $this->resolverUsuarioValido($idUsuario);
+
             $stmt = $this->pdo->prepare(
-                'UPDATE configuracion_institucional
-                    SET valor = :valor,
-                        actualizado_por = :usuario,
-                        fecha_actualizacion = CURRENT_TIMESTAMP
-                  WHERE clave = :clave'
+                'INSERT INTO configuracion_institucional (clave, valor, actualizado_por, fecha_actualizacion)
+                 VALUES (:clave, :valor, :usuario, CURRENT_TIMESTAMP)
+                 ON DUPLICATE KEY UPDATE
+                     valor = VALUES(valor),
+                     actualizado_por = VALUES(actualizado_por),
+                     fecha_actualizacion = CURRENT_TIMESTAMP'
             );
             $stmt->execute([
                 'valor'   => $valorOficial,
-                'usuario' => $idUsuario,
+                'usuario' => $usuarioDb,
                 'clave'   => 'plantel_cintillo',
             ]);
 
-            $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
-                $idUsuario,
-                'RESTABLECIMIENTO FRANJA TRICOLOR OFICIAL · plantel_cintillo',
-                'Configuración'
-            );
-            if (!$bitacoraOk) {
-                throw new \RuntimeException('No se pudo registrar la auditoría en la bitácora.');
+            if ($usuarioDb !== null) {
+                $bitacoraOk = (new AuditLogModel($this->pdo))->registrar(
+                    $usuarioDb,
+                    'RESTABLECIMIENTO FRANJA TRICOLOR OFICIAL · plantel_cintillo',
+                    'Configuración'
+                );
+                if (!$bitacoraOk) {
+                    throw new \RuntimeException('No se pudo registrar la auditoría en la bitácora.');
+                }
             }
 
             $this->pdo->commit();
@@ -1005,5 +1042,25 @@ class InstitutionalConfigModel extends BaseModel
     protected function esArchivoSubido(string $tmpPath): bool
     {
         return is_uploaded_file($tmpPath) || (php_sapi_name() === 'cli' && is_file($tmpPath));
+    }
+
+    /**
+     * Resuelve un ID de usuario válido existente en la base de datos para satisfacer claves foráneas.
+     * Si el ID es inválido (<= 0) o no existe en la tabla usuario, retorna NULL.
+     */
+    private function resolverUsuarioValido(int $idUsuario): ?int
+    {
+        if ($idUsuario <= 0) {
+            return null;
+        }
+
+        try {
+            $stmt = $this->pdo->prepare('SELECT id_usuario FROM usuario WHERE id_usuario = :id LIMIT 1');
+            $stmt->execute(['id' => $idUsuario]);
+            $res = $stmt->fetchColumn();
+            return $res !== false ? (int) $res : null;
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

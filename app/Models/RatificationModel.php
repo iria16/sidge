@@ -14,6 +14,7 @@ use App\Traits\CupoEstructuraTrait;
 use App\Traits\FamiliaresModelTrait;
 use App\Traits\RecaudosModelTrait;
 
+use PDO;
 use Throwable;
 use RuntimeException;
 
@@ -549,11 +550,12 @@ class RatificationModel extends BaseModel implements Listable
                     'UPDATE estudiante_documento ed
                        JOIN tipo_documento t ON t.id_tipo_documento = ed.id_tipo_documento
                         SET ed.id_persona_estudiante = :pe,
-                            ed.id_persona_estudiante_unico = :pe
+                            ed.id_persona_estudiante_unico = :pe_unico
                       WHERE ed.id_estudiante = :estudiante
                         AND t.codigo IN (\'foto_representante\', \'cedula_representante\')'
                 )->execute([
                     'pe'         => $idPeRep,
+                    'pe_unico'   => $idPeRep,
                     'estudiante' => $idEstudiante,
                 ]);
 
@@ -562,12 +564,13 @@ class RatificationModel extends BaseModel implements Listable
                         'UPDATE estudiante_documento ed
                            JOIN tipo_documento t ON t.id_tipo_documento = ed.id_tipo_documento
                             SET ed.id_persona_estudiante = :pe,
-                                ed.id_persona_estudiante_unico = :pe,
+                                ed.id_persona_estudiante_unico = :pe_unico,
                                 ed.requerido = 1
                           WHERE ed.id_estudiante = :estudiante
                             AND t.codigo = \'permiso_lopnna\''
                     )->execute([
                         'pe'         => $idPeRep,
+                        'pe_unico'   => $idPeRep,
                         'estudiante' => $idEstudiante,
                     ]);
                 } else {

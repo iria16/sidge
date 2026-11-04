@@ -74,6 +74,8 @@ trait AvatarTrait
     protected function resolverAvatar(?string $foto, ?string $nombre, ?string $apellido, ?string $rol, ?string $fallback = 'U'): array
     {
         $foto = trim($foto ?? '');
+        $iniciales = $this->generarIniciales($nombre, $apellido, $fallback);
+        $color = $this->colorPorRol($rol);
 
         if ($foto !== '') {
             // Se quita la barra inicial: la ruta guardada en BD es absoluta
@@ -86,16 +88,16 @@ trait AvatarTrait
             return [
                 'tipo'         => 'foto',
                 'foto'         => $foto,
-                'iniciales'    => null,
-                'avatar_color' => null,
+                'iniciales'    => $iniciales,
+                'avatar_color' => $color,
             ];
         }
 
         return [
             'tipo'         => 'iniciales',
             'foto'         => null,
-            'iniciales'    => $this->generarIniciales($nombre, $apellido, $fallback),
-            'avatar_color' => $this->colorPorRol($rol),
+            'iniciales'    => $iniciales,
+            'avatar_color' => $color,
         ];
     }
 }
