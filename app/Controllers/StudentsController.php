@@ -41,11 +41,12 @@ class StudentsController extends ReadOnlyController
     {
         return $this->servicioExpedientes()->buildFilters(
             [
-                'q'       => trim((string) ($_GET['q'] ?? '')),
-                'anio'    => (int) ($_GET['anio'] ?? 0),
-                'grado'   => trim((string) ($_GET['grado'] ?? '')),
-                'seccion' => trim((string) ($_GET['seccion'] ?? '')),
-                'estado'  => (string) ($_GET['estado'] ?? ''),
+                'q'        => trim((string) ($_GET['q'] ?? '')),
+                'anio'     => isset($_GET['anio']) ? trim((string) $_GET['anio']) : null,
+                'grado'    => trim((string) ($_GET['grado'] ?? '')),
+                'seccion'  => trim((string) ($_GET['seccion'] ?? '')),
+                'estado'   => (string) ($_GET['estado'] ?? ''),
+                'id_turno' => trim((string) ($_GET['id_turno'] ?? $_GET['turno'] ?? '')),
             ],
             $this->turnoSecretariaActual(),
             $this->docenteActualId(),

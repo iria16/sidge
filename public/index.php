@@ -211,7 +211,7 @@ $rutasPermitidas = [
     'recuperacionAcceso' => [
         'index' => ['admin'],
         'getDetalle' => ['admin'],
-        'updateEstado' => ['admin'],
+        'updateStatus' => ['admin'],
         'resetPassword' => ['admin']
     ],
     'notificacion' => [
@@ -376,7 +376,7 @@ $rutasPermitidas = [
 $accionesSoloPost = [
     'auth' => ['authenticate', 'updatePassword', 'requestRecovery'],
     'cuentaUsuario' => ['store', 'update', 'toggleStatus'],
-    'recuperacionAcceso' => ['updateEstado', 'resetPassword'],
+    'recuperacionAcceso' => ['updateStatus', 'resetPassword'],
     'catalogo' => ['store', 'update', 'toggleStatus'],
     'empleado' => ['store', 'update', 'toggleStatus', 'guardarTitulo', 'guardarInstitucion', 'registrarReposo', 'updateReposo', 'cambiarEstado', 'cerrarReposo', 'anularReposo'],
     'academicYear' => ['store', 'update', 'iniciar', 'cerrar', 'reabrir'],

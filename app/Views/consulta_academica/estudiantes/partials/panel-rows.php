@@ -45,6 +45,11 @@ declare(strict_types=1);
             <?php endif; ?>
           </div>
         </td>
+        <?php if (!empty($esDirectivo)): ?>
+          <td class="text-center" data-label="Turno">
+            <span class="badge bg-light text-dark border"><?= htmlspecialchars($estudiante['turno'] ?? '—') ?></span>
+          </td>
+        <?php endif; ?>
       <?php endif; ?>
       <td class="text-center" data-label="Estado">
         <?php
@@ -66,7 +71,7 @@ declare(strict_types=1);
   <?php endforeach; ?>
   <?php if (!$estudiantes): ?>
     <tr>
-      <td colspan="<?= $esDocente ? 4 : 5 ?>" class="text-center text-support py-4">
+      <td colspan="<?= $esDocente ? 4 : (!empty($esDirectivo) ? 6 : 5) ?>" class="text-center text-support py-4">
         <?php /* Sin asignaciones la tabla vacía es la respuesta correcta, no un fallo: el
  docente solo ve lo que tiene asignado. Se dice explícitamente para que no
  parezca que el listado no funciona.*/ ?>

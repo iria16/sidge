@@ -123,7 +123,8 @@ class StudentsModel extends BaseModel implements Listable
                 LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
                 LEFT JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar
                 LEFT JOIN grado g ON g.id_grado = ea.id_grado
-                LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion",
+                LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
+                LEFT JOIN turno t ON t.id_turno = ea.id_turno",
             'params' => $params,
         ];
     }
@@ -131,19 +132,23 @@ class StudentsModel extends BaseModel implements Listable
     public function getAll(array $filters = [], int $page = 1, int $perPage = 10): array
     {
         [$where, $params] = $this->filters($filters);
-        $matricula = $this->joinActual(
-            isset($filters['anio']) && $filters['anio'] !== '' ? (int) $filters['anio'] : null,
-            isset($filters['id_turno']) && $filters['id_turno'] !== '' ? (int) $filters['id_turno'] : null
-        );
+        $anioFiltro = (!empty($filters['anio']) && $filters['anio'] !== 'todos' && is_numeric($filters['anio']) && (int) $filters['anio'] > 0)
+            ? (int) $filters['anio']
+            : null;
+        $idTurnoFiltro = (!empty($filters['id_turno']) && is_numeric($filters['id_turno']) && (int) $filters['id_turno'] > 0)
+            ? (int) $filters['id_turno']
+            : null;
+        $matricula = $this->joinActual($anioFiltro, $idTurnoFiltro);
         $params = array_merge($matricula['params'], $params);
 
-$sql = "SELECT est.id_estudiante AS id, est.id_estudiante,
+        $sql = "SELECT est.id_estudiante AS id, est.id_estudiante,
                        CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS nombre,
                        p.numero_documento AS cedula_escolar,
                        p.foto AS avatar_img,
                        UPPER(CONCAT(LEFT(p.primer_nombre, 1), COALESCE(LEFT(p.primer_apellido, 1), ''))) AS iniciales,
                        " . self::EXPRESION_ESTADO . " AS estado_ciclo,
                        g.nombre AS grado, s.nombre AS seccion,
+                       t.nombre AS turno,
                        a.nombre_periodo AS anio_escolar
                  FROM estudiante est
                  INNER JOIN persona p ON p.id_persona = est.id_persona
@@ -176,10 +181,13 @@ $sql = "SELECT est.id_estudiante AS id, est.id_estudiante,
     public function countAll(array $filters = []): int
     {
         [$where, $params] = $this->filters($filters);
-        $matricula = $this->joinActual(
-            isset($filters['anio']) && $filters['anio'] !== '' ? (int) $filters['anio'] : null,
-            isset($filters['id_turno']) && $filters['id_turno'] !== '' ? (int) $filters['id_turno'] : null
-        );
+        $anioFiltro = (!empty($filters['anio']) && $filters['anio'] !== 'todos' && is_numeric($filters['anio']) && (int) $filters['anio'] > 0)
+            ? (int) $filters['anio']
+            : null;
+        $idTurnoFiltro = (!empty($filters['id_turno']) && is_numeric($filters['id_turno']) && (int) $filters['id_turno'] > 0)
+            ? (int) $filters['id_turno']
+            : null;
+        $matricula = $this->joinActual($anioFiltro, $idTurnoFiltro);
         $params = array_merge($matricula['params'], $params);
 
         $sql = "SELECT COUNT(*) FROM estudiante est
@@ -196,10 +204,13 @@ $sql = "SELECT est.id_estudiante AS id, est.id_estudiante,
 
     public function getStats(array $filters = []): array
     {
-        $matricula = $this->joinActual(
-            isset($filters['anio']) && $filters['anio'] !== '' ? (int) $filters['anio'] : null,
-            isset($filters['id_turno']) && $filters['id_turno'] !== '' ? (int) $filters['id_turno'] : null
-        );
+        $anioFiltro = (!empty($filters['anio']) && $filters['anio'] !== 'todos' && is_numeric($filters['anio']) && (int) $filters['anio'] > 0)
+            ? (int) $filters['anio']
+            : null;
+        $idTurnoFiltro = (!empty($filters['id_turno']) && is_numeric($filters['id_turno']) && (int) $filters['id_turno'] > 0)
+            ? (int) $filters['id_turno']
+            : null;
+        $matricula = $this->joinActual($anioFiltro, $idTurnoFiltro);
         $sql = "SELECT COUNT(DISTINCT est.id_estudiante) AS total,
                        COUNT(DISTINCT CASE WHEN " . self::EXPRESION_ESTADO . " = 'activo'
                                            THEN est.id_estudiante END) AS activos,
@@ -359,6 +370,12 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
     {
         return $this->pdo->query("SELECT nombre FROM seccion WHERE estado = 'ACTIVO' ORDER BY nombre ASC")
                          ->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
+    public function getTurnos(): array
+    {
+        return $this->pdo->query("SELECT id_turno AS id, nombre FROM turno WHERE estado = 'ACTIVO' ORDER BY id_turno ASC")
+                         ->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**

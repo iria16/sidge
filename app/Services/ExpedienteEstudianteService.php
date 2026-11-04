@@ -28,7 +28,7 @@ final class ExpedienteEstudianteService
     /**
      * Aplica las reglas de consulta al filtro solicitado por la interfaz.
      *
-     * @param array{q?:string,anio?:int,grado?:string,seccion?:string,estado?:string} $requested
+     * @param array{q?:string,anio?:string|int|null,grado?:string,seccion?:string,estado?:string,id_turno?:string} $requested
      * @return array<string, string>
      */
     public function buildFilters(
@@ -39,29 +39,43 @@ final class ExpedienteEstudianteService
     ): array {
         $anios = $this->students->getAniosEscolares($turno);
         $idsAnios = array_map(static fn (array $anio): int => (int) $anio['id'], $anios);
-        $anioSolicitado = (int) ($requested['anio'] ?? 0);
+        $anioParam = $requested['anio'] ?? null;
 
         if ($docenteId !== null || $esSecretaria) {
             $anioActivo = $this->students->getAnioEscolarActivoId();
             $anioSolicitado = $anioActivo !== null ? (int) $anioActivo : 0;
             $estado = 'activo';
+            $idTurnoFinal = $turno !== null ? (string) $turno : '';
         } else {
-            if (!in_array($anioSolicitado, $idsAnios, true)) {
+            if ($anioParam === null) {
+                // Por defecto para Directivo/Coordinador: año escolar activo
+                $anioActivo = $this->students->getAnioEscolarActivoId();
+                $anioSolicitado = $anioActivo !== null ? (int) $anioActivo : 0;
+            } elseif ($anioParam === '' || $anioParam === '0' || $anioParam === 'todos') {
                 $anioSolicitado = 0;
+            } else {
+                $anioInt = (int) $anioParam;
+                $anioSolicitado = in_array($anioInt, $idsAnios, true) ? $anioInt : 0;
             }
+
             $estadoSolicitado = strtolower(trim((string) ($requested['estado'] ?? '')));
             $estado = in_array($estadoSolicitado, ['activo', 'retirado', 'egresado'], true)
                 ? $estadoSolicitado
+                : '';
+
+            $turnoSolicitado = trim((string) ($requested['id_turno'] ?? ''));
+            $idTurnoFinal = ($turnoSolicitado !== '' && is_numeric($turnoSolicitado))
+                ? (string) (int) $turnoSolicitado
                 : '';
         }
 
         return [
             'q'          => trim((string) ($requested['q'] ?? '')),
-            'anio'       => $anioSolicitado > 0 ? (string) $anioSolicitado : '',
+            'anio'       => $anioSolicitado > 0 ? (string) $anioSolicitado : ($anioParam === 'todos' || $anioParam === '' ? 'todos' : ''),
             'grado'      => trim((string) ($requested['grado'] ?? '')),
             'seccion'    => trim((string) ($requested['seccion'] ?? '')),
             'estado'     => $estado,
-            'id_turno'   => $turno === null ? '' : (string) $turno,
+            'id_turno'   => $idTurnoFinal,
             'id_docente' => $docenteId === null ? '' : (string) $docenteId,
         ];
     }
@@ -80,6 +94,7 @@ final class ExpedienteEstudianteService
     ): array {
         $aniosEscolares = $this->students->getAniosEscolares($turno);
         $esDocente = $docenteId !== null;
+        $esDirectivo = !$esDocente && !$esSecretaria;
 
         if ($esDocente || $esSecretaria) {
             $anioActivoId = $this->students->getAnioEscolarActivoId();
@@ -95,8 +110,10 @@ final class ExpedienteEstudianteService
             'sinAsignaciones' => $docenteId !== null
                 && $this->students->getEstructurasDocente($docenteId) === [],
             'aniosEscolares'  => $aniosEscolares,
+            'turnos'          => $this->students->getTurnos(),
             'esDocente'       => $esDocente,
             'esSecretaria'    => $esSecretaria,
+            'esDirectivo'     => $esDirectivo,
             'grados'          => $this->students->getGrados(),
             'secciones'       => $this->students->getSecciones(),
         ];

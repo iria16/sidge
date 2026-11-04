@@ -30,12 +30,14 @@ $breadcrumbs = [
 
 $estudiantes     = $estudiantes ?? [];
 $aniosEscolares  = $aniosEscolares ?? [];
+$turnos          = $turnos ?? [];
 $esDocente       = !empty($esDocente);
 $esSecretaria    = !empty($esSecretaria);
+$esDirectivo     = !empty($esDirectivo) || (!$esDocente && !$esSecretaria);
 $sinAsignaciones = !empty($sinAsignaciones);
 $grados          = $grados ?? [];
 $secciones       = $secciones ?? [];
-$filters         = $filters ?? ['q' => '', 'anio' => '', 'grado' => '', 'seccion' => '', 'estado' => ''];
+$filters         = $filters ?? ['q' => '', 'anio' => '', 'id_turno' => '', 'grado' => '', 'seccion' => '', 'estado' => ''];
 $paginacion      = $paginacion ?? [
     'desde' => 0, 'hasta' => 0, 'total' => 0, 'pagina_actual' => 1, 'total_paginas' => 1,
 ];

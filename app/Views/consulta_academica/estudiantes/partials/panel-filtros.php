@@ -13,15 +13,25 @@ declare(strict_types=1);
  * @var array $filters
  */
 ?>
-  <?php /* Selector de Año Escolar para Dirección y Coordinación.
-           Secretaría y Docente quedan acotados al año escolar activo. */ ?>
+  <?php /* Selector de Año Escolar y Turno para Dirección y Coordinación.
+           Secretaría y Docente quedan acotados al año escolar activo y su turno asignado. */ ?>
   <?php if (!$esDocente && !$esSecretaria): ?>
   <label for="filtroAnio" class="visually-hidden">Año Escolar</label>
   <select id="filtroAnio" name="anio" class="form-select" aria-label="Filtrar por año escolar">
-    <option value="">Año Escolar (Todos)</option>
+    <option value="todos" <?= ($filters['anio'] ?? '') === 'todos' ? 'selected' : '' ?>>Año Escolar (Todos)</option>
     <?php foreach (($aniosEscolares ?? []) as $ae): ?>
       <option value="<?= (int) $ae['id'] ?>" <?= (string) ($filters['anio'] ?? '') === (string) $ae['id'] ? 'selected' : '' ?>>
         <?= htmlspecialchars($ae['nombre']) ?><?= ($ae['estado'] ?? '') === 'ACTIVO' ? ' (Activo)' : ' (Cerrado)' ?>
+      </option>
+    <?php endforeach; ?>
+  </select>
+
+  <label for="filtroTurno" class="visually-hidden">Turno</label>
+  <select id="filtroTurno" name="id_turno" class="form-select" aria-label="Filtrar por turno">
+    <option value="">Turno (Todos)</option>
+    <?php foreach (($turnos ?? []) as $t): ?>
+      <option value="<?= (int) $t['id'] ?>" <?= (string) ($filters['id_turno'] ?? '') === (string) $t['id'] ? 'selected' : '' ?>>
+        <?= htmlspecialchars($t['nombre']) ?>
       </option>
     <?php endforeach; ?>
   </select>
