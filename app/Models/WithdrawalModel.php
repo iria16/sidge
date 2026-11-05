@@ -66,7 +66,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  vez de decir que no hay registro. NULLIF convierte el '' en NULL y el
  COALESCE vuelve a hacer su trabajo.*/
                        r.id_usuario_registro AS id_usuario_registro,
-                    COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
+                       COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
                        COALESCE(NULLIF(CONCAT_WS(' ', ru.primer_nombre, ru.primer_apellido), ''), '') AS resuelto_por,
                        r.fecha_resolucion AS fecha_resolucion,
                        UPPER(CONCAT(LEFT(p.primer_nombre, 1), LEFT(p.primer_apellido, 1))) AS iniciales

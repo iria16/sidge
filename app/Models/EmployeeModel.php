@@ -156,6 +156,11 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
             $params['cargo'] = (int) $filters['cargo'];
         }
 
+        if (!empty($filters['turno'])) {
+            $where[]         = "e.id_turno = :turno";
+            $params['turno'] = (int) $filters['turno'];
+        }
+
         if (!empty($filters['estado'])) {
             $where[]          = "p.estado = :estado";
             $params['estado'] = strtoupper((string) $filters['estado']);

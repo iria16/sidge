@@ -17,6 +17,7 @@ declare(strict_types=1);
  * @var string                           $q
  * @var array<string, mixed>            $resumenHermanos
  * @var array<int, array<string, mixed>> $detalleHermanos
+ * @var array<string, int>              $paginacionHermanos
  * @var array<string, mixed>            $demografiaMatricula
  * @var array<int, array<string, mixed>> $matriculaAulas
  * @var array<string, mixed>            $estadisticasFamilias

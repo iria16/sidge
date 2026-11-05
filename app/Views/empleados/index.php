@@ -31,6 +31,7 @@ $puedeGestionar   = $puedeGestionar ?? (function_exists('App\Traits\sigde_rol_cl
 
 // Filtros activos (se reflejan en los <select> al recargar)
 $filtroCargo  = (string) ($_GET['cargo'] ?? '');
+$filtroTurno  = (string) ($_GET['turno'] ?? '');
 $filtroEstado = (string) ($_GET['estado'] ?? '');
 
 ob_start(); // todo lo que sigue se captura en $pageContent
@@ -83,6 +84,15 @@ ob_start();
   <?php foreach ($cargos as $cargo): ?>
     <option value="<?= (int) $cargo['id_cargo'] ?>" <?= $filtroCargo === (string) $cargo['id_cargo'] ? 'selected' : '' ?>>
       <?= htmlspecialchars($cargo['nombre']) ?>
+    </option>
+  <?php endforeach; ?>
+</select>
+<select name="turno" class="form-select" aria-label="Filtrar por turno">
+  <option value="">Turno (Todos)</option>
+  <?php foreach ($turnos as $turno): ?>
+    <?php $idTurno = (int) $turno['id_turno']; ?>
+    <option value="<?= $idTurno ?>" <?= $filtroTurno === (string) $idTurno ? 'selected' : '' ?>>
+      <?= htmlspecialchars((string) $turno['nombre']) ?>
     </option>
   <?php endforeach; ?>
 </select>

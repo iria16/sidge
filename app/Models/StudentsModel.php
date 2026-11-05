@@ -284,7 +284,6 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
                  LEFT JOIN municipio  mn         ON mn.id_municipio        = pn.id_municipio
                 " . $matricula['sql'] . '
                 ' . $this->joinCiclo() . "
-                LEFT JOIN turno t ON t.id_turno = ea.id_turno
                 WHERE est.id_estudiante = :id";
         $params = array_merge($matricula['params'], ['id' => $id]);
 
@@ -374,7 +373,7 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
 
     public function getTurnos(): array
     {
-        return $this->pdo->query("SELECT id_turno AS id, nombre FROM turno WHERE estado = 'ACTIVO' ORDER BY id_turno ASC")
+        return $this->pdo->query("SELECT id_turno AS id, nombre FROM turno WHERE estado = 'ACTIVO' AND nombre != 'Tiempo Completo' ORDER BY id_turno ASC")
                          ->fetchAll(\PDO::FETCH_ASSOC);
     }
 

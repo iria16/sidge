@@ -80,19 +80,21 @@ class EmployeeController extends CrudController
     }
 
     /**
- * Filtros del listado (q, cargo, estado) leídos de la URL.
- * Solo deja pasar cargo numérico y estado activo/inactivo.
+ * Filtros del listado (q, cargo, turno, estado) leídos de la URL.
+ * Solo deja pasar cargo/turno numéricos y estado activo/inactivo.
  *
- * @return array{q: string, cargo: string, estado: string}
+ * @return array{q: string, cargo: string, turno: string, estado: string}
 */
     protected function getFiltersFromRequest(): array
     {
         $cargo  = (string) ($_GET['cargo'] ?? '');
+        $turno  = (string) ($_GET['turno'] ?? '');
         $estado = (string) ($_GET['estado'] ?? '');
 
         return [
             'q'      => trim((string) ($_GET['q'] ?? '')),
             'cargo'  => ctype_digit($cargo) ? $cargo : '',
+            'turno'  => ctype_digit($turno) ? $turno : '',
             'estado' => in_array($estado, ['activo', 'inactivo'], true) ? $estado : '',
         ];
     }
