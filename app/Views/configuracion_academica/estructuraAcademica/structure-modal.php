@@ -45,6 +45,21 @@ ob_start();
  HTML lo dejaría fuera de paso hasta que el script corrigiera.*/ ?>
         <?php $anioPorDefecto = ($editMode || $aniosEditables === []) ? 0 : (int) $aniosEditables[0]['id']; ?>
         <?php foreach ([['anio', 'Año escolar', $aniosEditables], ['grado', 'Grado', $grados], ['seccion', 'Sección',$secciones], ['turno', 'Turno', $turnos]] as $field): ?>
+          <?php if ($field[0] === 'anio' && !$editMode): ?>
+            <?php /* En el alta solo se configura el año ACTIVO: no es una decisión que
+ tomar, así que se muestra como dato fijo y el id viaja oculto al formulario. */ ?>
+            <div class="col-12 col-sm-6">
+              <label class="label-sigde" for="<?= $prefix ?>EstructuraAnio"><?= $field[1] ?></label>
+              <input type="hidden" name="id_anio_escolar" value="<?= $anioPorDefecto ?>">
+              <input
+                type="text"
+                class="form-control"
+                id="<?= $prefix ?>EstructuraAnio"
+                value="<?= htmlspecialchars((string) ($aniosEditables[0]['nombre'] ?? '')) ?>"
+                readonly
+              >
+            </div>
+          <?php else: ?>
           <div class="col-12 col-sm-6">
             <label class="label-sigde" for="<?= $prefix ?>Estructura<?= ucfirst($field[0]) ?>"><?= $field[1] ?></label>
             <select
@@ -63,6 +78,7 @@ ob_start();
             </select>
             <div class="invalid-feedback">Seleccione <?= strtolower($field[1]) ?>.</div>
           </div>
+          <?php endif; ?>
         <?php endforeach; ?>
         <div class="col-12 col-sm-6">
           <label class="label-sigde" for="<?= $prefix ?>EstructuraCapacidad">Capacidad máxima</label>
