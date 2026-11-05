@@ -202,7 +202,7 @@ $rutasPermitidas = [
         'edit' => ['admin'],
         'update' => ['admin'],
         'toggleStatus' => ['admin'],
-        'getDetalle' => ['admin']
+        'getDetail' => ['admin']
     ],
     'bitacora' => [
         'index' => ['admin'],
@@ -210,7 +210,7 @@ $rutasPermitidas = [
     ],
     'recuperacionAcceso' => [
         'index' => ['admin'],
-        'getDetalle' => ['admin'],
+        'getDetail' => ['admin'],
         'updateStatus' => ['admin'],
         'resetPassword' => ['admin']
     ],
