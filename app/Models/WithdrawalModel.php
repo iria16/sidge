@@ -136,7 +136,8 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
                     COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
                     COALESCE(NULLIF(CONCAT_WS(' ', ru.primer_nombre, ru.primer_apellido), ''), '') AS resuelto_por,
                     r.fecha_resolucion AS fecha_resolucion,
-                    UPPER(CONCAT(LEFT(p.primer_nombre, 1), LEFT(p.primer_apellido, 1))) AS iniciales
+                    UPPER(CONCAT(LEFT(p.primer_nombre, 1), LEFT(p.primer_apellido, 1))) AS iniciales,
+                    r.id_usuario_registro AS id_usuario_registro
                FROM retiro r
                INNER JOIN matricula m ON m.id_matricula = r.id_matricula
                INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
@@ -984,6 +985,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
             'motivo'          => $row['motivo'] ?? '—',
             'observaciones'   => $row['observaciones'] ?? '',
             'estado'          => strtolower($row['estado'] ?? 'pendiente'),
+            'id_usuario_registro' => (int) ($row['id_usuario_registro'] ?? 0),
         ];
     }
 }

@@ -397,8 +397,33 @@ class WithdrawalController extends CrudController
         }
 
         try {
+            // Obtener datos antes de eliminar para notificar
+            $detalle = $this->modelo()->getDetail($id);
+            if ($detalle === null) {
+                $this->jsonResponse(false, null, 'No se encontró la solicitud de retiro a eliminar.', 404);
+                return;
+            }
+            $idRegistrante = (int) ($detalle['id_usuario_registro'] ?? 0);
+            $estudiante = (string) ($detalle['estudiante'] ?? 'el estudiante');
+
             $ok = $this->modelo()->delete($id);
             if ($ok) {
+                // Notificar al usuario que registró la solicitud (si no es quien elimina)
+                $idUsuarioActual = (int) ($this->idUsuarioActual() ?? 0);
+                if ($idRegistrante > 0 && $idRegistrante !== $idUsuarioActual) {
+                    try {
+                        (new \App\Models\NotificationModel($this->conexion()))->crear(
+                            $idRegistrante,
+                            'retiro_eliminado',
+                            'Solicitud de retiro eliminada',
+                            'La solicitud de retiro de ' . $estudiante . ' fue eliminada.',
+                            BASE_URL . 'withdrawal/index',
+                            $id
+                        );
+                    } catch (\Throwable $e) {
+                        error_log('Notificacion retiro eliminado: ' . $e->getMessage());
+                    }
+                }
                 $this->jsonResponse(true, null, 'Solicitud de retiro eliminada correctamente.');
             } else {
                 $this->jsonResponse(false, null, 'No se encontró la solicitud de retiro a eliminar.', 404);
