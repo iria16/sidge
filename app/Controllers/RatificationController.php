@@ -36,9 +36,8 @@ use Throwable;
 class RatificationController extends CrudController
 {
     /* PersonaValidacionTrait usa fechaValida() y fechaEnRango(), que viven en
- ValidacionFechaTrait: sin ese trait, validarFechaNacimiento() revienta con
- "Call to undefined method". EnrollmentController los usa los dos, por
- el mismo motivo.*/
+ ValidacionFechaTrait: sin ese trait, validarFechaNacimiento() provoca un error
+ "Call to undefined method". EnrollmentController usa ambos por el mismo motivo.*/
     /* validarFamiliares() (FamiliaresValidacionTrait) delega la validación del
  teléfono y el correo en ContactoValidacionTrait. Es el mismo trait que usa
  la inscripción, y por eso las dos pantallas rechazan los mismos números.*/
@@ -68,12 +67,11 @@ class RatificationController extends CrudController
     private const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
     /**
- * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
- * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
+ * Devuelve el modelo con su tipo concreto.
 */
     private function modelo(): RatificationModel
     {
-        /** @var RatificationModel $model*/
+        /** @var RatificationModel $model */
         $model = $this->getModel();
 
         return $model;
@@ -128,7 +126,7 @@ class RatificationController extends CrudController
 
             /* El sub-modal de familiares es el mismo archivo que usa la inscripción
  (inscripcion/modal-agregar-familiar.php) y lee estos catálogos del
- scope de la vista. Se piden acá y no por AJAX porque son cuatro listas
+ scope de la vista. Se piden aquí y no por AJAX porque son cuatro listas
  cortas que se necesitan antes de abrir el modal: si se pidieran por
  AJAX habría que esperar a que lleguen, y el sub-modal se abre
  enseguida. El catálogo que sí es grande (municipios y parroquias, más de
@@ -230,12 +228,9 @@ class RatificationController extends CrudController
                 'tiene_ingreso_sige' => !empty($_POST['tiene_ingreso_sige']) ? 1 : 0,
                 'fecha_ingreso_sige' => trim((string) ($_POST['fecha_ingreso_sige'] ?? '')),
                 'motivo_sige'        => trim((string) ($_POST['motivo_sige'] ?? '')),
-                /* La pregunta «¿El estudiante repite el grado?» se quitó de la
-                   encuesta: el grado de destino ya lo propone el sistema a partir
-                   del resultado y la secretaria lo elige en el desplegable, así
-                   que la respuesta solo se guardaba. La columna se queda en 0
-                   porque en la tabla es NOT NULL con CHECK (0,1); no se manda
-                   nada desde el formulario porque ya no existe ese campo. */
+                /* La columna repite_grado es NOT NULL con CHECK (0,1). El grado de
+                   destino se elige en el desplegable, por lo que el formulario no
+                   envía este campo y se guarda 0. */
                 'repite_grado'       => 0,
             ];
 
@@ -776,11 +771,9 @@ class RatificationController extends CrudController
         if ($p['fecha_nacimiento'] !== ($estudianteActual['fecha_nacimiento'] ?? '')) {
             $this->validarFechaNacimientoEstudiante($p, $errores, $inicioAnio);
         }
-        /* Este método solo se llama al EDITAR un alumno que ya existe, y ese alumno se
-        registró antes de que el lugar de nacimiento y la nacionalidad fueran campos. Los
-        tiene en NULL y exigirlos hacía imposible guardar cualquier edición: el
-        requisito se creó con el campo y no puede aplicarse hacia atrás. Si vienen
-        informados, se comprueba que sean válidos — más abajo— igual que en el alta. */
+        /* Este método solo se llama al editar un alumno existente. Los registros
+        anteriores pueden tener el lugar de nacimiento y la nacionalidad en NULL, por
+        lo que solo se validan cuando llegan informados. */
         $this->validarLugarNacimiento($p, $errores, true, true);
         $this->validarNacionalidad($p, $errores, true);
 
@@ -805,7 +798,7 @@ class RatificationController extends CrudController
     /**
  * Deja el contacto y el domicilio de los familiares que NO son el representante
  * legal como estaban guardados, y también los de quien tiene ficha propia en el
- * plantel (hallazgo MEDIO 4.8).
+ * plantel.
  *
  * Por qué hace falta esto, si el JS ya apaga esos campos: porque el navegador no
  * es una frontera. Un formulario se puede mandar con `disabled` o con el
@@ -885,9 +878,8 @@ class RatificationController extends CrudController
      * Regla 3 para una edición: solo valida a quien se autoriza ahora.
      *
      * Si la persona ya estaba autorizada, no se le exigen los documentos: son
-     * expedientes que se guardaron antes de que existiera la regla y no se
-     * pueden bloquear hacia atrás. Si es nueva o pasa de no autorizada a
-     * autorizada, sí se valida.
+     * expedientes anteriores a la regla y no se pueden bloquear hacia atrás. Si es
+     * nueva o pasa de no autorizada a autorizada, sí se valida.
      *
      * @param array<int, array<string, mixed>> $nuevos
      * @param array<int, array<string, mixed>> $actuales

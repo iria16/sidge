@@ -26,8 +26,7 @@ class PasswordRecoveryController extends BaseController
     protected string $routeName   = 'recuperacionAcceso';
 
     /**
-     * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
-     * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
+     * Devuelve el modelo con su tipo concreto.
      */
     private function modelo(): PasswordRecoveryModel
     {

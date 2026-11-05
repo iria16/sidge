@@ -230,7 +230,7 @@ var buscar = SIGDEUI.esDebounced(400, function () {
 
     /* Borrar la cédula borra al estudiante, en el acto.
 
- El borrado va FUERA del debounce a propósito. Si se limpiara junto con la
+ El borrado va FUERA del debounce de propósito. Si se limpiara junto con la
  búsqueda, el formulario seguiría teniendo la matrícula del alumno durante
  los 400 ms de espera, y en esa ventana se podía registrar al estudiante
  cuya cédula ya se había borrado. La consulta sí espera; la limpieza no.*/

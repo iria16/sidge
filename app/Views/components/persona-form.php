@@ -196,13 +196,11 @@ include __DIR__ . '/lugar-nacimiento-form.php';
    vacío, porque un vacío se ve y una inventada no.
 
    Por eso el campo sale sin marcar y con un aviso de que falta el dato. El `required`
-   hace que no se pueda guardar sin elegir, que es justo lo que hay que hacer. */
+   impide guardar sin elegir. */
 if ($pideNacionalidad) {
   /* Se recibe el sobre tal como lo arma getNacionalidades() —
-     ['nacionalidades' => [...], 'id_por_defecto' => int] — y se desarma acá. Antes cada
-     vista lo desarmaba por su cuenta con un nombre distinto, y añadir un formulario
-     obligaba a acordarse de cuál era cuál. Con una sola forma, incluir el componente
-     y ya está. */
+     ['nacionalidades' => [...], 'id_por_defecto' => int] — y se desarma aquí.
+     Todas las vistas usan la misma estructura. */
   $catNacionalidades = $nacionalidades ?? [];
   $listaNacionalidades = $catNacionalidades['nacionalidades'] ?? [];
   $idNacionalidadPorDefecto = (int) ($catNacionalidades['id_por_defecto']

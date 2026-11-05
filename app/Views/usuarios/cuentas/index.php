@@ -11,7 +11,7 @@ declare(strict_types=1);
  * - array $usuarios              cada uno: ['id','id_rol','nombre','nombre_usuario','iniciales',
  *                                 'avatar_color','avatar_tipo','avatar_foto','empleado','rol','estado']
  *                                 ('rol' ya viene formateado — ej. "Admin" — desde
- *                                 UserAccountModel::mapRowToVista(), no se reformatea acá)
+ *                                 UserAccountModel::mapRowToVista(), no se reformatea aquí)
  * - array $roles                 cada uno: ['id','nombre'] (UserAccountModel::getRoles())
  * - array $empleadosDisponibles  cada uno: ['id','nombre'] — solo para el modal de crear
  * - array $filters               ['id_rol' => ..., 'estado' => ..., 'q' => ...] (valores actuales del GET)

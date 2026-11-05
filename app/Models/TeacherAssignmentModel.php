@@ -296,7 +296,7 @@ class TeacherAssignmentModel extends BaseModel implements Listable
                 . $empleado['turno_nombre'] . ').';
         }
 
-        // `:ignorar1` y `:ignorar2` son dos marcadores y no uno repetido a propósito:
+        // `:ignorar1` y `:ignorar2` son dos marcadores y no uno repetido de propósito:
         // con prepares nativos un parámetro nombrado no puede aparecer dos veces en
         // la misma sentencia ("Invalid parameter number").
         $otra = $this->pdo->prepare(

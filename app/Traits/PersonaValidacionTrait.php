@@ -266,7 +266,7 @@ trait PersonaValidacionTrait
      *
      * Ahora es un id del catálogo `nacionalidad`, así que la comprobación es la misma
      * que la de cualquier otro catálogo: que exista y que esté activo. No hace falta
-     * medir la longitud del texto porque ya no se guarda texto.
+     * medir la longitud del texto: ya no se guarda texto.
      *
      * @param array $data Datos de la persona ya normalizados
      * @param array $errores Errores por campo, se escribe por referencia
@@ -276,10 +276,9 @@ trait PersonaValidacionTrait
         $id = (int) ($data['id_nacionalidad'] ?? 0);
 
         if ($id <= 0) {
-            /* Misma razón que en validarLugarNacimiento(): la nacionalidad se añadió DESPUÉS
-            de que existieran las personas, así que las anteriores la tienen en NULL. Si se
+            /* La nacionalidad se añadió después de crear las personas; las anteriores la tienen en NULL. Si se
             exigiera siempre, no se podría editar ni a un alumno. Cuando sí viene, se
-            comprueba contra el catálogo como antes. */
+            comprueba contra el catálogo. */
             if ($exigir) {
                 $errores['id_nacionalidad'] = 'Selecciona la nacionalidad del alumno.';
             }
@@ -296,7 +295,7 @@ trait PersonaValidacionTrait
      *
      * Se consulta en vez de confiar en el id porque el formulario se puede mandar a
      * mano: sin esta comprobación, un POST con un id viejo o desactivado escribiría una
-     * nacionalidad que el catálogo ya no ofrece.
+     * nacionalidad que el catálogo no incluye.
      *
      * @return bool
      */

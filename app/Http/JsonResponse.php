@@ -15,7 +15,7 @@ namespace App\Http;
  *
  *     { "ok": true|false, "mensaje": string|null, "data": mixed }
  *
- * Ojo con los nombres: la clave es `mensaje` (en español), no `message`.
+ * La clave del mensaje es `mensaje` (en español), no `message`.
  * El front (fetch + SweetAlert2) lee `ok`, `mensaje` y `data`.
  *
  * Se crea con uno de los tres constructores estáticos (success, error, raw)

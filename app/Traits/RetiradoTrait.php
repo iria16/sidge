@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Traits;
 
     /* Estado "Retirado" de un alumno. POR QUÉ UN TRAIT Y NO UNA COLUMNA: no hay ningún campo
- "retirado" en `estudiante` ni en `matricula`, y a propósito. El retiro es una fila MÁS de
+ "retirado" en `estudiante` ni en `matricula`, y con el propósito. El retiro es una fila MÁS de
  `matricula` con tipo = 'RETIRO', al lado de la de inscripción, que sigue apuntando al
  alumno y deja ver su historia completa.*/
 trait RetiradoTrait

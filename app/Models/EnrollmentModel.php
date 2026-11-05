@@ -443,7 +443,7 @@ $row['id']          = (int) $row['id'];
 
     /**
  * Nacionalidades para el <select> del paso 1 del estudiante. Va aparte de
- * getFamiliarCatalogs() a propósito: ese método arma el sub-modal de familiares, que
+ * getFamiliarCatalogs() de propósito: ese método arma el sub-modal de familiares, que
  * no lleva nacionalidad, y meterla ahí mezclaría dos formularios que no se parecen.
  *
  * @return array{nacionalidades:array<int,array<string,mixed>>,id_por_defecto:int}
@@ -906,7 +906,7 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
- * El año escolar en curso, sin caché a propósito: si dentro del proceso se abre o
+ * El año escolar en curso, sin caché de propósito: si dentro del proceso se abre o
  * cierra un año, un valor guardado haría que inscripciones y ratificación se
  * contradigan.
  */

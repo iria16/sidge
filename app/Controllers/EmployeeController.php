@@ -678,11 +678,8 @@ protected function extractData(array $source): array
         // Pequeño helper solo para extraer el valor crudo de forma segura
         $raw = static fn(string$clave): string => (string) ($source[$clave] ?? '');
 
-        /* Las filas de formación incompletas se anotan aparte y se saltan, para no
- guardarlas a medias: una fila a la que le falta un id produciría un registro con
- campos en cero. Antes se descartaban sin decir nada y el alta salía con "Empleado
- registrado correctamente" aunque el título que se había elegido no estuviera en
- ninguna parte.*/
+        /* Las filas de formación incompletas se registran en $erroresFormacion y
+ se omiten para no guardar registros parciales. */
         $erroresFormacion = [];
 
         $data = [
@@ -725,11 +722,7 @@ protected function extractData(array $source): array
             'errores_formacion' => $erroresFormacion,
         ];
 
-        /* La nacionalidad se le pregunta a toda persona, empleado incluido. Este bloque
-        antes decía que la columna tenía default en la base y solo la enviaba si venía
-        con valor, pero la columna no existía: PersonaModel la descartaba en silencio y
-        el dato se perdía. Ahora sí existe y se manda siempre, como cualquier otro dato
-        obligatorio del formulario. */
+        /* La nacionalidad es obligatoria para toda persona, incluido el empleado. */
         $data['id_nacionalidad'] = (int) ($raw('id_nacionalidad') ?? '0');
 
         /* Solo el modal de edición manda esto: qué fila de formación se está tocando y si
@@ -754,12 +747,9 @@ protected function extractData(array $source): array
 */
     private function formacionDe(array $source, array &$errores = []): array
     {
-        /* El JSON solo cuenta si trae filas. Antes el valor por defecto era '[]', que no
- está vacío: json_decode('[]') devuelve un array vacío y la función retornaba
- ahí, sin llegar nunca a los campos sueltos. Como el modal de edición
- (edit-modal.php) manda título, grado e institución en <input> sueltos y NO
- manda titulos_json, lo que elegías en ese modal se descartaba siempre: se
- guardaba el empleado con "actualizado correctamente" y el título no cambiaba.*/
+        /* El JSON solo se procesa si contiene filas. El modal de edición envía
+ título, grado e institución en campos separados, sin titulos_json, por lo
+ que ambos formatos deben contemplarse. */
         $json = trim((string) ($source['titulos_json'] ?? ''));
 
         if ($json !== '' && $json !== '[]') {
@@ -886,10 +876,9 @@ protected function extractData(array $source): array
         }
 
         $this->validarFechaNacimiento($data, $errores, 'fecha_nacimiento', 18, 100);
-        /* $ignorarId no es null cuando viene de update(): el empleado ya existía y se
-        registra antes de que estos dos campos existieran, así que los tiene en NULL y no
-        pueden exigirse. En el alta (store) sí se exigen. Si vienen informados, se
-        comprueba que sean válidos igual. */
+        /* En edición, los empleados registrados antes de estos campos pueden tenerlos
+        en NULL, por lo que solo se validan cuando llegan informados. En el alta se
+        exigen siempre. */
         $exigir = true;
         $this->validarLugarNacimiento($data, $errores, false, $exigir);
         $this->validarNacionalidad($data, $errores, $exigir);
@@ -928,13 +917,10 @@ protected function extractData(array $source): array
         }
 
         // ----- Formación -----
-        /* La fecha de obtención es OBLIGATORIA si hay un título registrado:
- formacion_academica.fecha_obtencion es NOT NULL. El comentario anterior decía que
- era opcional y solo se validaba "si viene con valor", lo que nunca se notó porque
- el asistente la pide siempre en el paso 5. Editando sí se notaba: el modal la
- deja en blanco, se guardaba NULL, y la base devolvía
- "Column 'fecha_obtencion' cannot be null": un 500 con el mensaje genérico de
- "ocurrió un problema", sin decir qué corregir.*/
+        /* La fecha de obtención es obligatoria si hay un título registrado:
+ formacion_academica.fecha_obtencion es NOT NULL. El modal de edición puede
+ dejarla vacía, así que se valida antes de guardar para devolver un mensaje
+ claro en lugar de un error de base de datos. */
         foreach ($data['formacion'] as $fila) {
             if (empty($fila['fecha_obtencion'])) {
                 $errores['fecha_obtencion'] = 'Indica la fecha de obtención del título.';

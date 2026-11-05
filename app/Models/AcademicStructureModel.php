@@ -333,7 +333,7 @@ public function getStats(?int $idAnio = null): array
 
     /**
  * ¿La edición cambia la combinación (grado, sección o turno) o solo la capacidad?
- * El año se excluye a propósito: mover una fila de un período a otro no es un cambio
+ * El año se excluye de propósito: mover una fila de un período a otro no es un cambio
  * de combinación que arrastre alumnos, porque sin Combinar no se puede pasar a un año
  * que ya tenga esa combinación y el modelo impide el duplicado.
  */

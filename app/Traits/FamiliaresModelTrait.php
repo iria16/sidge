@@ -14,11 +14,10 @@ trait FamiliaresModelTrait
 {
     /**
  * @param array<int, array<string, mixed>> $familiares Ya normalizados.
- * @param bool $sincronizar Cuando es true, la lista es la VERDAD: lo que ya
- * estaba y no viene se marca como desvinculado y lo que vuelve se reactiva
- * (hallazgo MEDIO 4.7). Lo deja apagado a propósito la inscripción, donde la
- * lista del formulario es siempre de cero y una sincronización solo podría
- * borrar algo por error.
+ * @param bool $sincronizar Cuando es true, la lista recibida es la definitiva:
+ * lo que ya estaba y no viene se marca como desvinculado, y lo que vuelve se
+ * reactiva. La inscripción lo deja apagado porque su formulario siempre parte
+ * de una lista vacía y una sincronización solo podría borrar datos por error.
  * @param int $idUsuario Usuario que guarda, para la auditoría de los
  * documentos por persona. 0 cuando no hay sesión (scripts o pruebas).
  * @throws DatoFamiliarIncompletoException
@@ -219,11 +218,11 @@ trait FamiliaresModelTrait
         return $id !== false ? (int) $id : null;
     }
 
-    /* Desvinculación de familiares (hallazgo MEDIO 4.7).
+    /* Desvinculación lógica de familiares.
  *
- * LÓGICA y no física: `persona_estudiante.estado_relacion` es un INACTIVE con fecha, así
- * que el esquema ya lo soportaba y la baja física era lo que sobraba. Conservar la fila
- * permite reactivar sin recapturar y deja el rastro de quién fue familiar y cuándo dejó de serlo.*/
+ * `persona_estudiante.estado_relacion` permite marcar la relación como inactiva con
+ * fecha. Conservar la fila permite reactivarla sin recapturar datos y deja el rastro
+ * de quién fue familiar y cuándo dejó de serlo. */
 
     /**
  * Calcula la diferencia entre lo que hay guardado y lo que llega, y aplica
@@ -320,7 +319,7 @@ trait FamiliaresModelTrait
                 continue;
             }
 
-            /* No vino: se desvincula. El UPDATE es condicional a propósito, para
+            /* No vino: se desvincula. El UPDATE es condicional con propósito, para
  que guardar dos veces el mismo formulario no dispare nada.
 
  Los dos estados van con marcadores DISTINTOS y no con el mismo

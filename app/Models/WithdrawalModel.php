@@ -47,11 +47,9 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     {
         [$where, $params] = $this->filters($filters);
 
-        /* La fecha que se muestra es la de la SOLICITUD, no la de la matrícula: antes se
- leía m.fecha_matricula, así que una solicitud registrada hoy aparecía con la
- fecha en que el alumno se matriculó, que es un dato distinto y más antiguo.
- Los registros anteriores a la migración no tienen fecha y salen como '—', que es
- lo honesto: no se inventa una fecha que nadie registró.*/
+        /* La fecha mostrada es la de la SOLICITUD, no la de la matrícula. Los
+ registros anteriores a la migración no tienen fecha y se muestran como '—',
+ sin inventar un dato. */
         $sql = "SELECT r.id_retiro AS id, r.estado_solicitud AS estado,
                        r.observaciones AS observaciones, r.fecha_solicitud AS fecha_solicitud,
                        CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS estudiante,
@@ -103,13 +101,10 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  *
  * Devuelve exactamente los mismos campos que getAll(), porque pasa por el mismo
  * mapRow: así el modal y la fila del listado no pueden mostrar dos versiones de
- * un mismo dato (por ejemplo, una fecha de solicitud en un formato y otra en el
- * otro lado).
+ * un mismo dato.
  *
- * Existe porque el botón de la fila ya no lleva los datos en atributos data-:
- * duplicar el modelo en el markup obliga a mantenerlo en dos lugares y se
- * desincroniza solo. Con el id alcanza y el detalle se pide al servidor, que es
- * quien tiene la fuente de verdad.
+ * El detalle se carga en el servidor a partir del id, sin duplicar el modelo en
+ * atributos data- del markup.
  *
  * @return array<string, mixed>|null Null si no existe (el controller responde 404).
 */
@@ -297,9 +292,8 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  * rastro y la bitácora sola no alcanza, porque una solicitud puede estar rechazada y
  * Approved sin que se sepa quién la tocó.
  *
- * Ojo con rowCount(): execute() devuelve true aunque no se haya
- * afectado ninguna fila, así que un id inexistente se reportaría como
- * éxito si solo se mirara el execute().
+ * rowCount() permite distinguir un id inexistente: execute() devuelve true
+ * aunque no se haya afectado ninguna fila.
  *
  * @param int $idUsuario quién resuelve; 0 si no hay sesión (no se audita, pero no falla)
 */
@@ -403,7 +397,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
 
             /* Se audita al final, ya con la transacción aún abierta: si algo de lo anterior
  falla y se revierte, la bitácora tampoco deja constancia de una aprobación que
- no ocurrió. Va en la misma conexión a propósito.*/
+ no ocurrió. Va en la misma conexión de propósito.*/
             $this->registrarBitacora(
                 $idUsuario,
                 ($status === 'APROBADO' ? 'RETIRO APROBADO ' : 'RETIRO RECHAZADO ')
@@ -467,7 +461,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     /**
  * Busca estudiantes por cédula para el formulario de la secretaria.
  *
- * SOLO por documento, a propósito. Un retiro identifica a una persona, y el
+ * SOLO por documento, de propósito. Un retiro identifica a una persona, y el
  * documento es lo único que no se repite; buscar por nombre traía a homónimos
  * ("Leo Pinto" y otro "Pinto") y hacía elegir entre alumnos que en realidad
  * no se podían distinguir. Con el documento hay un solo resultado o ninguno.
@@ -480,12 +474,9 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  * La matrícula que se mira es la ÚLTIMA de cada alumno, y "última" se decide
  * por la FECHA del año, nunca por el id del año.
  *
- * Los ids de `anio_escolar` son de inserción: un año cargado antes puede
- * tener un id mayor que uno cargado después, así que comparar años por id
- * invierte el orden sin que nada parezca roto. Con 175 = 2025-2026 y
- * 238 = 2026-2027 los ids y las fechas coinciden y el error no aparece;
- * aparece en cuanto se carga un año viejo, que es justo lo que se hace al
- * abrir un período nuevo. Por eso el subquery ordena por `a2.anio_inicio`.
+ * Los ids de `anio_escolar` son de inserción y no siguen el orden cronológico,
+ * por lo que comparar años por id puede invertir el orden. El subquery ordena
+ * por `a2.anio_inicio`, que representa la fecha real del período.
  *
  * @return array<int, array{id_matricula:?int,nombre:string,cedula:string,grado:string,
  * seccion:string,anio:string,elegible:bool,motivo:string}>
@@ -604,7 +595,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  * La fila nace siempre en estado PENDIENTE: aprobar o rechazar es una
  * decisión posterior del directivo (updateStatus). Las validaciones de
  * negocio (motivo existente, retiro duplicado) las hace el controlador
- * en validate() antes de llegar acá.
+ * en validate() antes de llegar aquí.
  *
  * @param array $data ['id_matricula' => int, 'id_motivo_retiro' => int,
  * 'observaciones' => string, 'id_usuario' => ?int]
@@ -972,8 +963,8 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
             'avatar_img'      => $row['avatar_img'] ?? '',
             'grado'           => $row['grado'] ?? '—',
             'seccion'         => $row['seccion'] ?? '—',
-            // '—' cuando la fila es anterior a la migración: no hay fecha registrada y
-            // llenarla con la de la matrícula fue justo el dato falso que se corrigió.
+            // '—' cuando la fila es anterior a la migración y no tiene fecha registrada.
+            // No se usa la fecha de la matrícula porque es un dato distinto.
             'fecha_solicitud' => !empty($row['fecha_solicitud'])
                 ? date('d/m/Y', strtotime((string) $row['fecha_solicitud']))
                 : '—',

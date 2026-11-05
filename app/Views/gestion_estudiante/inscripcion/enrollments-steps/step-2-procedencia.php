@@ -12,11 +12,10 @@
 */
 $instituciones = $instituciones ?? [];
 
-/* Grados de procedencia, del catálogo `grado` y ordenados por su número, no
- por id: en el catálogo el 2do grado es id 6 y el 3er es id 2. Se queda solo
- con los que caen en el rango 1-6 de la primaria, que es el rango que valida
- App\Support\Instituciones para el tipo TIPO_ESCUELA. Antes esta lista estaba
- escrita a mano en el <select> y se le había quedado fuera el 6to grado.*/
+/* Grados de procedencia del catálogo `grado`, ordenados por su número y no por
+ id: en el catálogo el 2do grado es id 6 y el 3er grado es id 2. Solo se
+ incluyen los grados 1 a 6 de primaria, que es el rango que valida
+ App\Support\Instituciones para el tipo TIPO_ESCUELA. */
 $gradosPrimaria = [];
 foreach ($gradosModal ?? [] as $grado) {
     $ordinal = \App\Support\Instituciones::ordinalGrado((string) ($grado['nombre'] ?? ''));

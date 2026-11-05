@@ -13,7 +13,7 @@ namespace App\Support;
  * `contacto.codigo_telefono_principal` y `codigo_telefono_alternativo`.
  * Antes vivía solo en el componente phone-input.php (que la pintaba) y el
  * validador del servidor la recibía como parámetro, con el riesgo de que
- * ambos se desincronizasen; ahora la leen los dos desde acá.
+ * ahora la leen los dos desde aquí.
  *
  * Si algún día se agrega o retira un código, es en este archivo y en el
  * ENUM de la tabla (nada más).

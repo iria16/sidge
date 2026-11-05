@@ -8,11 +8,11 @@
  * Antes cada formulario tenía su copia y se fueron desincronizando: el de
  * empleados y el de inscripción usaban "V - Venezolano" y el de familiares
  * "V - Venezolano / E - Extranjero / CE - Especial", y solo algunos
- * offerían la cédula escolar. Acá la lista de tipos y sus textos viven en un
+ * offerían la cédula escolar. Aquí la lista de tipos y sus textos viven en un
  * solo lugar, así que un formulario nuevo no puede inventarse su propia
  * variante.
  *
- * Las etiquetas son "LETRA - texto" a propósito: el select muestra solo la
+ * Las etiquetas son "LETRA - texto" de propósito: el select muestra solo la
  * letra mientras está cerrado (ver
  * SIGDEWizardUI.initTipoDocumentoLetra() en public/assets/js/wizard-ui.js) y
  * el texto completo al desplegarlo.
@@ -41,10 +41,10 @@ $tipoDocRequired    = $tipoDocRequired ?? true;
 $tipoDocCol         = $tipoDocCol ?? 'col-4';
 
 // Textos canónicos. El ENUM de persona.tipo_documento es ('V','E','CE','P'),
-// pero 'P' (pasaporte) no se ofrece a propósito: la institución no lo necesita
+// pero 'P' (pasaporte) no se ofrece de propósito: la institución no lo necesita
 // y su formato es alfanumérico, que no encaja con el limpiado de las cédulas
 // (App\Support\Documento::normalizar deja solo dígitos). Si algún día hace
-// falta, no alcanza con agregar la opción acá: hay que darle su propio patrón y
+// falta, no alcanza con agregar la opción aquí: hay que darle su propio patrón y
 // su propia limpieza, como se hizo y se revirtió.
 $tipoDocTextos = [
     'V'  => 'V - Venezolano',

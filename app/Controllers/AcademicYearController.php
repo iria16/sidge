@@ -21,12 +21,11 @@ class AcademicYearController extends CrudController
     protected string $routeName = 'academicYear';
 
     /**
- * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
- * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
+ * Devuelve el modelo con su tipo concreto.
 */
     private function modelo(): AcademicYearModel
     {
-        /** @var AcademicYearModel $model*/
+        /** @var AcademicYearModel $model */
         $model = $this->getModel();
 
         return $model;

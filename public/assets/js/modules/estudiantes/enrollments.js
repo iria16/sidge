@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function () {
   SIGDEUI.alCerrarModal(wizardModalEl, function reiniciarAlCerrar() {
     pasoActual        = 1;
     editandoDesdePaso = null;
-    /* La lista de familiares vive en FamiliaresUI (abajo); acá solo se vacía.*/
+    /* La lista de familiares vive en FamiliaresUI (abajo); aquí solo se vacía.*/
     familiaresUI.cargar([]);
     form.reset();
     form.classList.remove('was-validated');

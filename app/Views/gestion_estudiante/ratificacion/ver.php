@@ -8,7 +8,7 @@
  * - con la cabecera X-Requested-With, devuelve SOLO el cuerpo del modal.
  *
  * El cuerpo del modal es el que usa el botón "ver" del listado, así que la vista
- * tiene dos formas a propósito: escribirla dos veces haría que el modal y la
+ * tiene dos formas de propósito: escribirla dos veces haría que el modal y la
  * página mostraran datos distintos en cuanto uno se tocara.
  *
  * Espera del controlador:

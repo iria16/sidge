@@ -163,7 +163,7 @@ class PersonaModel extends BaseModel
 
     /**
  * Nivel de instrucción y ocupación que ya tiene esta persona como familiar. Se
- * resuelve en dos pasos a propósito.
+ * resuelve en dos pasos de propósito.
  *
  * @return array{nivel_instruccion:string, ocupacion:string}
  */

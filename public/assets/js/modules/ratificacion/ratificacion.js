@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* Cascada del lugar de nacimiento del estudiante. Este módulo reutiliza el paso 1 de
      la inscripción, así que los tres selects están en su formulario, pero enrollments.js
-     —donde estaba inicializada— no se carga acá: quedaban sin cascada y al elegir la
+     —donde estaba inicializada— no se carga aquí: quedaban sin cascada y al elegir la
      entidad federal no cargaba ni un municipio.
 
      Se crea una sola vez, al cargar la página, y no al abrir el modal: si se creara al
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (el) el.textContent = valor;
     };
     /* El destino (año, grado, sección y turno) lo calcula el modelo y viaja en
- atributos data- de la fila. No se arma en el navegador a propósito: el
+ atributos data- de la fila. No se arma en el navegador de propósito: el
  destino es una decisión de negocio, y antes se ponía el año del reloj con
  new Date(), que no es el año escolar. Todos vienen escapados por
  htmlspecialchars() en la vista.*/
@@ -636,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 /* Iniciales para el avatar. Es el mismo criterio que sigde_iniciales() en
- app/Views/helpers/ui.php, replicado acá porque JS no puede llamar a una
+ app/Views/helpers/ui.php, replicado aquí porque JS no puede llamar a una
  función de PHP: primera y última palabra, primera letra de cada una.*/
   function inicialesDe(nombre) {
     const partes = String(nombre || '').trim().split(/\s+/).filter(Boolean);
@@ -1174,7 +1174,7 @@ async function guardarDatosEstudiante() {
           form: form,
           /* Sin alias: aquí el servidor ya devuelve los `name` del formulario.
  `observaciones` llega de las tallas y `observaciones_medicas` de la
- ficha, y son campos distintos a propósito.*/
+ ficha, y son campos distintos de propósito.*/
           pasos: {
             familiares: 'pane-familiares',
             recaudos: 'pane-recaudos'

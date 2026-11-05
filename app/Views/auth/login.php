@@ -3,7 +3,7 @@
  * Vista: login.php
  * Ruta: app/Views/auth/login.php
  * Pantalla de inicio de sesión (split screen). El <form> envía a
- * auth/authenticate (AuthController); el JS/CSS acá es puramente de
+ * auth/authenticate (AuthController); el JS/CSS aquí es puramente de
  * presentación. El cascarón lo provee layouts/auth.php.
  */
 
@@ -24,32 +24,10 @@ ob_start();
   Bienvenido al ecosistema SIGDE. Por favor, identifíquese para continuar.
 </p>
 
-<?php /* autocomplete="off" en el <form> y "new-password" en la clave: el
-         navegador deja de ofrecer guardar la contraseña y deja de RELLENARLA al
-         volver. Con autocomplete="on" / "current-password", una secretaria
-         volvía a entrar creyendo que no le habían pedido nada, porque el
-         navegador le escribía la clave. Para una app administrativa interna es lo
-         correcto: la contraseña no debe quedarse guardada en el equipo.
-         (El campo de usuario conserva autocomplete="username": el nombre de
-         usuario no es un secreto y ahorra trabajo.)
-
-         Antes esto era "one-time-code", que también frenaba el autocompletado. Se
-         cambió por "new-password" por un motivo concreto: el navegador pinta su
-         PROPIO botón de ojo para revelar la clave en los campos `type=password`, y
-         con "one-time-code" lo seguía mostrando. Quedaban dos ojos, el que está
-         hecho a mano y el del navegador, y el segundo no es del formulario.
-
-         "new-password" da lo mismo en privacidad —Chrome no lo autocompleta ni
-         ofrece guardarlo— y además no dibuja su ojo, porque para el navegador un
-         campo marcado así es una clave que se está creando, no una que se está
-         recuperando. Es el mismo valor que ya usan los campos de
-         `auth/cambio-password.php`, así que no se inventó un valor raro.
-
-         Ojo: esto depende de que el navegador respete el valor. Si en algún
-         equipo siguiera apareciendo el ojo nativo, no hay forma de esconderlo con
-         CSS: Chrome no expone ningún pseudo-elemento para ese botón. La salida
-         sería dejar el campo como `type="text"` con la clave enmascarada por
-         JavaScript, que ya es lo que hace el toggle del formulario. */ ?>
+<?php /* autocomplete="off" en el formulario y "new-password" en la contraseña
+         impiden que el navegador guarde o rellene la clave y que muestre su
+         propio botón de revelado. El campo de usuario conserva
+         autocomplete="username". */ ?>
 <form novalidate class="login-form needs-validation" autocomplete="off" method="post" action="<?php echo BASE_URL; ?>auth/authenticate">
   <input type="hidden" name="csrf" value="<?php echo htmlspecialchars(csrfToken()); ?>">
 

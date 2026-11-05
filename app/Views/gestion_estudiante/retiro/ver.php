@@ -7,12 +7,10 @@
  * - abierta en el navegador, es una página completa con encabezado y acciones;
  * - con la cabecera X-Requested-With, devuelve SOLO el cuerpo del modal.
  *
- * El cuerpo del modal es el que usa el botón "ver" del listado. Escribirlo dos veces
- * haría que el modal y la página mostraran datos distintos en cuanto uno se tocara,
- * que es justo lo que pasaba antes: el modal se armaba en el navegador leyendo
- * atributos data- del botón, que ya no los lleva, y quedaba en blanco.
+ * El cuerpo del modal es el que usa el botón "ver" del listado. Se carga desde el
+ * servidor para que el modal y la página muestren siempre los mismos datos.
  *
- * LAS DOS FORMAS TIENEN DISEÑO DISTINTO, y es a propósito (el mismo criterio que
+ * LAS DOS FORMAS TIENEN DISEÑO DISTINTO, y es de propósito (el mismo criterio que
  * ratificacion/ver.php):
  * - el MODAL usa cabecera `user-detail` + bloques `wizard-summary` armados con los
  * componentes, que es el lenguaje de todos los modales de detalle;
@@ -142,7 +140,7 @@ ob_start();
     <?php /* La resolución solo tiene sentido si hubo resolución: se dice en una línea
  en vez de dejar dos campos vacíos que parecen un dato que se perdió.
 
- Este bloque de PHP no se cierra aquí a propósito. PHP termina el modo PHP al
+ Este bloque de PHP no se cierra aquí de propósito. PHP termina el modo PHP al
  ver el cierre de etiqueta, incluso dentro de un comentario de bloque, así que
  ponerlo al final de este comentario haría que todo el código que viene a
  continuación se imprimiera como texto dentro del modal.*/

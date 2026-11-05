@@ -50,7 +50,7 @@ ob_start();
              ratificacion.js al arrancar el módulo: se pueden agregar familiares y
              cambiar el contacto y el domicilio del REPRESENTANTE LEGAL; el
              contacto de los demás se muestra apagado, porque no es lo que la
-             secretaria debe cambiar desde acá. El aviso está dentro del propio
+             secretaria debe cambiar desde aquí. El aviso está dentro del propio
              sub-modal (avisoContactoNoEditable). */ ?>
       <button class="nav-link" id="tab-familiares" data-bs-toggle="tab"
               data-bs-target="#pane-familiares" type="button" role="tab">
@@ -146,7 +146,7 @@ ob_start();
 <?php
 $modalFooter = ob_get_clean();
 
-/* El modal tiene DOS cabeceras a propósito y no es un descuido:
+/* El modal tiene DOS cabeceras de propósito y no es un descuido:
    el título del componente ("Editar Estudiante") dice qué acción se está haciendo,
    y el bloque de arriba, con la foto y el nombre, dice de quién. Quitando cualquiera
    de los dos la secretaria pierde una de esas dos cosas. */

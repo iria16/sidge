@@ -46,9 +46,9 @@ class AuthController
 
     /**
  * Inicializa la conexión y los modelos.
- * Ya no redirige: el front controller manda al dashboard a quien tenga sesión en rutas públicas
- * y obliga a cambiar la clave provisional antes de llegar a cualquier otra ruta.
-*/
+ *
+ * El control de sesión y de clave provisional se resuelve en el front controller.
+ */
     public function __construct()
     {
         $database = new Database();
@@ -205,7 +205,7 @@ class AuthController
 
     /**
  * Muestra el formulario de cambio de clave provisional (auth/cambiarPasswordProvisional, GET).
- * Si en BD la clave ya no es provisional, limpia la marca de sesión y va al dashboard.
+ * Si la clave dejó de ser provisional en la base de datos, limpia la marca de sesión y va al dashboard.
 */
     public function cambiarPasswordProvisional(): void
     {

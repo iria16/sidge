@@ -29,8 +29,7 @@ use RuntimeException;
  * existe en el catálogo —porque el catálogo cambió entre que se abrió el
  * formulario y se guardó, o porque el JSON se armó a mano— el modelo lo
  * resolvería a NULL y escribiría la fila con el parentesco vacío en silencio.
- * Antes se documentaba como "best-effort: solo con parentesco y catálogos
- * resolubles", que es justo el comportamiento que esta regla prohíbe.
+ * Esta excepción impide ese comportamiento.
  *
  * Se lanza desde EnrollmentModel::insertFamiliares() —el único sitio que
  * escribe— para que la garantía no dependa de quién llamó. create() la

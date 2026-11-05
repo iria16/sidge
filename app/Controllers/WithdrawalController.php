@@ -33,8 +33,7 @@ class WithdrawalController extends CrudController
     protected string $routeName = 'withdrawal';
 
     /**
- * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
- * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
+ * Devuelve el modelo con su tipo concreto.
 */
     private function modelo(): WithdrawalModel
     {
@@ -171,10 +170,9 @@ class WithdrawalController extends CrudController
             && !$this->modelo()->matriculaPerteneceTurno($data['id_matricula'], $turno)) {
             $errores['id_matricula'] = 'El estudiante no pertenece a su turno asignado.';
         } elseif ($data['id_matricula'] > 0) {
-            /* La elegibilidad se comprueba AQUÍ, en el servidor, y no solo en el buscador:
-               antes el formulario mostraba "elegible=false" para un egresado o un retirado,
-               pero un POST directo se saltaba esa regla y creaba la solicitud igual. El
-               motivo lo pone el modelo, que es donde vive la máquina de estados.*/
+            /* La elegibilidad se comprueba también en el servidor: el buscador la
+               muestra, pero un POST directo no debe omitirla. El motivo lo determina
+               el modelo, que es donde vive la máquina de estados. */
             $bloqueo = $this->modelo()->bloqueoParaRetiro($data['id_matricula']);
             if ($bloqueo !== '') {
                 $errores['id_matricula'] = $bloqueo;
@@ -260,17 +258,12 @@ class WithdrawalController extends CrudController
     }
 
     /**
- * Aprueba o rechaza una solicitud pendiente.
- * Ruta: withdrawal/updateEstado (POST, responde JSON). Solo directivo.
-*/
-    /* Detalle de una solicitud de retiro (GET withdrawal/ver/{id}). El botón "ver" de la fila ya no
- lleva los datos en atributos data-: duplicar el modelo en el markup obliga a mantenerlo en dos
- lugares y se desincroniza solo. Con el id basta y los datos se piden aquí.
-
- También comprueba el turno con secretariaTieneAccesoAEstudiante(), igual que buscarEstudiante()
- y store(): sin eso, la ficha se pediría con cualquier id por la URL y una secretaria del turno
- de la tarde vería las solicitudes de la mañana. El id del estudiante no se pide aparte, viene
- en el detalle que ya se carga. */
+ * Detalle de una solicitud de retiro (GET withdrawal/ver/{id}).
+ *
+ * Recibe solo el id y carga el detalle en el servidor. También valida que la
+ * solicitud pertenezca al turno de la secretaria, igual que buscarEstudiante()
+ * y store().
+ */
     public function ver(): void
     {
         $id = (int) ($_GET['id'] ?? 0);
@@ -296,6 +289,10 @@ class WithdrawalController extends CrudController
         require __DIR__ . "/../Views/{$this->viewPath}/ver.php";
     }
 
+    /**
+ * Aprueba o rechaza una solicitud pendiente.
+ * Ruta: withdrawal/updateEstado (POST, responde JSON). Solo directivo.
+ */
     public function updateEstado(): void
     {
         // 1. Validar que la petición sea POST (aunque las rutas devuelvan 405, es buena defensa en profundidad)

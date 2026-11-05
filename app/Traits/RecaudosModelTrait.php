@@ -15,9 +15,8 @@ use Throwable;
  * La lista es el catálogo tipo_documento y se administra en Configuración; lo que el
  * representante entregó en cada caso se guarda en estudiante_documento.
  *
- * Antes el paso 5 del asistente traía la lista escrita en el archivo y, aunque se marcaba
- * "Consignado" y se escribía una observación, nada de eso se guardaba: la tabla
- * estudiante_documento estaba creada y nunca se escribió. Aquí se cierra ese hueco.
+ * El estado de cada recaudo se guarda en estudiante_documento: si fue consignado y
+ * la observación asociada.
 */
 trait RecaudosModelTrait
 {

@@ -212,8 +212,8 @@ $sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
             }
 
             /* Cerrar congela el período. Si se cierra con asuntos sin resolver, esos asuntos
- quedan sin salida: un retiro PENDIENTE ya no se puede aprobar (el año cerrado lo
- bloquea) y la solicitud moriría ahí, y un alumno de sexto sin egresar ni retiro
+ quedan sin salida: un retiro PENDIENTE no se puede aprobar en un año cerrado y la
+ solicitud quedaría bloqueada, y un alumno de sexto sin egresar ni retiro
  se quedaría colgando sin registro de a qué año pertenece. Por eso se comprueba antes
  de cerrar, que es el único momento en el que aún se puede actuar.*/
             if ($estadoDestino === 'CERRADO') {

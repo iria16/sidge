@@ -84,7 +84,7 @@ function cargarEmpleado(id) {
 /* ---------- Cascada estado -> municipio -> parroquia ----------
  La lógica vive en SIGDEWizardUI.initCascadaUbicacion(), compartida con el
  wizard de inscripciones: mismo endpoint, mismos textos y mismo
- comportamiento. Acá solo se le pasa la URL de este módulo y se conserva el
+ comportamiento. Aquí solo se le pasa la URL de este módulo y se conserva el
  handle, que usan el modal de edición y el wizard de alta.*/
 function iniciarCascadaUbicacion() {
   return SIGDEWizardUI.initCascadaUbicacion({
@@ -420,7 +420,7 @@ function pintarDetalleEmpleado(modalEl, d) {
   var iniciales = modalEl.querySelector('[data-campo-iniciales]');
   var contenedorAvatar = modalEl.querySelector('.user-detail__header .avatar');
   // El avatar ya viene decidido por AvatarTrait en el backend: foto o
-  // iniciales + color. Acá solo se refleja.
+  // iniciales + color. Aquí solo se refleja.
   var avatarTipo = d.avatar_tipo || (d.foto ? 'foto' : 'iniciales');
 
   if (iniciales) {

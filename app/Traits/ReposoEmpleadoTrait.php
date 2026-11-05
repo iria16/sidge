@@ -318,8 +318,8 @@ trait ReposoEmpleadoTrait
      * aquí porque el mensaje del servidor es el que quien lo registra entiende, y porque un
      * INSERT puede venir de un script que no pase por este controlador.
      *
-     * El solapamiento NO se comprueba acá: necesita la transacción con el bloqueo del
-     * empleado, y por eso vive en registrarReposo()/updateReposo(). Acá solo se avisa que no
+     * El solapamiento NO se comprueba aquí: necesita la transacción con el bloqueo del
+     * empleado, y por eso vive en registrarReposo()/updateReposo(). Aquí solo se avisa que no
      * se solape, que es información para cuando se muestre el formulario.
      *
      * @return array<string,string> Campo => mensaje. Vacío si todo está bien.
@@ -347,9 +347,9 @@ trait ReposoEmpleadoTrait
             }
         }
 
-        /* El motivo es opcional, pero si viene no puede ser un texto infinito: el campo es
-         VARCHAR(200) y el modo es STRICT_TRANS_TABLES, así que más largo revienta el
-         INSERT con un error que no dice nada útil. */
+        /* El motivo es opcional, pero si viene no puede superar los 200 caracteres:
+         la columna es VARCHAR(200) y el modo STRICT_TRANS_TABLES provoca un error
+         de base de datos poco descriptivo. */
         if (mb_strlen($datos['motivo'], 'UTF-8') > 200) {
             $errores['motivo'] = 'El motivo no puede pasar de 200 caracteres.';
         }
@@ -402,7 +402,7 @@ trait ReposoEmpleadoTrait
 
 
     // ---------- Contrato con BaseController ----------
-    // Sin cuerpo a propósito: declaran la firma exacta que este trait necesita de la clase
+    // Sin cuerpo de propósito: declaran la firma exacta que este trait necesita de la clase
     // que lo use, para que el editor resuelva las llamadas.
 
     abstract protected function conexion(): PDO;

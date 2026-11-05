@@ -65,9 +65,9 @@
  ser familiar" es la operación de verdad; en ratificación también y lo decide quien llama.*/
       var permitirDesactivar = config.permitirDesactivar !== false;
 
-            /* Desvincular, en vez de desactivar (hallazgo MEDIO 4.7). Solo la usa la pantalla con la
- lista ya guardada; en inscripción sigue el switch porque ahí quitar a alguien es "me
- equivoqué al escribirlo". La papelera lo reemplaza: el switch lo dejaba en el payload.*/
+            /* Desvincular, en vez de desactivar. Solo se usa en la pantalla con la
+ lista ya guardada; en inscripción sigue el switch porque al quitar a alguien se cometió un error
+ La papelera lo reemplaza: el switch lo deja en el payload.*/
       var permitirDesvinculo = config.permitirDesvinculo === true;
 
         /* ¿Se puede editar el contacto de ESTE familiar? En inscripción siempre; en ratificación solo
@@ -188,7 +188,7 @@
 
     /* Campos que identifican a la persona (nombres y fecha de nacimiento). Cuando
  la cédula ya está registrada se bloquean: son los datos con los que está en
- el sistema y no tienen sentido cambiarlos desde acá. El contacto y el
+ el sistema y no tienen sentido cambiarlos desde aquí. El contacto y el
  domicilio sí se pueden modificar, porque cambian.*/
     var CAMPOS_IDENTIDAD = [
       'familiarPrimerNombre', 'familiarSegundoNombre',
@@ -699,12 +699,12 @@
               }
             }
 
-            /* Desde acá hay datos de ESTA persona en el formulario: si la cédula se
+            /* Desde aquí hay datos de ESTA persona en el formulario: si la cédula se
  borra o se corrige, se limpian (ver revisarCedula()).*/
             cedulaCargada = documento;
 
             /* Sus datos de identidad no se tocan: ya están en el sistema y cambiarlos
- desde acá dejaría el registro inconsistente con el resto de los módulos
+ desde aquí dejaría el registro inconsistente con el resto de los módulos
  que lo usan. El contacto y el domicilio sí quedan editables, que es lo
  que realmente cambia. Esto incluye el sexo (radios + tarjetas).*/
             bloquearIdentidad(true);
@@ -1273,7 +1273,7 @@
       var faltantes = [];
 
       /* Si el contacto está apagado (familiar que ya estaba y no es representante), NO se
- pide nada: sus datos no se pueden cambiar desde acá y ya están guardados.*/
+ pide nada: sus datos no se pueden cambiar desde aquí y ya están guardados.*/
       var filaBase = filaEnEdicion();
       if (!esFallecido) {
         var contactoEditableAhora = !(filaBase && !contactoEditable(filaBase) && !esRepresentante);
@@ -1609,7 +1609,7 @@
  * fila cambiara al marcar, y ese salto es justo lo que hace dudar de si la
  * operación llegó a aplicarse.
  *
- * En el representante legal NO se usa el atributo `disabled` a propósito.
+ * En el representante legal NO se usa el atributo `disabled` de propósito.
  * El CSS del sistema pone `pointer-events:none` en `.action-btn:disabled`, y un
  * botón deshabilitado tampoco dispara click: con cualquiera de las dos cosas,
  * el clic se pierde en silencio y la secretaria no tiene forma de aprender por
@@ -1702,7 +1702,7 @@
         });
       });
 
-      /* Papelera de desvincular (hallazgo MEDIO 4.7). Va delegada sobre el tbody
+      /* Papelera de desvincular. Va delegada sobre el tbody
  porque render() rehace el HTML de las filas en cada cambio: si el listener
  se enganchara por fila, el siguiente render() lo perdería.*/
       tbodyFam.querySelectorAll('[data-desvincular]').forEach(function (btn) {
@@ -1722,7 +1722,7 @@
             return;
           }
 
-          /* El representante legal no se desvincula desde acá. No por capricho: el
+          /* El representante legal no se desvincula desde aquí. No por capricho: el
  backend lo rechaza igual (guarda 2 de sincronizarFamiliares), y es mejor
  decirlo antes que devolver un error al guardar, con el formulario entero
  ya cheio. Si es el único, el aviso lo dice explícitamente.*/

@@ -114,9 +114,9 @@ class PasswordRecoveryModel extends BaseModel implements Listable
     }
 
     /**
-     * IMPORTANTE: con PDO en modo nativo (ATTR_EMULATE_PREPARES = false) no
-     * se puede reutilizar el mismo nombre de placeholder más de una vez,
-     * aunque el valor sea idéntico — por eso :q1/:q2/:q3/:q4 en vez de :q repetido.
+     * Con PDO en modo nativo (ATTR_EMULATE_PREPARES = false) no se puede
+     * reutilizar el mismo nombre de placeholder, aunque el valor sea idéntico;
+     * por eso se usan :q1, :q2, :q3 y :q4 en lugar de :q repetido.
      */
     private function buildJoinFilters(array $filters): array
     {
@@ -131,10 +131,8 @@ class PasswordRecoveryModel extends BaseModel implements Listable
 
         $q = trim($filters['q'] ?? '');
         if ($q !== '') {
-            // Columna real en persona es numero_documento (confirmado con
-            // SHOW COLUMNS FROM persona; antes decía erróneamente
-            // nro_documento y rompía tanto el filtro de búsqueda como el
-            // detalle de la solicitud con SQLSTATE[42S22] Column not found).
+            // La columna real en persona es numero_documento; nro_documento no
+            // existe y provoca SQLSTATE[42S22] Column not found.
             $where[]      = "(u.nombre_usuario LIKE :q1 OR p.primer_nombre LIKE :q2
                               OR p.primer_apellido LIKE :q3 OR p.numero_documento LIKE :q4)";
             $like         = "%" . $this->escapeLike((string) $q) . "%";
@@ -216,9 +214,8 @@ class PasswordRecoveryModel extends BaseModel implements Listable
     }
 
     /**
-     * A diferencia de getAll(), aquí SÍ se conservan fecha_atencion y el
-     * nombre del admin que atendió — antes se perdían porque
-     * normalizarFila() no las incluía en su arreglo de salida.
+     * A diferencia de getAll(), aquí se conservan fecha_atencion y el nombre
+     * del administrador que atendió la solicitud.
      */
     public function getDetalleSolicitud(int $id): ?array
     {

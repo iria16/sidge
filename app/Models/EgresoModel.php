@@ -410,9 +410,8 @@ class EgresoModel extends BaseModel implements Listable
                 $registrados++;
                 continue;
             }
-            // Se junta el motivo de cada fallo para poder reportarlo: antes el mensaje solo
-            // decía cuántos salieron y no cuáles ni por qué, y quien carga la lista no
-            // tenía forma de saber a quién había que volver a buscar.
+            // Se guarda el motivo de cada fallo para poder reportarlo: el mensaje
+            // indica cuántos estudiantes fallaron, cuáles y por qué.
             $fallidos[] = [
                 'id'       => (int) $id,
                 'estudiante' => $this->descripcionEstudiante((int) $id),

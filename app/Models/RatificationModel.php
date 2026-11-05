@@ -523,9 +523,8 @@ class RatificationModel extends BaseModel implements Listable
                 )->execute(array_merge($vals, ['id_estudiante' => $idEstudiante]));
             }
 
-    /* Se llama SIEMPRE, incluso con la lista vacía. Antes se saltaba con un return temprano y la
- lista sin marcar salía con los contadores sin recalcular, que es justo el caso que la
- secretaria necesita ver para saber que no hay nada ratificado.*/
+            /* Se llama siempre, incluso con la lista vacía: si se omite, los
+ contadores de documentos quedan sin recalcular. */
             $this->guardarFamiliares($idEstudiante, $familiares, true);
 
             // Sincronizar vínculos de persona_estudiante en estudiante_documento si cambió el representante
@@ -730,10 +729,10 @@ es.nombre AS estado_nombre
                      LEFT JOIN nacionalidad nac      ON nac.id_nacionalidad  = p.id_nacionalidad
                  WHERE pe.id_estudiante = :id
                    /**
- * Solo las relaciones VIGENTES (hallazgo MEDIO 4.7). Lo desvinculado se marca
- * estado_relacion = INACTIVO y se conserva la fila: es un menor, y su parentesco con el
- * alumno es un hecho que no se borra porque la secretaria lo quitó de la lista.
- */
+* Solo las relaciones VIGENTES. Lo desvinculado se marca
+  * con estado_relacion = INACTIVO y se conserva la fila: es un menor, y su
+  * parentesco con el alumno es un hecho que no se borra porque la secretaria lo quitó de la lista.
+  */
                    AND pe.estado_relacion = :estado
                  ORDER BY pe.es_representante_legal DESC, p.primer_nombre, p.primer_apellido'
           );
@@ -741,11 +740,7 @@ es.nombre AS estado_nombre
 
           $filas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
-          /* Las personas que además tienen ficha propia en el plantel. Su contacto y
- su dirección están en las MISMAS filas de `contacto`/`direccion` que usa
- su expediente laboral, así que escribirlos desde acá cambiaría el
- teléfono de un empleado sin que nadie lo pidiera (hallazgo MEDIO 4.8).
- Se marca aquí para que el sub-modal desactive los campos con su aviso.*/
+/* Las personas que tienen ficha propia en el plantel. Su contacto y dirección están en las mismas filas de contacto y dirección que usa su expediente laboral, por lo que escribirlos desde aquí cambiaría el teléfono de un empleado sin que nadie lo pidiera. Se marca aquí para que el sub‑modal desactive los campos con su aviso.*/
           $ids = array_map(static fn (array $f): int => (int) $f['id_persona'], $filas);
           $conOtroRol = $this->personasConPropiaFicha($ids);
 
@@ -786,7 +781,7 @@ es.nombre AS estado_nombre
                   'estado_relacion'         => (string) $fila['estado_relacion'],
                   /* 1 = su contacto y su dirección son los mismos datos de su
  expediente laboral (o de su propia ficha de estudiante), y desde
- acá no se escriben. El sub-modal lo consulta con
+ aquí no se escriben. El sub-modal lo consulta con
  contactoEditable() para desactivar los campos y mostrar el aviso.*/
                   'contacto_bloqueado'       => 0,
 

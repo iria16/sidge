@@ -152,7 +152,7 @@ window.SIGDEWizardUI = (function () {
       var radio = tarjeta.querySelector('input[type="radio"]');
       if (radio) radio.addEventListener('change', sincronizar);
   /* Al hacer click en la tarjeta (no en el radio) se marca el radio, que dispara 'change' y reentra
- en sincronizar. El radio deshabilitado se respeta a propósito: una persona ya registrada tiene
+ en sincronizar. El radio deshabilitado se respeta de propósito: una persona ya registrada tiene
  el sexo bloqueado.*/
       tarjeta.addEventListener('click', function () {
         var input = tarjeta.querySelector('input[type="radio"]');
@@ -286,7 +286,7 @@ window.SIGDEWizardUI = (function () {
     var selEstado    = document.getElementById(opciones.estadoId);
     var selMunicipio = document.getElementById(opciones.municipioId);
     var selParroquia = document.getElementById(opciones.parroquiaId);
-    /* Se acepta el endpoint con o sin '?' final y se normaliza acá: armarlo con
+    /* Se acepta el endpoint con o sin '?' final y se normaliza aquí: armarlo con
  dos produce "?tipo=municipio" con el signo de interrogación dentro del
  nombre del parámetro, y el servidor no ve el tipo.*/
     var url = String(opciones.url || '').replace(/[?&]+$/, '');

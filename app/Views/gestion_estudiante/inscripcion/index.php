@@ -44,12 +44,9 @@ declare(strict_types=1);
  */
 
 $pageTitle       = 'Gestión de Inscripciones';
-/* Esta pantalla es SOLO del primer ingreso. La inscripción ocurre una sola vez en
- la vida del alumno en el plantel, así que lo que se lista son los ingresos.
- Antes la descripción decía "y ratificaciones anuales", y ya no corresponde: las
- ratificaciones se procesan en su propio módulo y llegan por otra vía. Con las
- dos cosas juntas en la misma pantalla, en el cierre de año la secretaria no
- sabía cuál usar para un alumno que ya estaba del año anterior.*/
+/* Esta pantalla es solo del primer ingreso. La inscripción ocurre una sola vez
+ en la vida del alumno en el plantel, así que lo que se lista son los ingresos.
+ Las ratificaciones se procesan en su propio módulo. */
 $pageDescription = 'Registra el ingreso de nuevos estudiantes al plantel. Un alumno se inscribe una sola vez; '
     . 'los que ya estaban en años anteriores se ratifican en el módulo de Ratificación.';
 $currentNav      = 'inscripcion';

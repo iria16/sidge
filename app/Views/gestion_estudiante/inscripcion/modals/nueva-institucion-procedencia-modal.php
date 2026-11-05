@@ -5,7 +5,7 @@
  * Es el mismo camino que el del wizard de empleados
  * (empleados/modals/new-institution-modal.php) sobre components/modal.php, con
  * dos diferencias: el título es «Institución» y el tipo queda limitado a las
- * etapas del sistema escolar —preescolar y escuela (primaria)—, porque acá solo
+ * etapas del sistema escolar —preescolar y escuela (primaria)—, porque aquí solo
  * se registran instituciones de procedencia de un estudiante.
  *
  * El guardado lo maneja enrollments.js (btnGuardarNuevaInstitucionProcedencia)

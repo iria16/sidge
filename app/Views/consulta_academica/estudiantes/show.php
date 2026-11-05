@@ -335,7 +335,7 @@ ob_start();
       <?php /* ── Bloque A · NÚCLEO FAMILIAR Solo quien tiene parentesco de sangre o civil, más el representante
  legal aunque su vínculo esté registrado como "Otro" (es representante
  por ley, no por sangre). Quien solo tiene un vínculo logístico —el
- transporte, el vecino de confianza— queda en el Bloque B: mezclarlo acá
+ transporte, el vecino de confianza— queda en el Bloque B: mezclarlo aquí
  lo haría parecer pariente, y es la confusión que esta separación
  evita.*/ ?>
       <?php if ($familiaresNucleo): ?>
@@ -398,12 +398,9 @@ ob_start();
       <?php endif; ?>
     </section>
 
-<?php /* Bloque B · AUTORIZADOS PARA RETIRAR. Mismo componente y mismo aspecto que el Bloque A: misma
- tarjeta content-card, misma lista y mismas filas, mismo círculo de avatar y mismo badge.
- Antes esta tarjeta se distinguía con un borde azul grueso y fondos celestes, y eso rompía
- la lectura: el mismo componente se veía de dos maneras distintas. La separación la da el
- título y el contenido, no el color. Lo único que cambia es la columna de condición: si esa
- persona es también familiar o solo está autorizada por confianza.*/ ?>
+<?php /* Bloque B · AUTORIZADOS PARA RETIRAR. Usa el mismo componente y aspecto que el
+ Bloque A: tarjeta content-card, lista, avatar y badge. La separación la da el
+ título y el contenido, no el color. Solo cambia la columna de condición. */ ?>
     <section class="content-card student-record__section mt-4" id="autorizadosRetiro"
              aria-labelledby="autorizadosRetiroHeading">
       <div class="content-card__header">

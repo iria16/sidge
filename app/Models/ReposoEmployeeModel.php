@@ -162,7 +162,7 @@ class ReposoEmployeeModel extends BaseModel implements Creatable, Updatable
 
     /**
  * ¿Hay un reposo VIGENTE solapado con el rango dado? Los reposos CERRADO y ANULADO se
- * ignoran a propósito: ya no ocupan agenda.
+ * ignoran de propósito: ya no ocupan agenda.
  */
     public function haySolapamiento(int $idEmpleado, string $fechaInicio, string $fechaFin, ?int $ignorarId = null): ?array
     {

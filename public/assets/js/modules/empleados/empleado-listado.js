@@ -93,7 +93,7 @@ function pintarDetalleEmpleado(modalEl, d) {
   };
 
   /* La dirección la trae YA redactada el servidor (App\Support\Direccion, la misma
-     que usa Listados y Actas y el PDF del expediente). Antes se recomponía acá con
+     que usa Listados y Actas y el PDF del expediente). Antes se recomponía aquí con
      los mismos prefijos, y con un campo faltando el modal mostraba algo distinto
      de lo que mostraba la edición: la cuarta copia de la regla, en el navegador.
      Por si el servidor llegara sin el campo, se arma igual y no se pierde nada. */
@@ -149,7 +149,7 @@ function pintarDetalleEmpleado(modalEl, d) {
   var iniciales = modalEl.querySelector('[data-campo-iniciales]');
   var contenedorAvatar = modalEl.querySelector('.user-detail__header .avatar');
   // El avatar ya viene decidido por AvatarTrait en el backend: foto o
-  // iniciales + color. Acá solo se refleja.
+  // iniciales + color. Aquí solo se refleja.
   var avatarTipo = d.avatar_tipo || (d.foto ? 'foto' : 'iniciales');
 
   if (iniciales) {

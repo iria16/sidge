@@ -43,7 +43,7 @@ final class PdfRecursos
     /**
      * Devuelve el CSS del documento.
      *
-     * El CSS se devuelve como texto y no como <link> a propósito: Dompdf resuelve
+     * El CSS se devuelve como texto y no como <link> de propósito: Dompdf resuelve
      * un <link> contra su chroot y falla silenciosamente si la ruta no coincide
      * con el sistema de archivos del servidor. Leer el archivo y embeberlo evita
      * depender de cómo esté montado public/.
@@ -63,7 +63,7 @@ final class PdfRecursos
     /**
      * Construye las opciones de Dompdf compartidas por todos los documentos.
      *
-     * isRemoteEnabled queda en false a propósito: el documento nunca debe ir a
+     * isRemoteEnabled queda en false de propósito: el documento nunca debe ir a
      * buscar nada a la red. Los logos, la firma y el sello llegan como Data URI,
      * que es la única forma de que una imagen llegue al PDF sin depender de que
      * el servidor pueda leer el archivo por ruta.

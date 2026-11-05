@@ -13,7 +13,7 @@ declare(strict_types=1);
   <?php
     /* Esta pantalla es de ratificación, y el número que importa es cuántos de los
  que ya estaban en el plantel todavía no tienen matrícula para el año que
- viene. Los que hay que INSCRIBIR no se cuentan acá: no son un pendiente de
+ viene. Los que hay que INSCRIBIR no se cuentan aquí: no son un pendiente de
  esta pantalla, se gestionan en el módulo de Inscripción, y mezclarlos hacía
  que el número de "por ratificar" fuera más grande de lo que realmente era y
  que en el cierre de año no se supiera con qué lista trabajar.*/

@@ -59,7 +59,7 @@ final class Matriculas
     /**
      * Los cuatro tipos, y nada más.
      *
-     * La lista es cerrada a propósito. Un valor que ninguna regla puede alcanzar
+     * La lista es cerrada de propósito. Un valor que ninguna regla puede alcanzar
      * es una trampa: queda disponible, alguien lo usa, y después nadie sabe qué
      * pasó. Por eso el `TRASLADADO` que había antes no está.
      *
@@ -192,8 +192,8 @@ final class Matriculas
      *     se retira, su fila del año sigue ahí, con su tipo de cursada, porque no
      *     se toca el historial. Si el conteo se quedara con "tiene alguna fila
      *     activa", ese alumno seguiría ocupando el puesto para siempre y la
-     *     sección nunca liberaría el lugar. Lo mismo con el que se ratifica al año
-     *     siguiente: ya no está en la sección de antes.
+     *     sección nunca liberaría el lugar. Lo mismo con el que se ratifica al
+     *     año siguiente y deja de pertenecer a la sección anterior.
      *
      * Está como texto y no como método que arme la consulta entera porque la usan
      *     dos sitios con_SELECT distintos (el conteo de cupos y el conteo de
