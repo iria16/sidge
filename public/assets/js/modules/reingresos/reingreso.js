@@ -40,6 +40,19 @@ document.addEventListener('DOMContentLoaded', function () {
     if (contenedorCampos) contenedorCampos.classList.add('d-none');
     if (btnGuardar) btnGuardar.disabled = true;
     marcarFaltaEstudiante(false);
+
+    var avisoCupos = document.getElementById('reingresoAvisoCupos');
+    if (avisoCupos) avisoCupos.classList.add('d-none');
+
+    // Restaurar opciones del select
+    if (selEstructura) {
+      selEstructura.value = '';
+      Array.from(selEstructura.options).forEach(function (opt) {
+        opt.hidden = false;
+        var cupos = parseInt(opt.dataset.disponibles || '0', 10);
+        opt.disabled = !opt.value || cupos <= 0;
+      });
+    }
   };
 
   var avisar = function (html) {
@@ -87,9 +100,51 @@ document.addEventListener('DOMContentLoaded', function () {
     ponerTexto('reingresoDatosGrado', item.ultimo_grado + ' — Sección "' + item.ultima_seccion + '" (' + item.ultimo_turno + ')');
     ponerTexto('reingresoDatosRetiro', item.anio_retiro + ' · Fecha: ' + item.fecha_retiro + ' (Motivo: ' + item.motivo_retiro + ')');
 
+    // Regla de negocio: No permitir reingreso en grados inferiores al que cursaba antes de retirarse
+    var ordinalRetiro = parseInt(item.ordinal_grado || (function () {
+      var m = (item.ultimo_grado || '').match(/\d+/);
+      return m ? m[0] : 0;
+    })(), 10);
+
+    if (selEstructura) {
+      selEstructura.value = '';
+      var opcionesValidas = 0;
+
+      Array.from(selEstructura.options).forEach(function (opt) {
+        if (!opt.value) return; // Opción por defecto
+        var optOrdinal = parseInt(opt.dataset.ordinal || (function () {
+          var m = (opt.textContent || '').match(/\d+/);
+          return m ? m[0] : 0;
+        })(), 10);
+        var cupos = parseInt(opt.dataset.disponibles || '0', 10);
+
+        // Si el grado de la sección es inferior al grado previo retirado, se oculta y deshabilita
+        if (optOrdinal < ordinalRetiro) {
+          opt.hidden = true;
+          opt.disabled = true;
+        } else {
+          opt.hidden = false;
+          opt.disabled = cupos <= 0;
+          if (cupos > 0) opcionesValidas++;
+        }
+      });
+
+      var avisoCupos = document.getElementById('reingresoAvisoCupos');
+      var avisoTexto = document.getElementById('reingresoAvisoCuposTexto');
+      if (avisoCupos && avisoTexto) {
+        if (opcionesValidas === 0) {
+          avisoTexto.textContent = 'No hay cupos disponibles en ' + (item.ultimo_grado || 'su grado') + ' ni en grados superiores.';
+          avisoCupos.classList.remove('d-none');
+          if (btnGuardar) btnGuardar.disabled = true;
+        } else {
+          avisoCupos.classList.add('d-none');
+          if (btnGuardar) btnGuardar.disabled = false;
+        }
+      }
+    }
+
     if (panelDatos) panelDatos.classList.remove('d-none');
     if (contenedorCampos) contenedorCampos.classList.remove('d-none');
-    if (btnGuardar) btnGuardar.disabled = false;
 
     if (cajaResultados) {
       cajaResultados.classList.add('d-none');

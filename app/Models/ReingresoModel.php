@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Exceptions\AnioEscolarCerradoException;
+use App\Support\Instituciones;
 use App\Support\Matriculas;
 use App\Traits\CupoEstructuraTrait;
 use DateTime;
@@ -195,6 +196,7 @@ class ReingresoModel extends BaseModel
             'nombre'         => trim((string) ($fila['nombre'] ?? '')) ?: 'Estudiante',
             'cedula'         => $fila['cedula'] ?? '—',
             'ultimo_grado'   => $fila['grado'] ?? '—',
+            'ordinal_grado'  => Instituciones::ordinalGrado((string) ($fila['grado'] ?? '')),
             'ultima_seccion' => $fila['seccion'] ?? '—',
             'ultimo_turno'   => $fila['turno'] ?? '—',
             'anio_retiro'    => $fila['anio'] ?? '—',
@@ -467,10 +469,13 @@ class ReingresoModel extends BaseModel
 
             // 2. Obtener y validar la matrícula de retiro previa
             $stmtRetiro = $this->pdo->prepare(
-                "SELECT m.id_matricula, m.tipo, m.id_anio_escolar, r.id_retiro, r.estado_solicitud, an.anio_inicio AS anio_inicio_retiro
+                "SELECT m.id_matricula, m.tipo, m.id_anio_escolar, r.id_retiro, r.estado_solicitud, an.anio_inicio AS anio_inicio_retiro,
+                        COALESCE(g.nombre, '') AS ultimo_grado
                    FROM matricula m
                    INNER JOIN anio_escolar an ON an.id_anio_escolar = m.id_anio_escolar
                    LEFT JOIN retiro r ON r.id_matricula = m.id_matricula
+                   LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
+                   LEFT JOIN grado g ON g.id_grado = ea.id_grado
                   WHERE m.id_estudiante = :id
                   ORDER BY an.anio_inicio DESC, m.id_matricula DESC
                   LIMIT 1
@@ -495,6 +500,15 @@ class ReingresoModel extends BaseModel
             if ($anioInicioActivo < $anioInicioRetiro) {
                 throw new RuntimeException(
                     'El año escolar del reingreso no puede ser anterior al año escolar en que se retiró el estudiante.'
+                );
+            }
+
+            // Validar que el grado de destino no sea inferior al cursado antes del retiro
+            $ordinalRetiro = Instituciones::ordinalGrado((string) ($ultimo['ultimo_grado'] ?? ''));
+            $ordinalDestino = Instituciones::ordinalGrado((string) ($disponibilidad['grado'] ?? ''));
+            if ($ordinalRetiro !== null && $ordinalDestino !== null && $ordinalDestino < $ordinalRetiro) {
+                throw new RuntimeException(
+                    "No se permite reingreso en un grado inferior ({$disponibilidad['grado']}) al grado cursado antes del retiro ({$ultimo['ultimo_grado']})."
                 );
             }
 

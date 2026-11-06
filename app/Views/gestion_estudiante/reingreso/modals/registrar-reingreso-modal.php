@@ -66,14 +66,23 @@ ob_start();
           <i class="bi bi-diagram-3" aria-hidden="true"></i>
           <select class="form-select" id="reingresoEstructura" name="id_estructura_academica" required>
             <option value="" selected disabled>Seleccione grado y sección...</option>
-            <?php foreach ($estructuras as $est): ?>
-              <option value="<?= (int) $est['id_estructura_academica'] ?>" <?= ($est['disponibles'] <= 0) ? 'disabled' : '' ?>>
+            <?php foreach ($estructuras as $est): 
+              $ord = \App\Support\Instituciones::ordinalGrado((string) ($est['grado'] ?? ''));
+            ?>
+              <option value="<?= (int) $est['id_estructura_academica'] ?>"
+                      data-ordinal="<?= (int) ($ord ?? 0) ?>"
+                      data-disponibles="<?= (int) $est['disponibles'] ?>"
+                      <?= ($est['disponibles'] <= 0) ? 'disabled' : '' ?>>
                 <?= htmlspecialchars($est['nombre']) ?> (<?= (int) $est['disponibles'] ?> cupos disponibles)
               </option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="invalid-feedback">Debe seleccionar una sección con cupo disponible.</div>
+        <div id="reingresoAvisoCupos" class="alert alert-warning py-2 px-3 small d-none mt-2 d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+          <span id="reingresoAvisoCuposTexto"></span>
+        </div>
       </div>
 
       <!-- Fecha de reincorporación -->
