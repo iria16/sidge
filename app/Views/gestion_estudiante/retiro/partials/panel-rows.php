@@ -60,7 +60,7 @@ declare(strict_types=1);
             title="Ver solicitud">
             <i class="bi bi-eye"></i>
           </button>
-          <?php if ($estado === 'aprobado' && !empty($item['id_estudiante'])): ?>
+          <?php if ($puedeRegistrar && $estado === 'aprobado' && !empty($item['id_estudiante'])): ?>
             <button type="button"
               class="action-btn action-btn--success btn-abrir-reingreso"
               data-id-estudiante="<?= (int) $item['id_estudiante'] ?>"

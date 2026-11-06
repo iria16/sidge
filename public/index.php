@@ -291,8 +291,8 @@ $rutasPermitidas = [
         'delete' => ['directivo', 'secretaria']
     ],
     'reingreso' => [
-        'datos'   => ['directivo', 'secretaria'],
-        'guardar' => ['directivo', 'secretaria']
+        'datos'   => ['secretaria'],
+        'guardar' => ['secretaria']
     ],
     'estudiantes' => [
         'index' => ['directivo', 'coordinador', 'secretaria', 'docente'],
