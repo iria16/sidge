@@ -100,7 +100,6 @@ $pageContent = ob_get_clean();
 ob_start();
 include __DIR__ . '/modals/registrar-retiro-modal.php';
 include __DIR__ . '/modals/detalle-retiro-modal.php';
-include __DIR__ . '/modals/reingreso-modal.php';
 $pageModals = ob_get_clean();
 
 require __DIR__ . '/../../layouts/app.php';

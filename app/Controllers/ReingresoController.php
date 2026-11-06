@@ -19,19 +19,65 @@ class ReingresoController extends BaseController
     }
 
     /**
-     * Muestra la vista principal de Reingreso con el listado de retirados elegibles.
+     * Muestra la vista principal de Reingreso con el historial de reincorporaciones y estadísticas.
      */
     public function index(): void
     {
         try {
-            $busqueda = trim((string) ($_GET['q'] ?? ''));
+            $filters = [
+                'q' => trim((string) ($_GET['q'] ?? '')),
+            ];
+            $pagina = max(1, (int) ($_GET['pagina'] ?? 1));
+
             /** @var ReingresoModel $model */
             $model = $this->getModel();
-            $retirados = $model->getRetiradosElegibles($busqueda !== '' ? $busqueda : null);
+            $turno = $this->turnoSecretariaActual();
+
+            $stats = $model->getStats($turno);
+            $resultado = $model->listarReingresos($filters, $pagina, 10, $turno);
+            $solicitudes = $resultado['solicitudes'];
+            $paginacion = $resultado['paginacion'];
+
+            // Estructuras académicas del año activo con cupos disponibles para el modal
+            $estructuras = $model->estructurasConCupo($turno);
+
+            // Instituciones de procedencia activas
+            $stmtInst = $this->pdo->query(
+                "SELECT id_institucion, nombre FROM institucion WHERE estado = 'ACTIVO' ORDER BY nombre"
+            );
+            $instituciones = $stmtInst->fetchAll(PDO::FETCH_ASSOC);
 
             require __DIR__ . '/../Views/gestion_estudiante/reingreso/index.php';
         } catch (Throwable $e) {
             $this->handleError($e, static::class);
+        }
+    }
+
+    /**
+     * Busca estudiantes por cédula o nombre para el modal de reingreso (AJAX GET).
+     */
+    public function buscarEstudiante(): void
+    {
+        $termino = trim((string) ($_GET['q'] ?? ''));
+        if (mb_strlen($termino, 'UTF-8') < 3) {
+            $this->jsonResponse(true, ['resultados' => [], 'aviso' => null, 'esperando' => true], null);
+            return;
+        }
+
+        try {
+            /** @var ReingresoModel $model */
+            $model = $this->getModel();
+            $this->jsonResponse(true, [
+                'resultados' => $model->buscarPorDocumento(
+                    $termino,
+                    10,
+                    $this->turnoSecretariaActual()
+                ),
+                'aviso'      => null,
+                'esperando'  => false,
+            ]);
+        } catch (Throwable $e) {
+            $this->jsonError($e, static::class);
         }
     }
 

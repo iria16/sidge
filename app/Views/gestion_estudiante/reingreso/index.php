@@ -4,133 +4,87 @@ declare(strict_types=1);
 
 /**
  * Vista: gestion_estudiante/reingreso/index.php
- * Listado de estudiantes con retiro aprobado candidatos a reincorporación escolar.
+ * Gestión y formalización de reincorporaciones de estudiantes retirados al año escolar activo.
  *
- * @var array $retirados
- * @var string $busqueda
+ * @var array{reingresos_activos: int, retirados_elegibles: int} $stats
+ * @var array<int, array<string, mixed>> $solicitudes
+ * @var array{q: string} $filters
+ * @var array{desde: int, hasta: int, total: int, pagina_actual: int, total_paginas: int} $paginacion
+ * @var array<int, array{id_estructura_academica: int, nombre: string, cupos_disponibles: int}> $estructuras
+ * @var array<int, array{id_institucion: int, nombre: string}> $instituciones
  */
 
-$pageTitle       = 'Reingreso Escolar';
-$pageDescription = 'Estudiantes desincorporados que pueden ser reincorporados a la matrícula activa en el período en curso.';
+$pageTitle       = 'Reingresos';
+$pageDescription = 'Gestión y formalización de reincorporaciones de estudiantes retirados.';
 $currentNav      = 'reingreso';
-$extraScripts    = ['/js/modules/retiros/withdrawals.js'];
-
+$extraScripts    = ['/js/modules/reingresos/reingreso.js'];
 $breadcrumbs = [
     ['label' => 'Gestión de estudiantes', 'href' => null],
-    ['label' => 'Reingreso Escolar', 'href' => null],
+    ['label' => 'Reingreso', 'href' => null],
 ];
-
-$retirados = $retirados ?? [];
-$busqueda  = $busqueda ?? '';
+$stats          = $stats ?? ['reingresos_activos' => 0, 'retirados_elegibles' => 0];
+$solicitudes    = $solicitudes ?? [];
+$filters        = $filters ?? ['q' => ''];
+$paginacion     = $paginacion ?? [
+    'desde' => 0, 'hasta' => 0, 'total' => 0, 'pagina_actual' => 1, 'total_paginas' => 1,
+];
+$estructuras    = $estructuras ?? [];
+$instituciones  = $instituciones ?? [];
 
 ob_start();
+
+  // ---------- Page header ----------
+  ob_start();
+  ?>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrarReingresoModal">
+      <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i> Registrar Reingreso
+    </button>
+  <?php
+  $pageHeaderActions = ob_get_clean();
+  $pageHeading    = 'Reingresos Escolares';
+  $pageSubheading = $pageDescription;
+  include __DIR__ . '/../../components/page-header.php';
 ?>
-<div class="d-flex flex-column gap-4">
 
-  <!-- Header con buscador -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-3">
-      <form method="GET" action="<?= BASE_URL ?>reingreso/index" class="row g-2 align-items-center">
-        <div class="col-md-6 col-lg-5">
-          <div class="input-icon-group">
-            <i class="bi bi-search" aria-hidden="true"></i>
-            <input type="search" name="q" class="form-control"
-                   placeholder="Buscar por nombre, apellido o cédula..."
-                   value="<?= htmlspecialchars($busqueda) ?>">
-          </div>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-filter me-1"></i> Filtrar
-          </button>
-          <?php if ($busqueda !== ''): ?>
-            <a href="<?= BASE_URL ?>reingreso/index" class="btn btn-outline-secondary">Limpiar</a>
-          <?php endif; ?>
-        </div>
-      </form>
-    </div>
-  </div>
+<?php include __DIR__ . '/partials/stat-cards.php'; ?>
 
-  <!-- Panel de Datos -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-      <h6 class="mb-0 fw-bold d-flex align-items-center gap-2">
-        <i class="bi bi-arrow-counterclockwise text-primary"></i>
-        <span>Estudiantes Retirados Disponibles para Reincorporación (<?= count($retirados) ?>)</span>
-      </h6>
-    </div>
+<?php
+  // ---------- Data panel: filtros ----------
+  $panelFormAction = BASE_URL . 'reingreso/index';
 
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light text-uppercase small text-secondary">
-          <tr>
-            <th scope="col" style="min-width: 220px;">Estudiante</th>
-            <th scope="col">Antecedente Escolar</th>
-            <th scope="col">Período Retiro</th>
-            <th scope="col">Fecha Retiro</th>
-            <th scope="col">Motivo</th>
-            <th scope="col" class="text-center" style="width: 140px;">Acción</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($retirados)): ?>
-            <tr>
-              <td colspan="6" class="text-center text-secondary py-5">
-                <i class="bi bi-info-circle fs-3 d-block mb-2 text-muted"></i>
-                No se encontraron estudiantes retirados pendientes de reincorporación.
-              </td>
-            </tr>
-          <?php else: ?>
-            <?php foreach ($retirados as $item): ?>
-              <tr>
-                <td>
-                  <div class="d-flex align-items-center gap-2">
-                    <div class="avatar avatar--sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 0.85rem; font-weight: 600;">
-                      <?= htmlspecialchars(mb_strtoupper(mb_substr($item['nombre_completo'] ?? 'E', 0, 1))) ?>
-                    </div>
-                    <div>
-                      <div class="fw-semibold text-dark"><?= htmlspecialchars($item['nombre_completo'] ?? '—') ?></div>
-                      <span class="text-secondary small"><?= htmlspecialchars($item['documento'] ?? '—') ?></span>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <span class="fw-medium text-dark"><?= htmlspecialchars($item['ultimo_grado'] ?? '—') ?></span><br>
-                  <span class="text-secondary small">Sección <?= htmlspecialchars($item['ultima_seccion'] ?? '—') ?> (<?= htmlspecialchars($item['ultimo_turno'] ?? '—') ?>)</span>
-                </td>
-                <td>
-                  <span class="badge bg-light text-dark border"><?= htmlspecialchars($item['anio_retiro'] ?? '—') ?></span>
-                </td>
-                <td>
-                  <span class="small text-secondary"><?= !empty($item['fecha_retiro']) ? date('d/m/Y', strtotime($item['fecha_retiro'])) : '—' ?></span>
-                </td>
-                <td>
-                  <span class="text-dark small"><?= htmlspecialchars($item['motivo_retiro'] ?? '—') ?></span>
-                </td>
-                <td class="text-center">
-                  <button type="button"
-                          class="btn btn-sm btn-outline-success btn-abrir-reingreso d-inline-flex align-items-center gap-1"
-                          data-id-estudiante="<?= (int) $item['id_estudiante'] ?>"
-                          title="Reincorporar estudiante">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                    <span>Reincorporar</span>
-                  </button>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  $panelSearchName        = 'q';
+  $panelSearchValue       = (string) ($filters['q'] ?? '');
+  $panelSearchPlaceholder = 'Buscar por nombre o cédula...';
 
-</div>
+  // ---------- Data panel: colgroup / thead / tbody ----------
+  ob_start();
+  include __DIR__ . '/partials/panel-colgroup.php';
+  $panelColgroup = ob_get_clean();
+
+  ob_start();
+  include __DIR__ . '/partials/panel-head.php';
+  $panelTableHead = ob_get_clean();
+
+  ob_start();
+  include __DIR__ . '/partials/panel-rows.php';
+  $panelTableBody = ob_get_clean();
+
+  $panelSummary = 'Mostrando ' . (int) $paginacion['desde'] . ' a ' . (int) $paginacion['hasta']
+                . ' de ' . (int) $paginacion['total'] . ' reingresos';
+  $panelPagination = [
+      'pagina_actual' => $paginacion['pagina_actual'],
+      'total_paginas' => $paginacion['total_paginas'],
+  ];
+
+  include __DIR__ . '/../../components/data-panel.php';
+?>
+
 <?php
 $pageContent = ob_get_clean();
 
-// Modales requeridos
+// ---------- Modales ----------
 ob_start();
-include __DIR__ . '/../retiro/modals/reingreso-modal.php';
+include __DIR__ . '/modals/registrar-reingreso-modal.php';
 $pageModals = ob_get_clean();
 
 require __DIR__ . '/../../layouts/app.php';
