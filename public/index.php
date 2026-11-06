@@ -290,6 +290,10 @@ $rutasPermitidas = [
         'updateStatus' => ['directivo'],
         'delete' => ['directivo', 'secretaria']
     ],
+    'reingreso' => [
+        'datos'   => ['directivo', 'secretaria'],
+        'guardar' => ['directivo', 'secretaria']
+    ],
     'estudiantes' => [
         'index' => ['directivo', 'coordinador', 'secretaria', 'docente'],
         'show' => ['directivo', 'coordinador', 'secretaria', 'docente'],
@@ -388,6 +392,7 @@ $accionesSoloPost = [
     'inscripciones' => ['store', 'evaluarRecaudos', 'guardarInstitucion'],
     'egresos' => ['graduar', 'graduarMasivo'],
     'ratificacion' => ['ratificar', 'updateEstudiante'],
+    'reingreso' => ['guardar'],
     'configuracionInstitucional' => ['guardar', 'subirImagen', 'quitarImagen', 'restablecerOficial'],
     'resultadoAcademico' => ['guardarPropuesta', 'confirmar'],
     'docente' => ['guardarEnlaceWhatsapp'],
@@ -543,6 +548,7 @@ $mapaControladores = [
     'notificacion' => 'Notification',
     'perfil' => 'Profile',
     'ratificacion' => 'Ratification',
+    'reingreso' => 'Reingreso',
     'recuperacionAcceso' => 'PasswordRecovery',
     'resultadoAcademico' => 'AcademicResult',
 ];

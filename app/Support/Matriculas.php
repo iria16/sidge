@@ -91,11 +91,12 @@ final class Matriculas
     }
 
     /**
-     * ¿Este tipo cierra el ciclo?
+     * ¿Este tipo cierra el ciclo permanentemente?
+     * Solo EGRESO (culminar 6to grado) es terminal absoluto; el RETIRO admite reingreso posterior.
      */
     public static function esFinal(?string $tipo): bool
     {
-        return $tipo !== null && in_array($tipo, self::tiposFinales(), true);
+        return $tipo === self::EGRESO;
     }
 
     /**
@@ -122,10 +123,17 @@ final class Matriculas
             return false;
         }
 
-        // Un estado final no admite nada más: ni otra ratificación, ni un egreso
-        // "por las dudas". Se cierra y se queda cerrado.
-        if (self::esFinal($actual)) {
+        // El egreso de 6to grado es el único estado final absoluto: culminó la primaria,
+        // no admite más matrículas.
+        if ($actual === self::EGRESO) {
             return false;
+        }
+
+        // Un estudiante retirado puede reincorporarse/reingresar bajo la modalidad de
+        // continuidad (RATIFICACION). No admite nueva inscripción (la inscripción es única),
+        // ni otro retiro o egreso directo.
+        if ($actual === self::RETIRO) {
+            return $nuevo === self::RATIFICACION;
         }
 
         // INSCRIPCION y RATIFICACION comparten lo que puede seguirles: continuar,
@@ -151,9 +159,16 @@ final class Matriculas
             return "Un estudiante sin inscripción previa no se ratifica: corresponde inscribirlo. "
                 . "La ratificación es solo para alumnos que ya estaban.";
         }
-        if (self::esFinal($actual)) {
-            $cierre = $actual === self::EGRESO ? 'egresó' : 'se retiró';
-            return "El ciclo de este estudiante ya se cerró ($cierre). No admite más matrículas.";
+        if ($actual === self::EGRESO) {
+            return "El ciclo de este estudiante culminó por egreso (graduado de 6to grado). No admite más matrículas.";
+        }
+        if ($actual === self::RETIRO) {
+            if ($nuevo === self::INSCRIPCION) {
+                return "El estudiante ya tiene expediente en el plantel: para reincorporarlo corresponde un reingreso, no una nueva inscripción.";
+            }
+            if (in_array($nuevo, [self::RETIRO, self::EGRESO], true)) {
+                return "El estudiante ya se encuentra retirado.";
+            }
         }
         if ($nuevo === self::INSCRIPCION) {
             return 'La inscripción ocurre una sola vez en toda la vida escolar del alumno: '

@@ -52,6 +52,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  sin inventar un dato. */
         $sql = "SELECT r.id_retiro AS id, r.estado_solicitud AS estado,
                        r.observaciones AS observaciones, r.fecha_solicitud AS fecha_solicitud,
+                       e.id_estudiante AS id_estudiante,
                        CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS estudiante,
                        CONCAT(p.tipo_documento, '-', p.numero_documento) AS cedula,
                        g.nombre AS grado, s.nombre AS seccion, mr.nombre AS motivo,

@@ -375,4 +375,142 @@ var buscar = SIGDEUI.esDebounced(400, function () {
       });
     });
   }
+
+  /* ============================================================
+     REINGRESO / REINCORPORACIÓN DE ESTUDIANTE RETIRADO
+     ============================================================ */
+  var reingresoModal = document.getElementById('reingresoModal');
+  var formReingreso = document.getElementById('formReingreso');
+  var reingresoCargando = document.getElementById('reingresoCargando');
+  var reingresoContenido = document.getElementById('reingresoContenido');
+
+  document.querySelectorAll('.btn-abrir-reingreso').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var idEstudiante = button.dataset.idEstudiante;
+      if (!idEstudiante) return;
+
+      if (reingresoCargando) reingresoCargando.classList.remove('d-none');
+      if (reingresoContenido) reingresoContenido.classList.add('d-none');
+      if (formReingreso) formReingreso.reset();
+
+      SIGDEUI.mostrarModal(reingresoModal);
+
+      fetch('/reingreso/datos?id=' + encodeURIComponent(idEstudiante), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (res) {
+          if (!res.ok || !res.data) {
+            throw new Error(res.mensaje || 'Error al obtener antecedentes');
+          }
+
+          var est = res.data.estudiante || {};
+          var estructuras = res.data.estructuras || [];
+          var instituciones = res.data.instituciones || [];
+
+          var inputId = document.getElementById('reingresoIdEstudiante');
+          if (inputId) inputId.value = est.id_estudiante || '';
+          
+          var elNombre = document.getElementById('reingresoNombre');
+          if (elNombre) elNombre.textContent = ((est.primer_nombre || '') + ' ' + (est.primer_apellido || '')).trim() || '—';
+          
+          var elDoc = document.getElementById('reingresoDocumento');
+          if (elDoc) elDoc.textContent = est.documento || '—';
+          
+          var elGradoPrev = document.getElementById('reingresoGradoPrevio');
+          if (elGradoPrev) elGradoPrev.textContent = (est.ultimo_grado || '') + ' (Sección ' + (est.ultima_seccion || '') + ')';
+          
+          var elFechaRetiro = document.getElementById('reingresoFechaRetiro');
+          if (elFechaRetiro) elFechaRetiro.textContent = est.fecha_retiro || '—';
+          
+          var elMotivo = document.getElementById('reingresoMotivoRetiro');
+          if (elMotivo) elMotivo.textContent = est.motivo_retiro || '—';
+
+          var selEst = document.getElementById('reingresoEstructura');
+          if (selEst) {
+            selEst.innerHTML = '<option value="">Seleccione el grado y sección...</option>';
+            estructuras.forEach(function (ea) {
+              var disponibles = ea.capacidad_maxima - ea.ocupados;
+              var opt = document.createElement('option');
+              opt.value = ea.id_estructura_academica;
+              opt.textContent = ea.grado + ' - Sección ' + ea.seccion + ' (' + ea.turno + ') — [' + disponibles + ' cupos disponibles]';
+              if (disponibles <= 0) {
+                opt.disabled = true;
+                opt.textContent += ' (Lleno)';
+              }
+              selEst.appendChild(opt);
+            });
+          }
+
+          var selInst = document.getElementById('reingresoInstitucion');
+          if (selInst) {
+            selInst.innerHTML = '<option value="">Ninguno / Retorno directo</option>';
+            instituciones.forEach(function (inst) {
+              var opt = document.createElement('option');
+              opt.value = inst.id_institucion;
+              opt.textContent = inst.nombre;
+              selInst.appendChild(opt);
+            });
+          }
+
+          if (reingresoCargando) reingresoCargando.classList.add('d-none');
+          if (reingresoContenido) reingresoContenido.classList.remove('d-none');
+        })
+        .catch(function (err) {
+          SIGDEUI.ocultarModal(reingresoModal);
+          SIGDEUI.mostrarError(err.message || 'No se pudieron consultar los datos del estudiante.');
+        });
+    });
+  });
+
+  if (formReingreso) {
+    formReingreso.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var idEstudiante = (document.getElementById('reingresoIdEstudiante') || {}).value;
+      var idEstructura = (document.getElementById('reingresoEstructura') || {}).value;
+      var motivo = ((document.getElementById('reingresoMotivo') || {}).value || '').trim();
+
+      if (!idEstudiante || !idEstructura || !motivo) {
+        SIGDEUI.mostrarAviso('warning', 'Campos requeridos', 'Por favor complete el grado/sección y el motivo del reingreso.');
+        return;
+      }
+
+      SIGDEUI.confirmar({
+        icono: 'question',
+        titulo: '¿Formalizar reincorporación?',
+        texto: 'El estudiante será matriculado nuevamente como alumno activo en la sección seleccionada.',
+        confirmar: 'Sí, reincorporar'
+      }).then(function (confirmado) {
+        if (!confirmado) return;
+
+        var btn = document.getElementById('btnGuardarReingreso');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Procesando...';
+
+        var formData = new FormData(formReingreso);
+        var params = new URLSearchParams(formData);
+
+        SIGDEUI.enviar('/reingreso/guardar', { metodo: 'POST', cuerpo: params })
+          .then(function (res) {
+            if (!res.ok || !res.data.ok) {
+              SIGDEUI.mostrarAviso('error', 'No se pudo reincorporar', (res.data && res.data.mensaje) || 'Error al procesar reincorporación.');
+              return;
+            }
+
+            SIGDEUI.mostrarExito('¡Reincorporación exitosa!', 'El estudiante ha sido reingresado como alumno activo.');
+            setTimeout(function () {
+              window.location.reload();
+            }, 1200);
+          })
+          .catch(function () {
+            SIGDEUI.mostrarError('Error de comunicación con el servidor.');
+          })
+          .finally(function () {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Formalizar Reingreso';
+          });
+      });
+    });
+  }
 });

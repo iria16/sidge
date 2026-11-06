@@ -25,8 +25,16 @@ trait RetiradoTrait
     private static function retiradoSql(string $aliasMatricula = 'm'): string
     {
         return "EXISTS (SELECT 1 FROM matricula mr
+                        INNER JOIN anio_escolar anr ON anr.id_anio_escolar = mr.id_anio_escolar
                         WHERE mr.id_estudiante = {$aliasMatricula}.id_estudiante
-                          AND mr.tipo = 'RETIRO')";
+                          AND mr.tipo = 'RETIRO'
+                          AND NOT EXISTS (
+                              SELECT 1 FROM matricula mp
+                              INNER JOIN anio_escolar anp ON anp.id_anio_escolar = mp.id_anio_escolar
+                              WHERE mp.id_estudiante = mr.id_estudiante
+                                AND (anp.anio_inicio > anr.anio_inicio
+                                     OR (anp.anio_inicio = anr.anio_inicio AND mp.id_matricula > mr.id_matricula))
+                          ))";
     }
 
 }
