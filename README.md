@@ -125,10 +125,9 @@ los cambios de estructura que también aparecen como migraciones incrementales.
 Los archivos SQL conservan los catálogos de referencia, pero omiten usuarios, personas,
 matrículas y demás datos operativos. La instalación debe provisionar una cuenta inicial
 y configurar la institución antes de habilitar el uso normal.
-El procedimiento de instalación, publicación y alta del administrador inicial está en
-[docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
-La raíz del servidor web debe apuntar a `public/`; la guía de despliegue explica la
-configuración para Apache y Nginx.
+El procedimiento de instalación, publicación y alta del administrador inicial está
+documentado en `docs/DESPLIEGUE.md` (pendiente de agregar al repositorio).
+La raíz del servidor web debe apuntar a `public/`.
 
 `database/migrations/` contiene una línea base histórica y cambios incrementales:
 
@@ -284,5 +283,4 @@ que se editó la hoja compilada a mano en vez del SCSS, o que se borró
 `.gitignore` a propósito: son datos personales y no deben entrar al repositorio.
 El código crea la carpeta raíz y sus subcarpetas cuando las necesita; el usuario
 del servidor web debe tener permiso de escritura en `public/` para crearlas y
-guardar archivos. La guía de [despliegue](docs/DESPLIEGUE.md) explica cómo asignar
-permisos sin hacer escribible todo el proyecto.
+guardar archivos.

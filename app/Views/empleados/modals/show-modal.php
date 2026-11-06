@@ -198,5 +198,6 @@ $modalTitle    = 'Detalle del Empleado';
 $modalSubtitle = 'Vista detallada del perfil institucional';
 $modalSize     = 'lg';
 $modalFooter   = '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>';
+$modalClass    = 'app-modal--fullscreen-mobile';
 
 include __DIR__ . '/../../components/modal.php';
