@@ -64,6 +64,7 @@ class DirectivoDashboardModel extends Model
             'porcentaje_hembras'  => 0,
             'inscripciones'       => 0,
             'ratificaciones'      => 0,
+            'reingresos'          => 0,
             'retirados'           => 0,
         ];
 
@@ -76,10 +77,12 @@ class DirectivoDashboardModel extends Model
                            COUNT(DISTINCT CASE WHEN p.sexo = 'M' THEN m.id_estudiante END) AS varones,
                            COUNT(DISTINCT CASE WHEN p.sexo = 'F' THEN m.id_estudiante END) AS hembras,
                            COUNT(DISTINCT CASE WHEN m.tipo = 'INSCRIPCION' THEN m.id_estudiante END) AS inscripciones,
-                           COUNT(DISTINCT CASE WHEN m.tipo = 'RATIFICACION' THEN m.id_estudiante END) AS ratificaciones
+                           COUNT(DISTINCT CASE WHEN m.tipo = 'RATIFICACION' AND rein.id_matricula IS NULL THEN m.id_estudiante END) AS ratificaciones,
+                           COUNT(DISTINCT CASE WHEN rein.id_matricula IS NOT NULL THEN m.id_estudiante END) AS reingresos
                       FROM matricula m
                       INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                       INNER JOIN persona p ON p.id_persona = e.id_persona
+                      LEFT JOIN reingreso rein ON rein.id_matricula = m.id_matricula
                      WHERE m.id_anio_escolar = :anio
                        AND " . Matriculas::condicionCursando('m');
 
@@ -99,6 +102,7 @@ class DirectivoDashboardModel extends Model
                 $resultado['porcentaje_hembras'] = $total > 0 ? (int) round(($hembras / $total) * 100) : 0;
                 $resultado['inscripciones']      = (int) ($fila['inscripciones'] ?? 0);
                 $resultado['ratificaciones']     = (int) ($fila['ratificaciones'] ?? 0);
+                $resultado['reingresos']         = (int) ($fila['reingresos'] ?? 0);
             }
 
             // Retiros en este año escolar

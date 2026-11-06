@@ -453,17 +453,19 @@ class StatisticsModel extends Model
         }
 
         try {
-            // Totales por género y tipo de ingreso
+            // Totales por género y tipo de ingreso (diferenciando reingresos)
             $sqlGen = "SELECT 
                             COUNT(DISTINCT m.id_estudiante) AS total_cursando,
                             COUNT(DISTINCT CASE WHEN p.sexo = 'M' THEN m.id_estudiante END) AS varones,
                             COUNT(DISTINCT CASE WHEN p.sexo = 'F' THEN m.id_estudiante END) AS hembras,
                             COUNT(DISTINCT CASE WHEN m.tipo = 'INSCRIPCION' THEN m.id_estudiante END) AS nuevos_ingresos,
-                            COUNT(DISTINCT CASE WHEN m.tipo = 'RATIFICACION' THEN m.id_estudiante END) AS regulares
+                            COUNT(DISTINCT CASE WHEN m.tipo = 'RATIFICACION' AND rein.id_matricula IS NULL THEN m.id_estudiante END) AS regulares,
+                            COUNT(DISTINCT CASE WHEN rein.id_matricula IS NOT NULL THEN m.id_estudiante END) AS reingresos
                         FROM matricula m
                         INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
                         INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                         INNER JOIN persona p ON p.id_persona = e.id_persona
+                        LEFT JOIN reingreso rein ON rein.id_matricula = m.id_matricula
                         WHERE m.id_anio_escolar = :anio
                           AND {$condCursando}
                           {$filtroEa}";
@@ -557,6 +559,7 @@ class StatisticsModel extends Model
                 'porcentaje_hembras'    => $totCursando > 0 ? (int) round(($hembras / $totCursando) * 100) : 0,
                 'nuevos_ingresos'       => (int) ($datosG['nuevos_ingresos'] ?? 0),
                 'regulares'             => (int) ($datosG['regulares'] ?? 0),
+                'reingresos'            => (int) ($datosG['reingresos'] ?? 0),
                 'repitientes'           => $repitientes,
                 'retirados'             => $retirados,
                 'desglose_edades'       => array_values($desgloseEdades),
@@ -572,6 +575,7 @@ class StatisticsModel extends Model
                 'porcentaje_hembras'    => 0,
                 'nuevos_ingresos'       => 0,
                 'regulares'             => 0,
+                'reingresos'            => 0,
                 'repitientes'           => 0,
                 'retirados'             => 0,
                 'desglose_edades'       => [],

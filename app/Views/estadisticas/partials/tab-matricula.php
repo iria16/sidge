@@ -24,11 +24,16 @@ $donutGeneroConfig = [
     'emptyMessage' => 'Sin matrícula activa registrada',
 ];
 
-// Gráfica de Ingresos vs Regulares
+// Gráfica de Ingresos vs Regulares vs Reingresos
+$reingresos = (int) ($demografiaMatricula['reingresos'] ?? 0);
 $donutIngresosConfig = [
-    'labels'       => ['Nuevos Ingresos', 'Regulares / Continuidad'],
-    'values'       => [(int) ($demografiaMatricula['nuevos_ingresos'] ?? 0), (int) ($demografiaMatricula['regulares'] ?? 0)],
-    'colors'       => ['c4', 'c5'],
+    'labels'       => ['Nuevos Ingresos', 'Regulares / Continuidad', 'Reingresos'],
+    'values'       => [
+        (int) ($demografiaMatricula['nuevos_ingresos'] ?? 0),
+        (int) ($demografiaMatricula['regulares'] ?? 0),
+        $reingresos
+    ],
+    'colors'       => ['c4', 'c5', 'c3'],
     'emptyMessage' => 'Sin datos de inscripción para el período',
 ];
 ?>
@@ -74,7 +79,7 @@ $donutIngresosConfig = [
       ?>
     </div>
 
-    <!-- Card 3: Regulares -->
+    <!-- Card 3: Regulares y Reingresos -->
     <div class="col-12 col-sm-6 col-xl-3">
       <?php
       $reg = (int) ($demografiaMatricula['regulares'] ?? 0);
@@ -83,9 +88,11 @@ $donutIngresosConfig = [
       $statIcon      = 'bi-arrow-repeat';
       $statTone      = 'secondary';
       $statVariant   = 'default';
-      $statTrend     = 'Continuidad';
+      $statTrend     = $reingresos > 0 ? "+{$reingresos} reing." : 'Continuidad';
       $statTrendType = 'neutral';
-      $statMeta      = 'Ratificados del período anterior';
+      $statMeta      = $reingresos > 0
+          ? 'Continuidad: ' . $reg . ' · Reingresos: ' . $reingresos
+          : 'Ratificados del período anterior';
       $statProgress  = null;
       $statHref      = null;
       include __DIR__ . '/../../components/stat-card.php';
@@ -134,7 +141,7 @@ $donutIngresosConfig = [
       <div class="stats-chart-wrapper">
         <div class="stats-card-header">
           <h2 class="stats-card-header__title">
-            <i class="bi bi-pie-chart text-primary" aria-hidden="true"></i>Nuevos Ingresos vs. Regulares
+            <i class="bi bi-pie-chart text-primary" aria-hidden="true"></i>Nuevos Ingresos, Regulares y Reingresos
           </h2>
         </div>
         <div class="chart-container chart-container--donut"
