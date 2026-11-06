@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
      abrir, cada apertura dejaría un listener de change encima del anterior y cada
      cambio pediría los municipios dos veces. Los ids salen de wizard-ui.js para que los
      dos módulos no puedan desincronizarse. */
-  if (!window.SIGDECascadaNacimiento) {
+  if (!window.SIGDECascadaNacimiento && window.SIGDEWizardUI && SIGDEWizardUI.initCascadaNacimiento) {
     window.SIGDECascadaNacimiento = SIGDEWizardUI.initCascadaNacimiento(
       BASE_URL + 'ratificacion/getUbicacion'
     );
@@ -1017,12 +1017,17 @@ document.addEventListener('DOMContentLoaded', function () {
          quedaban sin cascada y al elegir la entidad federal no cargaba ni un municipio.
          Se crea al cargar la página, en inicializarPuntosEdicion(). */
       var cascadaNac = window.SIGDECascadaNacimiento;
-      if (cascadaNac && est.id_parroquia_nacimiento) {
+      if (!cascadaNac && window.SIGDEWizardUI && SIGDEWizardUI.initCascadaNacimiento) {
+        cascadaNac = window.SIGDECascadaNacimiento = SIGDEWizardUI.initCascadaNacimiento(
+          BASE_URL + 'ratificacion/getUbicacion'
+        );
+      }
+      if (cascadaNac && (est.id_parroquia_nacimiento || est.id_estado_nacimiento)) {
         cascadaNac.cargando.then(function () {
           return cascadaNac.elegirParroquia(
             est.id_estado_nacimiento || 0,
             est.id_municipio_nacimiento || 0,
-            est.id_parroquia_nacimiento
+            est.id_parroquia_nacimiento || 0
           );
         });
       }

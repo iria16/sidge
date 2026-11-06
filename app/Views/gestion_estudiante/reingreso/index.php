@@ -35,6 +35,11 @@ $paginacion     = $paginacion ?? [
 ];
 $estructuras    = $estructuras ?? [];
 $instituciones  = $instituciones ?? [];
+$catFamiliares  = $catFamiliares ?? [];
+$estados        = $estados ?? ($catFamiliares['estados'] ?? []);
+$nacionalidades = $nacionalidades ?? [];
+$minDateEstudiante = $minDateEstudiante ?? '';
+$maxDateEstudiante = $maxDateEstudiante ?? '';
 
 ob_start();
 

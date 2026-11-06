@@ -39,9 +39,12 @@ class ReingresoController extends BaseController
             $solicitudes = $resultado['solicitudes'];
             $paginacion = $resultado['paginacion'];
 
+            // Catálogos y año escolar activo reutilizando RatificationModel
+            $ratModel = new \App\Models\RatificationModel($this->pdo);
+            $anioDestino = $ratModel->getAnioDestino();
+            $idAnioActivo = (int) ($anioDestino['id'] ?? 0);
+
             // Estructuras académicas del año activo con cupos disponibles para el modal
-            $stmtAnio = $this->pdo->query("SELECT id_anio_escolar FROM anio_escolar WHERE estado = 'ACTIVO' LIMIT 1");
-            $idAnioActivo = (int) $stmtAnio->fetchColumn();
             $estructuras = $model->estructurasConCupo($idAnioActivo > 0 ? $idAnioActivo : null, $turno);
 
             // Instituciones de procedencia activas (solo escuelas y etapas de estudiante, como en inscripción)
@@ -56,6 +59,14 @@ class ReingresoController extends BaseController
             );
             $stmtInst->execute($idsEscuelas);
             $instituciones = $stmtInst->fetchAll(PDO::FETCH_ASSOC);
+
+            // Catálogos para el modal de edición de datos del estudiante, familiares y recaudos (reutilizados de Ratificación/Inscripción)
+            $catFamiliares = $ratModel->getCatalogosFamiliar();
+            $estados = $catFamiliares['estados'] ?? [];
+            $nacionalidades = $ratModel->getNacionalidades();
+
+            $minDateEstudiante = (((int) ($anioDestino['anio_inicio'] ?? date('Y')) ?: (int) date('Y')) - 14) . '-01-01';
+            $maxDateEstudiante = (((int) ($anioDestino['anio_inicio'] ?? date('Y')) ?: (int) date('Y')) - 6) . '-12-31';
 
             require __DIR__ . '/../Views/gestion_estudiante/reingreso/index.php';
         } catch (Throwable $e) {
