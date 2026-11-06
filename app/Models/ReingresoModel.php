@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Exceptions\AnioEscolarCerradoException;
 use App\Support\Matriculas;
 use App\Traits\CupoEstructuraTrait;
+use DateTime;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -115,6 +116,7 @@ class ReingresoModel extends BaseModel
                     a.id_anio_escolar AS id_anio_retiro,
                     a.nombre_periodo AS anio_retiro,
                     r.fecha_retiro,
+                    r.estado_solicitud,
                     mot.nombre AS motivo_retiro
                FROM matricula m
                INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
@@ -136,11 +138,14 @@ class ReingresoModel extends BaseModel
     }
 
     /**
-     * Procesa la reincorporación formal del estudiante:
-     * 1. Reserva cupo en la estructura elegida (bloqueo for update).
-     * 2. Inserta en la supertabla `matricula` con tipo 'RATIFICACION' (continuidad académica).
-     * 3. Inserta en la subtabla `reingreso` con los datos de trazabilidad del retorno.
-     * 4. Registra en bitácora.
+     * Procesa la reincorporación formal del estudiante con validaciones completas:
+     * 1. Valida parámetros de entrada (fechas, longitudes, ids positivos).
+     * 2. Reserva cupo en la estructura elegida (bloqueo for update).
+     * 3. Valida año escolar activo y no cerrado.
+     * 4. Valida retiro previo en estado APROBADO y coherencia temporal.
+     * 5. Inserta en la supertabla `matricula` con tipo 'RATIFICACION' (continuidad académica).
+     * 6. Inserta en la subtabla `reingreso` con los datos de trazabilidad del retorno.
+     * 7. Registra en bitácora.
      */
     public function procesarReingreso(array $data, int $idUsuario): array
     {
@@ -151,18 +156,39 @@ class ReingresoModel extends BaseModel
         $idInstitucion = !empty($data['id_institucion_procedencia']) ? (int) $data['id_institucion_procedencia'] : null;
         $observaciones = !empty($data['observaciones']) ? trim((string) $data['observaciones']) : null;
 
+        // Validaciones de integridad
         if ($idEstudiante <= 0) {
             throw new RuntimeException('Debe especificar un estudiante válido.');
         }
         if ($idEstructura <= 0) {
             throw new RuntimeException('Debe seleccionar el grado y sección a cursar.');
         }
-        if ($motivoReingreso === '') {
-            throw new RuntimeException('Debe especificar el motivo del reingreso.');
+        if (mb_strlen($motivoReingreso) < 5) {
+            throw new RuntimeException('El motivo de reingreso debe contener al menos 5 caracteres.');
+        }
+        if (mb_strlen($motivoReingreso) > 255) {
+            throw new RuntimeException('El motivo de reingreso no puede exceder los 255 caracteres.');
+        }
+
+        $d = DateTime::createFromFormat('Y-m-d', $fechaReinc);
+        if (!$d || $d->format('Y-m-d') !== $fechaReinc) {
+            throw new RuntimeException('La fecha de reincorporación no tiene un formato válido (AAAA-MM-DD).');
+        }
+        if ($fechaReinc > date('Y-m-d')) {
+            throw new RuntimeException('La fecha de reincorporación no puede ser una fecha futura.');
         }
 
         try {
             $this->pdo->beginTransaction();
+
+            // Validar institución de procedencia si fue indicada
+            if ($idInstitucion !== null && $idInstitucion > 0) {
+                $stmtInst = $this->pdo->prepare('SELECT COUNT(*) FROM institucion WHERE id_institucion = :id');
+                $stmtInst->execute(['id' => $idInstitucion]);
+                if ((int) $stmtInst->fetchColumn() === 0) {
+                    throw new RuntimeException('La institución de procedencia seleccionada no existe.');
+                }
+            }
 
             // 1. Reservar y bloquear cupo
             $disponibilidad = $this->reservarCupo($idEstructura);
@@ -171,8 +197,8 @@ class ReingresoModel extends BaseModel
                 throw new RuntimeException('La estructura académica seleccionada no tiene un año escolar válido.');
             }
 
-            // Comprobar estado del año
-            $stmtAnio = $this->pdo->prepare('SELECT nombre_periodo, estado FROM anio_escolar WHERE id_anio_escolar = :anio');
+            // Comprobar estado del año escolar
+            $stmtAnio = $this->pdo->prepare('SELECT nombre_periodo, estado, anio_inicio FROM anio_escolar WHERE id_anio_escolar = :anio');
             $stmtAnio->execute(['anio' => $idAnioEscolar]);
             $anio = $stmtAnio->fetch(PDO::FETCH_ASSOC);
             if (!$anio || strtoupper((string) $anio['estado']) !== 'ACTIVO') {
@@ -180,14 +206,16 @@ class ReingresoModel extends BaseModel
                     'No se puede reincorporar en un año escolar cerrado (' . ($anio['nombre_periodo'] ?? '') . ').'
                 );
             }
+            $anioInicioActivo = (int) ($anio['anio_inicio'] ?? 0);
 
-            // 2. Obtener la matrícula de retiro previa
+            // 2. Obtener y validar la matrícula de retiro previa
             $stmtRetiro = $this->pdo->prepare(
-                "SELECT m.id_matricula, m.tipo, r.id_retiro
+                "SELECT m.id_matricula, m.tipo, m.id_anio_escolar, r.id_retiro, r.estado_solicitud, an.anio_inicio AS anio_inicio_retiro
                    FROM matricula m
+                   INNER JOIN anio_escolar an ON an.id_anio_escolar = m.id_anio_escolar
                    LEFT JOIN retiro r ON r.id_matricula = m.id_matricula
                   WHERE m.id_estudiante = :id
-                  ORDER BY m.id_matricula DESC
+                  ORDER BY an.anio_inicio DESC, m.id_matricula DESC
                   LIMIT 1
                   FOR UPDATE"
             );
@@ -197,6 +225,19 @@ class ReingresoModel extends BaseModel
             if (!$ultimo || $ultimo['tipo'] !== Matriculas::RETIRO) {
                 throw new RuntimeException(
                     'El estudiante no tiene un retiro previo vigente. Solo se pueden reincorporar estudiantes retirados.'
+                );
+            }
+
+            if (strtoupper((string) ($ultimo['estado_solicitud'] ?? '')) !== 'APROBADO') {
+                throw new RuntimeException(
+                    'La solicitud de retiro del estudiante no ha sido aprobada por la dirección escolar.'
+                );
+            }
+
+            $anioInicioRetiro = (int) ($ultimo['anio_inicio_retiro'] ?? 0);
+            if ($anioInicioActivo < $anioInicioRetiro) {
+                throw new RuntimeException(
+                    'El año escolar del reingreso no puede ser anterior al año escolar en que se retiró el estudiante.'
                 );
             }
 

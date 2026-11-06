@@ -20,7 +20,7 @@ declare(strict_types=1);
       <form id="formReingreso" novalidate>
         <div class="modal-body p-4">
           <input type="hidden" id="reingresoIdEstudiante" name="id_estudiante" value="">
-          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+          <input type="hidden" name="csrf" value="<?= htmlspecialchars($_SESSION['csrf'] ?? '') ?>">
 
           <!-- Cargando -->
           <div id="reingresoCargando" class="text-center py-4">
@@ -71,7 +71,7 @@ declare(strict_types=1);
                   Fecha de Reincorporación <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control" id="reingresoFecha" name="fecha_reincorporacion"
-                       value="<?= date('Y-m-d') ?>" required>
+                       value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>" required>
                 <div class="invalid-feedback">Indique la fecha de reincorporación.</div>
               </div>
 
