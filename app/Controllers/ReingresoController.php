@@ -19,6 +19,23 @@ class ReingresoController extends BaseController
     }
 
     /**
+     * Muestra la vista principal de Reingreso con el listado de retirados elegibles.
+     */
+    public function index(): void
+    {
+        try {
+            $busqueda = trim((string) ($_GET['q'] ?? ''));
+            /** @var ReingresoModel $model */
+            $model = $this->getModel();
+            $retirados = $model->getRetiradosElegibles($busqueda !== '' ? $busqueda : null);
+
+            require __DIR__ . '/../Views/gestion_estudiante/reingreso/index.php';
+        } catch (Throwable $e) {
+            $this->handleError($e, static::class);
+        }
+    }
+
+    /**
      * Obtiene los datos del estudiante retirado y las estructuras disponibles
      * para precargar el modal de reingreso (AJAX GET).
      */
