@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\ReingresoModel;
+use App\Support\Instituciones;
 use PDO;
 use Throwable;
 
@@ -39,12 +40,21 @@ class ReingresoController extends BaseController
             $paginacion = $resultado['paginacion'];
 
             // Estructuras académicas del año activo con cupos disponibles para el modal
-            $estructuras = $model->estructurasConCupo($turno);
+            $stmtAnio = $this->pdo->query("SELECT id_anio_escolar FROM anio_escolar WHERE estado = 'ACTIVO' LIMIT 1");
+            $idAnioActivo = (int) $stmtAnio->fetchColumn();
+            $estructuras = $model->estructurasConCupo($idAnioActivo > 0 ? $idAnioActivo : null, $turno);
 
-            // Instituciones de procedencia activas
-            $stmtInst = $this->pdo->query(
-                "SELECT id_institucion, nombre FROM institucion WHERE estado = 'ACTIVO' ORDER BY nombre"
+            // Instituciones de procedencia activas (solo escuelas y etapas de estudiante, como en inscripción)
+            $idsEscuelas = Instituciones::idsCatalogoDeEstudiante();
+            $marcadores = implode(', ', array_fill(0, count($idsEscuelas), '?'));
+            $stmtInst = $this->pdo->prepare(
+                "SELECT id_institucion, nombre
+                   FROM institucion
+                  WHERE estado = 'ACTIVO'
+                    AND id_tipo_institucion IN ({$marcadores})
+                  ORDER BY nombre"
             );
+            $stmtInst->execute($idsEscuelas);
             $instituciones = $stmtInst->fetchAll(PDO::FETCH_ASSOC);
 
             require __DIR__ . '/../Views/gestion_estudiante/reingreso/index.php';
@@ -106,10 +116,17 @@ class ReingresoController extends BaseController
             // Estructuras académicas con cupos disponibles
             $estructuras = $model->estructurasConCupo();
 
-            // Instituciones activas para procedencia opcional
-            $stmtInst = $this->pdo->query(
-                "SELECT id_institucion, nombre FROM institucion WHERE estado = 'ACTIVO' ORDER BY nombre"
+            // Instituciones activas para procedencia (solo escuelas, como en inscripción)
+            $idsEscuelas = Instituciones::idsCatalogoDeEstudiante();
+            $marcadores = implode(', ', array_fill(0, count($idsEscuelas), '?'));
+            $stmtInst = $this->pdo->prepare(
+                "SELECT id_institucion, nombre
+                   FROM institucion
+                  WHERE estado = 'ACTIVO'
+                    AND id_tipo_institucion IN ({$marcadores})
+                  ORDER BY nombre"
             );
+            $stmtInst->execute($idsEscuelas);
             $instituciones = $stmtInst->fetchAll(PDO::FETCH_ASSOC);
 
             $this->jsonResponse(true, [
