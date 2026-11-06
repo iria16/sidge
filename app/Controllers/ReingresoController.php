@@ -13,9 +13,9 @@ class ReingresoController extends BaseController
     protected string $viewPath = 'reingreso';
     protected string $routeName = 'reingreso';
 
-    protected function createModel(): ReingresoModel
+    protected function createModel(PDO $pdo): ?object
     {
-        return new ReingresoModel($this->pdo);
+        return new ReingresoModel($pdo);
     }
 
     /**
