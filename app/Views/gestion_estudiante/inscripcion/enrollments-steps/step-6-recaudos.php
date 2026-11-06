@@ -37,7 +37,7 @@
     ?>
     <div id="<?= htmlspecialchars($recaudosContenedor) ?>" data-recaudos-panel>
       <div class="table-responsive">
-        <table class="wizard-titulos-table" style="table-layout: fixed;">
+        <table class="wizard-titulos-table wizard-titulos-table--fixed">
           <colgroup>
             <col style="width: 42%">
             <col style="width: 20%">

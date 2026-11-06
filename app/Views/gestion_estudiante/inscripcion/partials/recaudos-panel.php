@@ -108,7 +108,7 @@ foreach ($recaudos as $r) {
                decir, al lado. */
         ?>
       <div>
-        <table class="wizard-titulos-table" style="table-layout: fixed;">
+        <table class="wizard-titulos-table wizard-titulos-table--fixed">
           <colgroup>
             <col style="width: 40%">
             <col style="width: 22%">
