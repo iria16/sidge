@@ -219,9 +219,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // Limpiar modal al cerrarse
+  // Limpiar modal al cerrarse (solo si el usuario realmente cerró Reingreso, no si fue pausa para editar)
   if (modalRegistrar) {
     modalRegistrar.addEventListener('hidden.bs.modal', function () {
+      if (modalRegistrar.dataset.enEdicion === '1') {
+        // Pausa temporal para editar familiares o recaudos: conservar estudiante y campos intactos
+        return;
+      }
       formRegistrar.reset();
       limpiarSeleccion();
       if (inputBuscar) inputBuscar.value = '';

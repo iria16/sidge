@@ -425,6 +425,9 @@ document.addEventListener('DOMContentLoaded', function () {
         || (document.getElementById('ratificarEstudianteId') || {}).value
         || (document.getElementById('reingresoIdEstudiante') || {}).value;
       const modalOrigen = btnEditar.closest('.modal');
+      if (modalOrigen) {
+        modalOrigen.dataset.enEdicion = '1';
+      }
       abrirEditor(id, btnEditar.dataset.tabInicial, btnEditar.hasAttribute('data-edit-representante'), modalOrigen);
     }
   });
@@ -936,6 +939,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     modalPadreActivo = modalOrigen || modalRatificarEl;
     if (modalPadreActivo) {
+      modalPadreActivo.dataset.enEdicion = '1';
       const abierto = bootstrap.Modal.getInstance(modalPadreActivo);
       if (abierto) abierto.hide();
     }
@@ -1258,10 +1262,34 @@ async function guardarDatosEstudiante() {
   // Al cerrar el modal de editar, volver a abrir el modal padre (ratificar o reingreso).
   if (modalEditarEl) {
     modalEditarEl.addEventListener('hidden.bs.modal', function () {
-      if (modalPadreActivo) {
-        bootstrap.Modal.getOrCreateInstance(modalPadreActivo).show();
+      const padre = modalPadreActivo;
+      modalPadreActivo = null;
+
+      // Actualizar vista previa si el padre es el modal de reingreso y se guardaron cambios
+      if (padre && padre.id === 'registrarReingresoModal' && modalEditarEl.dataset.recargarExpediente === '1') {
+        const nom = [(document.getElementById('primerNombre') || {}).value, (document.getElementById('primerApellido') || {}).value].filter(Boolean).join(' ');
+        const tip = (document.getElementById('tipoDocumento') || {}).value;
+        const num = (document.getElementById('numeroDocumento') || {}).value;
+        if (nom) {
+          const elN = document.getElementById('reingresoDatosNombre');
+          if (elN) elN.textContent = nom;
+        }
+        if (tip && num) {
+          const elC = document.getElementById('reingresoDatosCedula');
+          if (elC) elC.textContent = tip + '-' + num;
+        }
+      }
+
+      if (padre) {
+        setTimeout(function () {
+          delete padre.dataset.enEdicion;
+          bootstrap.Modal.getOrCreateInstance(padre).show();
+        }, 150);
       } else if (modalRatificarEl) {
-        bootstrap.Modal.getOrCreateInstance(modalRatificarEl).show();
+        setTimeout(function () {
+          delete modalRatificarEl.dataset.enEdicion;
+          bootstrap.Modal.getOrCreateInstance(modalRatificarEl).show();
+        }, 150);
       } else if (modalEditarEl.dataset.recargarExpediente === '1') {
         window.location.reload();
       }
