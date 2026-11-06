@@ -95,6 +95,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (inputIdEst) inputIdEst.value = item.id_estudiante;
     marcarFaltaEstudiante(false);
 
+    var btnEditar = document.getElementById('btnEditarEstudianteReingreso');
+    if (btnEditar) {
+      btnEditar.dataset.estudianteId = item.id_estudiante;
+    }
+
     ponerTexto('reingresoDatosNombre', item.nombre);
     ponerTexto('reingresoDatosCedula', item.cedula);
     ponerTexto('reingresoDatosGrado', item.ultimo_grado + ' — Sección "' + item.ultima_seccion + '" (' + item.ultimo_turno + ')');

@@ -53,6 +53,12 @@ ob_start();
           </div>
         </div>
       </div>
+      <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
+        <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none shadow-none text-primary fw-medium btn-editar-datos"
+                id="btnEditarEstudianteReingreso">
+          <i class="bi bi-pencil-square me-1"></i> Verificar o actualizar datos del estudiante, familiares y recaudos
+        </button>
+      </div>
     </div>
   </div>
 

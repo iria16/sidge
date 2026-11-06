@@ -3,6 +3,7 @@
  * se enganchan por DELEGACIÓN en document: enganchados al cargar, los que llegan con el
  * tbody nuevo quedan sin listener y el clic no hace nada.*/
 document.addEventListener('DOMContentLoaded', function () {
+  let modalPadreActivo = null;
   const modalRatificarEl = document.getElementById('modalRatificar');
   const modalVerEl = document.getElementById('modalVerRatificacion');
   const verBody = document.getElementById('ratificacionVerBody');
@@ -418,8 +419,13 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    if (e.target.closest('.btn-editar-datos')) {
-      abrirEditor((document.getElementById('ratificarEstudianteId') || {}).value);
+    const btnEditar = e.target.closest('.btn-editar-datos');
+    if (btnEditar) {
+      const id = btnEditar.dataset.estudianteId
+        || (document.getElementById('ratificarEstudianteId') || {}).value
+        || (document.getElementById('reingresoIdEstudiante') || {}).value;
+      const modalOrigen = btnEditar.closest('.modal');
+      abrirEditor(id, btnEditar.dataset.tabInicial, btnEditar.hasAttribute('data-edit-representante'), modalOrigen);
     }
   });
 
@@ -925,11 +931,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  async function abrirEditor(id, tabInicial, editarRepresentante) {
+  async function abrirEditor(id, tabInicial, editarRepresentante, modalOrigen) {
     if (!modalEditarEl || !id) return;
 
-    const abierto = modalRatificarEl ? bootstrap.Modal.getInstance(modalRatificarEl) : null;
-    if (abierto) abierto.hide();
+    modalPadreActivo = modalOrigen || modalRatificarEl;
+    if (modalPadreActivo) {
+      const abierto = bootstrap.Modal.getInstance(modalPadreActivo);
+      if (abierto) abierto.hide();
+    }
 
     const inputId = document.getElementById('editEstudianteId');
     if (!inputId || !id) return;
@@ -1246,10 +1255,12 @@ async function guardarDatosEstudiante() {
     }
   }
 
-  // Al cerrar el modal de editar, volver a abrir el de ratificar.
+  // Al cerrar el modal de editar, volver a abrir el modal padre (ratificar o reingreso).
   if (modalEditarEl) {
     modalEditarEl.addEventListener('hidden.bs.modal', function () {
-      if (modalRatificarEl) {
+      if (modalPadreActivo) {
+        bootstrap.Modal.getOrCreateInstance(modalPadreActivo).show();
+      } else if (modalRatificarEl) {
         bootstrap.Modal.getOrCreateInstance(modalRatificarEl).show();
       } else if (modalEditarEl.dataset.recargarExpediente === '1') {
         window.location.reload();
@@ -1257,4 +1268,7 @@ async function guardarDatosEstudiante() {
       delete modalEditarEl.dataset.recargarExpediente;
     });
   }
+
+  // Exponer para otros módulos (como reingreso)
+  window.abrirEditorEstudiante = abrirEditor;
 });

@@ -17,7 +17,12 @@ declare(strict_types=1);
 $pageTitle       = 'Reingresos';
 $pageDescription = 'Gestión y formalización de reincorporaciones de estudiantes retirados.';
 $currentNav      = 'reingreso';
-$extraScripts    = ['/js/modules/reingresos/reingreso.js'];
+$extraScripts    = [
+    '/js/modules/estudiantes/familiares.js',
+    '/js/modules/ratificacion/ratificacion.js',
+    '/js/modules/estudiantes/recaudos.js',
+    '/js/modules/reingresos/reingreso.js',
+];
 $breadcrumbs = [
     ['label' => 'Gestión de estudiantes', 'href' => null],
     ['label' => 'Reingreso', 'href' => null],
@@ -85,6 +90,7 @@ $pageContent = ob_get_clean();
 // ---------- Modales ----------
 ob_start();
 include __DIR__ . '/modals/registrar-reingreso-modal.php';
+require_once __DIR__ . '/../ratificacion/modals/editar-estudiante-modal.php';
 $pageModals = ob_get_clean();
 
 require __DIR__ . '/../../layouts/app.php';
