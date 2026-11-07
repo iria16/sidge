@@ -46,7 +46,7 @@ ob_start();
         
         <!-- Foto de Perfil con Estilo Nativo SIGDE y Botón de Edición -->
         <div class="d-flex flex-column align-items-center mb-3">
-          <div class="wizard-photo-upload__circle">
+          <label class="wizard-photo-upload__circle" for="inputFotoPerfil" role="button" title="Cambiar foto de perfil">
             <div class="wizard-photo-upload__preview" id="perfilFotoPreview">
               <?php if (!empty($perfil['avatar_foto'])): ?>
                 <img src="<?= htmlspecialchars(BASE_URL . $perfil['avatar_foto']) ?>" alt="<?= htmlspecialchars($nombre) ?>" id="imgPerfilFoto">
@@ -54,12 +54,14 @@ ob_start();
                 <i class="bi bi-person" id="iconoPerfilFallback"></i>
               <?php endif; ?>
             </div>
-            <label class="wizard-photo-upload__edit" for="inputFotoPerfil" title="Cambiar foto de perfil">
+            <span class="wizard-photo-upload__edit">
               <i class="bi bi-pencil-fill"></i>
-            </label>
-            <input type="file" id="inputFotoPerfil" name="foto" accept="image/jpeg,image/png,image/webp" class="d-none">
-          </div>
-          <span class="wizard-photo-upload__hint mt-2">Foto de perfil (Opcional)</span>
+            </span>
+            <input type="file" id="inputFotoPerfil" name="foto" accept="image/jpeg,image/png,image/webp" class="visually-hidden">
+          </label>
+          <label for="inputFotoPerfil" class="wizard-photo-upload__hint mt-2" role="button" style="cursor: pointer;">
+            <i class="bi bi-camera me-1"></i>Foto de perfil (Opcional)
+          </label>
           <button type="button" class="btn btn-link btn-sm text-danger p-0 mt-1 <?= empty($perfil['avatar_foto']) ? 'd-none' : '' ?>" id="btnQuitarFotoPerfil">
             <i class="bi bi-x-circle me-1"></i>Quitar foto
           </button>

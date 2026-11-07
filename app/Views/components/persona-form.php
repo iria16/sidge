@@ -87,17 +87,19 @@ $nameSexo = $prefixName . 'sexo';
 
 <?php if ($showPhoto): ?>
 <div class="wizard-photo-upload mb-3">
-  <div class="wizard-photo-upload__circle">
+  <label class="wizard-photo-upload__circle" for="<?= $idFotoInput ?>" role="button" title="Tomar o seleccionar foto">
     <div class="wizard-photo-upload__preview" id="<?= $idFotoPreview ?>">
       <i class="bi bi-person"></i>
     </div>
-    <label class="wizard-photo-upload__edit" for="<?= $idFotoInput ?>">
+    <span class="wizard-photo-upload__edit">
       <i class="bi bi-pencil-fill"></i>
-    </label>
-    <input type="file" id="<?= $idFotoInput ?>" name="<?= $nameFoto ?>" accept="image/*" class="d-none">
-  </div>
+    </span>
+    <input type="file" id="<?= $idFotoInput ?>" name="<?= $nameFoto ?>" accept="image/*" class="visually-hidden">
+  </label>
   <div class="text-center">
-    <span class="wizard-photo-upload__hint">Foto de perfil (Opcional)</span>
+    <label for="<?= $idFotoInput ?>" class="wizard-photo-upload__hint" role="button" style="cursor: pointer;">
+      <i class="bi bi-camera me-1"></i>Foto de perfil (Opcional)
+    </label>
     <div>
       <button type="button" class="btn btn-link btn-sm text-danger p-0" id="<?= $btnQuitarFotoId ?>" hidden>
         <i class="bi bi-x-circle me-1"></i>Quitar foto
@@ -117,11 +119,11 @@ $nameSexo = $prefixName . 'sexo';
       <?php
       $tipoDocId    = $prefixId ? $prefixId . 'TipoDocumento' : 'tipoDocumento';
       $tipoDocName  = $prefixName ? $prefixName . 'tipo_documento' : 'tipo_documento';
-      $tipoDocCol   = 'col-3';
+      $tipoDocCol   = 'col-12 col-lg-3';
       // Las variables de opciones las provee el formulario padre o se dejan las default del componente hijo
       include __DIR__ . '/tipo-documento-select.php';
       ?>
-      <div class="col-5">
+      <div class="col-12 col-lg-5">
         <label class="label-sigde" for="<?= $idNumeroDocumento ?>">Nro documento *</label>
         <div class="input-icon-group">
           <i class="bi bi-person-vcard" aria-hidden="true"></i>
@@ -139,7 +141,7 @@ $nameSexo = $prefixName . 'sexo';
             required>
         </div>
       </div>
-      <div class="col-4">
+      <div class="col-12 col-lg-4">
         <label class="label-sigde" for="<?= $idFechaNacimiento ?>">Fecha de nacimiento *</label>
         <input
           type="date"

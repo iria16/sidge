@@ -28,15 +28,15 @@ $identityEliminarId = $identityEliminarId ?? 'fotoEliminar';
 $identityBadgeExtra = $identityBadgeExtra ?? '';
 ?>
 <div class="user-detail__header pt-3 pb-3 mb-0 border-bottom">
-  <div class="wizard-photo-upload__circle">
+  <label class="wizard-photo-upload__circle" for="<?= htmlspecialchars($identityInputId) ?>" role="button" title="Tomar o seleccionar foto">
     <div class="wizard-photo-upload__preview" id="<?= htmlspecialchars($identityPreviewId) ?>">
       <i class="bi bi-person"></i>
     </div>
-    <label class="wizard-photo-upload__edit" for="<?= htmlspecialchars($identityInputId) ?>" title="Cambiar foto">
+    <span class="wizard-photo-upload__edit">
       <i class="bi bi-pencil-fill"></i>
-    </label>
-    <input type="file" id="<?= htmlspecialchars($identityInputId) ?>" name="<?= htmlspecialchars($identityInputName) ?>" accept="image/*" class="d-none">
-  </div>
+    </span>
+    <input type="file" id="<?= htmlspecialchars($identityInputId) ?>" name="<?= htmlspecialchars($identityInputName) ?>" accept="image/*" class="visually-hidden">
+  </label>
   <div class="user-detail__name mt-2" id="<?= htmlspecialchars($identityNameId) ?>">—</div>
   <div class="user-detail__meta mt-1">
     <span class="badge bg-light text-dark border">

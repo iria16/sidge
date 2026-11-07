@@ -38,7 +38,7 @@ $tipoDocName        = $tipoDocName ?? 'tipo_documento';
 $tipoDocOpciones    = $tipoDocOpciones ?? ['V', 'E'];
 $tipoDocLabel       = $tipoDocLabel ?? 'Tipo de documento *';
 $tipoDocRequired    = $tipoDocRequired ?? true;
-$tipoDocCol         = $tipoDocCol ?? 'col-4';
+$tipoDocCol         = $tipoDocCol ?? 'col-12 col-md-4';
 
 // Textos canónicos. El ENUM de persona.tipo_documento es ('V','E','CE','P'),
 // pero 'P' (pasaporte) no se ofrece a propósito: la institución no lo necesita

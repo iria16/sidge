@@ -61,6 +61,33 @@
     gap: 0.5rem;
     justify-content: flex-end;
   }
+
+  @include media-breakpoint-down(sm) {
+    .modal-dialog {
+      margin: 0.5rem;
+    }
+
+    .modal-header {
+      padding: 1rem 1rem 0.5rem;
+
+      .modal-title {
+        font-size: 1.05rem;
+      }
+    }
+
+    .modal-header__subtitle {
+      font-size: 0.78rem;
+    }
+
+    .modal-body {
+      padding: 0.75rem 1rem 1rem;
+      max-height: calc(100vh - 150px);
+    }
+
+    .modal-footer {
+      padding: 0.75rem 1rem 1rem;
+    }
+  }
 }
 
 .info-alert {

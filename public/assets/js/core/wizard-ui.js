@@ -38,6 +38,12 @@ window.SIGDEWizardUI = (function () {
     var vacio    = o.vacio || '<i class="bi bi-person"></i>';
     var objectUrl = null;
 
+    preview.style.cursor = 'pointer';
+    preview.addEventListener('click', function (e) {
+      if (e.target.closest('label')) return;
+      input.click();
+    });
+
   /* El `name` REAL del input, leído del markup una sola vez al iniciar. Antes se deducía del id
  y, como ningún módulo pasa inputName, quedaba siendo 'fotoInput': al quitar la foto se
  escribía ese valor sobre el atributo y el formulario enviaba un campo que no existía.*/

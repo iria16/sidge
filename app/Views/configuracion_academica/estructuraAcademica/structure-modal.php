@@ -45,7 +45,7 @@ ob_start();
  HTML lo dejaría fuera de paso hasta que el script corrigiera.*/ ?>
         <?php $anioPorDefecto = ($editMode || $aniosEditables === []) ? 0 : (int) $aniosEditables[0]['id']; ?>
         <?php foreach ([['anio', 'Año escolar', $aniosEditables], ['grado', 'Grado', $grados], ['seccion', 'Sección',$secciones], ['turno', 'Turno', $turnos]] as $field): ?>
-          <div class="col-6">
+          <div class="col-12 col-md-6">
             <label class="label-sigde" for="<?= $prefix ?>Estructura<?= ucfirst($field[0]) ?>"><?= $field[1] ?></label>
             <select
               class="form-select"
@@ -64,7 +64,7 @@ ob_start();
             <div class="invalid-feedback">Seleccione <?= strtolower($field[1]) ?>.</div>
           </div>
         <?php endforeach; ?>
-        <div class="col-6">
+        <div class="col-12 col-md-6">
           <label class="label-sigde" for="<?= $prefix ?>EstructuraCapacidad">Capacidad máxima</label>
           <input type="number" name="capacidad_maxima" id="<?= $prefix ?>EstructuraCapacidad" class="form-control" min="1" max="60" required>
           <div class="invalid-feedback">Indique la capacidad (1 a 60).</div>

@@ -78,7 +78,7 @@ ksort($gradosPrimaria);
         </div>
         <div class="invalid-feedback">Seleccione la institución de procedencia.</div>
       </div>
-      <div class="col-6">
+      <div class="col-12 col-md-6">
         <label class="label-sigde" for="ultimoGradoCursado">Último grado cursado *</label>
         <?php /* "Educación Inicial" es la etapa anterior a la primaria: sirve
  para quien viene de un preescolar (TIPO_PREESCOLAR), que no
@@ -94,7 +94,7 @@ ksort($gradosPrimaria);
         </select>
         <div class="invalid-feedback">Seleccione el último grado cursado.</div>
       </div>
-      <div class="col-6">
+      <div class="col-12 col-md-6">
         <label class="label-sigde" for="anioEscolarProcedencia">Año escolar anterior</label>
         <input type="text" class="form-control" id="anioEscolarProcedencia"
                name="anio_escolar_procedencia" placeholder="Ej: 2024-2025" maxlength="9">
