@@ -28,8 +28,8 @@ desarrollada como proyecto para la **Universidad Politécnica Territorial de Val
   - Erickmar E. Sánchez P. — C.I. 30.431.260
   - Elyenay M. Ocanto G. — C.I. 16.771.283
 - **Año:** 2026.
-- **Estado:** Preparación de despliegue; falta definir el dominio y probar HTTPS en
-  el VPS.
+- **Estado:** Proyecto culminado y operativo; desplegado en línea para pruebas y validación académica, en preparación para despliegue en servidor definitivo (VPS con HTTPS).
+- **Demostración en línea:** [Acceso al sistema](https://ebisidroramirez.nfy.fyi/sidgev1/public/)
 - **Licencia:** Proyecto Académico — Uso institucional para la E.B. «Isidro Ramírez» y UPTVAL.
 
 ## Requisitos
