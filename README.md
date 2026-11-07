@@ -270,6 +270,181 @@ hosting compartido.
 `scripts/pdf-cache-clean.php` borra los archivos de caché con más de 1 hora. Ejecutarlo
 manual o por cron para evitar acumulación en disco.
 
+El renderizado de PDF sigue ocurriendo en el servidor, no en el navegador.
+
+## Detalle de módulos
+
+Cada módulo tiene su propio controlador en `app/Controllers/`, su modelo en
+`app/Models/` y sus vistas bajo `app/Views/`. El acceso se controla en la lista
+blanca de `public/index.php` y el menú lateral se filtra con
+`sigde_nav_sections()` en `app/Views/helpers/ui.php`.
+
+### Autenticación (`auth/*`)
+**Controlador:** `AuthController`  
+**Modelos:** `LoginModel`, `PasswordRecoveryModel`, `AuditLogModel`  
+**Acciones:** `login`, `authenticate`, `logout`, `cambiarPasswordProvisional`, `updatePassword`, `recoverAccess`, `requestRecovery`  
+**Roles:** `publico` (login y recuperación), `admin`, `docente`, `coordinador`, `directivo`, `secretaria` (logout y cambio de clave)  
+Flujo de acceso al sistema: login con bloqueo por intentos fallidos, cambio de clave provisional obligatoria, recuperación de acceso gestionada por el administrador y cierre de sesión.
+
+### Paneles (`dashboard/*`)
+**Controlador:** `DashboardController`  
+**Vistas:** `Views/dashboard/{rol}/index.php`  
+**Acciones:** `index`, `admin`, `docente`, `coordinador`, `directivo`, `secretaria`  
+**Roles:** todos los autenticados  
+Cada rol tiene su propio dashboard con indicadores relevantes. El controlador resuelve el destino después del login y comprueba que el rol coincida con el destino solicitado.
+
+### Cuentas de usuario (`cuentaUsuario/*`)
+**Controlador:** `UserAccountController`  
+**Modelo:** `UserAccountModel`  
+**Acciones:** `index`, `create`, `store`, `edit`, `update`, `toggleStatus`, `getDetalle`  
+**Roles:** `admin`  
+Gestión de cuentas de usuario del sistema: listado, alta desde un empleado, edición de usuario y rol, detalle y activación/desactivación. Todo por modales AJAX.
+
+### Bitácora (`bitacora/*`)
+**Controlador:** `AuditLogController`  
+**Modelo:** `AuditLogModel`  
+**Acciones:** `index`, `exportar`  
+**Roles:** `admin`  
+Registro de auditoría del sistema: listado de acciones (usuario, módulo, IP, fecha) y exportación. Solo lectura.
+
+### Recuperación de acceso (`recuperacionAcceso/*`)
+**Controlador:** `PasswordRecoveryController`  
+**Modelo:** `PasswordRecoveryModel`  
+**Acciones:** `index`, `getDetalle`, `updateEstado`, `resetPassword`  
+**Roles:** `admin`  
+Lado administrador de la recuperación de acceso: aprueba o rechaza solicitudes de restablecimiento, genera claves provisionales y permite restablecer claves sin solicitud previa.
+
+### Notificaciones (`notificacion/*`)
+**Controlador:** `NotificationController`  
+**Modelo:** `NotificationModel`  
+**Acciones:** `contador`, `listar`, `leer`, `leerTodas`  
+**Roles:** `admin`, `secretaria`, `directivo`  
+Endpoints AJAX para el contador de notificaciones no leídas, listado y marcado como leídas. Se consumen desde el dropdown del header.
+
+### Catálogos (`catalogo/*`)
+**Controlador:** `CatalogController`  
+**Modelos:** `CatalogModel` + modelos por catálogo (`GradoModel`, `SeccionModel`, `TurnoModel`, `TipoDocumentoModel`, etc.)  
+**Acciones:** `index`, `store`, `update`, `toggleStatus`, `getUbicacion`  
+**Roles:** `admin`  
+Gestión de catálogos maestros del sistema (grados, secciones, turnos, tipos de documento, grados académicos, tipos de asignación, ocupaciones, nacionalidades, cargos, parentescos, niveles de instrucción, títulos). Cada catálogo tiene su modelo y el controlador usa `tipo` para distinguirlos.
+
+### Empleados (`empleado/*`)
+**Controlador:** `EmployeeController`  
+**Modelos:** `EmployeeModel`, `TituloModel`, `InstitucionModel`, `AuditLogModel`  
+**Servicio:** `ExpedienteEmpleadoService`  
+**Acciones:** `index`, `expediente`, `exportar`, `estadoInfo`, `cambiarEstado`, `cerrarReposo`, `anularReposo`, `create`, `show`, `edit`, `store`, `update`, `toggleStatus`, `getUbicacion`, `buscarPersona`, `registrarReposo`, `updateReposo`, `getReposos`, `guardarTitulo`, `guardarInstitucion`  
+**Roles:** `directivo`, `coordinador`, `secretaria` (consulta/subconjunto); `directivo` (gestión completa)  
+CRUD de personal empleado, expedientes laborales, reposos, títulos e instituciones. Coordinador y secretaria tienen acceso de consulta a un subconjunto; el directivo gestiona el módulo completo.
+
+### Años escolares (`academicYear/*`)
+**Controlador:** `AcademicYearController`  
+**Modelo:** `AcademicYearModel`  
+**Acciones:** `index`, `store`, `update`, `iniciar`, `cerrar`, `reabrir`  
+**Roles:** `directivo`  
+Gestión del ciclo lectivo: creación, edición, apertura y cierre de años escolares. Solo la dirección puede iniciar o cerrar un año.
+
+### Estructura académica (`academicStructure/*`)
+**Controlador:** `AcademicStructureController`  
+**Modelo:** `AcademicStructureModel`  
+**Acciones:** `index`, `store`, `update`, `impacto`  
+**Roles:** `coordinador`, `directivo`  
+Definición de la estructura académica (año + grado + sección + turno + cupo). Incluye un endpoint de impacto que informa cuántos alumnos se moverían al editar una estructura.
+
+### Asignación docente (`teacherAssignment/*`)
+**Controlador:** `TeacherAssignmentController`  
+**Modelo:** `TeacherAssignmentModel`  
+**Acciones:** `index`, `asignar`, `actualizar`, `retirar`, `getDocentesPorEstructura`  
+**Roles:** `coordinador`, `directivo`  
+Asignación y retiro de docentes titulares por sección académica. Consumo de docentes por estructura para el formulario de asignación.
+
+### Retiros (`withdrawal/*`)
+**Controlador:** `WithdrawalController`  
+**Modelo:** `WithdrawalModel`  
+**Acciones:** `index`, `ver`, `buscarEstudiante`, `store`, `evaluarRecaudos`, `updateEstado`, `updateStatus`, `delete`  
+**Roles:** `directivo`, `secretaria`  
+Proceso de retiro de estudiantes: la secretaria registra la solicitud y evalúa recaudos; el directivo resuelve (aprueba/rechaza) y puede eliminar registros.
+
+### Reingresos (`reingreso/*`)
+**Controlador:** `ReingresoController`  
+**Modelo:** `ReingresoModel`  
+**Acciones:** `index`, `buscarEstudiante`, `datos`, `guardar`  
+**Roles:** `secretaria`  
+Reincorporación de estudiantes retirados: listado de solicitudes, datos del estudiante y guardado de la solicitud de reingreso.
+
+### Estudiantes y expedientes (`estudiantes/*`)
+**Controlador:** `StudentsController`  
+**Modelo:** `StudentsModel`  
+**Servicio:** `ExpedienteEstudianteService`  
+**Acciones:** `index`, `show`, `expediente`, `exportar`, `guardarRecaudos`  
+**Roles:** `directivo`, `coordinador`, `secretaria`, `docente` (consulta); `secretaria` (guardar recaudos)  
+Consulta de expedientes académicos: listado con filtros, expediente completo del estudiante, exportación y marcación de recaudos entregados (exclusivo de secretaria).
+
+### Inscripción (`inscripciones/*`)
+**Controlador:** `EnrollmentController`  
+**Modelo:** `EnrollmentModel`  
+**Acciones:** `index`, `store`, `evaluarRecaudos`, `ver`, `continuar`, `buscarPersona`, `guardarInstitucion`, `getUbicacion`  
+**Roles:** `secretaria`  
+Registro de nuevas inscripciones: búsqueda de estudiante por cédula, alta de matrícula, evaluación de recaudos y datos de institución de procedencia.
+
+### Ratificación (`ratificacion/*`)
+**Controlador:** `RatificationController`  
+**Modelo:** `RatificationModel`  
+**Acciones:** `index`, `ver`, `datosEstudiante`, `getUbicacion`, `buscarPersona`, `secciones`, `ratificar`, `updateEstudiante`  
+**Roles:** `secretaria` (todas las acciones); `directivo` (solo `updateEstudiante`)  
+Ratificación de matrícula para el año siguiente. Admin no tiene acceso a este módulo. La edición de recaudos en Estudiantes también es exclusiva de secretaria.
+
+### Configuración institucional (`configuracionInstitucional/*`)
+**Controlador:** `InstitutionalConfigController`  
+**Modelo:** `InstitutionalConfigModel`  
+**Acciones:** `index`, `guardar`, `subirImagen`, `quitarImagen`, `verPrivado`, `restablecerOficial`  
+**Roles:** `admin`  
+Datos oficiales del plantel (nombre, código de dependencia, dirección, directivo), logos públicos y privados (firma y sello del director). Acceso restringido estrictamente a administrador.
+
+### Constancias (`constancias/*`)
+**Controlador:** `CertificatesController`  
+**Modelo:** `CertificatesModel`  
+**Acciones:** `index`, `estudio`, `inscripcion`, `retiro`, `prosecucion`, `verPrueba`, `emitir`, `emitirLote`  
+**Roles:** `secretaria`  
+Emisión oficial de constancias: estudio, inscripción/ratificación, prosecución y retiro. Incluye vista previa de prueba y emisión por lote de certificados de educación primaria (6.º grado).
+
+### Resultados académicos (`resultadoAcademico/*`)
+**Controlador:** `AcademicResultController`  
+**Modelo:** `AcademicResultModel`  
+**Acciones:** `index`, `seccion`, `guardarPropuesta`  
+**Roles:** `docente`  
+Registro de literales finales (A-E) por estudiante al cierre del año. El estado de promoción se deriva automáticamente: A-D = promovido, E = no promovido, sin literal = pendiente.
+
+### Certificados de calificaciones (`certificadoCalificaciones/*`)
+**Controlador:** `GradeCertificateController`  
+**Modelos:** `GradeCertificateModel`, `AcademicResultModel`  
+**Acciones:** `generarIndividual`, `generarPorSeccion`  
+**Roles:** `docente`  
+Emisión de Certificados de Calificaciones (Art. 108 RGLOE) individuales o por sección. Solo la docente asignada a la sección puede emitir. En 6.º grado solo reciben certificado quienes no alcanzaron competencias (literal E); los promovidos reciben el Certificado de Educación Primaria por el módulo de Constancias.
+
+### Docente (`docente/*`)
+**Controlador:** `TeacherController`  
+**Acciones:** `index`, `nomina`, `seccion`, `guardarEnlaceWhatsapp`  
+**Roles:** `docente`  
+Listados del docente (nómina de su sección), ver sección y enlace de WhatsApp de la sección.
+
+### Estadísticas (`estadistica/*`)
+**Controlador:** `StatisticsController`  
+**Modelo:** `StatisticsModel`  
+**Acciones:** `index`, `exportarHermanosExcel`, `exportarHermanosPdf`, `exportarMatriculaExcel`  
+**Roles:** `directivo`, `coordinador`  
+Estadísticas institucionales: control de representantes y hermanos, matrícula y capacidad, demografía, salud y talento humano. Exportación a Excel y PDF.
+
+### Egresos (`egresos/*`)
+**Roles:** —  
+Módulo sin rutas declaradas en la lista blanca del front controller, aunque aparezca en la lista de acciones POST. No está operativo en la versión actual.
+
+### Perfil (`perfil/*`)
+**Controlador:** `ProfileController`  
+**Modelo:** `ProfileModel`  
+**Acciones:** `index`, `actualizarFoto`  
+**Roles:** `admin`, `docente`, `coordinador`, `directivo`, `secretaria`  
+Ficha de identidad del usuario autenticado: datos de cuenta, información laboral y canales de contacto en modo solo lectura, más actualización de foto de perfil.
+
 ## Problemas frecuentes
 
 **Los botones no abren modales.** Falta Bootstrap o SweetAlert2 en `public/assets/`.
