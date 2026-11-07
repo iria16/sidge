@@ -7,10 +7,8 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     var inputFoto = document.getElementById('inputFotoPerfil');
-    var inputCamara = document.getElementById('inputFotoPerfilCamara');
     var preview = document.getElementById('perfilFotoPreview');
     var btnQuitar = document.getElementById('btnQuitarFotoPerfil');
-    var btnCamara = document.getElementById('btnTomarFotoPerfil');
 
     if (!inputFoto || !preview) return;
 
@@ -102,18 +100,8 @@
       subirFoto(inputFoto);
     });
 
-    // Manejar captura directa con la cámara (móviles)
-    if (inputCamara) {
-      inputCamara.addEventListener('change', function () {
-        subirFoto(inputCamara);
-      });
-    }
-
-    if (btnCamara && inputCamara) {
-      btnCamara.addEventListener('click', function () {
-        inputCamara.click();
-      });
-    }
+    // "Tomar foto" lo resuelve SIGDEWizardUI (data-foto-camara) y dispara este
+    // mismo 'change', así que aquí no hace falta lógica extra de cámara.
 
     // Manejar eliminación de foto
     if (btnQuitar) {

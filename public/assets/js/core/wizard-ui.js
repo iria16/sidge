@@ -452,9 +452,186 @@ window.SIGDEWizardUI = (function () {
     });
   }
 
+  /* ---------- Cámara: tomar la foto con la webcam o la cámara del móvil ----------
+
+  Un <input type="file"> solo abre el selector de archivos en escritorio; la cámara
+  únicamente aparece en móviles y de forma implícita. Para que "Tomar foto" exista
+  en todos los formularios de persona (empleado, estudiante, familiar y edición) se
+  usa getUserMedia y se entrega la captura como un File al input que ya existía,
+  disparando su 'change'. Así la vista previa, el "Quitar foto" y el envío siguen
+  funcionando sin duplicar lógica en cada módulo.
+
+  Cualquier botón con data-foto-camara="<id del input>" activa la cámara. Si el
+  navegador no la permite (HTTP, permisos denegados, equipo sin cámara) se cae al
+  selector nativo, que en móviles ya ofrece la opción de cámara. */
+
+  /**
+   * Coloca un archivo en el input y dispara 'change' para que el manejador que ya
+   * tenga el formulario lo procese (preview, estado interno, subida inmediata...).
+   *
+   * @param {HTMLInputElement} input
+   * @param {File|Blob} archivo
+   * @returns {boolean} true si el navegador permitió asignarlo
+   */
+  function asignarArchivo(input, archivo) {
+    try {
+      var transferencia = new DataTransfer();
+      transferencia.items.add(archivo);
+      input.files = transferencia.files;
+    } catch (e) {
+      /* Sin DataTransfer no se puede inyectar el archivo: se usa el selector nativo. */
+      input.click();
+      return false;
+    }
+
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  /**
+   * Abre un overlay con la cámara, permite capturar un fotograma y lo entrega al input.
+   *
+   * @param {HTMLInputElement} input
+   */
+  function abrirCamara(input) {
+    if (!input) return;
+
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      input.click();
+      return;
+    }
+
+    var overlay = document.createElement('div');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Tomar foto');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(10,20,64,.85);';
+
+    var caja = document.createElement('div');
+    caja.style.cssText = 'width:min(92vw,560px);background:#fff;border-radius:.75rem;overflow:hidden;box-shadow:0 1rem 3rem rgba(0,0,0,.4);';
+
+    var titulo = document.createElement('div');
+    titulo.textContent = 'Tomar foto';
+    titulo.style.cssText = 'padding:.75rem 1rem;font-weight:600;color:#0a1440;border-bottom:1px solid #e5e7eb;';
+
+    var escenario = document.createElement('div');
+    escenario.style.cssText = 'position:relative;background:#000;';
+
+    var video = document.createElement('video');
+    video.setAttribute('autoplay', '');
+    video.setAttribute('playsinline', '');
+    video.muted = true;
+    video.style.cssText = 'display:block;width:100%;max-height:60vh;object-fit:cover;';
+
+    var acciones = document.createElement('div');
+    acciones.style.cssText = 'display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem;';
+
+    var btnCancelar = document.createElement('button');
+    btnCancelar.type = 'button';
+    btnCancelar.className = 'btn btn-outline-secondary btn-sm';
+    btnCancelar.textContent = 'Cancelar';
+
+    var btnCapturar = document.createElement('button');
+    btnCapturar.type = 'button';
+    btnCapturar.className = 'btn btn-primary btn-sm';
+    btnCapturar.innerHTML = '<i class="bi bi-camera me-1"></i>Capturar';
+
+    escenario.appendChild(video);
+    acciones.appendChild(btnCancelar);
+    acciones.appendChild(btnCapturar);
+    caja.appendChild(titulo);
+    caja.appendChild(escenario);
+    caja.appendChild(acciones);
+    overlay.appendChild(caja);
+    document.body.appendChild(overlay);
+
+    var stream = null;
+    var cerrado = false;
+
+    function cerrar() {
+      if (cerrado) return;
+      cerrado = true;
+      if (stream) {
+        stream.getTracks().forEach(function (pista) { pista.stop(); });
+        stream = null;
+      }
+      document.removeEventListener('keydown', alTeclear);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    function alTeclear(evento) {
+      if (evento.key === 'Escape') cerrar();
+    }
+
+    document.addEventListener('keydown', alTeclear);
+    overlay.addEventListener('click', function (evento) {
+      if (evento.target === overlay) cerrar();
+    });
+    btnCancelar.addEventListener('click', cerrar);
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+      .then(function (capturado) {
+        if (cerrado) {
+          capturado.getTracks().forEach(function (pista) { pista.stop(); });
+          return;
+        }
+        stream = capturado;
+        video.srcObject = capturado;
+        var reproduccion = video.play();
+        if (reproduccion && typeof reproduccion.catch === 'function') {
+          reproduccion.catch(function () {});
+        }
+      })
+      .catch(function () {
+        cerrar();
+        if (window.SIGDEUI && typeof SIGDEUI.mostrarError === 'function') {
+          SIGDEUI.mostrarError('No se pudo abrir la cámara. Revisa los permisos del navegador o selecciona una foto.', 'Cámara no disponible');
+        }
+        input.click();
+      });
+
+    btnCapturar.addEventListener('click', function () {
+      if (!video.videoWidth || !video.videoHeight) return;
+
+      var lienzo = document.createElement('canvas');
+      lienzo.width = video.videoWidth;
+      lienzo.height = video.videoHeight;
+      lienzo.getContext('2d').drawImage(video, 0, 0, lienzo.width, lienzo.height);
+
+      lienzo.toBlob(function (blob) {
+        if (!blob) {
+          cerrar();
+          return;
+        }
+        var nombre = 'foto_camara_' + Date.now() + '.jpg';
+        var archivo;
+        try {
+          archivo = new File([blob], nombre, { type: 'image/jpeg' });
+        } catch (e) {
+          archivo = blob;
+          archivo.name = nombre;
+        }
+        cerrar();
+        asignarArchivo(input, archivo);
+      }, 'image/jpeg', 0.92);
+    });
+  }
+
+  /* Delegación global: sirve para cualquier botón, aunque su formulario no use
+  initFoto (por ejemplo el modal de edición de empleado). */
+  document.addEventListener('click', function (evento) {
+    var boton = evento.target && evento.target.closest
+      ? evento.target.closest('[data-foto-camara]')
+      : null;
+    if (!boton) return;
+    evento.preventDefault();
+    abrirCamara(document.getElementById(boton.getAttribute('data-foto-camara')));
+  });
+
   return {
     initCascadaNacimiento: initCascadaNacimiento,
     initFoto: initFoto,
+    abrirCamara: abrirCamara,
     initTarjetasSeleccionables: initTarjetasSeleccionables,
     initSoloDigitos: initSoloDigitos,
     initSoloLetras: initSoloLetras,

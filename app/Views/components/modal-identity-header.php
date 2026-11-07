@@ -44,8 +44,13 @@ $identityBadgeExtra = $identityBadgeExtra ?? '';
     </span>
     <?= $identityBadgeExtra ?>
   </div>
-  <button type="button" class="btn btn-link btn-sm p-0 text-danger mt-1" id="<?= htmlspecialchars($identityQuitarId) ?>" hidden>
-    <i class="bi bi-x-circle me-1"></i>Quitar foto
-  </button>
+  <div class="d-flex justify-content-center align-items-center gap-3 mt-1">
+    <button type="button" class="btn btn-link btn-sm p-0" data-foto-camara="<?= htmlspecialchars($identityInputId) ?>">
+      <i class="bi bi-camera me-1"></i>Tomar foto
+    </button>
+    <button type="button" class="btn btn-link btn-sm p-0 text-danger" id="<?= htmlspecialchars($identityQuitarId) ?>" hidden>
+      <i class="bi bi-x-circle me-1"></i>Quitar foto
+    </button>
+  </div>
   <input type="hidden" name="eliminar_foto" id="<?= htmlspecialchars($identityEliminarId) ?>" value="0">
 </div>

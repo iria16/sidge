@@ -98,9 +98,12 @@ $nameSexo = $prefixName . 'sexo';
   </label>
   <div class="text-center">
     <label for="<?= $idFotoInput ?>" class="wizard-photo-upload__hint" role="button" style="cursor: pointer;">
-      <i class="bi bi-camera me-1"></i>Foto de perfil (Opcional)
+      <i class="bi bi-image me-1"></i>Seleccionar foto (Opcional)
     </label>
-    <div>
+    <div class="d-flex justify-content-center align-items-center gap-3">
+      <button type="button" class="btn btn-link btn-sm p-0 wizard-photo-upload__hint" data-foto-camara="<?= $idFotoInput ?>">
+        <i class="bi bi-camera me-1"></i>Tomar foto
+      </button>
       <button type="button" class="btn btn-link btn-sm text-danger p-0" id="<?= $btnQuitarFotoId ?>" hidden>
         <i class="bi bi-x-circle me-1"></i>Quitar foto
       </button>
