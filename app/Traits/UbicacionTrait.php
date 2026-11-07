@@ -42,7 +42,7 @@ trait UbicacionTrait
     /**
      * Responde un nivel completo de la cascada.
      *
-     * El navegador recibe la lista entera y filtra, así
+     * Ya no pide el padre: el navegador recibe la lista entera y filtra, así
      * que los tres <select> del formulario están habilitados desde el
      * principio (elegir el estado no "abre" el municipio).
      *
@@ -66,7 +66,7 @@ trait UbicacionTrait
     }
 
     // ---------- Contrato con BaseController ----------
-    // Sin cuerpo de propósito: solo declaran la firma exacta que este trait
+    // Sin cuerpo a propósito: solo declaran la firma exacta que este trait
     // necesita, para que el editor resuelva las llamadas y para que PHP falle
     // en tiempo de declaración si algún día se usa en una clase sin ellas.
 

@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var editForm = document.getElementById('formEditarEstructura');
 
   /* ---------- Filtrado ----------
- No se engancha nada aquí de propósito. main.js (initAutoFilters) ya pone un
+ No se engancha nada aquí a propósito. main.js (initAutoFilters) ya pone un
  listener de 'change' a cada <select> del form .data-panel__filters y refresca
  el panel por AJAX. Con un requestSubmit() propio, cambiar un filtro disparaba
  los dos: dos peticiones y una navegación de página por cada clic.*/

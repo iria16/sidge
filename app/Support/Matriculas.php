@@ -50,24 +50,23 @@ final class Matriculas
     /** Continuidad. Una vez por año escolar, mientras el alumno siga aquí. */
     public const RATIFICACION = 'RATIFICACION';
 
-    /** Se va antes de culminar sexto. Estado final. */
+    /** Se va antes de culminar sexto. */
     public const RETIRO = 'RETIRO';
 
     /** Culminó sexto. Estado final. */
     public const EGRESO = 'EGRESO';
 
+    /** Reincorporación de un estudiante retirado al plantel. */
+    public const REINGRESO = 'REINGRESO';
+
     /**
-     * Los cuatro tipos, y nada más.
-     *
-     * La lista es cerrada de propósito. Un valor que ninguna regla puede alcanzar
-     * es una trampa: queda disponible, alguien lo usa, y después nadie sabe qué
-     * pasó. Por eso el `TRASLADADO` que había antes no está.
+     * Los tipos válidos de matrícula.
      *
      * @return array<int, string>
      */
     public static function tipos(): array
     {
-        return [self::INSCRIPCION, self::RATIFICACION, self::RETIRO, self::EGRESO];
+        return [self::INSCRIPCION, self::RATIFICACION, self::RETIRO, self::EGRESO, self::REINGRESO];
     }
 
     /**
@@ -77,11 +76,11 @@ final class Matriculas
      */
     public static function tiposQueCursan(): array
     {
-        return [self::INSCRIPCION, self::RATIFICACION];
+        return [self::INSCRIPCION, self::RATIFICACION, self::REINGRESO];
     }
 
     /**
-     * Los tipos que CIERRAN el ciclo: después de uno de estos no hay más matrículas.
+     * Los tipos que CIERRAN el ciclo: retiro y egreso.
      *
      * @return array<int, string>
      */
@@ -91,12 +90,11 @@ final class Matriculas
     }
 
     /**
-     * ¿Este tipo cierra el ciclo permanentemente?
-     * Solo EGRESO (culminar 6to grado) es terminal absoluto; el RETIRO admite reingreso posterior.
+     * ¿Este tipo cierra el ciclo?
      */
     public static function esFinal(?string $tipo): bool
     {
-        return $tipo === self::EGRESO;
+        return $tipo !== null && in_array($tipo, self::tiposFinales(), true);
     }
 
     /**
@@ -112,8 +110,7 @@ final class Matriculas
             return false;
         }
 
-        // Sin historial: el único camino es la inscripción. Nadie entra al
-        // plantel por la ratificación, que es la que continúa.
+        // Sin historial: el único camino es la inscripción.
         if ($actual === null) {
             return $nuevo === self::INSCRIPCION;
         }
@@ -123,23 +120,25 @@ final class Matriculas
             return false;
         }
 
-        // El egreso de 6to grado es el único estado final absoluto: culminó la primaria,
-        // no admite más matrículas.
+        // Tras un retiro: SOLO se puede reincorporar mediante REINGRESO.
+        if ($actual === self::RETIRO) {
+            return $nuevo === self::REINGRESO;
+        }
+
+        // Tras egreso: terminal absoluto.
         if ($actual === self::EGRESO) {
             return false;
         }
 
-        // Un estudiante retirado puede reincorporarse/reingresar bajo la modalidad de
-        // continuidad (RATIFICACION). No admite nueva inscripción (la inscripción es única),
-        // ni otro retiro o egreso directo.
-        if ($actual === self::RETIRO) {
-            return $nuevo === self::RATIFICACION;
+        // Un reingreso solo puede registrarse tras un retiro previo.
+        if ($nuevo === self::REINGRESO) {
+            return $actual === self::RETIRO;
         }
 
-        // INSCRIPCION y RATIFICACION comparten lo que puede seguirles: continuar,
-        // o cerrarse. Lo único que no puede ser es otra inscripción, porque la
-        // inscripción es única de por vida.
-        return $nuevo !== self::INSCRIPCION;
+        // INSCRIPCION, RATIFICACION y REINGRESO representan cursada activa:
+        // pueden continuar (RATIFICACION) o cerrarse (RETIRO / EGRESO).
+        // No se permite repetir inscripción ni reingresar sin retiro previo.
+        return $nuevo !== self::INSCRIPCION && $nuevo !== self::REINGRESO;
     }
 
     /**
@@ -156,19 +155,16 @@ final class Matriculas
         $nuevo = strtoupper(trim($nuevo));
 
         if ($actual === null) {
-            return "Un estudiante sin inscripción previa no se ratifica: corresponde inscribirlo. "
-                . "La ratificación es solo para alumnos que ya estaban.";
+            return "Un estudiante sin inscripción previa no se ratifica ni reingresa: corresponde inscribirlo.";
         }
         if ($actual === self::EGRESO) {
-            return "El ciclo de este estudiante culminó por egreso (graduado de 6to grado). No admite más matrículas.";
+            return "El ciclo de este estudiante ya culminó por egreso. No admite más matrículas.";
         }
         if ($actual === self::RETIRO) {
-            if ($nuevo === self::INSCRIPCION) {
-                return "El estudiante ya tiene expediente en el plantel: para reincorporarlo corresponde un reingreso, no una nueva inscripción.";
-            }
-            if (in_array($nuevo, [self::RETIRO, self::EGRESO], true)) {
-                return "El estudiante ya se encuentra retirado.";
-            }
+            return "Un estudiante retirado solo puede reincorporarse bajo el tipo Reingreso.";
+        }
+        if ($nuevo === self::REINGRESO) {
+            return "El reingreso solo aplica a estudiantes que se encuentran en estado de retiro.";
         }
         if ($nuevo === self::INSCRIPCION) {
             return 'La inscripción ocurre una sola vez en toda la vida escolar del alumno: '
@@ -207,8 +203,8 @@ final class Matriculas
      *     se retira, su fila del año sigue ahí, con su tipo de cursada, porque no
      *     se toca el historial. Si el conteo se quedara con "tiene alguna fila
      *     activa", ese alumno seguiría ocupando el puesto para siempre y la
-     *     sección nunca liberaría el lugar. Lo mismo con el que se ratifica al
-     *     año siguiente y deja de pertenecer a la sección anterior.
+     *     sección nunca liberaría el lugar. Lo mismo con el que se ratifica al año
+     *     siguiente: ya no está en la sección de antes.
      *
      * Está como texto y no como método que arme la consulta entera porque la usan
      *     dos sitios con_SELECT distintos (el conteo de cupos y el conteo de
@@ -233,7 +229,7 @@ final class Matriculas
         $otro = $alias === 'm' ? 'u' : $alias . '_u';
         $yo   = $alias === 'm' ? 'c' : $alias . '_c';
 
-        return $alias . ".tipo IN ('INSCRIPCION', 'RATIFICACION') AND NOT EXISTS (
+        return $alias . ".tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO') AND NOT EXISTS (
                     SELECT 1 FROM matricula {$otro}
                       INNER JOIN anio_escolar anu ON anu.id_anio_escolar = {$otro}.id_anio_escolar
                       INNER JOIN anio_escolar anc ON anc.id_anio_escolar = {$alias}.id_anio_escolar

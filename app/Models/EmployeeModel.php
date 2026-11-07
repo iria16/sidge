@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Exceptions\DocumentoDuplicadoException;
 use App\Interfaces\Creatable;
 use App\Interfaces\Listable;
 use App\Interfaces\Toggleable;
 use App\Interfaces\Updatable;
 use App\Support\Documento;
+use App\Support\Instituciones;
 use App\Traits\AvatarTrait;
 use PDO;
+use PDOException;
+use PDOStatement;
 use RuntimeException;
 use Throwable;
 
@@ -25,13 +29,23 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
     protected array $allowedColumns = ['id_empleado', 'id_persona', 'fecha_ingreso', 'fecha_egreso', 'id_cargo', 'id_turno'];
 
     /**
-     * Expresión SQL canónica para determinar si un empleado se encuentra en reposo médico vigente.
+     * Columnas del reposo para el listado y el detalle.
+     *
+     * Va como constante y no pegado en cada SELECT porque "en reposo" tiene que significar
+     * LO MISMO en las dos consultas, y el día que una se quede atrás el listado muestra que
+     * el empleado descansa y el detalle dice que no, o al revés.
+     *
+     * Se arma fuera de la cadena del SELECT a propósito: un comentario de PHP dentro de un
+     * string doble rompe el archivo, y el comentario es lo que explica por qué se calcula.
      */
+
+    /** Columna para el badge del listado y para getById(). */
     private const COLUMNA_EN_REPOSO =
         ReposoEmployeeModel::EXPRESION_EN_REPOSO . ' AS en_reposo';
 
     /**
-     * Consulta el motivo del reposo médico activo únicamente en la vista de detalle.
+     * Motivo del reposo vigente: SOLO se consulta en getById() (detalle).
+     * El listado (getAll) no lo consulta ni lo expone por privacidad (dato de salud).
      */
     private const COLUMNA_MOTIVO_REPOSO =
         '(SELECT r.motivo FROM reposo_empleado r'
@@ -123,7 +137,7 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
             'tipo_documento'   => (string) ($row['tipo_documento'] ?? ''),
             'numero_documento' => (string) ($row['numero_documento'] ?? ''),
             'cargo'            => $row['cargo'] ?? 'Sin cargo',
-            'turno'            => trim((string) ($row['turno'] ?? '')),
+            'turno'            => $row['turno'] ?? 'Sin turno',
             /* Vacía y no "Sin nacionalidad": el listado es para leer de un vistazo y
                un texto de relleno por fila distrae de las que sí lo tienen. */
             'nacionalidad'     => (string) ($row['nacionalidad'] ?? ''),
@@ -154,11 +168,6 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
         if (!empty($filters['cargo'])) {
             $where[]         = "e.id_cargo = :cargo";
             $params['cargo'] = (int) $filters['cargo'];
-        }
-
-        if (!empty($filters['turno'])) {
-            $where[]         = "e.id_turno = :turno";
-            $params['turno'] = (int) $filters['turno'];
         }
 
         if (!empty($filters['estado'])) {
@@ -214,11 +223,17 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
     }
 
     /**
- * Un grado académico del catálogo existe. El <select> solo ofrece los grados que hay,
- * pero el id llega del formulario y el servidor no puede depender de eso: sin esta
- * comprobación, un id inventado llega al INSERT y MariaDB avisa por log y guarda el 0,
- * con el alta "exitosa" y el título sin grado.
- */
+ * Un grado académico del catálogo existe.
+ *
+ * Se usa en empleados/guardarTitulo antes de crear el título. El <select> solo ofrece
+ * los grados que hay, pero el id llega del formulario y el servidor no puede depender
+ * de eso: sin esta comprobación, un id inventado llega al INSERT y MariaDB avisa por
+ * log y guarda el 0, con el alta "exitosa" y el título sin grado.
+ *
+ * Antes se llamaba existeCatalogo('grado_academico', $grado) desde el controlador, y
+ * ese método no existía en ningún modelo: era un error fatal que tumbaba la pantalla
+ * con un 500 en blanco, sin mensaje ni aviso, y el título nunca se guardaba.
+*/
     public function existeGradoAcademico(int $idGrado): bool
     {
         if ($idGrado <= 0) {
@@ -254,10 +269,17 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
     }
 
     /**
- * Catálogos de los formularios de alta y edición. Cada uno devuelve su columna tal
- * como se llama en la tabla (id_grado_academico, id_titulo, id_institucion...) y no
- * renombrada a "id".
- */
+ * Catálogos de los formularios de alta y edición.
+ *
+ * Cada uno devuelve su columna tal como se llama en la tabla (id_grado_academico,
+ * id_titulo, id_institucion...) y no renombrada a "id". Estas consultas traían "AS id"
+ * y las vistas piden la clave real, así que los <option> salían con value="0" en
+ * todos los títulos, grados e instituciones de los dos modales: al elegir el grado no se
+ * desosliegaba nada porque todos los títulos valían lo mismo, y al guardar el servidor
+ * recibía id_titulo=0 y descartaba la formación.
+ *
+ * "estados" y "turnos" nunca se renombraron, y por eso esos dos sí funcionaban.
+*/
     public function getCatalogosFormulario(): array
     {
         return [
@@ -373,9 +395,12 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
     }
 
     /**
- * Nombre corto (nombre y apellido) de un empleado. Se usa en textos de bitácora y
- * avisos donde el nombre completo sobra.
- */
+     * Nombre corto (nombre y apellido) de un empleado.
+     *
+     * Se usa en textos de bitácora y avisos donde el nombre completo sobra. El
+     * CONCAT_WS es el mismo del listado para que el mismo empleado se lea igual
+     * en la pantalla, en el detalle y en la auditoría.
+     */
     public function getNombreCorto(int $idEmpleado): ?string
     {
         if ($idEmpleado <= 0) {
@@ -564,7 +589,7 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
             "SELECT COUNT(*)
                FROM cargo
               WHERE id_cargo = :cargo
-                AND nombre = 'Docente de Aula'"
+                AND nombre IN ('Docente de Aula', 'Docente de Educación Especial')"
         );
         $cargo->execute(['cargo' => $idCargo]);
         if ((int) $cargo->fetchColumn() === 0) {
@@ -704,12 +729,13 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
     }
 
     /**
- * Cambia el estado de la persona y deja rastro en el historial. Al desactivar, si se
- * confirma, cierra las asignaciones docentes activas en la fecha efectiva; no las
- * borra.
- *
- * @return array{estado_anterior:string,estado_nuevo:string,asignaciones_cerradas:int,reposo_vigente:?array}
- */
+     * Cambia el estado de la persona y deja rastro en el historial.
+     *
+     * Al desactivar, si se confirma, cierra las asignaciones docentes activas en
+     * la fecha efectiva; no las borra.
+     *
+     * @return array{estado_anterior:string,estado_nuevo:string,asignaciones_cerradas:int,reposo_vigente:?array}
+     */
     public function cambiarEstado(
         int $idEmpleado,
         string $nuevoEstado,
@@ -878,11 +904,19 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
     }
 
     /**
- * Aplica lo que venga de la edición de la formación. Sustituye al "borro todo y
- * reescribo" de la alta, y esa diferencia importa porque el modal de edición solo
- * maneja UNA fila: un empleado puede tener varias, y borrar todas para reponer una
- * perdía los demás títulos sin avisar.
- */
+ * Aplica lo que venga de la edición de la formación.
+ *
+ * Sustituye al "borro todo y reescribo" de la alta, y esa diferencia importa porque el
+ * modal de edición solo maneja UNA fila: un empleado puede tener varias, y borrar todas
+ * para reponer una perdía los demás títulos sin avisar.
+ *
+ * - Si viene eliminar_formacion, se borra la fila indicada (o todas, si no se indica
+ * cuál: así un empleado con dos títulos se puede dejar sin formación completa).
+ * - Si viene una fila completa, se actualiza la que se indica por su id o se inserta
+ * como nueva.
+ * - Si no viene nada de eso, no se toca la formación. Es el caso normal al editar otro
+ * dato: que abrir y guardar el modal no borre información que la pantalla ni muestra.
+*/
     private function actualizarFormacion(int $idEmpleado, array $data): void
     {
         $filas = $data['formacion'] ?? [];

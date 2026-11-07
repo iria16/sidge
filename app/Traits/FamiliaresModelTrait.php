@@ -14,10 +14,11 @@ trait FamiliaresModelTrait
 {
     /**
  * @param array<int, array<string, mixed>> $familiares Ya normalizados.
- * @param bool $sincronizar Cuando es true, la lista recibida es la definitiva:
- * lo que ya estaba y no viene se marca como desvinculado, y lo que vuelve se
- * reactiva. La inscripción lo deja apagado porque su formulario siempre parte
- * de una lista vacía y una sincronización solo podría borrar datos por error.
+ * @param bool $sincronizar Cuando es true, la lista es la VERDAD: lo que ya
+ * estaba y no viene se marca como desvinculado y lo que vuelve se reactiva
+ * (hallazgo MEDIO 4.7). Lo deja apagado a propósito la inscripción, donde la
+ * lista del formulario es siempre de cero y una sincronización solo podría
+ * borrar algo por error.
  * @param int $idUsuario Usuario que guarda, para la auditoría de los
  * documentos por persona. 0 cuando no hay sesión (scripts o pruebas).
  * @throws DatoFamiliarIncompletoException
@@ -209,20 +210,27 @@ trait FamiliaresModelTrait
         }
     }
 
-    private function resolverIdCatalogo(string $tabla, string $pk, string $nombre): ?int
+    private function resolverIdCatalogo(string $tabla, string $pk, mixed $nombre): ?int
     {
-        if (trim($nombre) === '') { return null; }
-        $stmt = $this->pdo->prepare("SELECT {$pk} FROM {$tabla} WHERE nombre = :nombre LIMIT 1");
-        $stmt->execute(['nombre' => trim($nombre)]);
+        if ($nombre === null || trim((string) $nombre) === '') { return null; }
+        $nombreStr = trim((string) $nombre);
+        if (ctype_digit($nombreStr)) {
+            $stmt = $this->pdo->prepare("SELECT {$pk} FROM {$tabla} WHERE {$pk} = :id LIMIT 1");
+            $stmt->execute(['id' => (int) $nombreStr]);
+            $id = $stmt->fetchColumn();
+            if ($id !== false) return (int) $id;
+        }
+        $stmt = $this->pdo->prepare("SELECT {$pk} FROM {$tabla} WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(:nombre)) LIMIT 1");
+        $stmt->execute(['nombre' => $nombreStr]);
         $id = $stmt->fetchColumn();
         return $id !== false ? (int) $id : null;
     }
 
-    /* Desvinculación lógica de familiares.
+    /* Desvinculación de familiares (hallazgo MEDIO 4.7).
  *
- * `persona_estudiante.estado_relacion` permite marcar la relación como inactiva con
- * fecha. Conservar la fila permite reactivarla sin recapturar datos y deja el rastro
- * de quién fue familiar y cuándo dejó de serlo. */
+ * LÓGICA y no física: `persona_estudiante.estado_relacion` es un INACTIVE con fecha, así
+ * que el esquema ya lo soportaba y la baja física era lo que sobraba. Conservar la fila
+ * permite reactivar sin recapturar y deja el rastro de quién fue familiar y cuándo dejó de serlo.*/
 
     /**
  * Calcula la diferencia entre lo que hay guardado y lo que llega, y aplica
@@ -239,12 +247,10 @@ trait FamiliaresModelTrait
  el formulario y como lo devuelve getFamiliares(). Con el documento en
  crudo, "V-12345678" y "12345678" serían dos personas distintas.*/
         $documentosPayload = [];
-        $estadosPayload = [];
         foreach ($enviados as $f) {
             $digitos = preg_replace('/\D/', '', (string) ($f['numero_documento'] ?? ''));
             if ($digitos !== '') {
                 $documentosPayload[$digitos] = true;
-                $estadosPayload[$digitos] = strtoupper((string) ($f['estado_relacion'] ?? 'ACTIVO'));
             }
         }
 
@@ -292,34 +298,18 @@ trait FamiliaresModelTrait
 
         $aReactivar = [];
         foreach ($vigentes as $relacion) {
-            $doc = $relacion['documento'];
-            $viene = isset($documentosPayload[$doc]);
-            $estadoDeseado = $estadosPayload[$doc] ?? 'ACTIVO';
+            $viene = isset($documentosPayload[$relacion['documento']]);
 
             if ($viene) {
-                if ($estadoDeseado === 'ACTIVO') {
-                    if ($relacion['estado_relacion'] !== 'ACTIVO') {
-                        $aReactivar[] = (int) $relacion['id_persona'];
-                    }
-                } else {
-                    if ($relacion['estado_relacion'] !== 'INACTIVO') {
-                        $this->pdo->prepare(
-                            'UPDATE persona_estudiante
-                                SET estado_relacion = :estado_nuevo
-                              WHERE id_persona = :persona AND id_estudiante = :estudiante
-                                AND estado_relacion <> :estado_previo'
-                        )->execute([
-                            'estado_nuevo' => 'INACTIVO',
-                            'estado_previo'=> 'INACTIVO',
-                            'persona'      => (int) $relacion['id_persona'],
-                            'estudiante'   => $estudianteId,
-                        ]);
-                    }
+                /* Volvió a la lista. Si estaba desvinculada se reactiva, y con ella
+ su parentesco, nivel de instrucción y ocupación.*/
+                if ($relacion['estado_relacion'] !== 'ACTIVO') {
+                    $aReactivar[] = (int) $relacion['id_persona'];
                 }
                 continue;
             }
 
-            /* No vino: se desvincula. El UPDATE es condicional con propósito, para
+            /* No vino: se desvincula. El UPDATE es condicional a propósito, para
  que guardar dos veces el mismo formulario no dispare nada.
 
  Los dos estados van con marcadores DISTINTOS y no con el mismo

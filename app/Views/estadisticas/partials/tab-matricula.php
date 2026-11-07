@@ -24,16 +24,15 @@ $donutGeneroConfig = [
     'emptyMessage' => 'Sin matrícula activa registrada',
 ];
 
-// Gráfica de Ingresos vs Regulares vs Reingresos
-$reingresos = (int) ($demografiaMatricula['reingresos'] ?? 0);
+// Gráfica de Ingresos, Regulares y Reingresos
 $donutIngresosConfig = [
     'labels'       => ['Nuevos Ingresos', 'Regulares / Continuidad', 'Reingresos'],
     'values'       => [
         (int) ($demografiaMatricula['nuevos_ingresos'] ?? 0),
         (int) ($demografiaMatricula['regulares'] ?? 0),
-        $reingresos
+        (int) ($demografiaMatricula['reingresos'] ?? 0),
     ],
-    'colors'       => ['c4', 'c5', 'c3'],
+    'colors'       => ['c4', 'c5', 'c2'],
     'emptyMessage' => 'Sin datos de inscripción para el período',
 ];
 ?>
@@ -83,16 +82,15 @@ $donutIngresosConfig = [
     <div class="col-12 col-sm-6 col-xl-3">
       <?php
       $reg = (int) ($demografiaMatricula['regulares'] ?? 0);
+      $reing = (int) ($demografiaMatricula['reingresos'] ?? 0);
       $statLabel     = 'Estud. regulares';
       $statValue     = number_format($reg, 0, ',', '.') . ' estud.';
       $statIcon      = 'bi-arrow-repeat';
       $statTone      = 'secondary';
       $statVariant   = 'default';
-      $statTrend     = $reingresos > 0 ? "+{$reingresos} reing." : 'Continuidad';
+      $statTrend     = 'Continuidad';
       $statTrendType = 'neutral';
-      $statMeta      = $reingresos > 0
-          ? 'Continuidad: ' . $reg . ' · Reingresos: ' . $reingresos
-          : 'Ratificados del período anterior';
+      $statMeta      = 'Ratificados: ' . $reg . ' · Reingresos: ' . $reing;
       $statProgress  = null;
       $statHref      = null;
       include __DIR__ . '/../../components/stat-card.php';
@@ -136,12 +134,12 @@ $donutIngresosConfig = [
       </div>
     </div>
 
-    <!-- Gráfica 2: Nuevos Ingresos vs Regulares -->
+    <!-- Gráfica 2: Nuevos Ingresos, Regulares y Reingresos -->
     <div class="col-12 col-md-6">
       <div class="stats-chart-wrapper">
         <div class="stats-card-header">
           <h2 class="stats-card-header__title">
-            <i class="bi bi-pie-chart text-primary" aria-hidden="true"></i>Nuevos Ingresos, Regulares y Reingresos
+            <i class="bi bi-pie-chart text-primary" aria-hidden="true"></i>Tipo de Ingreso y Reincorporación
           </h2>
         </div>
         <div class="chart-container chart-container--donut"

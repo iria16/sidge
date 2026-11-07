@@ -8,7 +8,6 @@
   function initAll() {
     initFiltrosGlobales();
     initBuscadorHermanos();
-    initPerPageHermanos();
     initPersistenciaPestana();
   }
 
@@ -52,37 +51,49 @@
   }
 
   /**
-   * Búsqueda server-side sobre la tabla de control de hermanos.
-   * Al escribir se reenvía el formulario global para buscar en todas las páginas.
+   * Búsqueda en tiempo real sobre la tabla de control de hermanos.
    */
   function initBuscadorHermanos() {
     const inputBuscar = document.getElementById('buscarHermanos');
-    const form = document.getElementById('formFiltrosEstadisticas');
-    if (!inputBuscar || !form) return;
+    const tabla = document.getElementById('tablaControlHermanos');
+    if (!inputBuscar || !tabla) return;
 
-    let timer = null;
+    const filas = tabla.querySelectorAll('tbody tr.fila-familia');
+    const sinResultados = document.getElementById('sinResultadosHermanos');
+
     inputBuscar.addEventListener('input', function () {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(function () {
-        if (typeof form.requestSubmit === 'function') {
-          form.requestSubmit();
-        } else {
-          form.submit();
+      const q = this.value.toLowerCase().trim();
+      let visibles = 0;
+
+      filas.forEach(function (fila) {
+        const textoFila = (fila.textContent || '').toLowerCase();
+        const idDetalle = fila.getAttribute('data-bs-target');
+        let textoDetalle = '';
+        if (idDetalle) {
+          const elDetalle = document.querySelector(idDetalle);
+          if (elDetalle) {
+            textoDetalle = (elDetalle.textContent || '').toLowerCase();
+          }
         }
-      }, 400);
-    });
-  }
 
-  /**
-   * Cambio de filas por página en el Control de Hermanos.
-   */
-  function initPerPageHermanos() {
-    const select = document.getElementById('perPageHermanos');
-    const form = document.getElementById('formFiltrosEstadisticas');
-    if (!select || !form) return;
+        const coincide = q === '' || textoFila.includes(q) || textoDetalle.includes(q);
+        fila.classList.toggle('d-none', !coincide);
 
-    select.addEventListener('change', function () {
-      form.submit();
+        if (idDetalle) {
+          const elDetalleTr = document.querySelector(idDetalle);
+          if (elDetalleTr && !coincide) {
+            elDetalleTr.classList.add('d-none');
+          }
+        }
+
+        if (coincide) {
+          visibles++;
+        }
+      });
+
+      if (sinResultados) {
+        sinResultados.classList.toggle('d-none', visibles > 0);
+      }
     });
   }
 

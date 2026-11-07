@@ -441,7 +441,7 @@ $historialConDatos = array_values(array_filter($historialAcademico, static funct
         </tbody>
       </table>
     <?php else: ?>
-      <p class="empty-note">No hay familiares registrados para este estudiante.</p>
+      <p class="empty-note">No hay familiares directos registrados para este estudiante.</p>
     <?php endif; ?>
 
     <!-- Sección 4: Personas Autorizadas para Retirar al Estudiante -->
@@ -470,7 +470,7 @@ $historialConDatos = array_values(array_filter($historialAcademico, static funct
         </tbody>
       </table>
     <?php else: ?>
-      <p class="empty-note">Además de su representante legal, no hay otras personas autorizadas para retirar al estudiante.</p>
+      <p class="empty-note">Además de sus familiares directos o representante legal, no hay otras personas autorizadas para retirar al estudiante.</p>
     <?php endif; ?>
 
     <!-- Sección 5: Historial Académico Institucional -->

@@ -13,6 +13,7 @@ use function App\Traits\sigde_rol_clave;
 
 /**
  * AcademicResultController
+ * -----------------------------------------------------------------------------
  * Controlador para la gestión de resultados académicos de fin de año.
  *
  * El docente registra el literal (A-E) y el estado se deriva automáticamente:

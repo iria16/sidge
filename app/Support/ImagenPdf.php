@@ -14,7 +14,8 @@ final class ImagenPdf
         bool $recortarBlanco = false,
         ?float $relacionAspecto = null
     ): ?string {
-        if ($rutaPublica === '' || str_contains($rutaPublica, '..') || $rutaPublica[0] !== '/') {
+        $rutaPublica = '/' . ltrim(str_replace('\\', '/', trim($rutaPublica)), '/');
+        if ($rutaPublica === '/' || str_contains($rutaPublica, '..')) {
             return null;
         }
 
@@ -35,16 +36,16 @@ final class ImagenPdf
 
         if ($mime === 'image/webp') {
             if (!function_exists('imagecreatefromwebp')) {
-                throw new RuntimeException('El servidor no puede procesar la foto WEBP del estudiante.');
+                throw new RuntimeException('El servidor no puede procesar la foto WEBP para el PDF.');
             }
             $imagen = imagecreatefromwebp($archivo);
             if ($imagen === false) {
-                throw new RuntimeException('No se pudo procesar la foto del estudiante.');
+                throw new RuntimeException('No se pudo procesar la foto para el PDF.');
             }
             ob_start();
             if (!imagepng($imagen)) {
                 ob_end_clean();
-                throw new RuntimeException('No se pudo preparar la foto del estudiante para el PDF.');
+                throw new RuntimeException('No se pudo preparar la foto para el PDF.');
             }
             $contenido = ob_get_clean();
             $mime = 'image/png';
@@ -106,7 +107,7 @@ final class ImagenPdf
 
             $imagen = @imagecreatefromstring($contenido);
             if ($imagen === false) {
-                throw new RuntimeException('No se pudo preparar la foto del estudiante para el PDF.');
+                throw new RuntimeException('No se pudo preparar la foto para el PDF.');
             }
 
             $ancho = imagesx($imagen);
@@ -132,13 +133,13 @@ final class ImagenPdf
 
             $recorte = imagecrop($imagen, $caja);
             if ($recorte === false) {
-                throw new RuntimeException('No se pudo recortar la foto del estudiante para el PDF.');
+                throw new RuntimeException('No se pudo recortar la foto para el PDF.');
             }
 
             ob_start();
             if (!imagepng($recorte)) {
                 ob_end_clean();
-                throw new RuntimeException('No se pudo convertir la foto del estudiante para el PDF.');
+                throw new RuntimeException('No se pudo convertir la foto para el PDF.');
             }
             $contenido = ob_get_clean();
             $mime = 'image/png';

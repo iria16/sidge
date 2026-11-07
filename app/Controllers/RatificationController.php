@@ -869,6 +869,12 @@ class RatificationController extends CrudController
             if ($parroquiaEnviada <= 0 && !empty($guardados[$documento]['direccion']['id_parroquia'])) {
                 $familiares[$i]['direccion'] = $guardados[$documento]['direccion'];
             }
+
+            $ocuEnviada = trim((string) ($familiar['ocupacion'] ?? ($familiar['profesion'] ?? '')));
+            if ($ocuEnviada === '' && !empty($guardados[$documento]['ocupacion'])) {
+                $familiares[$i]['ocupacion'] = $guardados[$documento]['ocupacion'];
+                $familiares[$i]['profesion'] = $guardados[$documento]['ocupacion'];
+            }
         }
 
         return $familiares;
@@ -900,14 +906,51 @@ class RatificationController extends CrudController
         }
 
         foreach ($nuevos as $nuevo) {
-            $documento = (string) preg_replace('/\D/', '', (string) ($nuevo['numero_documento'] ?? ''));
-            $actual = $documento !== '' ? ($porDocumento[$documento] ?? null) : null;
-
-            if ($actual !== null && (int) ($actual['autorizado_retiros'] ?? 0) === 1) {
+            if (!$servicio->exigeDocumentosRetiro($nuevo)) {
                 continue;
             }
 
-            $faltantes = $servicio->faltantesDocumentosRetiro($nuevo, $recaudos);
+            $doc = (string) preg_replace('/\D/', '', (string) ($nuevo['numero_documento'] ?? ''));
+            // Si la persona ya estaba autorizada en el expediente previo, no se bloquea (regla no retroactiva)
+            if ($doc !== '' && isset($porDocumento[$doc]) && $servicio->exigeDocumentosRetiro($porDocumento[$doc])) {
+                continue;
+            }
+            $claveRetiro = 'tipo_10_' . $doc;
+            $claveCedula = 'tipo_11_' . $doc;
+
+            $consignadoRetiro = false;
+            $consignadoCedula = false;
+
+            if (isset($recaudos[$claveRetiro]) && is_array($recaudos[$claveRetiro])) {
+                $consignadoRetiro = !empty($recaudos[$claveRetiro]['consignado']);
+            } elseif (isset($recaudos['tipo_10']) && is_array($recaudos['tipo_10'])) {
+                $consignadoRetiro = !empty($recaudos['tipo_10']['consignado']);
+            } elseif (isset($recaudos[10]) && is_array($recaudos[10])) {
+                $consignadoRetiro = !empty($recaudos[10]['consignado']);
+            }
+
+            if (isset($recaudos[$claveCedula]) && is_array($recaudos[$claveCedula])) {
+                $consignadoCedula = !empty($recaudos[$claveCedula]['consignado']);
+            } elseif (isset($recaudos['tipo_11']) && is_array($recaudos['tipo_11'])) {
+                $consignadoCedula = !empty($recaudos['tipo_11']['consignado']);
+            } elseif (isset($recaudos[11]) && is_array($recaudos[11])) {
+                $consignadoCedula = !empty($recaudos[11]['consignado']);
+            }
+
+            $nombrePersona = trim(($nuevo['primer_nombre'] ?? '') . ' ' . ($nuevo['primer_apellido'] ?? ''));
+            $faltantes = [];
+            if (!$consignadoRetiro) {
+                $faltantes[] = [
+                    'codigo'  => 'autorizacion_retiro',
+                    'mensaje' => 'Falta la autorización de retiro de ' . $nombrePersona . '.',
+                ];
+            }
+            if (!$consignadoCedula) {
+                $faltantes[] = [
+                    'codigo'  => 'cedula_autorizada',
+                    'mensaje' => 'Falta la cédula de la persona autorizada (' . $nombrePersona . ').',
+                ];
+            }
             if ($faltantes !== []) {
                 return $faltantes;
             }

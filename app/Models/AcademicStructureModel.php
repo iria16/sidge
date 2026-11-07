@@ -10,21 +10,14 @@ use App\Exceptions\CupoAgotadoException;
 use App\Interfaces\Creatable;
 use App\Interfaces\Listable;
 use App\Interfaces\Updatable;
-use App\Traits\CupoEstructuraTrait;
-use App\Traits\OpcionesCatalogoTrait;
 
 /**
- * AcademicStructureModel
- * Gestiona las combinaciones de grado, sección, turno y año escolar.
- * Controla la capacidad máxima y disponibilidad de cupos por aula.
- */
+ * Estructura académica: combinación de año escolar + grado + sección + turno con capacidad máxima (estructura_academica).
+ * El conteo de alumnos sale de `matricula` (no de `inscripcion`, que guarda el año de origen y mostraría 0 en una sección llena).
+ * Cuenta solo INSCRIPCION y RATIFICACION, para coincidir con conteoDeOcupados.
+*/
 class AcademicStructureModel extends BaseModel implements Listable, Creatable, Updatable
 {
-    use CupoEstructuraTrait;
-    use OpcionesCatalogoTrait {
-        getOptions as traitGetOptions;
-    }
-
     protected string $table = 'estructura_academica';
     protected string $primaryKey = 'id_estructura_academica';
 
@@ -87,8 +80,14 @@ class AcademicStructureModel extends BaseModel implements Listable, Creatable, U
 
     /**
  * Tarjetas de la pantalla: cuántas combinaciones hay, de cuántos grados y secciones,
- * y la capacidad total. $idAnio acota a un período.
- */
+ * y la capacidad total.
+ *
+ * $idAnio acota a un período. Sin él (null) cuenta el año ACTIVO, que es lo que se
+ * quiere mostrar por defecto. Hace falta el parámetro porque con el filtro de año la
+ * lista puede estar mostrando un período cerrado y las tarjetas seguían dando los
+ * totales del activo: una lista de 2025-2026 con los números de 2026-2027 se lee bien
+ * y no quiere decir nada.
+*/
 public function getStats(?int $idAnio = null): array
 {
     if ($idAnio !== null && $idAnio > 0) {
@@ -123,11 +122,29 @@ public function getStats(?int $idAnio = null): array
     ];
     }
 
-    /**
-     * Retorna los años escolares disponibles para consulta y filtrado en el listado.
-     * Incluye indicador de editabilidad (solo períodos activos) y etiqueta de estado.
-     */
-    public function getAniosParaConsultar(): array
+/**
+ * Años escolares que se pueden SELECCIONAR en el filtro del listado.
+ *
+ * No se reutiliza getOptions('anio_escolar') porque ese filtra `estado = 'ACTIVO'` y
+ * por definición jamás devolvería un año cerrado, que es justo lo que el filtro
+ * necesita ofrecer. Aquí entran todos los períodos con su estado.
+ *
+ * `es_editable` viaja con cada año para que la vista no tenga que deducirlo
+ * comparando estados: la misma regla que aplican validar() en el alta y update() en la
+ * edición (solo se toca el ACTIVO) queda escrita una sola vez, aquí.
+ *
+ * `sufijo_estado` es el rótulo que se muestra junto al nombre. Antes la vista imprimía
+ * "(cerrado)" en cuanto el año no era editable, con lo que un período PLANIFICADO
+ * salía rotulado como cerrado pese a estar abierto: se decía una cosa falsa sobre un
+ * período que ni siquiera había empezado. El rótulo lo decide el estado real, no la
+ * ausencia de la condición de edición.
+ *
+ * Se ordena por fecha de inicio descendente y no por id: los ids son de inserción y no
+ * siguen el orden cronológico, así que el filtro podría salir desordenado.
+ *
+ * @return array<int, array{id:int,nombre:string,estado:string,es_editable:bool,sufijo_estado:string}>
+*/
+public function getAniosParaConsultar(): array
 {
     $filas = $this->pdo->query(
         'SELECT id_anio_escolar AS id, nombre_periodo AS nombre, estado
@@ -157,15 +174,71 @@ public function getStats(?int $idAnio = null): array
 */
     public function getOptions(string $table): array
     {
-        $turnosExcluidos = ($table === 'turno') ? TurnoModel::TURNOS_EXCLUSIVOS_PERSONAL : null;
-        return $this->traitGetOptions($table, $turnosExcluidos);
+        $catalogos = [
+            'anio_escolar' => ['etiqueta' => 'nombre_periodo', 'orden' => 'anio_inicio DESC'],
+            'grado'        => ['etiqueta' => 'nombre', 'orden' => 'nombre'],
+            'seccion'      => ['etiqueta' => 'nombre', 'orden' => 'nombre'],
+            'turno'        => ['etiqueta' => 'nombre', 'orden' => 'nombre'],
+        ];
+        if (!isset($catalogos[$table])) {
+            return [];
+        }
+        $etiqueta = $catalogos[$table]['etiqueta'];
+        $orden    = $catalogos[$table]['orden'];
+        $whereExtra = '';
+        if ($table === 'turno') {
+            $excluidos = TurnoModel::TURNOS_EXCLUSIVOS_PERSONAL;
+            $placeholders = implode(',', array_map(fn($t) => $this->pdo->quote($t), $excluidos));
+            $whereExtra = " AND {$etiqueta} NOT IN ({$placeholders})";
+        }
+        $stmt = $this->pdo->query(
+            "SELECT id_{$table} AS id, {$etiqueta} AS nombre
+             FROM {$table} WHERE estado = 'ACTIVO'{$whereExtra} ORDER BY {$orden}"
+        );
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function getActiveSchoolYearId(): ?int
+    {
+        $stmt = $this->pdo->query(
+            "SELECT id_anio_escolar
+               FROM anio_escolar
+              WHERE estado = 'ACTIVO'
+              ORDER BY anio_inicio DESC
+              LIMIT 1"
+        );
+        $id = $stmt->fetchColumn();
+
+        return $id === false ? null : (int) $id;
     }
 
     /**
- * Evalúa la completitud de la estructura académica en el período lectivo activo.
+ * Qué falta configurar en la estructura del año activo.
  *
- * @return array<string, mixed>
- */
+ * Existe porque la secretaria no puede crear ni editar la estructura (esa ruta es
+ * del directivo): si le falta una combinación, se entera al final, cuando ya
+ * llenó el formulario entero y el servidor le responde "la sección no existe para
+ * esa combinación en el período activo". Ese mensaje dice la mitad de la verdad:
+ * no parece un dato mal escrito, sino una configuración que le falta a ella.
+ * Anticiparlo en su panel convierte un error en una tarea.
+ *
+ * LA REGLA: se espera al menos una combinación grado × sección para cada grado
+ * activo y cada turno activo. Con 6 grados y 2 turnos el mínimo razonable son 12
+ * combinaciones; las que falten son las pendientes. La cuenta y su supuesto se
+ * devuelven separados (`esperadas`, `registradas`, `detalle`) para que quien lo
+ * lea pueda discutir la aritmética en vez de tener que creerla.
+ *
+ * Un supuesto abierto y declarado: que todo grado activo deba existir en todo
+ * turno activo. Si una escuela quisiera un turno solo de primaria, esta cuenta
+ * daría un número más alto del real, y por eso se muestra el desglose y no solo
+ * el total.
+ *
+ * @return array{
+ * hay_anio_activo:bool, anio:string,
+ * grados:int, turnos:int, esperadas:int, registradas:int, pendientes:int,
+ * grados_sin_seccion:array<int,string>
+ * }
+*/
     public function pendientesDeConfiguracion(): array
     {
         $idAnio  = $this->getActiveSchoolYearId();
@@ -198,8 +271,9 @@ public function getStats(?int $idAnio = null): array
             'SELECT COUNT(*) FROM estructura_academica WHERE id_anio_escolar = ' . (int) $idAnio
         )->fetchColumn();
 
-        /* Identificación crítica: los grados activos que carecen de sección configurada
-           impiden la ratificación de alumnos promovidos desde el grado anterior.*/
+        /* Los grados que no tienen ni una sección son los que más duelen: cualquier
+ alumno que venga de un grado anterior y promueva a uno de estos no se puede
+ ratificar, y el error aparece en el modal de ratificación, no antes.*/
         $stmt = $this->pdo->prepare(
             'SELECT g.nombre
                FROM grado g
@@ -224,6 +298,20 @@ public function getStats(?int $idAnio = null): array
             'pendientes'       => max(0, $esperadas - $registradas),
             'grados_sin_seccion' => $stmt->fetchAll(\PDO::FETCH_COLUMN),
         ];
+    }
+
+    public function getActiveSchoolYearName(): ?string
+    {
+        $stmt = $this->pdo->query(
+            "SELECT nombre_periodo
+               FROM anio_escolar
+              WHERE estado = 'ACTIVO'
+              ORDER BY anio_inicio DESC
+              LIMIT 1"
+        );
+        $name = $stmt->fetchColumn();
+
+        return $name === false ? null : (string) $name;
     }
 
     public function esAnioActivo(int $idAnioEscolar): bool
@@ -305,12 +393,13 @@ public function getStats(?int $idAnio = null): array
     }
 
     /**
- * Última fila de la estructura con su año, grado, sección, turno y capacidad. Se usa
- * para comparar lo que hay en la BD contra lo que viene del formulario y poder decir si
- * la edición mueve la combinación o solo cambia la capacidad.
+ * Última fila de la estructura con su año, grado, sección, turno y capacidad.
+ *
+ * Se usa para comparar lo que hay en la BD contra lo que viene del formulario y
+ * poder decir si la edición mueve la combinación o solo cambia la capacidad.
  *
  * @return array{id_anio_escolar:int,id_grado:int,id_seccion:int,id_turno:int,capacidad_maxima:int}|null
- */
+*/
     public function estructuraActual(int $id): ?array
     {
         $stmt = $this->pdo->prepare(
@@ -333,10 +422,11 @@ public function getStats(?int $idAnio = null): array
 
     /**
  * ¿La edición cambia la combinación (grado, sección o turno) o solo la capacidad?
- * El año se excluye de propósito: mover una fila de un período a otro no es un cambio
- * de combinación que arrastre alumnos, porque sin Combinar no se puede pasar a un año
- * que ya tenga esa combinación y el modelo impide el duplicado.
- */
+ *
+ * El año se excluye a propósito: mover una fila de un período a otro no es un
+ * cambio de combinación que arrastre alumnos, porque sin Combinar no se puede
+ * pasar a un año que ya tenga esa combinación y el modelo impide el duplicado.
+*/
     public function cambiaCombinacion(array $actual, array $nuevo): bool
     {
         return (int) $actual['id_grado'] !== (int) $nuevo['id_grado']
@@ -401,11 +491,13 @@ public function getStats(?int $idAnio = null): array
     }
 
     /**
+ * Cuántos estudiantes ocupan HOY la combinación año + grado + sección + turno.
+ *
  * Cuenta los que cursan de verdad (INSCRIPCION y RATIFICACION, y solo su última fila),
  * que es la misma regla de Matriculas::condicionCursando que usa el conteo de cupos: si
  * esta cuenta y la del cupo no hicieran lo mismo, la validación de capacidad y el
  * bloqueo por sección llena se contradirían entre sí.
- */
+*/
     public function ocupadosDeCombinacion(int $idAnioEscolar, int $idGrado, int $idSeccion, int $idTurno): int
     {
         if ($idAnioEscolar <= 0 || $idGrado <= 0 || $idSeccion <= 0 || $idTurno <= 0) {
@@ -444,6 +536,232 @@ public function getStats(?int $idAnio = null): array
         if ($stmt->fetchColumn() === false) {
             throw new \RuntimeException('Las nuevas estructuras académicas deben pertenecer al año escolar activo.');
         }
+    }
+
+    // --- MÉTODOS MIGRADOS DE CupoEstructuraTrait ---
+
+    public function estructurasConCupo(?int $idAnioEscolar = null): array
+    {
+        $donde = $idAnioEscolar !== null ? 'WHERE ea.id_anio_escolar = :anio' : '';
+        $stmt  = $this->pdo->prepare(
+            "SELECT ea.id_estructura_academica,
+                    ea.id_grado, ea.id_seccion, ea.id_turno, ea.id_anio_escolar,
+                    ea.capacidad_maxima,
+                    g.nombre AS grado, s.nombre AS seccion, t.nombre AS turno
+               FROM estructura_academica ea
+               LEFT JOIN grado g   ON g.id_grado   = ea.id_grado
+               LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
+               LEFT JOIN turno t   ON t.id_turno   = ea.id_turno
+               {$donde}
+              ORDER BY g.nombre, s.nombre, t.nombre"
+        );
+        $stmt->execute($idAnioEscolar !== null ? ['anio' => $idAnioEscolar] : []);
+
+        $ocupadosPor = $this->conteoDeOcupados();
+
+        $filas = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $fila) {
+            $id        = (int) $fila['id_estructura_academica'];
+            $capacidad = (int) $fila['capacidad_maxima'];
+            $ocupados  = (int) ($ocupadosPor[$id] ?? 0);
+            $libres    = $capacidad - $ocupados;
+
+            $filas[] = [
+                'id_estructura_academica' => $id,
+                'id_grado'                 => (int) $fila['id_grado'],
+                'id_seccion'               => (int) $fila['id_seccion'],
+                'id_turno'                 => (int) $fila['id_turno'],
+                'id_anio_escolar'          => (int) $fila['id_anio_escolar'],
+                'grado'                    => (string) $fila['grado'],
+                'seccion'                  => (string) $fila['seccion'],
+                'turno'                    => (string) $fila['turno'],
+                'capacidad_maxima'         => $capacidad,
+                'ocupados'                 => $ocupados,
+                'disponibles'              => $libres,
+                'lleno'                    => $libres <= 0,
+                'nombre'                   => trim($fila['grado'] . ' · ' . $fila['seccion'] . ' · ' . $fila['turno']),
+            ];
+        }
+
+        return $filas;
+    }
+
+    /**
+ * Alumnos por estructura, o solo los de UNA estructura.
+ *
+ * Con $soloEstructura se acota el GROUP BY a esa fila. Es lo que hace el camino
+ * caliente de la inscripción y de la ratificación, que preguntan el cupo de una
+ * sección concreta una y otra vez: sin el filtro, cada consulta arrastraba todas
+ * las matrículas de todos los años y de todas las secciones para descartar casi
+ * todas después. Con el filtro, MySQL usa idx_matricula_estructura y lee solo lo
+ * de esa sección.
+ *
+ * El NOT EXISTS de condicionCursando() (descartar al alumno que tiene una fila
+ * posterior, como un retiro) se mantiene igual en los dos casos: el número tiene
+ * que salir igual se pida una fila o el mapa entero, o la validación de capacidad
+ * y el bloqueo por sección llena se contradirían entre sí.
+ *
+ * @param int|null $soloEstructura Limita el conteo a esa estructura.
+ * @return array<int, int> estructura => ocupados
+*/
+    public function conteoDeOcupados(?int $soloEstructura = null): array
+    {
+        $filtro = '';
+        $params = [];
+
+        if ($soloEstructura !== null && $soloEstructura > 0) {
+            $filtro = ' AND m.id_estructura_academica = :estructura';
+            $params['estructura'] = $soloEstructura;
+        }
+
+        $stmt = $this->pdo->prepare(
+            'SELECT id_estructura_academica AS combo, COUNT(DISTINCT id_estudiante) AS ocupados
+               FROM matricula m
+              WHERE ' . Matriculas::condicionCursando('m') . '
+                AND m.id_estructura_academica IS NOT NULL'
+            . $filtro . '
+              GROUP BY m.id_estructura_academica'
+        );
+        $stmt->execute($params);
+
+        $mapa = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_KEY_PAIR) as $combo => $ocupados) {
+            $mapa[(int) $combo] = (int) $ocupados;
+        }
+
+        return $mapa;
+    }
+
+    public function combinacionConCupo(int $idGrado, int $idSeccion, int $idTurno, int $idAnioEscolar): ?array
+    {
+        if ($idAnioEscolar <= 0) {
+            return null;
+        }
+
+        foreach ($this->estructurasConCupo($idAnioEscolar) as $combinacion) {
+            if ($combinacion['id_grado'] === $idGrado
+                && $combinacion['id_seccion'] === $idSeccion
+                && $combinacion['id_turno'] === $idTurno) {
+                return $combinacion;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+ * La disponibilidad de UNA estructura: capacidad, ocupados, libres y si está llena.
+ *
+ * Devuelve la misma forma que una fila de estructurasConCupo() porque reservarCupo()
+ * la consume igual, pero ya no la busca: antes cargaba todas las estructuras de todos
+ * los años (y con ellas el conteo de matrículas completo) para devolver una sola y
+ * descartarla en un bucle de PHP. Ahora son dos consultas con índice: la fila por su
+ * PRIMARY KEY y el conteo acotado por idx_matricula_estructura.
+ *
+ * @return array<string, mixed>|null null si la estructura no existe.
+*/
+    public function disponibilidadDe(int $idEstructura): ?array
+    {
+        if ($idEstructura <= 0) {
+            return null;
+        }
+
+        $stmt = $this->pdo->prepare(
+            'SELECT ea.id_estructura_academica,
+                    ea.id_grado, ea.id_seccion, ea.id_turno, ea.id_anio_escolar,
+                    ea.capacidad_maxima,
+                    g.nombre AS grado, s.nombre AS seccion, t.nombre AS turno
+               FROM estructura_academica ea
+               LEFT JOIN grado g   ON g.id_grado   = ea.id_grado
+               LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
+               LEFT JOIN turno t   ON t.id_turno   = ea.id_turno
+              WHERE ea.id_estructura_academica = :id
+              LIMIT 1'
+        );
+        $stmt->execute(['id' => $idEstructura]);
+        $fila = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$fila) {
+            return null;
+        }
+
+        $capacidad = (int) $fila['capacidad_maxima'];
+        /* Un solo valor: el conteo acotado a esta estructura. Antes venía del mapa
+ completo que construye estructurasConCupo().*/
+        $ocupados = (int) ($this->conteoDeOcupados($idEstructura)[$idEstructura] ?? 0);
+        $libres   = $capacidad - $ocupados;
+
+        return [
+            'id_estructura_academica' => (int) $fila['id_estructura_academica'],
+            'id_grado'                 => (int) $fila['id_grado'],
+            'id_seccion'               => (int) $fila['id_seccion'],
+            'id_turno'                 => (int) $fila['id_turno'],
+            'id_anio_escolar'          => (int) $fila['id_anio_escolar'],
+            'grado'                    => (string) $fila['grado'],
+            'seccion'                  => (string) $fila['seccion'],
+            'turno'                    => (string) $fila['turno'],
+            'capacidad_maxima'         => $capacidad,
+            'ocupados'                 => $ocupados,
+            'disponibles'              => $libres,
+            'lleno'                    => $libres <= 0,
+            'nombre'                   => trim($fila['grado'] . ' · ' . $fila['seccion'] . ' · ' . $fila['turno']),
+        ];
+    }
+
+    public function opcionesAcademicas(int $idAnioEscolar): array
+    {
+        $combos = $this->estructurasConCupo($idAnioEscolar);
+
+        $grados    = [];
+        $secciones = [];
+        $turnos    = [];
+
+        foreach ($combos as $combo) {
+            $gr = (int) $combo['id_grado'];
+            $grados[$gr] ??= ['id' => $gr, 'nombre' => $combo['grado'], 'libres' => 0, 'total' => 0];
+            $grados[$gr]['total']++;
+            $grados[$gr]['libres'] += max(0, (int) $combo['disponibles']);
+
+            $se = (int) $combo['id_seccion'];
+            $secciones[$se] ??= ['id' => $se, 'nombre' => $combo['seccion'], 'libres' => 0, 'total' => 0];
+            $secciones[$se]['total']++;
+            $secciones[$se]['libres'] += max(0, (int) $combo['disponibles']);
+
+            $tu = (int) $combo['id_turno'];
+            $turnos[$tu] ??= ['id' => $tu, 'nombre' => $combo['turno']];
+        }
+
+        return [
+            'grados'        => array_values($grados),
+            'secciones'     => array_values($secciones),
+            'turnos'        => array_values($turnos),
+            'combinaciones' => $combos,
+        ];
+    }
+
+    public function reservarCupo(int $idEstructura): array
+    {
+        $this->pdo->prepare(
+            'SELECT id_estructura_academica FROM estructura_academica
+              WHERE id_estructura_academica = :id FOR UPDATE'
+        )->execute(['id' => $idEstructura]);
+
+        $disponibilidad = $this->disponibilidadDe($idEstructura);
+        if ($disponibilidad === null) {
+            throw new CupoAgotadoException(
+                'La sección seleccionada no está registrada en la Estructura Académica.',
+                'id_seccion'
+            );
+        }
+        if ($disponibilidad['lleno']) {
+            throw new CupoAgotadoException(
+                'La sección está llena: ' . (int) $disponibilidad['ocupados'] . ' de '
+                . (int) $disponibilidad['capacidad_maxima'] . ' cupos ocupados ('
+                . $disponibilidad['nombre'] . ').'
+            );
+        }
+
+        return $disponibilidad;
     }
 
     private function filters(array $filters): array

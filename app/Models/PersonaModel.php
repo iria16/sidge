@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Exceptions\DocumentoDuplicadoException;
 use App\Support\Documento;
 use PDOException;
+use Throwable;
 
 class PersonaModel extends BaseModel
 {
@@ -50,11 +51,18 @@ class PersonaModel extends BaseModel
     ];
 
     /**
- * Busca una persona por cédula y devuelve los datos compartidos que completa el
- * formulario de familiares de inscripción y ratificación. familiar.
+ * Busca una persona por cédula y devuelve los datos compartidos que completa
+ * el formulario de familiares de inscripción y ratificación.
  *
  * @param int|null $idEstudiante Para qué estudiante se está completando el
- */
+ * familiar. Solo sirve para escolher DE DÓNDE salen el nivel de
+ * instrucción y la ocupación: esos dos NO están en `persona`, están en la
+ * relación `persona_estudiante`, así que una misma persona puede tenerlos
+ * distintos según de qué menor es familiar. Con el estudiante se toma la
+ * relación de ese menor, que es la que se está editando; sin él se toma la
+ * más reciente que los tenga, que es lo mejor que se puede saber cuando
+ * todavía no hay menor (es el caso del alta de inscripción).
+*/
     public function buscarPersonaPorDocumento(string $documento, ?int $idEstudiante = null): ?array
     {
         $documento = Documento::normalizar($documento);
@@ -141,6 +149,7 @@ class PersonaModel extends BaseModel
             ],
             'nivel_instruccion' => $datosRelacion['nivel_instruccion'],
             'ocupacion' => $datosRelacion['ocupacion'],
+            'profesion' => $datosRelacion['ocupacion'],
             'contacto' => $contacto === null ? null : [
                 'codigo' => $contacto['codigo_telefono_principal'] ?? '',
                 'numero' => $contacto['numero_telefono_principal'] ?? '',
@@ -162,11 +171,20 @@ class PersonaModel extends BaseModel
     }
 
     /**
- * Nivel de instrucción y ocupación que ya tiene esta persona como familiar. Se
- * resuelve en dos pasos de propósito.
+ * Nivel de instrucción y ocupación que ya tiene esta persona como familiar.
+ *
+ * Se resuelve en dos pasos a propósito. Primero se mira la relación con el
+ * estudiante que se está editando, que es la respuesta correcta: si esa persona
+ * ya era familiar de ese menor, esos son los valores con los que está
+ * registrada. Solo si ahí no hay (o no los tiene) se recurre a la relación más
+ * reciente que los tenga, que es lo que se puede ofrecer cuando aún no se sabe
+ * de qué menor se trata.
+ *
+ * Se devuelven como '' cuando no hay nada: es lo que espera el <select>, y así
+ * el sub-modal puede preguntar el dato en vez de dejarlo vacío sin explicación.
  *
  * @return array{nivel_instruccion:string, ocupacion:string}
- */
+*/
     private function nivelYOcupacionDe(int $idPersona, ?int $idEstudiante): array
     {
         $base = 'FROM persona_estudiante pe
@@ -204,11 +222,14 @@ class PersonaModel extends BaseModel
     }
 
     /**
- * Devuelve la persona del documento, y la crea si no existe. Reutiliza una persona que
- * YA está en la base, así que solo corresponde a los módulos donde repetir el mismo
- * documento es lo esperado: empleados y familiares, que pueden cargar dos veces a la
- * misma persona.
- */
+ * Devuelve la persona del documento, y la crea si no existe.
+ *
+ * Reutiliza una persona que YA está en la base, así que solo corresponde a los
+ * módulos donde repetir el mismo documento es lo esperado: empleados y familiares,
+ * que pueden cargar dos veces a la misma persona. La inscripción NO lo usa: allí
+ * reutilizar una persona existente mezclaría dos fichas distintas bajo un mismo
+ * documento (un docente que entra como alumno, por ejemplo), y para eso está crear().
+*/
     public function buscarOCrear(array $data): int
     {
         $stmt = $this->pdo->prepare(
@@ -225,11 +246,43 @@ class PersonaModel extends BaseModel
     }
 
     /**
+     * Comprueba si un número de documento ya está registrado en persona.
+     * $ignorarId excluye a la persona indicada (útil al editar para no detectarse a sí misma).
+     */
+    public function existeDocumento(string $documento, ?int $ignorarId = null): bool
+    {
+        $documento = trim($documento);
+        if ($documento === '') {
+            return false;
+        }
+
+        $sql = 'SELECT 1 FROM persona WHERE numero_documento = :doc';
+        $params = ['doc' => $documento];
+
+        if ($ignorarId !== null && $ignorarId > 0) {
+            $sql .= ' AND id_persona != :ignorarId';
+            $params['ignorarId'] = $ignorarId;
+        }
+
+        $sql .= ' LIMIT 1';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchColumn() !== false;
+    }
+
+    /**
  * Inserta una persona NUEVA. Si el documento ya está registrado devuelve
  * DocumentoDuplicadoException en vez de devolver la fila existente.
  *
+ * Existe para que "no reutilizar una persona ajena" sea una regla del modelo y no
+ * solo del formulario: si alguien salta la validación y llama a crear() con un
+ * documento repetido, el UNIQUE de persona.numero_documento lo detiene y la
+ * transacción de quien llama se revierte.
+ *
  * @throws DocumentoDuplicadoException si el documento ya existe.
- */
+*/
     public function crear(array $data): int
     {
         $campos = $this->soloCamposPersona($data);
@@ -253,20 +306,6 @@ class PersonaModel extends BaseModel
             }
             throw $e;
         }
-    }
-
-    /**
-     * Comprueba si un número de documento ya está registrado en la tabla persona.
-     * Permite ignorar un id_persona específico en actualizaciones.
-     */
-    public function existeDocumento(string $documento, ?int $ignorarId = null): bool
-    {
-        $doc = trim($documento);
-        if ($doc === '') {
-            return false;
-        }
-
-        return $this->existsBy('numero_documento', $doc, $ignorarId);
     }
 
     public function updatePersona(int $id_persona, array $data): bool

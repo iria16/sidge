@@ -14,7 +14,7 @@ declare(strict_types=1);
   <?php
     $statCards = [
         [
-            /* Dice "ingresos" y no "inscritos" de propósito: la inscripción es un
+            /* Dice "ingresos" y no "inscritos" a propósito: la inscripción es un
  registro único por alumno, así que este número cuenta a quién le
  tocó pasar por aquí este año, no cuántos alumnos hay en el
  plantel. Con "inscritos" se leía como el total de alumnos, que es

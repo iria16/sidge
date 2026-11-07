@@ -269,7 +269,7 @@ trait InstitucionTrait
 
 
     // ---------- Contrato con BaseController ----------
-    // Sin cuerpo de propósito: no reimplementan nada, solo declaran la firma
+    // Sin cuerpo a propósito: no reimplementan nada, solo declaran la firma
     // exacta que este trait necesita de la clase que lo use, para que el
     // editor resuelva las llamadas y para que PHP falle en tiempo de
     // declaración (no en producción) si algún día se usa en una clase que

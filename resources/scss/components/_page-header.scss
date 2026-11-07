@@ -19,12 +19,7 @@
 }
 
 .page-header__main {
-  width: 100%;
   min-width: 0;
-
-  @include media-breakpoint-up(md) {
-    width: auto;
-  }
 }
 
 .page-header__title {
@@ -33,7 +28,6 @@
   color: $primary;
   margin-bottom: 0.25rem;
   line-height: 1.2;
-  overflow-wrap: anywhere;
 }
 
 .page-header__subtitle {
@@ -41,7 +35,6 @@
   font-size: 0.9rem;
   margin-bottom: 0;
   max-width: 42rem;
-  overflow-wrap: anywhere;
 
   &--full {
     flex-basis: 100%;
@@ -55,32 +48,4 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   flex-shrink: 0;
-}
-
-@include media-breakpoint-down(sm) {
-  .page-header {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .page-header__main {
-    flex: 0 1 100%;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .page-header__title {
-    font-size: clamp(1.15rem, 5.2vw, 1.35rem);
-    max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: normal;
-  }
-
-  .page-header__subtitle {
-    max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: normal;
-  }
 }

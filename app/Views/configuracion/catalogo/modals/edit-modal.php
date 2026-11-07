@@ -49,9 +49,9 @@ ob_start();
             <option value="">Seleccione el tipo...</option>
             <?php foreach ($tiposInstitucion as $tipoOpcion): ?>
               <!-- data-id es el id de tipo_institucion. El value sigue siendo el
-                   código de texto que viaja al servidor; el botón de la fila solo
-                   conoce el id, por eso se agrega data-id para preseleccionar el
-                   select. -->
+                   codigo de texto, que es lo que viaja al servidor, pero el boton
+                   de la fila solo conoce el id (la columna de texto ya no existe),
+                   asi que sin esto el select no se podria preseleccionar. -->
               <option value="<?= htmlspecialchars($tipoOpcion['tipo']) ?>"
                       data-id="<?= (int) \App\Support\Instituciones::idCatalogo($tipoOpcion['tipo']) ?>"><?= htmlspecialchars($tipoOpcion['nombre']) ?></option>
             <?php endforeach; ?>

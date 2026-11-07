@@ -16,13 +16,12 @@ class UbicacionModel extends Model
     public const TIPOS = ['municipio', 'parroquia'];
 
     /**
- * Nivel completo con el id de su padre en cada fila; el navegador filtra
- * (SIGDEUI.filtrarOpciones) y así los tres <select> quedan habilitados desde el
- * inicio. Cada opción trae `data-id-estado` o `data-id-municipio`.
- *
- * @param string $tipo Uno de self::TIPOS.
- * @return array<int, array{id_ubicacion: int, nombre: string, data-id-*?: int}>
- */
+     * Nivel completo con el id de su padre en cada fila; el navegador filtra (SIGDEUI.filtrarOpciones)
+     * y así los tres <select> quedan habilitados desde el inicio. Cada opción trae `data-id-estado` o `data-id-municipio`.
+     *
+     * @param string $tipo Uno de self::TIPOS.
+     * @return array<int, array{id_ubicacion: int, nombre: string, data-id-*?: int}>
+     */
     public function nivelCompleto(string $tipo): array
     {
         $catalogo = match ($tipo) {

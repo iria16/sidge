@@ -18,8 +18,8 @@
     "verificar:menu": "php scripts/verificar-menu.php"
   },
   "keywords": [],
-  "author": "Iriamar Maita, Erickmar Sánchez, Elyenay Ocanto",
-  "license": "MIT",
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",

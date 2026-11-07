@@ -190,40 +190,35 @@ class StatisticsModel extends Model
 
     /**
      * Listado detallado desplegable de representantes y sus estudiantes a cargo (Control de Hermanos).
-     *
-     * Con $limit se pagina a nivel de representante: solo se cargan las filas
-     * de los representantes de la página solicitada. Sin $limit devuelve todos
-     * (lo usan las exportaciones).
      */
-    public function getDetalleControlHermanos(
-        int $idAnio,
-        ?int $idGrado = null,
-        ?int $idSeccion = null,
-        string $q = '',
-        ?int $limit = null,
-        int $offset = 0
-    ): array {
+    public function getDetalleControlHermanos(int $idAnio, ?int $idGrado = null, ?int $idSeccion = null, string $q = ''): array
+    {
+        $condCursando = Matriculas::condicionCursando('m');
+        $params = [':anio' => $idAnio];
+        $filtroEa = "";
+
+        if ($idGrado !== null && $idGrado > 0) {
+            $filtroEa .= " AND ea.id_grado = :grado";
+            $params[':grado'] = $idGrado;
+        }
+        if ($idSeccion !== null && $idSeccion > 0) {
+            $filtroEa .= " AND ea.id_seccion = :seccion";
+            $params[':seccion'] = $idSeccion;
+        }
+
+        $filtroQ = "";
+        $qLimpia = trim($q);
+        if ($qLimpia !== '') {
+            $filtroQ = " AND (
+                CONCAT_WS(' ', pr.primer_nombre, pr.segundo_nombre, pr.primer_apellido, pr.segundo_apellido) LIKE :q
+                OR pr.numero_documento LIKE :q
+                OR CONCAT_WS(' ', pest.primer_nombre, pest.primer_apellido) LIKE :q
+                OR pest.numero_documento LIKE :q
+            )";
+            $params[':q'] = "%" . $this->escapeLike((string) $qLimpia) . "%";
+        }
+
         try {
-            [$fromWhere, $params] = $this->baseControlHermanos($idAnio, $idGrado, $idSeccion, $q);
-
-            $filtroPagina = '';
-            if ($limit !== null) {
-                $limit  = max(1, $limit);
-                $offset = max(0, $offset);
-                $ids = $this->idsControlHermanos($fromWhere, $params, $limit, $offset);
-                if ($ids === []) {
-                    return [];
-                }
-
-                $marcadores = [];
-                foreach ($ids as $i => $idRep) {
-                    $marcador = ':rep' . $i;
-                    $marcadores[] = $marcador;
-                    $params[$marcador] = $idRep;
-                }
-                $filtroPagina = ' AND pe.id_persona IN (' . implode(', ', $marcadores) . ')';
-            }
-
             $sql = "SELECT 
                         pe.id_persona AS id_rep,
                         CONCAT_WS(' ', pr.primer_nombre, pr.segundo_nombre, pr.primer_apellido, pr.segundo_apellido) AS nombre_representante,
@@ -239,14 +234,28 @@ class StatisticsModel extends Model
                         g.nombre AS grado_nombre,
                         s.nombre AS seccion_nombre,
                         COALESCE(t.nombre, 'Mañana') AS turno_nombre
-                    FROM {$fromWhere}
-                    {$filtroPagina}
+                    FROM persona_estudiante pe
+                    INNER JOIN persona pr ON pr.id_persona = pe.id_persona
+                    LEFT JOIN contacto c ON c.id_persona = pr.id_persona
+                    INNER JOIN estudiante e ON e.id_estudiante = pe.id_estudiante
+                    INNER JOIN persona pest ON pest.id_persona = e.id_persona
+                    INNER JOIN matricula m ON m.id_estudiante = e.id_estudiante
+                    INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
+                    INNER JOIN grado g ON g.id_grado = ea.id_grado
+                    LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
+                    LEFT JOIN turno t ON t.id_turno = ea.id_turno
+                    WHERE pe.es_representante_legal = 1
+                      AND m.id_anio_escolar = :anio
+                      AND {$condCursando}
+                      {$filtroEa}
+                      {$filtroQ}
                     ORDER BY pr.primer_apellido ASC, pr.primer_nombre ASC, g.id_grado ASC";
 
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
             $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Agrupar estudiantes por representante
             $familias = [];
             foreach ($filas as $f) {
                 $idRep = (int) $f['id_rep'];
@@ -278,7 +287,7 @@ class StatisticsModel extends Model
                 $familias[$idRep]['total_estudiantes']++;
             }
 
-            foreach ($familias as &$fam) {
+            foreach ($familias as $idRep => &$fam) {
                 $fam['hermanos_distintos_grados'] = count($fam['grados_map']) > 1;
                 unset($fam['grados_map']);
             }
@@ -289,98 +298,6 @@ class StatisticsModel extends Model
             error_log('StatisticsModel::getDetalleControlHermanos: ' . $e->getMessage());
             return [];
         }
-    }
-
-    /**
-     * Total de representantes legales que cumplen los filtros del Control de Hermanos.
-     */
-    public function contarControlHermanos(int $idAnio, ?int $idGrado = null, ?int $idSeccion = null, string $q = ''): int
-    {
-        try {
-            [$fromWhere, $params] = $this->baseControlHermanos($idAnio, $idGrado, $idSeccion, $q);
-            $stmt = $this->pdo->prepare("SELECT COUNT(DISTINCT pe.id_persona) FROM {$fromWhere}");
-            $stmt->execute($params);
-
-            return (int) $stmt->fetchColumn();
-        } catch (Throwable $e) {
-            error_log('StatisticsModel::contarControlHermanos: ' . $e->getMessage());
-            return 0;
-        }
-    }
-
-    /**
-     * FROM/WHERE compartido por el listado, el conteo y la paginación.
-     *
-     * @return array{0:string,1:array<string,mixed>}
-     */
-    private function baseControlHermanos(int $idAnio, ?int $idGrado, ?int $idSeccion, string $q): array
-    {
-        $condCursando = Matriculas::condicionCursando('m');
-        $params = [':anio' => $idAnio];
-        $filtroEa = '';
-
-        if ($idGrado !== null && $idGrado > 0) {
-            $filtroEa .= ' AND ea.id_grado = :grado';
-            $params[':grado'] = $idGrado;
-        }
-        if ($idSeccion !== null && $idSeccion > 0) {
-            $filtroEa .= ' AND ea.id_seccion = :seccion';
-            $params[':seccion'] = $idSeccion;
-        }
-
-        $filtroQ = '';
-        $qLimpia = trim($q);
-        if ($qLimpia !== '') {
-            $filtroQ = " AND (
-                CONCAT_WS(' ', pr.primer_nombre, pr.segundo_nombre, pr.primer_apellido, pr.segundo_apellido) LIKE :q0
-                OR pr.numero_documento LIKE :q1
-                OR CONCAT_WS(' ', pest.primer_nombre, pest.primer_apellido) LIKE :q2
-                OR pest.numero_documento LIKE :q3
-            )";
-            $valorQ = '%' . $this->escapeLike($qLimpia) . '%';
-            $params[':q0'] = $valorQ;
-            $params[':q1'] = $valorQ;
-            $params[':q2'] = $valorQ;
-            $params[':q3'] = $valorQ;
-        }
-
-        $fromWhere = "persona_estudiante pe
-                    INNER JOIN persona pr ON pr.id_persona = pe.id_persona
-                    LEFT JOIN contacto c ON c.id_persona = pr.id_persona
-                    INNER JOIN estudiante e ON e.id_estudiante = pe.id_estudiante
-                    INNER JOIN persona pest ON pest.id_persona = e.id_persona
-                    INNER JOIN matricula m ON m.id_estudiante = e.id_estudiante
-                    INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
-                    INNER JOIN grado g ON g.id_grado = ea.id_grado
-                    LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                    LEFT JOIN turno t ON t.id_turno = ea.id_turno
-                    WHERE pe.es_representante_legal = 1
-                      AND m.id_anio_escolar = :anio
-                      AND {$condCursando}
-                      {$filtroEa}
-                      {$filtroQ}";
-
-        return [$fromWhere, $params];
-    }
-
-    /**
-     * IDs de los representantes de una página, en el mismo orden que el listado.
-     *
-     * @param array<string,mixed> $params
-     * @return list<int>
-     */
-    private function idsControlHermanos(string $fromWhere, array $params, int $limit, int $offset): array
-    {
-        $sql = "SELECT pe.id_persona
-                  FROM {$fromWhere}
-                 GROUP BY pe.id_persona, pr.primer_apellido, pr.primer_nombre
-                 ORDER BY pr.primer_apellido ASC, pr.primer_nombre ASC, pe.id_persona ASC
-                 LIMIT {$limit} OFFSET {$offset}";
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-
-        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
     }
 
     /**
@@ -453,19 +370,18 @@ class StatisticsModel extends Model
         }
 
         try {
-            // Totales por género y tipo de ingreso (diferenciando reingresos)
+            // Totales por género y tipo de ingreso
             $sqlGen = "SELECT 
                             COUNT(DISTINCT m.id_estudiante) AS total_cursando,
                             COUNT(DISTINCT CASE WHEN p.sexo = 'M' THEN m.id_estudiante END) AS varones,
                             COUNT(DISTINCT CASE WHEN p.sexo = 'F' THEN m.id_estudiante END) AS hembras,
                             COUNT(DISTINCT CASE WHEN m.tipo = 'INSCRIPCION' THEN m.id_estudiante END) AS nuevos_ingresos,
-                            COUNT(DISTINCT CASE WHEN m.tipo = 'RATIFICACION' AND rein.id_matricula IS NULL THEN m.id_estudiante END) AS regulares,
-                            COUNT(DISTINCT CASE WHEN rein.id_matricula IS NOT NULL THEN m.id_estudiante END) AS reingresos
+                            COUNT(DISTINCT CASE WHEN m.tipo = 'RATIFICACION' THEN m.id_estudiante END) AS regulares,
+                            COUNT(DISTINCT CASE WHEN m.tipo = 'REINGRESO' THEN m.id_estudiante END) AS reingresos
                         FROM matricula m
                         INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
                         INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                         INNER JOIN persona p ON p.id_persona = e.id_persona
-                        LEFT JOIN reingreso rein ON rein.id_matricula = m.id_matricula
                         WHERE m.id_anio_escolar = :anio
                           AND {$condCursando}
                           {$filtroEa}";

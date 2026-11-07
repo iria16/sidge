@@ -202,7 +202,7 @@ $rutasPermitidas = [
         'edit' => ['admin'],
         'update' => ['admin'],
         'toggleStatus' => ['admin'],
-        'getDetail' => ['admin']
+        'getDetalle' => ['admin']
     ],
     'bitacora' => [
         'index' => ['admin'],
@@ -210,8 +210,8 @@ $rutasPermitidas = [
     ],
     'recuperacionAcceso' => [
         'index' => ['admin'],
-        'getDetail' => ['admin'],
-        'updateStatus' => ['admin'],
+        'getDetalle' => ['admin'],
+        'updateEstado' => ['admin'],
         'resetPassword' => ['admin']
     ],
     'notificacion' => [
@@ -228,20 +228,20 @@ $rutasPermitidas = [
         'getUbicacion' => ['admin']
     ],
     'empleado' => [
-        'index' => ['directivo', 'coordinador'],
-        'expediente' => ['directivo', 'coordinador'],
-        'exportar' => ['directivo', 'coordinador'],
+        'index' => ['directivo', 'coordinador', 'secretaria'],
+        'expediente' => ['directivo', 'coordinador', 'secretaria'],
+        'exportar' => ['directivo', 'coordinador', 'secretaria'],
         'estadoInfo' => ['directivo'],
         'cambiarEstado' => ['directivo'],
         'cerrarReposo' => ['directivo'],
         'anularReposo' => ['directivo'],
         'create' => ['directivo'],
-        'show' => ['directivo', 'coordinador'],
+        'show' => ['directivo', 'coordinador', 'secretaria'],
         'edit' => ['directivo'],
         'store' => ['directivo'],
         'update' => ['directivo'],
         'toggleStatus' => ['directivo'],
-        'getUbicacion' => ['directivo', 'coordinador'],
+        'getUbicacion' => ['directivo', 'coordinador', 'secretaria'],
         // Precarga en el wizard de alta a una persona ya registrada (p. ej. un familiar).
         'buscarPersona' => ['directivo'],
         // Reposos del personal (empleados y docentes). Registrarlos es una decisión de
@@ -290,15 +290,10 @@ $rutasPermitidas = [
         'updateStatus' => ['directivo'],
         'delete' => ['directivo', 'secretaria']
     ],
-    'reingreso' => [
-        'index'            => ['secretaria'],
-        'buscarEstudiante' => ['secretaria'],
-        'datos'            => ['secretaria'],
-        'guardar'          => ['secretaria']
-    ],
     'estudiantes' => [
         'index' => ['directivo', 'coordinador', 'secretaria', 'docente'],
         'show' => ['directivo', 'coordinador', 'secretaria', 'docente'],
+        'expediente' => ['directivo', 'coordinador', 'secretaria', 'docente'],
         'exportar' => ['directivo', 'coordinador', 'secretaria', 'docente'],
         // Solo secretaria: marcar un recaudo como entregado es un asiento sobre un requisito
         // de matrícula, no una consulta. La ruta sola no basta, el turno se comprueba en el
@@ -325,7 +320,13 @@ $rutasPermitidas = [
         // sección del modal cuando la secretaria cambia el grado.
         'secciones' => ['secretaria'],
         'ratificar' => ['secretaria'],
-        'updateEstudiante' => ['secretaria', 'directivo', 'admin']
+        'updateEstudiante' => ['secretaria', 'directivo']
+    ],
+    'reingreso' => [
+        'index'            => ['secretaria'],
+        'buscarEstudiante' => ['secretaria'],
+        'datos'            => ['secretaria'],
+        'guardar'          => ['secretaria'],
     ],
     'configuracionInstitucional' => [
         'index'              => ['admin'],
@@ -382,7 +383,7 @@ $rutasPermitidas = [
 $accionesSoloPost = [
     'auth' => ['authenticate', 'updatePassword', 'requestRecovery'],
     'cuentaUsuario' => ['store', 'update', 'toggleStatus'],
-    'recuperacionAcceso' => ['updateStatus', 'resetPassword'],
+    'recuperacionAcceso' => ['updateEstado', 'resetPassword'],
     'catalogo' => ['store', 'update', 'toggleStatus'],
     'empleado' => ['store', 'update', 'toggleStatus', 'guardarTitulo', 'guardarInstitucion', 'registrarReposo', 'updateReposo', 'cambiarEstado', 'cerrarReposo', 'anularReposo'],
     'academicYear' => ['store', 'update', 'iniciar', 'cerrar', 'reabrir'],
@@ -550,8 +551,8 @@ $mapaControladores = [
     'notificacion' => 'Notification',
     'perfil' => 'Profile',
     'ratificacion' => 'Ratification',
-    'reingreso' => 'Reingreso',
     'recuperacionAcceso' => 'PasswordRecovery',
+    'reingreso' => 'Reingreso',
     'resultadoAcademico' => 'AcademicResult',
 ];
 $nombreControladorClase = $mapaControladores[$controller] ?? ucfirst($controller);
@@ -575,6 +576,7 @@ $limitesSensibles = [
     'auth/requestRecovery' => [5, 900],
     'withdrawal/store' => [20, 60],
     'inscripciones/store' => [20, 60],
+    'reingreso/guardar' => [20, 60],
     'empleado/store' => [20, 60],
     'catalogo/store' => [30, 60],
     'catalogo/update' => [30, 60],

@@ -11,10 +11,9 @@ use App\Interfaces\Toggleable;
 use App\Interfaces\Updatable;
 
 /**
- * Base abstracta de los catálogos (grado, sección, turno, tipo_documento, rol,
- * parentesco, etc.), con esquema <pk>, nombre y estado ACTIVO/INACTIVO. Implementa
- * Creatable, Updatable, Toggleable, Listable y Findable aquí para que todos los hijos
- * pasen el instanceof sin declararlo cada uno.
+ * Base abstracta de los catálogos (grado, sección, turno, tipo_documento, rol, parentesco, etc.), con esquema <pk>, nombre y estado ACTIVO/INACTIVO.
+ * Implementa Creatable, Updatable, Toggleable, Listable y Findable aquí para que todos los hijos pasen el instanceof sin declararlo cada uno.
+ * No implementa Deletable a propósito: los catálogos solo se crean, editan y activan/desactivan.
  */
 abstract class CatalogModel extends BaseModel implements Creatable, Updatable, Toggleable, Listable, Findable
 {

@@ -13,7 +13,7 @@ use Throwable;
 /**
  * Lado administrador de la recuperación de acceso: aprueba o rechaza solicitudes (creadas por AuthController::requestRecovery).
  * Al aprobar genera una clave provisional; también permite restablecer la clave de cualquier usuario sin solicitud.
- * Vistas en Views/usuarios/recuperacion; updateStatus, getDetail y resetPassword deben estar en el whitelist de public/index.php.
+ * Vistas en Views/usuarios/recuperacion; updateEstado, getDetalle y resetPassword deben estar en el whitelist de public/index.php.
  */
 class PasswordRecoveryController extends BaseController
 {
@@ -26,7 +26,8 @@ class PasswordRecoveryController extends BaseController
     protected string $routeName   = 'recuperacionAcceso';
 
     /**
-     * Devuelve el modelo con su tipo concreto.
+     * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
+     * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
      */
     private function modelo(): PasswordRecoveryModel
     {
@@ -81,11 +82,11 @@ class PasswordRecoveryController extends BaseController
     }
 
     /**
-     * Aprueba o rechaza una solicitud pendiente (recuperacionAcceso/updateStatus, POST, JSON).
+     * Aprueba o rechaza una solicitud pendiente (recuperacionAcceso/updateEstado, POST, JSON).
      * Recibe `id` y `accion` ('aprobar' o 'rechazar'); aprobar devuelve la clave provisional en `data`.
      * Si el modelo devuelve null/false la solicitud ya fue atendida o no existe (409), evitando doble proceso.
      */
-    public function updateStatus(): void
+    public function updateEstado(): void
     {
         $id     = (int) ($_POST['id'] ?? 0);
         $accion = (string) ($_POST['accion'] ?? '');
@@ -121,10 +122,10 @@ class PasswordRecoveryController extends BaseController
     }
 
     /**
-     * Devuelve el detalle de una solicitud en JSON para el modal (recuperacionAcceso/getDetail?id=..., GET).
+     * Devuelve el detalle de una solicitud en JSON para el modal (recuperacionAcceso/getDetalle?id=..., GET).
      * Delega el flujo estándar 400/404/500/200 en responderDetalle() de DetalleJsonTrait.
      */
-    public function getDetail(): void
+    public function getDetalle(): void
     {
         $this->responderDetalle(
             'getDetalleSolicitud',

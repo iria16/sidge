@@ -43,8 +43,9 @@ document.addEventListener('DOMContentLoaded', function () {
  llevar una comilla o un "<".*/
     nombre.textContent = (r.nombre || '')
       + (r.persona_nombre ? ' — ' + r.persona_nombre : '');
-    const codigosObligatorios = ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'];
-    if (Number(r.requerido) === 1 && codigosObligatorios.indexOf(r.codigo) !== -1) {
+    const codigosCondicionales = ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'];
+    const esObligatorio = Number(r.requerido) === 1 && codigosCondicionales.includes(String(r.codigo || ''));
+    if (esObligatorio) {
       const obligatorio = document.createElement('span');
       obligatorio.className = 'text-danger';
       obligatorio.textContent = ' *';

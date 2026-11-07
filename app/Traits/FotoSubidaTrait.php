@@ -12,10 +12,10 @@ namespace App\Traits;
  *
  * Existía como private procesarFotoSubida() duplicado en EmployeeController
  * e EnrollmentController: el cuerpo era idéntico y solo cambiaban el
- * prefijo del archivo y la carpeta. Aquí vive una sola vez y ambos lo usan.
+ * prefijo del archivo y la carpeta. Acá vive una sola vez y ambos lo usan.
  *
  * El método usa $this->jsonResponse() (BaseController) para cortar la
- * ejecución con el error: si algo falla, nunca se sigue al
+ * ejecución con el error, igual que antes: si algo falla, nunca se sigue al
  * guardado. Quien lo use debe heredar de Controller (o implementar ese
  * método). Por eso el trait está partido en dos responsabilidades:
  *

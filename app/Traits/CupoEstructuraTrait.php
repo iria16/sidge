@@ -75,28 +75,18 @@ trait CupoEstructuraTrait
         return $filas;
     }
 
-    public function conteoDeOcupados(?int $soloEstructura = null): array
+    public function conteoDeOcupados(): array
     {
-        $filtro = '';
-        $params = [];
-
-        if ($soloEstructura !== null && $soloEstructura > 0) {
-            $filtro = ' AND m.id_estructura_academica = :estructura';
-            $params['estructura'] = $soloEstructura;
-        }
-
-        $stmt = $this->pdo->prepare(
+        $filas = $this->pdo->query(
             'SELECT id_estructura_academica AS combo, COUNT(DISTINCT id_estudiante) AS ocupados
                FROM matricula m
               WHERE ' . Matriculas::condicionCursando('m') . '
-                AND m.id_estructura_academica IS NOT NULL'
-            . $filtro . '
+                AND m.id_estructura_academica IS NOT NULL
               GROUP BY m.id_estructura_academica'
-        );
-        $stmt->execute($params);
+        )->fetchAll(\PDO::FETCH_KEY_PAIR);
 
         $mapa = [];
-        foreach ($stmt->fetchAll(\PDO::FETCH_KEY_PAIR) as $combo => $ocupados) {
+        foreach ($filas as $combo => $ocupados) {
             $mapa[(int) $combo] = (int) $ocupados;
         }
 
@@ -122,48 +112,13 @@ trait CupoEstructuraTrait
 
     public function disponibilidadDe(int $idEstructura): ?array
     {
-        if ($idEstructura <= 0) {
-            return null;
+        foreach ($this->estructurasConCupo() as $combinacion) {
+            if ($combinacion['id_estructura_academica'] === $idEstructura) {
+                return $combinacion;
+            }
         }
 
-        $stmt = $this->pdo->prepare(
-            'SELECT ea.id_estructura_academica,
-                    ea.id_grado, ea.id_seccion, ea.id_turno, ea.id_anio_escolar,
-                    ea.capacidad_maxima,
-                    g.nombre AS grado, s.nombre AS seccion, t.nombre AS turno
-               FROM estructura_academica ea
-               LEFT JOIN grado g   ON g.id_grado   = ea.id_grado
-               LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-               LEFT JOIN turno t   ON t.id_turno   = ea.id_turno
-              WHERE ea.id_estructura_academica = :id
-              LIMIT 1'
-        );
-        $stmt->execute(['id' => $idEstructura]);
-        $fila = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-        if (!$fila) {
-            return null;
-        }
-
-        $capacidad = (int) $fila['capacidad_maxima'];
-        $ocupados = (int) ($this->conteoDeOcupados($idEstructura)[$idEstructura] ?? 0);
-        $libres   = $capacidad - $ocupados;
-
-        return [
-            'id_estructura_academica' => (int) $fila['id_estructura_academica'],
-            'id_grado'                 => (int) $fila['id_grado'],
-            'id_seccion'               => (int) $fila['id_seccion'],
-            'id_turno'                 => (int) $fila['id_turno'],
-            'id_anio_escolar'          => (int) $fila['id_anio_escolar'],
-            'grado'                    => (string) $fila['grado'],
-            'seccion'                  => (string) $fila['seccion'],
-            'turno'                    => (string) $fila['turno'],
-            'capacidad_maxima'         => $capacidad,
-            'ocupados'                 => $ocupados,
-            'disponibles'              => $libres,
-            'lleno'                    => $libres <= 0,
-            'nombre'                   => trim($fila['grado'] . ' · ' . $fila['seccion'] . ' · ' . $fila['turno']),
-        ];
+        return null;
     }
 
     public function opcionesAcademicas(int $idAnioEscolar, ?int $idTurno = null): array

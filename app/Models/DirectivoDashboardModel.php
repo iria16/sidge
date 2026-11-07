@@ -13,9 +13,9 @@ use Throwable;
 /**
  * DirectivoDashboardModel
  * -----------------------------------------------------------------------------
- * Lecturas y agregaciones para el panel de Dirección y Coordinación: métricas
- * demográficas de matrícula, capacidad institucional, personal escolar, avance de
- * literales y alertas operativas.
+ * Lecturas y agregaciones para el panel de Dirección y Coordinación:
+ * métricas demográficas de matrícula, capacidad institucional, personal escolar,
+ * avance de literales y alertas operativas.
  */
 class DirectivoDashboardModel extends Model
 {
@@ -64,7 +64,6 @@ class DirectivoDashboardModel extends Model
             'porcentaje_hembras'  => 0,
             'inscripciones'       => 0,
             'ratificaciones'      => 0,
-            'reingresos'          => 0,
             'retirados'           => 0,
         ];
 
@@ -77,12 +76,10 @@ class DirectivoDashboardModel extends Model
                            COUNT(DISTINCT CASE WHEN p.sexo = 'M' THEN m.id_estudiante END) AS varones,
                            COUNT(DISTINCT CASE WHEN p.sexo = 'F' THEN m.id_estudiante END) AS hembras,
                            COUNT(DISTINCT CASE WHEN m.tipo = 'INSCRIPCION' THEN m.id_estudiante END) AS inscripciones,
-                           COUNT(DISTINCT CASE WHEN m.tipo = 'RATIFICACION' AND rein.id_matricula IS NULL THEN m.id_estudiante END) AS ratificaciones,
-                           COUNT(DISTINCT CASE WHEN rein.id_matricula IS NOT NULL THEN m.id_estudiante END) AS reingresos
+                           COUNT(DISTINCT CASE WHEN m.tipo = 'RATIFICACION' THEN m.id_estudiante END) AS ratificaciones
                       FROM matricula m
                       INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                       INNER JOIN persona p ON p.id_persona = e.id_persona
-                      LEFT JOIN reingreso rein ON rein.id_matricula = m.id_matricula
                      WHERE m.id_anio_escolar = :anio
                        AND " . Matriculas::condicionCursando('m');
 
@@ -102,7 +99,6 @@ class DirectivoDashboardModel extends Model
                 $resultado['porcentaje_hembras'] = $total > 0 ? (int) round(($hembras / $total) * 100) : 0;
                 $resultado['inscripciones']      = (int) ($fila['inscripciones'] ?? 0);
                 $resultado['ratificaciones']     = (int) ($fila['ratificaciones'] ?? 0);
-                $resultado['reingresos']         = (int) ($fila['reingresos'] ?? 0);
             }
 
             // Retiros en este año escolar
@@ -221,6 +217,18 @@ class DirectivoDashboardModel extends Model
                 $resultado['obreros']           = (int) ($fila['obreros'] ?? 0);
             }
 
+            // Desglose dinámico de personal activo por cargo real registrado
+            $sqlCargos = "SELECT COALESCE(c.nombre, 'Sin cargo asignado') AS cargo,
+                                 COUNT(DISTINCT e.id_empleado) AS total
+                            FROM empleado e
+                           INNER JOIN persona p ON p.id_persona = e.id_persona
+                            LEFT JOIN cargo c ON c.id_cargo = e.id_cargo
+                           WHERE p.estado = 'ACTIVO'
+                           GROUP BY c.id_cargo, c.nombre
+                           ORDER BY total DESC, c.nombre ASC";
+            $filasCargos = $this->pdo->query($sqlCargos)->fetchAll(PDO::FETCH_ASSOC);
+            $resultado['por_cargo'] = $filasCargos ?: [];
+
             // Empleados en reposo vigente hoy
             $condicionReposo = "r.estado = 'VIGENTE' AND CURDATE() BETWEEN r.fecha_inicio AND r.fecha_fin";
             $sqlRep = "SELECT COUNT(DISTINCT e.id_empleado)
@@ -247,7 +255,7 @@ class DirectivoDashboardModel extends Model
         try {
             $sql = "SELECT c.id_cargo,
                            COALESCE(c.nombre, 'Sin cargo asignado') AS cargo,
-                           t.nombre AS turno,
+                           COALESCE(t.nombre, 'General') AS turno,
                            COUNT(DISTINCT e.id_empleado) AS total_personal,
                            COUNT(DISTINCT CASE WHEN p.estado = 'ACTIVO' THEN e.id_empleado END) AS activos,
                            COUNT(DISTINCT CASE WHEN p.estado != 'ACTIVO' THEN e.id_empleado END) AS inactivos,
@@ -277,7 +285,6 @@ class DirectivoDashboardModel extends Model
                 $f['varones']        = (int) ($f['varones'] ?? 0);
                 $f['hembras']        = (int) ($f['hembras'] ?? 0);
                 $f['en_reposo']      = (int) ($f['en_reposo'] ?? 0);
-                $f['turno']          = trim((string) ($f['turno'] ?? ''));
                 $f['porcentaje']     = $totalGeneral > 0
                     ? round(($f['total_personal'] / $totalGeneral) * 100, 1)
                     : 0.0;
@@ -291,12 +298,18 @@ class DirectivoDashboardModel extends Model
     }
 
     /**
- * Así Dirección y Coordinación ven la cobertura y las alertas sin exponer la salud
- * individual de un alumno. resumen: array<string, int>, por_grado: list<array<string,
- * mixed>>, tipos_sangre: array<string, int> }.
- *
- * @return array{
- */
+     * Estadísticas agregadas de la ficha médica de los estudiantes que cursan.
+     *
+     * No devuelve nombres ni textos clínicos: solo cuántos estudiantes tienen
+     * cada dato registrado. Así Dirección y Coordinación ven la cobertura y las
+     * alertas sin exponer la salud individual de un alumno.
+     *
+     * @return array{
+     *   resumen: array<string, int>,
+     *   por_grado: list<array<string, mixed>>,
+     *   tipos_sangre: array<string, int>
+     * }
+     */
     public function getEstadisticasSalud(?int $idAnio = null): array
     {
         $idAnio = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
@@ -392,11 +405,16 @@ class DirectivoDashboardModel extends Model
     }
 
     /**
- * Estadísticas agregadas de medidas antropométricas por grado. Solo cuenta valores
- * registrados: un peso o una estatura vacíos no se interpretan como cero.
- *
- * @return array{
- */
+     * Estadísticas agregadas de medidas antropométricas por grado.
+     *
+     * Solo cuenta valores registrados: un peso o una estatura vacíos no se
+     * interpretan como cero. La cobertura exige ambas medidas.
+     *
+     * @return array{
+     *   resumen: array<string, int|float|null>,
+     *   por_grado: list<array<string, mixed>>
+     * }
+     */
     public function getEstadisticasAntropometricas(?int $idAnio = null): array
     {
         $idAnio = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
@@ -513,11 +531,18 @@ class DirectivoDashboardModel extends Model
     }
 
     /**
- * Estadísticas agregadas de tallas de uniforme por grado y por prenda. Solo devuelve
- * conteos: no expone la talla de un estudiante concreto.
- *
- * @return array{
- */
+     * Estadísticas agregadas de tallas de uniforme por grado y por prenda.
+     *
+     * Solo devuelve conteos: no expone la talla de un estudiante concreto. Las
+     * tallas vacías cuentan como "sin_registrar"; las que ya no están en el
+     * catálogo (datos históricos) se conservan para no ocultarlas.
+     *
+     * @return array{
+     *   resumen: array<string, int>,
+     *   por_grado: list<array<string, mixed>>,
+     *   por_prenda: array<string, array{titulo: string, tallas: array<string, int>, total: int}>
+     * }
+     */
     public function getEstadisticasTallas(?int $idAnio = null): array
     {
         $idAnio = $idAnio !== null && $idAnio > 0 ? $idAnio : AniosEscolares::idEnCurso($this->pdo);
@@ -768,7 +793,7 @@ class DirectivoDashboardModel extends Model
                    INNER JOIN seccion s ON s.id_seccion = ea.id_seccion
                    INNER JOIN turno t ON t.id_turno = ea.id_turno
                    LEFT JOIN matricula m ON m.id_estructura_academica = ea.id_estructura_academica
-                                        AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                                        AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                                         AND " . Matriculas::condicionCursando('m') . "
                    LEFT JOIN resultado_academico ra ON ra.id_estudiante = m.id_estudiante
                                                    AND ra.id_anio_escolar = ea.id_anio_escolar
@@ -895,11 +920,11 @@ class DirectivoDashboardModel extends Model
     }
 
     /**
- * Alertas accionables para Dirección y Coordinación: retiros pendientes de
- * resolución.
- *
- * @return list<array<string, mixed>>
- */
+     * Alertas accionables para Dirección y Coordinación: retiros pendientes de resolución
+     * (solo para directivo), secciones con estudiantes y sin docente, y literales pendientes.
+     *
+     * @return list<array<string, mixed>>
+     */
     public function getAlertas(?int $idAnio = null, ?string $rol = null): array
     {
         $alertas = [];

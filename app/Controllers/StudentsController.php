@@ -102,6 +102,14 @@ class StudentsController extends ReadOnlyController
     }
 
     /**
+     * Alias de show() para rutas consistentes /estudiantes/expediente
+     */
+    public function expediente(): void
+    {
+        $this->show();
+    }
+
+    /**
  * Actualiza los recaudos de un estudiante desde su ficha.
  *
  * Es la vía para el caso normal: el representante entrega un documento días después de la

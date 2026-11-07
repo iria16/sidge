@@ -7,8 +7,11 @@ namespace App\Models;
 use PDO;
 
 /**
- * Consultas de acceso y alcance por usuario. Todas las consultas reciben el id ya
- * validado por el controlador; si no hay fila devuelven 0.
+ * Consultas de acceso y alcance por usuario.
+ *
+ * Aísla aquí el SQL que antes vivía en BaseController para que el controlador
+ * solo decida según el rol y el modelo resuelva los datos. Todas las consultas
+ * reciben el id ya validado por el controlador; si no hay fila devuelven 0.
  */
 class AccesoUsuarioModel extends Model
 {

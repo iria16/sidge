@@ -154,6 +154,7 @@ final class ExpedienteEstudianteService
         return [
             'historialAcademico'   => $this->historial($estudianteId, $turno, $esDocente),
             'datosEditables'       => $this->ratifications->getEstudianteEditable($estudianteId, !$esDocente) ?? [],
+            'catFamiliares'        => $catFamiliares,
             'estados'              => $catFamiliares['estados'],
             'nacionalidades'       => $this->ratifications->getNacionalidades(),
             'familiaresNucleo'     => $vinculados['nucleo'],
@@ -175,7 +176,7 @@ final class ExpedienteEstudianteService
         $fotoDataUri = ImagenPdf::publicaDataUri(
             (string) ($estudiante['avatar_img'] ?? ''),
             false,
-            29 / 37
+            80 / 102
         );
 
         return FichaEstudiantePdf::generar(

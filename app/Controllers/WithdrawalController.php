@@ -33,7 +33,8 @@ class WithdrawalController extends CrudController
     protected string $routeName = 'withdrawal';
 
     /**
- * Devuelve el modelo con su tipo concreto.
+ * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
+ * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
 */
     private function modelo(): WithdrawalModel
     {
@@ -170,9 +171,10 @@ class WithdrawalController extends CrudController
             && !$this->modelo()->matriculaPerteneceTurno($data['id_matricula'], $turno)) {
             $errores['id_matricula'] = 'El estudiante no pertenece a su turno asignado.';
         } elseif ($data['id_matricula'] > 0) {
-            /* La elegibilidad se comprueba también en el servidor: el buscador la
-               muestra, pero un POST directo no debe omitirla. El motivo lo determina
-               el modelo, que es donde vive la máquina de estados. */
+            /* La elegibilidad se comprueba AQUÍ, en el servidor, y no solo en el buscador:
+               antes el formulario mostraba "elegible=false" para un egresado o un retirado,
+               pero un POST directo se saltaba esa regla y creaba la solicitud igual. El
+               motivo lo pone el modelo, que es donde vive la máquina de estados.*/
             $bloqueo = $this->modelo()->bloqueoParaRetiro($data['id_matricula']);
             if ($bloqueo !== '') {
                 $errores['id_matricula'] = $bloqueo;
@@ -216,25 +218,17 @@ class WithdrawalController extends CrudController
             if ($ok) {
                 try {
                     $estudiante = $this->modelo()->descripcionEstudiantePublica((int) $data['id_matricula']);
-                } catch (\Throwable $e) {
-                    error_log('Notificacion retiro descripcion: ' . $e->getMessage());
-                    $estudiante = 'la matrícula ' . (int) $data['id_matricula'];
-                }
-                try {
                     $directivos = (new \App\Models\NotificationModel($this->conexion()))->destinatariosPorRol('Directivo');
-                    if ($directivos === []) {
-                        error_log('Notificacion retiro: no hay usuarios activos con rol Directivo/Directora/Director.');
-                    }
                     (new \App\Models\NotificationModel($this->conexion()))->crear(
                         $directivos,
                         'retiro_pendiente',
-                        'Nuevo retiro pendiente',
-                        'Nuevo retiro pendiente: ' . $estudiante,
+                        'Solicitud de retiro registrada',
+                        'Se ha registrado una nueva solicitud de retiro para ' . $estudiante . '.',
                         BASE_URL . 'withdrawal/index',
                         (int) $data['id_matricula']
                     );
                 } catch (\Throwable $e) {
-                    error_log('Notificacion retiro crear: ' . $e->getMessage());
+                    error_log('Notificacion retiro: ' . $e->getMessage());
                 }
                 $this->jsonResponse(true, null, 'Solicitud de retiro registrada correctamente.');
             } else {
@@ -258,12 +252,17 @@ class WithdrawalController extends CrudController
     }
 
     /**
- * Detalle de una solicitud de retiro (GET withdrawal/ver/{id}).
- *
- * Recibe solo el id y carga el detalle en el servidor. También valida que la
- * solicitud pertenezca al turno de la secretaria, igual que buscarEstudiante()
- * y store().
- */
+ * Aprueba o rechaza una solicitud pendiente.
+ * Ruta: withdrawal/updateEstado (POST, responde JSON). Solo directivo.
+*/
+    /* Detalle de una solicitud de retiro (GET withdrawal/ver/{id}). El botón "ver" de la fila ya no
+ lleva los datos en atributos data-: duplicar el modelo en el markup obliga a mantenerlo en dos
+ lugares y se desincroniza solo. Con el id basta y los datos se piden aquí.
+
+ También comprueba el turno con secretariaTieneAccesoAEstudiante(), igual que buscarEstudiante()
+ y store(): sin eso, la ficha se pediría con cualquier id por la URL y una secretaria del turno
+ de la tarde vería las solicitudes de la mañana. El id del estudiante no se pide aparte, viene
+ en el detalle que ya se carga. */
     public function ver(): void
     {
         $id = (int) ($_GET['id'] ?? 0);
@@ -289,10 +288,6 @@ class WithdrawalController extends CrudController
         require __DIR__ . "/../Views/{$this->viewPath}/ver.php";
     }
 
-    /**
- * Aprueba o rechaza una solicitud pendiente.
- * Ruta: withdrawal/updateEstado (POST, responde JSON). Solo directivo.
- */
     public function updateEstado(): void
     {
         // 1. Validar que la petición sea POST (aunque las rutas devuelvan 405, es buena defensa en profundidad)
@@ -330,27 +325,21 @@ class WithdrawalController extends CrudController
                     $detalle = $model->getDetail($id);
                     $idRegistrante = (int) ($detalle['id_usuario_registro'] ?? 0);
                     $estudiante = (string) ($detalle['estudiante'] ?? 'el estudiante');
-                } catch (\Throwable $e) {
-                    error_log('Notificacion retiro estado detalle: ' . $e->getMessage());
-                    $idRegistrante = 0;
-                    $estudiante = 'el estudiante';
-                }
-                if ($idRegistrante > 0) {
-                    try {
+                    $secretarias = (new \App\Models\NotificationModel($this->conexion()))->destinatariosPorRol('Secretaria');
+                    $destinatarios = array_values(array_unique(array_filter(array_merge([$idRegistrante], $secretarias))));
+                    if (!empty($destinatarios)) {
                         $verbo = $estado === 'APROBADO' ? 'aprobada' : 'rechazada';
                         (new \App\Models\NotificationModel($this->conexion()))->crear(
-                            $idRegistrante,
+                            $destinatarios,
                             'retiro_' . strtolower($estado),
                             'Solicitud de retiro ' . $verbo,
-                            'Tu solicitud de retiro de ' . $estudiante . ' fue ' . $verbo . '.',
+                            'La dirección ha ' . ($estado === 'APROBADO' ? 'aprobado' : 'rechazado') . ' la solicitud de retiro de ' . $estudiante . '.',
                             BASE_URL . 'withdrawal/index',
                             $id
                         );
-                    } catch (\Throwable $e) {
-                        error_log('Notificacion retiro estado crear: ' . $e->getMessage());
                     }
-                } else {
-                    error_log('Notificacion retiro estado: no hay id_usuario_registro para notificar (retiro id=' . $id . ').');
+                } catch (\Throwable $e) {
+                    error_log('Notificacion retiro estado: ' . $e->getMessage());
                 }
             }
             $this->jsonResponse(
@@ -394,29 +383,25 @@ class WithdrawalController extends CrudController
         }
 
         try {
-            // Obtener datos antes de eliminar para notificar
             $detalle = $this->modelo()->getDetail($id);
-            if ($detalle === null) {
-                $this->jsonResponse(false, null, 'No se encontró la solicitud de retiro a eliminar.', 404);
-                return;
-            }
-            $idRegistrante = (int) ($detalle['id_usuario_registro'] ?? 0);
-            $estudiante = (string) ($detalle['estudiante'] ?? 'el estudiante');
-
             $ok = $this->modelo()->delete($id);
             if ($ok) {
-                // Notificar al usuario que registró la solicitud (si no es quien elimina)
-                $idUsuarioActual = (int) ($this->idUsuarioActual() ?? 0);
-                if ($idRegistrante > 0 && $idRegistrante !== $idUsuarioActual) {
+                if ($rol === 'directivo' && $detalle) {
                     try {
-                        (new \App\Models\NotificationModel($this->conexion()))->crear(
-                            $idRegistrante,
-                            'retiro_eliminado',
-                            'Solicitud de retiro eliminada',
-                            'La solicitud de retiro de ' . $estudiante . ' fue eliminada.',
-                            BASE_URL . 'withdrawal/index',
-                            $id
-                        );
+                        $idRegistrante = (int) ($detalle['id_usuario_registro'] ?? 0);
+                        $estudiante = (string) ($detalle['estudiante'] ?? 'el estudiante');
+                        $secretarias = (new \App\Models\NotificationModel($this->conexion()))->destinatariosPorRol('Secretaria');
+                        $destinatarios = array_values(array_unique(array_filter(array_merge([$idRegistrante], $secretarias))));
+                        if (!empty($destinatarios)) {
+                            (new \App\Models\NotificationModel($this->conexion()))->crear(
+                                $destinatarios,
+                                'retiro_eliminado',
+                                'Solicitud de retiro eliminada',
+                                'La dirección ha eliminado la solicitud de retiro de ' . $estudiante . '.',
+                                BASE_URL . 'withdrawal/index',
+                                $id
+                            );
+                        }
                     } catch (\Throwable $e) {
                         error_log('Notificacion retiro eliminado: ' . $e->getMessage());
                     }

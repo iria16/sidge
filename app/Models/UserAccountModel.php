@@ -39,11 +39,11 @@ class UserAccountModel extends BaseModel implements Creatable, Updatable, Toggle
     }
 
     /**
- * Cumple con la interfaz Creatable. Actúa como proxy hacia el método especializado
- * crearUsuario(), devolviendo un bool.
+ * Cumple con la interfaz Creatable.
+ * Actúa como proxy hacia el método especializado crearUsuario(), devolviendo un bool.
  *
  * @param array<string, mixed> $data
- */
+*/
     public function create(array $data): bool
     {
         $resultado = $this->crearUsuario(

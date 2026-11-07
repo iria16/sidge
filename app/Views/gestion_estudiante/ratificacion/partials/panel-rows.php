@@ -12,8 +12,19 @@ declare(strict_types=1);
     $esRatificado = ($item['estado'] ?? '') === 'ratificado';
     $estudianteId = (int) ($item['id'] ?? 0);
 
-    /* El estado refleja la matrícula del año en curso: pendiente, ratificado,
-       retirado o egresado. */
+    /* El estado que se muestra no es solo "ratificado o pendiente". Son cinco
+ situaciones, y dos de ellas seacharcan solo al mostrar bien la fila:
+
+ - El estado dice qué pasó con la MATRÍCULA del año en curso: pendiente,
+ ratificado, retirado o egresado.
+
+ Antes esta fila tenía además un caso "por inscribir", para el alumno que no
+ tenía inscripción previa. Se quitó porque con el criterio actual ya no puede
+ aparecer: un alumno sin ninguna matrícula no está en el plantel, y el
+ listado se arma sobre las matrículas, así que no llega a listarse. Y aunque
+ llegara, el sistema ya lo impide: `RatificationModel::ratificar()` lo
+ rechaza y el trigger de la base también. Mostrar un estado que nadie va a
+ ver es ruido.*/
     $estadoItem = (string) ($item['estado'] ?? 'pendiente');
     $cerrado    = in_array($estadoItem, ['retirado', 'egresado'], true);
 ?>

@@ -33,7 +33,7 @@
 
 declare(strict_types=1);
 
-/* double_encode=false de propósito: el llamador puede incluir entidades ya
+/* double_encode=false a propósito: el llamador puede incluir entidades ya
    escritas, como los &nbsp; que usa la constancia alrededor del separador de
    códigos, y con el escape por defecto saldrían impresas como texto. El dato
    viene de la configuración institucional y de etiquetas fijas del documento,

@@ -12,11 +12,21 @@ use Throwable;
 
 /**
  * AcademicResultModel
- * ----------------------------------------------------------------------------- Modelo
- * de los resultados académicos de fin de año (Promoción y No Promoción). El docente
- * registra el literal (A-E) y el estado se deriva de él: - A-D         = PROMOVIDO - E
- *           = NO_PROMOVIDO - Sin literal = PENDIENTE Al cerrar el año escolar los
- * literales quedan bloqueados: solo se consulta y se guarda sobre el período en curso.
+ * -----------------------------------------------------------------------------
+ * Modelo de los resultados académicos de fin de año (Promoción y No Promoción).
+ *
+ * El docente registra el literal (A-E) y el estado se deriva de él:
+ *  - A-D         = PROMOVIDO
+ *  - E           = NO_PROMOVIDO
+ *  - Sin literal = PENDIENTE
+ *
+ * Al cerrar el año escolar los literales quedan bloqueados: solo se
+ * consulta y se guarda sobre el período en curso.
+ *
+ * Reglas de negocio:
+ *  - Solo el docente asignado a la sección puede modificar sus literales.
+ *  - Literal válido: A, B, C, D o E.
+ *  - El literal E exige una observación.
  */
 class AcademicResultModel extends BaseModel
 {
@@ -75,13 +85,13 @@ class AcademicResultModel extends BaseModel
      */
     public function getSeccionesPorAnio(?int $idAnioEscolar = null, int $idUsuario = 0, string $rol = 'admin'): array
     {
-        $idDocente = 0; // Inicializar para evitar warning en IDE
-
         // El docente únicamente puede visualizar el período escolar activo
         if (strtolower($rol) === 'docente') {
             $idAnioEscolar = AniosEscolares::idEnCurso($this->pdo) ?: 0;
             if ($idUsuario > 0) {
                 $idDocente = $this->getIdDocentePorUsuario($idUsuario);
+            } else {
+                $idDocente = 0;
             }
             if ($idDocente <= 0) {
                 return []; // El docente no tiene perfil asignado; no puede ver secciones ajenas
@@ -136,7 +146,7 @@ class AcademicResultModel extends BaseModel
                 INNER JOIN seccion s ON s.id_seccion = ea.id_seccion
                 INNER JOIN turno t ON t.id_turno = ea.id_turno
                 LEFT JOIN matricula m ON m.id_estructura_academica = ea.id_estructura_academica
-                                     AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                                     AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                                      AND " . Matriculas::condicionCursando('m') . "
                 LEFT JOIN resultado_academico ra ON ra.id_estudiante = m.id_estudiante
                                                 AND ra.id_anio_escolar = ea.id_anio_escolar
@@ -207,11 +217,17 @@ class AcademicResultModel extends BaseModel
             return null;
         }
 
-        /**
- * Alcance de la consulta, por rol. Para todo rol que no sea admin o directivo: - el
- * período escolar debe ser el que está en curso; - y, si el rol es docente, además
- * la sección debe ser la suya.
- */
+        /* Alcance de la consulta, por rol.
+         *
+         * Para todo rol que no sea admin o directivo:
+         *   - el período escolar debe ser el que está en curso;
+         *   - y, si el rol es docente, además la sección debe ser la suya.
+         *
+         * La pertenencia de sección solo significa algo para el docente, que es el
+         * único rol con asignación en `asignacion_docente`. Para el coordinador la
+         * sección no es suya ni de nadie: su ámbito es la consulta de todas las
+         * secciones del período, y por eso lo que se le acota es el año, no la
+         * sección. */
         $rolNormalizado = strtolower($rol);
         $esPrivilegiado = in_array($rolNormalizado, ['admin', 'directivo'], true);
 
@@ -265,7 +281,7 @@ class AcademicResultModel extends BaseModel
                            LEFT JOIN usuario u_conf ON u_conf.id_usuario = ra.confirmado_por
                            LEFT JOIN persona p_conf ON p_conf.id_persona = u_conf.id_persona
                            WHERE m.id_estructura_academica = :id_estructura
-                             AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                             AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                              AND " . Matriculas::condicionCursando('m') . "
                            ORDER BY p.primer_apellido ASC, p.primer_nombre ASC";
 
@@ -719,7 +735,7 @@ class AcademicResultModel extends BaseModel
                 LEFT JOIN resultado_academico ra ON ra.id_estudiante = m.id_estudiante
                                                 AND ra.id_anio_escolar = m.id_anio_escolar
                 WHERE m.id_anio_escolar = :id_anio
-                  AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                  AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                   AND " . Matriculas::condicionCursando('m') . "
                   AND (ra.id_resultado IS NULL OR ra.estado_resultado = 'PENDIENTE')";
 
@@ -857,10 +873,12 @@ class AcademicResultModel extends BaseModel
     }
 
     /**
- * Decide si el dashboard del docente muestra la tarjeta de literales. Se muestra
- * siempre que ya haya al menos un literal registrado, o cuando la fecha actual está
- * dentro de los días previos al cierre del año escolar.
- */
+     * Decide si el dashboard del docente muestra la tarjeta de literales.
+     *
+     * Se muestra siempre que ya haya al menos un literal registrado, o cuando
+     * la fecha actual está dentro de los días previos al cierre del año escolar.
+     * Si el cierre es nulo o inválido, la condición por fecha no aplica.
+     */
     public function debeMostrarAvanceLiterales(int $registrados, ?string $fechaCierre): bool
     {
         if ($fechaCierre === null || trim($fechaCierre) === '') {
@@ -879,13 +897,13 @@ class AcademicResultModel extends BaseModel
     }
 
     /**
- * Avance de literales cargados para el dashboard del docente. Cuenta lo registrado por
- * el docente (literal IS NOT NULL), el total de matriculados y calcula los pendientes y
- * porcentaje.
- *
- * @param int $idEstructura
- * @return array{total: int, registrados: int, pendientes: int, porcentaje: float, literales_validos: list<string>, escala_texto: string}
- */
+     * Avance de literales cargados para el dashboard del docente.
+     * Cuenta lo registrado por el docente (literal IS NOT NULL),
+     * el total de matriculados y calcula los pendientes y porcentaje.
+     *
+     * @param int $idEstructura
+     * @return array{total: int, registrados: int, pendientes: int, porcentaje: float, literales_validos: list<string>, escala_texto: string}
+     */
     public function getAvanceLiteralesDocente(int $idEstructura): array
     {
         $stmt = $this->pdo->prepare(
@@ -907,7 +925,7 @@ class AcademicResultModel extends BaseModel
                       ON ra.id_estudiante = m.id_estudiante
                      AND ra.id_anio_escolar = m.id_anio_escolar
               WHERE m.id_estructura_academica = :estructura
-                AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                 AND " . Matriculas::condicionCursando('m')
         );
         $stmt->execute(['estructura' => $idEstructura]);

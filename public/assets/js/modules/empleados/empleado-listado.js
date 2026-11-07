@@ -7,66 +7,6 @@
 (function () {
   'use strict';
 
-// --- Cambiar Estado (Activo / Inactivo) ---
-function initToggleEstadoEmpleado() {
-  document.addEventListener('change', async function (e) {
-    var checkbox = e.target.closest('.toggle-estado');
-    if (!checkbox) return;
-    var id = checkbox.dataset.empleadoId;
-    var nuevoEstadoActivo = checkbox.checked;
-    var accion = nuevoEstadoActivo ? 'activar' : 'desactivar';
-    var checkboxAnterior = !checkbox.checked;
-    var tr = checkbox.closest('tr');
-    var badge = tr ? tr.querySelector('.status-badge') : null;
-
-    var confirmacion = false;
-    confirmacion = await SIGDEUI.confirmar({
-      titulo: accion.charAt(0).toUpperCase() + accion.slice(1) + ' empleado?',
-      texto: '¿Está seguro que desea ' + accion + ' este empleado?',
-      confirmar: 'Sí, ' + accion
-    });
-
-    if (!confirmacion) {
-      checkbox.checked = checkboxAnterior;
-      return;
-    }
-
-    try {
-      var res = await SIGDEUI.enviar(SIGDEEmpleados.baseUrl + SIGDEEmpleados.rutaControlador + '/toggleStatus', { metodo: 'POST', cuerpo: 'id=' + encodeURIComponent(id), cabeceras: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-      var data = res.data;
-
-      if (!res.ok || !data.ok) {
-        checkbox.checked = checkboxAnterior;
-        SIGDEUI.mostrarError(data.mensaje || 'No se pudo actualizar el estado del empleado.');
-        return;
-      }
-
-      if (tr) {
-        tr.classList.toggle('is-muted', !nuevoEstadoActivo);
-        var btnEditar = tr.querySelector('.editar-empleado');
-        if (btnEditar) {
-          btnEditar.disabled = !nuevoEstadoActivo;
-          btnEditar.title = nuevoEstadoActivo ? 'Editar empleado' : 'No se puede editar un empleado inactivo';
-        }
-        var switchWrapper = tr.querySelector('.table-switch');
-        if (switchWrapper && !checkbox.disabled) {
-          switchWrapper.title = (nuevoEstadoActivo ? 'Desactivar' : 'Activar') + ' empleado';
-        }
-      }
-      if (badge) {
-        badge.className = 'status-badge status-badge--' + (nuevoEstadoActivo ? 'active' : 'inactive');
-        badge.textContent = nuevoEstadoActivo ? 'Activo' : 'Inactivo';
-      }
-
-      SIGDEUI.exito('Empleado ' + accion + 'do correctamente.', '¡Listo!');
-    } catch (err) {
-      checkbox.checked = checkboxAnterior;
-      console.error('Error al cambiar estado:', err);
-      SIGDEUI.mostrarError('Error de conexión al actualizar el estado.');
-    }
-  });
-}
-
 // --- Modal Ver Detalle ---
 function initVerEmpleadoModal() {
   var modalVerEl = document.getElementById('verEmpleadoModal');
@@ -93,7 +33,7 @@ function pintarDetalleEmpleado(modalEl, d) {
   };
 
   /* La dirección la trae YA redactada el servidor (App\Support\Direccion, la misma
-     que usa Listados y Actas y el PDF del expediente). Antes se recomponía aquí con
+     que usa Listados y Actas y el PDF del expediente). Antes se recomponía acá con
      los mismos prefijos, y con un campo faltando el modal mostraba algo distinto
      de lo que mostraba la edición: la cuarta copia de la regla, en el navegador.
      Por si el servidor llegara sin el campo, se arma igual y no se pierde nada. */
@@ -119,7 +59,7 @@ function pintarDetalleEmpleado(modalEl, d) {
        escribir "Sin nacionalidad" en cada ficha vieja sería ruido. */
     nacionalidad:     d.nacionalidad || '',
     cargo:            d.cargo || 'Sin cargo',
-    turno:            d.turno || '',
+    turno:            d.turno || 'Sin turno',
     estado:           activo ? 'Activo' : 'Inactivo',
     sexo:             { F: 'Femenino', M: 'Masculino' }[d.sexo] || d.sexo,
     fecha_nacimiento: SIGDEUI.formatearFechaCorta(d.fecha_nacimiento),
@@ -135,8 +75,6 @@ function pintarDetalleEmpleado(modalEl, d) {
   modalEl.querySelectorAll('[data-campo]').forEach(function (el) {
     el.textContent = valores[el.dataset.campo] || '—';
   });
-  var campoTurno = modalEl.querySelector('[data-campo-turno]');
-  if (campoTurno) campoTurno.hidden = !valores.turno;
 
   // El badge de estado y la barra inferior comparten data-campo="estado";
   // solo el badge lleva el modificador de color según el valor.
@@ -149,7 +87,7 @@ function pintarDetalleEmpleado(modalEl, d) {
   var iniciales = modalEl.querySelector('[data-campo-iniciales]');
   var contenedorAvatar = modalEl.querySelector('.user-detail__header .avatar');
   // El avatar ya viene decidido por AvatarTrait en el backend: foto o
-  // iniciales + color. Aquí solo se refleja.
+  // iniciales + color. Acá solo se refleja.
   var avatarTipo = d.avatar_tipo || (d.foto ? 'foto' : 'iniciales');
 
   if (iniciales) {
@@ -202,7 +140,6 @@ function pintarDetalleEmpleado(modalEl, d) {
 
   // --- Inicialización Módulo ---
   function init() {
-    initToggleEstadoEmpleado();
     initVerEmpleadoModal();
   }
 

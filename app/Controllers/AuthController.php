@@ -10,7 +10,6 @@ use App\Models\LoginModel;
 use App\Models\PasswordRecoveryModel;
 use App\Models\NotificationModel;
 use App\Traits\SecurityTrait;
-use App\Traits\AvatarTrait;
 use function App\Traits\sigde_rol_clave;
 use PDO;
 
@@ -24,7 +23,7 @@ use PDO;
 */
 class AuthController
 {
-    use SecurityTrait, AvatarTrait;
+    use SecurityTrait;
 
    /**
  * Hash bcrypt señuelo (Costo 12): se verifica cuando el usuario no existe para igualar el tiempo de respuesta.
@@ -46,9 +45,9 @@ class AuthController
 
     /**
  * Inicializa la conexión y los modelos.
- *
- * El control de sesión y de clave provisional se resuelve en el front controller.
- */
+ * Ya no redirige: el front controller manda al dashboard a quien tenga sesión en rutas públicas
+ * y obliga a cambiar la clave provisional antes de llegar a cualquier otra ruta.
+*/
     public function __construct()
     {
         $database = new Database();
@@ -144,19 +143,7 @@ class AuthController
             // Se guarda el nombre SIN escapar. El escape corresponde a la vista.
             $_SESSION['nombre'] = trim($usuario['nombre'] . ' ' . $usuario['apellido']);
             $_SESSION['rol']    = $rol;
-            $avatarFoto = $this->resolverAvatar(
-                $usuario['foto'] ?? null,
-                $usuario['nombre'] ?? null,
-                $usuario['apellido'] ?? null,
-                $rol,
-                $usuario['nombre_usuario'] ?? 'U'
-            );
-            $_SESSION['avatar_foto'] = $avatarFoto['foto'] ?? '';
-            $_SESSION['avatar_iniciales'] = $this->generarIniciales(
-                $usuario['nombre'] ?? null,
-                $usuario['apellido'] ?? null,
-                $usuario['nombre_usuario'] ?? 'U'
-            );
+            $_SESSION['foto']   = !empty($usuario['foto']) ? ltrim((string) $usuario['foto'], '/') : null;
             if ($rol === 'secretaria') {
                 $_SESSION['id_turno'] = (int) $usuario['id_turno'];
             } else {
@@ -205,7 +192,7 @@ class AuthController
 
     /**
  * Muestra el formulario de cambio de clave provisional (auth/cambiarPasswordProvisional, GET).
- * Si la clave dejó de ser provisional en la base de datos, limpia la marca de sesión y va al dashboard.
+ * Si en BD la clave ya no es provisional, limpia la marca de sesión y va al dashboard.
 */
     public function cambiarPasswordProvisional(): void
     {
@@ -334,15 +321,22 @@ class AuthController
 
         try {
             $nombre = trim((string) (($usuario['primer_nombre'] ?? '') . ' ' . ($usuario['primer_apellido'] ?? '')));
-            if ($nombre === '') {
-                $nombre = (string) ($usuario['nombre_usuario'] ?? 'Un usuario');
+            $cedula = trim((string) ($usuario['numero_documento'] ?? ''));
+            $usuarioNombre = (string) ($usuario['nombre_usuario'] ?? '');
+
+            $identificador = $nombre !== '' ? $nombre : ($usuarioNombre !== '' ? $usuarioNombre : 'Un usuario');
+            if ($cedula !== '') {
+                $mensaje = "El usuario {$identificador} (C.I. {$cedula}) solicitó restablecer su contraseña.";
+            } else {
+                $mensaje = "El usuario {$identificador} solicitó restablecer su contraseña.";
             }
+
             $admins = (new NotificationModel($this->db))->destinatariosPorRol('Admin');
             (new NotificationModel($this->db))->crear(
                 $admins,
                 'recuperacion_acceso',
                 'Solicitud de recuperación de acceso',
-                $nombre . ' solicitó restablecer su contraseña',
+                $mensaje,
                 BASE_URL . 'recuperacionAcceso/index',
                 $usuarioId
             );

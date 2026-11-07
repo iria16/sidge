@@ -114,9 +114,9 @@ class PasswordRecoveryModel extends BaseModel implements Listable
     }
 
     /**
-     * Con PDO en modo nativo (ATTR_EMULATE_PREPARES = false) no se puede
-     * reutilizar el mismo nombre de placeholder, aunque el valor sea idéntico;
-     * por eso se usan :q1, :q2, :q3 y :q4 en lugar de :q repetido.
+     * IMPORTANTE: con PDO en modo nativo (ATTR_EMULATE_PREPARES = false) no
+     * se puede reutilizar el mismo nombre de placeholder más de una vez,
+     * aunque el valor sea idéntico — por eso :q1/:q2/:q3/:q4 en vez de :q repetido.
      */
     private function buildJoinFilters(array $filters): array
     {
@@ -131,8 +131,10 @@ class PasswordRecoveryModel extends BaseModel implements Listable
 
         $q = trim($filters['q'] ?? '');
         if ($q !== '') {
-            // La columna real en persona es numero_documento; nro_documento no
-            // existe y provoca SQLSTATE[42S22] Column not found.
+            // Columna real en persona es numero_documento (confirmado con
+            // SHOW COLUMNS FROM persona; antes decía erróneamente
+            // nro_documento y rompía tanto el filtro de búsqueda como el
+            // detalle de la solicitud con SQLSTATE[42S22] Column not found).
             $where[]      = "(u.nombre_usuario LIKE :q1 OR p.primer_nombre LIKE :q2
                               OR p.primer_apellido LIKE :q3 OR p.numero_documento LIKE :q4)";
             $like         = "%" . $this->escapeLike((string) $q) . "%";
@@ -146,10 +148,11 @@ class PasswordRecoveryModel extends BaseModel implements Listable
     }
 
     /**
- * Traduce una fila cruda del JOIN al contrato que espera la vista (ver el docblock de
- * usuarios/recuperacion/index.php): id, usuario_id, fecha, hora, nombre, cargo,
- * usuario, avatar_tipo, avatar_foto, avatar_color, iniciales, estado, origen.
- */
+     * Traduce una fila cruda del JOIN al contrato que espera la vista
+     * (ver el docblock de usuarios/recuperacion/index.php):
+     * id, usuario_id, fecha, hora, nombre, cargo, usuario, avatar_tipo,
+     * avatar_foto, avatar_color, iniciales, estado, origen.
+     */
     private function normalizarFila(array $row): array
     {
         $ts = strtotime((string) $row['fecha_solicitud']);
@@ -214,8 +217,9 @@ class PasswordRecoveryModel extends BaseModel implements Listable
     }
 
     /**
-     * A diferencia de getAll(), aquí se conservan fecha_atencion y el nombre
-     * del administrador que atendió la solicitud.
+     * A diferencia de getAll(), aquí SÍ se conservan fecha_atencion y el
+     * nombre del admin que atendió — antes se perdían porque
+     * normalizarFila() no las incluía en su arreglo de salida.
      */
     public function getDetalleSolicitud(int $id): ?array
     {
@@ -262,11 +266,12 @@ class PasswordRecoveryModel extends BaseModel implements Listable
             ($row['admin_primer_nombre'] ?? '') . ' ' . ($row['admin_primer_apellido'] ?? '')
         );
 
-        /**
- * La hora de la atención se guardaba con 'h:i A' ("02:28 PM") mientras la de la
- * solicitud se guardaba con 'h:i a' ("02:28 pm"). Dos formatos distintos en el mismo
- * modal, y a simple vista parecía un dato mal guardado.
- */
+        /* La hora de la atención se guardaba con 'h:i A' ("02:28 PM") mientras
+           la de la solicitud se guardaba con 'h:i a' ("02:28 pm"). Dos formatos
+           distintos en el mismo modal, y a simple vista parecía un dato mal
+           guardado. Ahora las dos son de 24 horas: en un registro de atención
+           importa más no tener que interpretar "PM" a la mitad de leer, y el
+           orden de las horas coincide con el orden real. */
         $detalle['fecha_atencion'] = $ts ? date('d/m/Y H:i', $ts) : null;
         $detalle['admin_atendio']  = $adminNombre !== '' ? $adminNombre : null;
         $detalle['numero_documento'] = $row['numero_documento'] ?? null;
@@ -275,7 +280,7 @@ class PasswordRecoveryModel extends BaseModel implements Listable
         return $detalle;
     }
 
-    // --- Transiciones de estado (usadas por updateStatus()) ---
+    // --- Transiciones de estado (usadas por updateEstado()) ---
 
     public function aprobarSolicitud(int $idSolicitud, int $idAdmin): ?array
     {
@@ -342,11 +347,15 @@ class PasswordRecoveryModel extends BaseModel implements Listable
     }
 
     /**
- * Restablecimiento manual: no hay solicitud previa, así que la fila en
- * recuperacion_acceso se crea ya resuelta, con origen ADMIN. El estado insertado debe
- * coincidir EXACTO con el ENUM real de la BD (PENDIENTE/APROVADO/RECHAZADO — APROVADO
- * con V, confirmado por SHOW COLUMNS).
- */
+     * Restablecimiento manual: no hay solicitud previa, así que la fila en
+     * recuperacion_acceso se crea ya resuelta, con origen ADMIN.
+     * El estado insertado debe coincidir EXACTO con el ENUM real de la BD
+     * (PENDIENTE/APROVADO/RECHAZADO — APROVADO con V, confirmado por
+     * SHOW COLUMNS). Un valor fuera del ENUM causa SQLSTATE[01000]
+     * "Data truncated" con el modo estricto activo, o se trunca
+     * silenciosamente a '' sin él — cualquiera de los dos deja la fila
+     * "atendida" pero mostrada como Pendiente en la vista.
+     */
     public function resetPassword(int $usuarioId, int $idAdmin): string
     {
         $usuario = $this->getUsuarioBasico($usuarioId);
@@ -384,19 +393,30 @@ class PasswordRecoveryModel extends BaseModel implements Listable
 
 public function buscarPorUsuarioOCedula(string $valor): array|false
     {
+        $valorLimpio = trim($valor);
+        $soloDigitos = preg_replace('/\D/', '', $valorLimpio);
+
+        $params = [
+            'usuario'   => $valorLimpio,
+            'documento' => $valorLimpio,
+        ];
+
+        $condicionDoc = "u.nombre_usuario = :usuario OR p.numero_documento = :documento";
+        if ($soloDigitos !== '') {
+            $condicionDoc .= " OR p.numero_documento = :digitos";
+            $params['digitos'] = $soloDigitos;
+        }
+
         $sql = "SELECT u.id_usuario AS id, u.nombre_usuario, p.numero_documento,
                        p.primer_nombre, p.primer_apellido
                 FROM usuario u
                 INNER JOIN persona p ON u.id_persona = p.id_persona
-                WHERE (u.nombre_usuario = :valor1 OR p.numero_documento = :valor2)
+                WHERE ({$condicionDoc})
                 AND u.estado != 'INACTIVO'
                 LIMIT 1";
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([
-            'valor1' => $valor,
-            'valor2' => $valor
-        ]);
+        $stmt->execute($params);
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }

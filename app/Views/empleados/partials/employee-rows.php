@@ -40,9 +40,7 @@ foreach ($empleados as $e):
     <td><?= htmlspecialchars($e['tipo_documento'] . '-' . $e['numero_documento']) ?></td>
     <td>
       <?= htmlspecialchars((string) ($e['cargo'] ?? 'Sin cargo')) ?>
-      <?php if (!empty($e['turno'])): ?>
-        <div class="text-support small"><?= htmlspecialchars((string) $e['turno']) ?></div>
-      <?php endif; ?>
+      <div class="text-support small"><?= htmlspecialchars((string) ($e['turno'] ?? 'Sin turno')) ?></div>
     </td>
     <td>
       <?php

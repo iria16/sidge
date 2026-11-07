@@ -56,8 +56,6 @@ ob_start();
   include __DIR__ . '/../../components/page-header.php';
 ?>
 
-<?php include __DIR__ . '/partials/stat-cards.php'; ?>
-
 <?php
   // ---------- Data panel: filtros ----------
   $panelFormAction = BASE_URL . 'reingreso/index';

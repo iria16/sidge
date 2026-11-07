@@ -9,9 +9,11 @@ use PDO;
 use Throwable;
 
 /**
- * DashboardModel -------------- Consultas agregadas y métricas globales para el panel
- * de administración. Alcance estricto para las funciones del Administrador: cuentas de
- * usuario, recuperación de acceso, catálogos, datos institucionales y bitácora.
+ * DashboardModel
+ * --------------
+ * Consultas agregadas y métricas globales para el panel de administración.
+ * Alcance estricto para las funciones del Administrador: cuentas de usuario,
+ * recuperación de acceso, catálogos, datos institucionales y bitácora.
  */
 class DashboardModel extends Model
 {
@@ -45,12 +47,19 @@ class DashboardModel extends Model
     }
 
     /**
- * 4 Indicadores globales de cuentas y seguridad: - usuarios registrados - usuarios
- * activos - cuentas bloqueadas - recuperaciones pendientes total_usuarios: int,
- * usuarios_activos: int, cuentas_bloqueadas: int, recuperaciones_pendientes: int }.
- *
- * @return array{
- */
+     * 4 Indicadores globales de cuentas y seguridad:
+     * - usuarios registrados
+     * - usuarios activos
+     * - cuentas bloqueadas
+     * - recuperaciones pendientes
+     *
+     * @return array{
+     *   total_usuarios: int,
+     *   usuarios_activos: int,
+     *   cuentas_bloqueadas: int,
+     *   recuperaciones_pendientes: int
+     * }
+     */
     public function getMetricasUsuarios(): array
     {
         $totalUsuarios = 0;
@@ -92,11 +101,15 @@ class DashboardModel extends Model
     }
 
     /**
- * Cobertura de cuentas de usuario sobre el personal activo. total_empleados: int,
- * con_cuenta: int, sin_cuenta: int, porcentaje: int }.
- *
- * @return array{
- */
+     * Cobertura de cuentas de usuario sobre el personal activo.
+     *
+     * @return array{
+     *   total_empleados: int,
+     *   con_cuenta: int,
+     *   sin_cuenta: int,
+     *   porcentaje: int
+     * }
+     */
     public function getCoberturaPersonal(): array
     {
         $totalEmpleados = 0;
@@ -127,11 +140,18 @@ class DashboardModel extends Model
     }
 
     /**
- * Lista de ítems para el bloque "Requiere atención". Solo retorna filas con valor >
- * 0.
- *
- * @return list<array{
- */
+     * Lista de ítems para el bloque "Requiere atención".
+     * Solo retorna filas con valor > 0.
+     *
+     * @return list<array{
+     *   id: string,
+     *   texto: string,
+     *   conteo: int,
+     *   nivel: 'warning'|'danger',
+     *   url: string|null,
+     *   texto_enlace: string|null
+     * }>
+     */
     public function getAtencionRequerida(): array
     {
         $items = [];
@@ -325,14 +345,21 @@ class DashboardModel extends Model
     }
 
     /**
- * Actividad de los últimos N días (bitácora): - Total de movimientos - Pico diario -
- * Serie de 30 días con fechas de inicio, mitad y fin total: int, pico: int,
- * fecha_inicio: string, fecha_mitad: string, fecha_fin: string, serie:
- * list<array{fecha: string, dia_mes: string, total: int, altura_pct: int}> }.
- *
- * @param int $dias
- * @return array{
- */
+     * Actividad de los últimos N días (bitácora):
+     * - Total de movimientos
+     * - Pico diario
+     * - Serie de 30 días con fechas de inicio, mitad y fin
+     *
+     * @param int $dias
+     * @return array{
+     *   total: int,
+     *   pico: int,
+     *   fecha_inicio: string,
+     *   fecha_mitad: string,
+     *   fecha_fin: string,
+     *   serie: list<array{fecha: string, dia_mes: string, total: int, altura_pct: int}>
+     * }
+     */
     public function getActividadBitacora(int $dias = 30): array
     {
         $res = [
@@ -412,11 +439,16 @@ class DashboardModel extends Model
     }
 
     /**
- * Usuarios agrupados por rol, ordenados de mayor a menor. rol: string, total: int,
- * activos: int, inactivos: int, porcentaje_relativo: int }>.
- *
- * @return list<array{
- */
+     * Usuarios agrupados por rol, ordenados de mayor a menor.
+     *
+     * @return list<array{
+     *   rol: string,
+     *   total: int,
+     *   activos: int,
+     *   inactivos: int,
+     *   porcentaje_relativo: int
+     * }>
+     */
     public function getUsuariosPorRol(): array
     {
         $resultado = [];

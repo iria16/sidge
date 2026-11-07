@@ -31,7 +31,7 @@ class Database {
     /**
      * Offset horario fijo para MySQL ('-04:00'). Venezuela (VET) es UTC-4
      * todo el año, sin horario de verano, así que no hace falta calcularlo
-     * dinámicamente: se fija una sola vez aquí.
+     * dinámicamente: se fija una sola vez acá.
      */
     private const MYSQL_TIMEZONE_OFFSET = '-04:00';
 

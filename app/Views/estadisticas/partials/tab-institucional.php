@@ -150,11 +150,7 @@ declare(strict_types=1);
                   <i class="bi bi-briefcase me-1 text-primary" aria-hidden="true"></i>
                   <?= htmlspecialchars((string) $ep['cargo']) ?>
                 </td>
-                <td>
-                  <?php if (!empty($ep['turno'])): ?>
-                    <span class="badge bg-light text-dark border"><?= htmlspecialchars((string) $ep['turno']) ?></span>
-                  <?php endif; ?>
-                </td>
+                <td><span class="badge bg-light text-dark border"><?= htmlspecialchars((string) $ep['turno']) ?></span></td>
                 <td class="text-center fw-bold"><?= (int) $ep['total_personal'] ?></td>
                 <td class="text-center text-success fw-medium"><?= (int) $ep['activos'] ?></td>
                 <td class="text-center <?= (int) $ep['inactivos'] > 0 ? 'text-danger fw-medium' : 'text-secondary' ?>"><?= (int) $ep['inactivos'] ?></td>

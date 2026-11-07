@@ -208,7 +208,7 @@ abstract class CrudController extends BaseController
 
     /**
  * Gancho: extrae y normaliza los campos a guardar (normalmente de $_POST).
- * Devuelve [] de propósito: store() y update() lo detectan y abortan con
+ * Devuelve [] a propósito: store() y update() lo detectan y abortan con
  * 422, para que un hijo que lo olvide no inserte registros vacíos.
 */
     protected function extractData(array $source): array

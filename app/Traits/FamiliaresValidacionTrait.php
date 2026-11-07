@@ -314,12 +314,16 @@ trait FamiliaresValidacionTrait
                quien firma y responde por el menor, no el resto del árbol familiar.
                Se compara por NOMBRE de parentesco y no por id, igual que el JS, porque los
                ids del catálogo pueden cambiar si alguien rehace el catálogo. */
-            /* $esNuevo se deduce del id_persona: si viene, el familiar ya estaba
-            registrado. Los campos de lugar de nacimiento y nacionalidad se añadieron
-            después de los registros existentes, por lo que pueden estar en NULL.
+            /* $esNuevo se deduce del id_persona: si viene, ese familiar ya estaba
+            registrado. Y es la diferencia entre exigir y no, porque los dos campos se
+            añadieron DESPUÉS de que existieran las personas: todos los familiares que
+            había están en NULL. Exigírselos hacía que no se pudiera guardar ni una
+            edición, que era justo lo que había que evitar.
 
-            Regla: en un alta se exigen ambos campos. En una edición, si vienen se
-            validan; si no, se dejan en NULL y pueden completarse más adelante. */
+            Regla: en un alta se exigen los dos. En una edición, si el campo viene se
+            comprueba que sea válido; si no viene, se deja en NULL y se podrá rellenar la
+            próxima vez que se abra. Un requisito no puede aplicarse hacia atrás a datos
+            que nunca pudieron cumplirlo. */
             $esNuevo = (int) ($familiar['id_persona'] ?? 0) <= 0;
 
             if ($requiereDireccion && (int) ($familiar['id_estado_nacimiento'] ?? 0) <= 0 && $esNuevo) {
@@ -373,9 +377,10 @@ trait FamiliaresValidacionTrait
     /**
      * Une una lista de cosas en español: "a", "a y b", "a, b y c".
      *
-     * implode(', ') no produce una lectura natural en un mensaje que termina en punto:
-     * "necesita la entidad federal donde nació, la nacionalidad" parece una frase mal
-     * escrita en lugar de una lista de datos faltantes.
+     * implode(', ') no sirve para un texto que termina en punto: "necesita la entidad
+     * federal donde nació, la nacionalidad" parece una frase mal escrita en vez de dos
+     * cosas que faltan, que es justo lo que la secretaria tiene que entender para saber
+     * qué corregir.
      *
      * @param string[] $cosas
      */

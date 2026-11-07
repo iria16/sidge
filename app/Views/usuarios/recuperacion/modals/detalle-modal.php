@@ -4,7 +4,7 @@
  * Muestra el detalle de una solicitud ya resuelta (aprobada o
  * rechazada), o de un restablecimiento directo hecho por el admin
  * sin solicitud previa. recuperacion.js llena los campos vía JS con
- * la respuesta de getDetail, incluyendo 'origen' ('solicitud' |
+ * la respuesta de getDetalle, incluyendo 'origen' ('solicitud' |
  * 'admin') para alternar el título/texto del bloque de atención sin
  * tocar este HTML.
  */

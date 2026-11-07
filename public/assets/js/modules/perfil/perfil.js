@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  function initPerfilFoto() {
+  document.addEventListener('DOMContentLoaded', function () {
     var inputFoto = document.getElementById('inputFotoPerfil');
     var preview = document.getElementById('perfilFotoPreview');
     var btnQuitar = document.getElementById('btnQuitarFotoPerfil');
@@ -13,24 +13,6 @@
     if (!inputFoto || !preview) return;
 
     var urlActualizar = (typeof BASE_URL !== 'undefined' ? BASE_URL : '/') + 'perfil/actualizarFoto';
-
-    function actualizarAvatarEncabezado(urlFoto, iniciales) {
-      var avatar = document.getElementById('headerUserAvatar');
-      if (!avatar) return;
-
-      if (urlFoto) {
-        var imagen = document.createElement('img');
-        imagen.src = urlFoto + (urlFoto.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
-        var nombreUsuario = document.querySelector('.app-header__profile-name');
-        imagen.alt = nombreUsuario ? nombreUsuario.textContent : 'Foto de perfil';
-        avatar.replaceChildren(imagen);
-        avatar.setAttribute('aria-hidden', 'false');
-        return;
-      }
-
-      avatar.textContent = iniciales || avatar.dataset.avatarInitials || 'U';
-      avatar.setAttribute('aria-hidden', 'true');
-    }
 
     // Manejar selección de nueva foto
     inputFoto.addEventListener('change', function () {
@@ -40,8 +22,8 @@
       // Validar tipo
       var tiposValidos = ['image/jpeg', 'image/png', 'image/webp'];
       if (!tiposValidos.includes(archivo.type)) {
-        if (window.SIGDEUI && SIGDEUI.mostrarError) {
-          SIGDEUI.mostrarError('La foto debe ser en formato JPG, PNG o WEBP.', 'Formato no permitido');
+        if (window.SIGDEUI && SIGDEUI.error) {
+          SIGDEUI.error('La foto debe ser en formato JPG, PNG o WEBP.', 'Formato no permitido');
         } else {
           alert('La foto debe ser en formato JPG, PNG o WEBP.');
         }
@@ -51,8 +33,8 @@
 
       // Validar tamaño (máximo 2 MB)
       if (archivo.size > 2 * 1024 * 1024) {
-        if (window.SIGDEUI && SIGDEUI.mostrarError) {
-          SIGDEUI.mostrarError('La foto no puede superar los 2 MB.', 'Archivo muy pesado');
+        if (window.SIGDEUI && SIGDEUI.error) {
+          SIGDEUI.error('La foto no puede superar los 2 MB.', 'Archivo muy pesado');
         } else {
           alert('La foto no puede superar los 2 MB.');
         }
@@ -76,11 +58,15 @@
         .then(function (respuesta) {
           var payload = respuesta.data;
           if (respuesta.ok && payload && payload.ok) {
-            // Actualizar imagen en preview
+            // Actualizar imagen en preview y cabecera
             var urlFoto = payload.data && payload.data.foto_url;
             if (urlFoto) {
-              preview.innerHTML = '<img src="' + urlFoto + '?t=' + Date.now() + '" alt="Foto de perfil" id="imgPerfilFoto">';
-              actualizarAvatarEncabezado(urlFoto, payload.data.avatar_iniciales);
+              var timestamped = urlFoto + '?t=' + Date.now();
+              preview.innerHTML = '<img src="' + timestamped + '" alt="Foto de perfil" id="imgPerfilFoto">';
+              var headerAvatar = document.getElementById('headerUserAvatar') || document.querySelector('.app-header__profile .avatar');
+              if (headerAvatar) {
+                headerAvatar.innerHTML = '<img src="' + timestamped + '" alt="Avatar" onerror="this.style.display=\'none\'; if(this.parentElement){this.parentElement.textContent=this.parentElement.getAttribute(\'data-avatar-initials\') || \'\';}">';
+              }
             }
             if (btnQuitar) {
               btnQuitar.classList.remove('d-none');
@@ -88,11 +74,11 @@
 
             SIGDEUI.exito(payload.mensaje || 'Foto de perfil actualizada correctamente.', '¡Foto actualizada!');
           } else {
-            SIGDEUI.mostrarError((payload && payload.mensaje) || 'No se pudo actualizar la foto de perfil.', 'Error');
+            SIGDEUI.error((payload && payload.mensaje) || 'No se pudo actualizar la foto de perfil.', 'Error');
           }
         })
         .catch(function () {
-          SIGDEUI.mostrarError('Ocurrió un error al procesar la subida de la foto.', 'Error de red');
+          SIGDEUI.error('Ocurrió un error al procesar la subida de la foto.', 'Error de red');
         })
         .finally(function () {
           inputFoto.value = '';
@@ -108,8 +94,8 @@
           confirmar: 'Sí, quitar foto',
           cancelar: 'Cancelar',
           icono: 'warning'
-        }).then(function (confirmado) {
-          if (!confirmado) return;
+        }).then(function (res) {
+          if (!res.isConfirmed) return;
 
           var fd = new FormData();
           fd.append('eliminar_foto', '1');
@@ -127,24 +113,22 @@
               var payload = respuesta.data;
               if (respuesta.ok && payload && payload.ok) {
                 preview.innerHTML = '<i class="bi bi-person" id="iconoPerfilFallback"></i>';
-                actualizarAvatarEncabezado('', payload.data && payload.data.avatar_iniciales);
                 btnQuitar.classList.add('d-none');
+                var headerAvatar = document.getElementById('headerUserAvatar') || document.querySelector('.app-header__profile .avatar');
+                if (headerAvatar) {
+                  var initials = headerAvatar.getAttribute('data-avatar-initials') || '';
+                  headerAvatar.innerHTML = initials;
+                }
                 SIGDEUI.exito(payload.mensaje || 'Foto eliminada correctamente.', '¡Foto retirada!');
               } else {
-                SIGDEUI.mostrarError((payload && payload.mensaje) || 'No se pudo quitar la foto.', 'Error');
+                SIGDEUI.error((payload && payload.mensaje) || 'No se pudo quitar la foto.', 'Error');
               }
             })
             .catch(function () {
-              SIGDEUI.mostrarError('Ocurrió un error al quitar la foto de perfil.', 'Error de red');
+              SIGDEUI.error('Ocurrió un error al quitar la foto de perfil.', 'Error de red');
             });
         });
       });
     }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPerfilFoto, { once: true });
-  } else {
-    initPerfilFoto();
-  }
+  });
 })();

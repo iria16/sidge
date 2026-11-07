@@ -84,7 +84,6 @@ ob_start();
   $panelSearchName        = 'q';
   $panelSearchValue       = (string) ($filters['q'] ?? '');
   $panelSearchPlaceholder = 'Buscar por grado o sección...';
-  $panelFiltersClass      = 'data-panel__filters--academic';
 
   // ---------- Data panel: colgroup / thead / tbody ----------
   ob_start();

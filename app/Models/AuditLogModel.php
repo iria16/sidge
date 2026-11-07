@@ -13,7 +13,7 @@ use Throwable;
 
 /**
  * Bitácora del sistema: registrar() audita acciones (tolerante a fallos, solo deja error_log) y el resto es lectura para la vista de auditoría.
- * Extiende Model y no BaseModel de propósito: registrar() es la única vía de escritura y no expone create/update/delete genéricos.
+ * Extiende Model y no BaseModel a propósito: registrar() es la única vía de escritura y no expone create/update/delete genéricos.
  * Tabla bitacora: id_bitacora, id_usuario, fecha, hora, accion (texto libre, no ENUM), modulo, direccion_ip.
 */
 class AuditLogModel extends Model implements Listable
@@ -31,10 +31,11 @@ class AuditLogModel extends Model implements Listable
     public function registrar(int $idUsuario, string $accion, string $modulo, ?string $ip = null): bool
     {
         try {
-            /* Recorte a la medida de las columnas. `accion` y `modulo` son varchar(100)
- y varchar(50) y el modo es STRICT_TRANS_TABLES: un texto más largo provoca un
- error en la consulta y la acción queda sin registrar. Los mensajes incluyen
- nombres de alumnos y grados, por lo que pueden superar ese límite. */
+            /* Recorte a la medida de las columnas. `accion` y `modulo` son varchar(100) y
+ varchar(50) y el modo es STRICT_TRANS_TABLES, así que un texto más largo no
+ se recorta: revienta la consulta y la acción que se quería auditar se queda
+ sin registro. Los mensajes se arman con nombres de alumno y de grado, que es
+ justo donde se pasan de largo.*/
             $stmt = $this->pdo->prepare(
                 'INSERT INTO bitacora (id_usuario, fecha, hora, accion, modulo, direccion_ip)
                  VALUES (:id, CURDATE(), CURTIME(), :accion, :modulo, :ip)'
@@ -213,9 +214,9 @@ class AuditLogModel extends Model implements Listable
 
     public function getAccionesDisponibles(): array
     {
-        /* Devuelve los tipos de acción registrados en la tabla, no los textos
- crudos: el desplegable lista "Inscripción", "Retiro", "Egreso" y no una
- entrada por cada registro. */
+        /* Los tipos que HAY en la tabla, no los textos crudos: el desplegable lista
+ "Inscripción", "Retiro", "Egreso"… y no una línea por cada inscripción
+ registrada, que es lo que pasaba al devolver los `accion` sin transformar.*/
         $acciones = [];
         $filas = $this->pdo->query("SELECT DISTINCT accion FROM {$this->table}")->fetchAll(PDO::FETCH_COLUMN);
 

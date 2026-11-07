@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
-use App\Support\Configuracion;
+use App\Models\Configuracion;
 use App\Models\StatisticsModel;
 use App\Support\EstadisticaExport;
 use PDO;
@@ -80,34 +80,9 @@ class StatisticsController extends BaseController
 
             $q = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
 
-            $perPageHermanos = (int) ($_GET['per_page'] ?? 25);
-            if (!in_array($perPageHermanos, [25, 50, 100], true)) {
-                $perPageHermanos = 25;
-            }
-
-            $paginaHermanos = max(1, (int) ($_GET['page'] ?? 1));
-            $totalHermanos = $model->contarControlHermanos($idAnio, $idGrado, $idSeccion, $q);
-            $totalPaginasHermanos = max(1, (int) ceil($totalHermanos / $perPageHermanos));
-            $paginaHermanos = min($paginaHermanos, $totalPaginasHermanos);
-
             // 1. Datos de Representantes y Control de Hermanos
             $resumenHermanos = $model->getResumenRepresentantesHermanos($idAnio, $idGrado, $idSeccion);
-            $detalleHermanos = $model->getDetalleControlHermanos(
-                $idAnio,
-                $idGrado,
-                $idSeccion,
-                $q,
-                $perPageHermanos,
-                ($paginaHermanos - 1) * $perPageHermanos
-            );
-            $paginacionHermanos = [
-                'desde'         => $totalHermanos > 0 ? (($paginaHermanos - 1) * $perPageHermanos) + 1 : 0,
-                'hasta'         => min($paginaHermanos * $perPageHermanos, $totalHermanos),
-                'total'         => $totalHermanos,
-                'pagina_actual' => $paginaHermanos,
-                'total_paginas' => $totalPaginasHermanos,
-                'per_page'      => $perPageHermanos,
-            ];
+            $detalleHermanos = $model->getDetalleControlHermanos($idAnio, $idGrado, $idSeccion, $q);
 
             // 2. Datos de Matrícula y Familias
             $demografiaMatricula = $model->getDemografiaMatricula($idAnio, $idGrado, $idSeccion);

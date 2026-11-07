@@ -23,7 +23,8 @@ class AcademicStructureController extends CrudController
     protected string $routeName = 'academicStructure';
 
     /**
- * Devuelve el modelo con su tipo concreto.
+ * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
+ * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
 */
     private function modelo(): AcademicStructureModel
     {
@@ -39,12 +40,19 @@ class AcademicStructureController extends CrudController
     }
 
     /**
- * Año escolar activo.
+ * El año que se está consultando.
  *
- * Es el único período sobre el que se permite escribir. Si no hay ningún año
- * activo, retorna 0.
+ * Antes esto devolvía siempre el ACTIVO e ignoraba cualquier ?anio= de la URL, así que
+ * la estructura de un período cerrado no se podía consultar: había que entrar a la base
+ * de datos para auditar cómo había quedado un año. Ahora el año llega por la URL, se
+ * valida contra los que existen de verdad y, si no viene o no es válido, se cae al
+ * ACTIVO.
  *
- * @return int
+ * Se valida contra el catálogo y no con un cast a entero: un ?anio=999 no puede
+ * convertirse en un id que llegue al SQL. Y si no hay ningún año activo, se elige el
+ * más reciente para que la pantalla no salga vacía sin explicación.
+ *
+ * @return int 0 solo si no hay ningún año escolar registrado.
 */
 private function anioConsultado(): int
 {
@@ -134,8 +142,10 @@ protected function getExtraIndexData(array $items, array $filters): array
     /**
  * Edición.
  *
- * Sobrescribe CrudController::update() para informar los errores de negocio con
- * su propio código y mensaje, en lugar de un error genérico 500.
+ * Sobrescribe CrudController::update() porque el padre mete todo Throwable en jsonError(), que
+ * responde 500 con "ocurrió un problema al procesar la solicitud". Bajar la capacidad de una
+ * sección con 30 alumnos produciría un error genérico sin decir por qué, que es justo lo que
+ * la secretaria necesita saber.
 */
     public function store(): void
     {
@@ -270,9 +280,14 @@ protected function getExtraIndexData(array $items, array $filters): array
         $ocupados = (int) $despues['ocupados'];
         $plural   = $ocupados === 1 ? 'alumno' : 'alumnos';
 
-        /* El texto se limita a 100 caracteres. El número de alumnos se coloca
- primero para que no se pierda al truncar, y los nombres y la capacidad usan
- un formato compacto para conservar la información relevante.*/
+        /* El texto se arma pensando en los 100 caracteres de la columna: si se
+ recorta, lo que se pierde es el final, así que el número de alumnos va
+ primero, que es lo que no se puede deducir leyendo el resto.
+
+ Los nombres van con separador corto ("2do Grado·A·Mañana") y la capacidad
+ abreviada ("cap 30 → 30") porque con los separadores largos de la pantalla
+ el texto se pasaba de 100 y el recorte se comía justo la capacidad, que es
+ la mitad de lo que se quiso dejar anotado.*/
         if ($cambioCombinacion) {
             $accion = 'ACTUALIZACIÓN ESTRUCTURA · ' . $ocupados . ' ' . $plural . ' · '
                 . $this->nombreCompacto($antes['nombre']) . ' → ' . $this->nombreCompacto($despues['nombre'])
@@ -293,11 +308,19 @@ protected function getExtraIndexData(array $items, array $filters): array
     }
 
     /**
- * Ocupación usada para validar la capacidad.
+ * La ocupación contra la que hay que comparar la capacidad, y de dónde sale.
  *
- * En un alta se cuenta la combinación solicitada. En una edición se cuenta la
- * fila que se está modificando, porque el UPDATE conserva la matrícula y mueve
- * a esos alumnos a la nueva combinación.
+ * En un ALTA se mira la combinación que se está creando: normalmente 0, y así se
+ * evita solaparse con otra fila.
+ *
+ * En una EDICIÓN se mira la FILA que se está editando, no la combinación del
+ * formulario. Son la misma cifra mientras no se toque el grado, la sección o el
+ * turno, pero en cuanto se tocan dejan de serlo: la combinación de destino está
+ * vacía y mirarla daría 0. Ese hueco era exactamente lo que dejaba crear una
+ * sección con 1 cupo y los 3 alumnos de la anterior dentro.
+ *
+ * Los alumnos contados aquí no son un dato informativo: son los que el UPDATE va a
+ * mover, porque matricula.id_estructura_academica sigue apuntando a la misma fila.
  *
  * @return array{ocupados:int,minimo:int}
 */

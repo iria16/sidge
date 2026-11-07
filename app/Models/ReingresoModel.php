@@ -514,7 +514,7 @@ class ReingresoModel extends BaseModel
 
             $idRetiroPrevio = !empty($ultimo['id_retiro']) ? (int) $ultimo['id_retiro'] : null;
 
-            // 3. Insertar nueva matrícula de cursada regular
+            // 3. Insertar nueva matrícula de cursada regular bajo tipo REINGRESO
             $stmtMat = $this->pdo->prepare(
                 "INSERT INTO matricula (id_estudiante, fecha_matricula, id_anio_escolar, id_estructura_academica, tipo, motivo_anticipo)
                  VALUES (:estudiante, :fecha, :anio, :estructura, :tipo, :anticipo)"
@@ -524,7 +524,7 @@ class ReingresoModel extends BaseModel
                 'fecha'      => $fechaReinc,
                 'anio'       => $idAnioEscolar,
                 'estructura' => $idEstructura,
-                'tipo'       => Matriculas::RATIFICACION,
+                'tipo'       => Matriculas::REINGRESO,
                 'anticipo'   => 'Reingreso tras retiro previo',
             ]);
             $idMatricula = (int) $this->pdo->lastInsertId();

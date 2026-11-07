@@ -34,9 +34,20 @@
       ?>
     </td>
     <td class="text-end">
-      <a href="<?= BASE_URL ?>resultadoAcademico/seccion?id=<?= $sec['id'] ?>" class="btn btn-sm btn-primary text-nowrap">
-        <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Cargar literales
-      </a>
+      <div class="d-inline-flex align-items-center justify-content-end gap-2 flex-wrap">
+        <a href="<?= BASE_URL ?>resultadoAcademico/seccion?id=<?= $sec['id'] ?>" class="btn btn-sm btn-primary text-nowrap">
+          <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Cargar literales
+        </a>
+        <?php if ($cargados > 0): ?>
+          <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap btn-preview-certificado"
+                  data-url-preview="<?= BASE_URL ?>certificadoCalificaciones/generarPorSeccion?id_estructura=<?= $sec['id'] ?>"
+                  data-titulo="Certificados de Calificaciones"
+                  data-subtitulo="<?= htmlspecialchars($sec['grado'] . ' "' . $sec['seccion'] . '" · Turno ' . $sec['turno']) ?>"
+                  title="Visualizar Certificados de la Sección">
+            <i class="bi bi-eye me-1" aria-hidden="true"></i>Certificados
+          </button>
+        <?php endif; ?>
+      </div>
     </td>
   </tr>
 <?php endforeach; ?>

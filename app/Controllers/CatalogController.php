@@ -52,7 +52,7 @@ class CatalogController extends CrudController
         'parentesco'        => ['nombre' => 'Parentesco',         'icono'   => 'bi-people',              'modelClass' => 'ParentescoModel',     'formato' => 'titulo'],
         'motivo_retiro'     => ['nombre' => 'Motivo de Retiro',   'icono'   => 'bi-box-arrow-right',    'modelClass' => 'MotivoRetiroModel',   'formato' => 'oracion'],
         // Los pide el sub-modal de familiares para el representante legal.
-        'ocupacion'         => ['nombre' => 'Ocupación',           'icono'  => 'bi-briefcase',          'modelClass' => 'OcupacionModel',        'formato' => 'titulo'],
+        'ocupacion'         => ['nombre' => 'Profesión',           'icono'  => 'bi-briefcase',          'modelClass' => 'OcupacionModel',        'formato' => 'titulo'],
         'nacionalidad'      => ['nombre' => 'Nacionalidad',         'icono' => 'bi-globe-americas',     'modelClass' => 'NacionalidadModel',    'formato' => 'titulo'],
         // Institución requiere tipo y Título requiere grado académico; ambos
         // campos son necesarios para respetar sus claves foráneas.
@@ -356,9 +356,7 @@ class CatalogController extends CrudController
                 $errors['tipo'] = 'El tipo de institución no tiene categoría asignada.';
             }
 
-            $errores = $model instanceof InstitucionModel 
-                ? $model->validarUbicacion($data, $excludeId) 
-                : [];
+            $errores = $model->validarUbicacion($data, $excludeId);
             return array_merge($errors, $errores);
         }
 

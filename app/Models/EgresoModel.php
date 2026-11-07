@@ -41,11 +41,11 @@ class EgresoModel extends BaseModel implements Listable
     {
         return "INNER JOIN (
                     SELECT id_estudiante, MAX(id_anio_escolar) AS anio_actual
-                    FROM matricula WHERE tipo IN ('INSCRIPCION', 'RATIFICACION') GROUP BY id_estudiante
+                    FROM matricula WHERE tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO') GROUP BY id_estudiante
                 ) ult ON ult.id_estudiante = est.id_estudiante
                 LEFT JOIN matricula m ON m.id_estudiante = est.id_estudiante
                                     AND m.id_anio_escolar = ult.anio_actual
-                                    AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                                    AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                 LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
                 LEFT JOIN anio_escolar a ON a.id_anio_escolar = ea.id_anio_escolar
                 LEFT JOIN grado g ON g.id_grado = ea.id_grado
@@ -410,8 +410,9 @@ class EgresoModel extends BaseModel implements Listable
                 $registrados++;
                 continue;
             }
-            // Se guarda el motivo de cada fallo para poder reportarlo: el mensaje
-            // indica cuántos estudiantes fallaron, cuáles y por qué.
+            // Se junta el motivo de cada fallo para poder reportarlo: antes el mensaje solo
+            // decía cuántos salieron y no cuáles ni por qué, y quien carga la lista no
+            // tenía forma de saber a quién había que volver a buscar.
             $fallidos[] = [
                 'id'       => (int) $id,
                 'estudiante' => $this->descripcionEstudiante((int) $id),
@@ -427,7 +428,7 @@ class EgresoModel extends BaseModel implements Listable
  * Así el id y el grado salen siempre de la misma matrícula.
  *
  * @return array{id_matricula:int,grado:?string,id_turno:int}|null
- */
+*/
     private function matriculaVigenteConGrado(int $estudianteId): ?array
     {
         $stmt = $this->pdo->prepare(
@@ -463,12 +464,11 @@ class EgresoModel extends BaseModel implements Listable
     }
 
     /**
- * Id del catálogo del grado que se egresa (6to), resuelto por su número y no por id
- * fijo ni por nombre. En `grado` los ids no siguen el orden (el 2do es 6 y el 6to es
- * 5).
+ * Id del catálogo del grado que se egresa (6to), resuelto por su número y no por id fijo ni por nombre.
+ * En `grado` los ids no siguen el orden (el 2do es 6 y el 6to es 5). Se cachea durante la corrida.
  *
  * @return int 0 si el catálogo no tiene ese grado.
- */
+*/
     private function idGradoEgreso(): int
     {
         if ($this->idGradoEgreso !== null) {

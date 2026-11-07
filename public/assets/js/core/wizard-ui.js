@@ -6,40 +6,6 @@
 window.SIGDEWizardUI = (function () {
   'use strict';
 
-  document.addEventListener('change', function (e) {
-    var cameraInput = e.target;
-    if (!cameraInput || !cameraInput.matches('[data-foto-camara-input]')) return;
-
-    var archivo = cameraInput.files && cameraInput.files[0];
-    if (!archivo) return;
-
-    var inputDestino = document.getElementById(cameraInput.getAttribute('data-foto-destino'));
-    if (!inputDestino) {
-      console.error('No se encontró el campo de foto destino para la cámara.');
-      return;
-    }
-
-    if (typeof DataTransfer !== 'function') {
-      if (window.SIGDEUI && typeof window.SIGDEUI.mostrarError === 'function') {
-        window.SIGDEUI.mostrarError('Este navegador no permite procesar la foto tomada. Elige la imagen desde el dispositivo.');
-      }
-      return;
-    }
-
-    try {
-      var transferencia = new DataTransfer();
-      transferencia.items.add(archivo);
-      inputDestino.files = transferencia.files;
-      cameraInput.value = '';
-      inputDestino.dispatchEvent(new Event('change', { bubbles: true }));
-    } catch (error) {
-      console.error('No se pudo transferir la foto tomada al formulario:', error);
-      if (window.SIGDEUI && typeof window.SIGDEUI.mostrarError === 'function') {
-        window.SIGDEUI.mostrarError('No se pudo cargar la foto tomada. Elige la imagen desde el dispositivo.');
-      }
-    }
-  });
-
   /* ---------- Foto: elegir, previsualizar y quitar ----------*/
 
   /**
@@ -59,7 +25,6 @@ window.SIGDEWizardUI = (function () {
  * mantiene en la firma para no romper
  * llamadas que lo pasarían.
  * @param {string} [opciones.vacio] HTML del estado sin foto
- * @param {string} [opciones.flagId] id del campo que marca la eliminación de la foto
  * @param {Function}[opciones.onChange] se llama tras elegir o quitar
  * @param {Function}[opciones.alReiniciar] se llama al limpiar el formulario
 */
@@ -110,8 +75,7 @@ window.SIGDEWizardUI = (function () {
  `id + 'Eliminar'`, que daba 'fotoInputEliminar' y no existía en ningún markup:
  esa parte llevaba tiempo sin hacer nada.*/
     function marcarFotoEliminada(eliminada) {
-      var flagId = o.flagId || (nombreOriginal ? nombreOriginal + 'Eliminar' : '');
-      var flag = flagId ? document.getElementById(flagId) : null;
+      var flag = nombreOriginal ? document.getElementById(nombreOriginal + 'Eliminar') : null;
       if (flag) flag.value = eliminada ? '1' : '0';
     }
 
@@ -135,8 +99,13 @@ window.SIGDEWizardUI = (function () {
 
     input.addEventListener('change', function () {
       var archivo = input.files[0];
-      if (!archivo) return;
-      pintarArchivo(archivo);
+      if (archivo) {
+        pintarArchivo(archivo);
+      } else {
+        /* Se canceló el diálogo de archivos: no es que la secretaria haya quitado la
+ foto, así que no se marca para que el servidor la borre.*/
+        pintarVacia(false);
+      }
       if (typeof o.onChange === 'function') o.onChange(archivo || null);
     });
 
@@ -183,7 +152,7 @@ window.SIGDEWizardUI = (function () {
       var radio = tarjeta.querySelector('input[type="radio"]');
       if (radio) radio.addEventListener('change', sincronizar);
   /* Al hacer click en la tarjeta (no en el radio) se marca el radio, que dispara 'change' y reentra
- en sincronizar. El radio deshabilitado se respeta de propósito: una persona ya registrada tiene
+ en sincronizar. El radio deshabilitado se respeta a propósito: una persona ya registrada tiene
  el sexo bloqueado.*/
       tarjeta.addEventListener('click', function () {
         var input = tarjeta.querySelector('input[type="radio"]');
@@ -317,7 +286,7 @@ window.SIGDEWizardUI = (function () {
     var selEstado    = document.getElementById(opciones.estadoId);
     var selMunicipio = document.getElementById(opciones.municipioId);
     var selParroquia = document.getElementById(opciones.parroquiaId);
-    /* Se acepta el endpoint con o sin '?' final y se normaliza aquí: armarlo con
+    /* Se acepta el endpoint con o sin '?' final y se normaliza acá: armarlo con
  dos produce "?tipo=municipio" con el signo de interrogación dentro del
  nombre del parámetro, y el servidor no ve el tipo.*/
     var url = String(opciones.url || '').replace(/[?&]+$/, '');

@@ -201,5 +201,5 @@ ob_start();
 
 <?php
 $pageContent  = ob_get_clean();
-$extraScripts = ['/js/bitacora.js'];
+$extraScripts = ['/js/modules/auditoria/bitacora.js'];
 include __DIR__ . '/../layouts/app.php';

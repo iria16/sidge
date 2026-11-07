@@ -31,8 +31,10 @@ declare(strict_types=1);
     <td class="text-center"><?= $capacidad ?></td>
     <td class="text-center">
       <div class="data-panel__actions">
-        <?php /* En un año cerrado no se muestra el botón de edición: el servidor
- rechaza la operación con 409. */ ?>
+        <?php /* En un año cerrado no hay pencil. Se oculta y no se deshabilita: un
+ botón atenuado invita a pulsarlo, y el servidor lo rechaza con 409.
+ Antes de este filtro, además, ni siquiera había forma de abrir la
+ edición, porque el listado siempre enseñaba el año activo.*/ ?>
         <?php if ($soloLectura): ?>
           <span class="action-btn" aria-hidden="true"
                 title="<?= !empty($esConsulta) ? 'Solo consulta: su rol no modifica la estructura' : 'Año cerrado: solo consulta' ?>">

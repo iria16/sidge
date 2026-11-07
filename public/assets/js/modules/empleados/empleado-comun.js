@@ -67,7 +67,7 @@ window.SIGDEEmpleados = (function () {
   /* ---------- Cascada estado -> municipio -> parroquia ----------
  La lógica vive en SIGDEWizardUI.initCascadaUbicacion(), compartida con el
  wizard de inscripciones: mismo endpoint, mismos textos y mismo
- comportamiento. Aquí solo se le pasa la URL de este módulo y se conserva el
+ comportamiento. Acá solo se le pasa la URL de este módulo y se conserva el
  handle, que usan el modal de edición y el wizard de alta.*/
   function iniciarCascadaUbicacion() {
     return SIGDEWizardUI.initCascadaUbicacion({

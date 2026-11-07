@@ -18,14 +18,12 @@ estudiantes, retiros, egresos y configuración académica de una escuela.
 
 ## Datos del proyecto
 
-- **Institución Universitaria:** Universidad Politécnica Territorial de Valencia (UPTVAL).
-- **Institución Educativa Beneficiaria:** Escuela Básica "Isidro Ramírez" (Valencia, Estado Carabobo).
-- **Autores / Desarrolladores:**
-  - Iriamar Maita
-  - Erickmar Sánchez
-  - Elyenay Ocanto
-- **Estado:** Proyecto culminado y operativo; en fase de validación académica y preparación para despliegue en servidor de producción (VPS con HTTPS).
-- **Licencia:** MIT / Proyecto Académico Institucional (propiedad intelectual compartida UPTVAL - E.B. "Isidro Ramírez").
+- **Institución:** ¿Qué institución debe figurar?
+- **Autores:** ¿Quiénes deben figurar como autores?
+- **Estado:** Preparación de despliegue; falta definir el dominio y probar HTTPS en
+  el VPS.
+- **Licencia:** Los manifiestos de Composer y npm indican `ISC`, pero no hay un
+  archivo `LICENSE`. ¿Confirmas que esa licencia aplica al proyecto?
 
 ## Requisitos
 
@@ -125,9 +123,10 @@ los cambios de estructura que también aparecen como migraciones incrementales.
 Los archivos SQL conservan los catálogos de referencia, pero omiten usuarios, personas,
 matrículas y demás datos operativos. La instalación debe provisionar una cuenta inicial
 y configurar la institución antes de habilitar el uso normal.
-El procedimiento de instalación, publicación y alta del administrador inicial está
-documentado en `docs/DESPLIEGUE.md` (pendiente de agregar al repositorio).
-La raíz del servidor web debe apuntar a `public/`.
+El procedimiento de instalación, publicación y alta del administrador inicial está en
+[docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+La raíz del servidor web debe apuntar a `public/`; la guía de despliegue explica la
+configuración para Apache y Nginx.
 
 `database/migrations/` contiene una línea base histórica y cambios incrementales:
 
@@ -283,4 +282,5 @@ que se editó la hoja compilada a mano en vez del SCSS, o que se borró
 `.gitignore` a propósito: son datos personales y no deben entrar al repositorio.
 El código crea la carpeta raíz y sus subcarpetas cuando las necesita; el usuario
 del servidor web debe tener permiso de escritura en `public/` para crearlas y
-guardar archivos.
+guardar archivos. La guía de [despliegue](docs/DESPLIEGUE.md) explica cómo asignar
+permisos sin hacer escribible todo el proyecto.

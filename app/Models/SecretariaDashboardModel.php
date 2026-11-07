@@ -8,17 +8,26 @@ use App\Support\AniosEscolares;
 use Throwable;
 
 /**
- * Datos del dashboard de Secretaría. Reúne en un solo modelo el año activo, el
- * turno, el estado de la estructura y las estadísticas del turno, para que el
- * controlador no instancie cinco modelos ni decida el orden de las consultas.
+ * Datos del dashboard de Secretaría.
+ *
+ * Reúne en un solo modelo el año activo, el turno, el estado de la estructura
+ * y las estadísticas del turno, para que el controlador no instancie cinco
+ * modelos ni decida el orden de las consultas.
  */
 class SecretariaDashboardModel extends Model
 {
     /**
- * anioActivo: array{id:int,nombre:string}|null,.
- *
- * @return array{
- */
+     * @return array{
+     *   anioActivo: array{id:int,nombre:string}|null,
+     *   turnoNombre: string|null,
+     *   estructura: mixed,
+     *   estadisticasEstudiantes: array<string,mixed>|null,
+     *   estadisticasInscripciones: array<string,mixed>|null,
+     *   estadisticasRatificacion: array<string,mixed>|null,
+     *   estadisticasRetiros: array<string,mixed>|null,
+     *   cuposPorEstructura: array<string,mixed>|null
+     * }
+     */
     public function getDatos(int $idTurno): array
     {
         $anioId     = AniosEscolares::idEnCurso($this->pdo);
@@ -91,11 +100,11 @@ class SecretariaDashboardModel extends Model
     }
 
     /**
- * Ejecuta una consulta de indicadores sin tumbar el resto del panel.
- *
- * @param callable():array<string,mixed> $consulta
- * @return array<string,mixed>|null
- */
+     * Ejecuta una consulta de indicadores sin tumbar el resto del panel.
+     *
+     * @param callable():array<string,mixed> $consulta
+     * @return array<string,mixed>|null
+     */
     private function segura(callable $consulta, string $nombre): ?array
     {
         try {

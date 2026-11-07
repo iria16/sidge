@@ -10,7 +10,7 @@ declare(strict_types=1);
 ?>
 <!-- ---------- Stat cards ---------- -->
 <div class="row g-3 mb-4">
-  <div class="col-12 col-md-6 col-lg-4">
+  <div class="col-sm-6 col-lg-4">
     <?php
       $statLabel     = 'Grados y secciones';
       $statValue     = (int) $stats['total'];
@@ -21,7 +21,7 @@ declare(strict_types=1);
       include __DIR__ . '/../../../components/stat-card.php';
     ?>
   </div>
-  <div class="col-12 col-md-6 col-lg-4">
+  <div class="col-sm-6 col-lg-4">
     <?php
       $statLabel     = 'Secciones disponibles';
       $statValue     = (int) $stats['secciones'];
@@ -32,7 +32,7 @@ declare(strict_types=1);
       include __DIR__ . '/../../../components/stat-card.php';
     ?>
   </div>
-  <div class="col-12 col-md-6 col-lg-4">
+  <div class="col-sm-6 col-lg-4">
     <?php
       $statLabel     = 'Cupos configurados';
       $statValue     = (int) $stats['capacidad'];

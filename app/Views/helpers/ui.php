@@ -132,8 +132,8 @@ if (!function_exists('sigde_nav_sections')) {
                 'items' => [
                     ['id' => 'inscripcion',  'label' => 'Inscripción',  'icon' => 'bi-person-plus',     'href' => BASE_URL . 'inscripciones/index', 'roles' => ['secretaria']],
                     ['id' => 'ratificacion', 'label' => 'Ratificación', 'icon' => 'bi-arrow-repeat',    'href' => BASE_URL . 'ratificacion/index',  'roles' => ['secretaria']],
-                    ['id' => 'retiro',       'label' => 'Retiro',       'icon' => 'bi-box-arrow-right', 'href' => BASE_URL . 'withdrawal/index',    'roles' => ['secretaria', 'directivo']],
                     ['id' => 'reingreso',    'label' => 'Reingreso',    'icon' => 'bi-arrow-counterclockwise', 'href' => BASE_URL . 'reingreso/index', 'roles' => ['secretaria']],
+                    ['id' => 'retiro',       'label' => 'Retiro',       'icon' => 'bi-box-arrow-right', 'href' => BASE_URL . 'withdrawal/index',    'roles' => ['secretaria', 'directivo']],
                 ],
             ],
             [
@@ -162,7 +162,7 @@ if (!function_exists('sigde_nav_sections')) {
             ],
             [
                 'label' => 'Personal',
-                'roles' => ['directivo', 'coordinador'],
+                'roles' => ['directivo', 'coordinador', 'secretaria'],
                 'items' => [
                     ['id' => 'empleados', 'label' => 'Empleados', 'icon' => 'bi-person-badge', 'href' => BASE_URL . 'empleado/index'],
                 ],

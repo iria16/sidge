@@ -49,11 +49,6 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
-    var modalBody = wizardModalEl.querySelector('.modal-body');
-    if (modalBody) {
-      modalBody.scrollTop = 0;
-    }
-
     wizardModalEl.querySelectorAll('.wizard-panel').forEach(function (panel) {
       panel.classList.toggle('is-active', Number(panel.dataset.step) === numero);
     });
@@ -104,11 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var faltanteObligatorio = recaudosActuales.find(function (recaudo) {
         var fila = recaudosTbody.querySelector('[data-recaudo-clave="' + recaudo.clave + '"]');
         var toggle = fila && fila.querySelector('[data-recaudo-toggle]');
-        /* Solo estos cuatro pueden ser obligatorios, y solo en el caso que los exige; el
-           servidor ya marca `requerido` únicamente en ellos. Lo demás nunca bloquea. */
-        var obligatorios = ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'];
-        return recaudo.requerido && obligatorios.indexOf(recaudo.codigo) !== -1
-          && (!toggle || !toggle.checked);
+        return recaudo.requerido && (!toggle || !toggle.checked);
       });
       if (faltanteObligatorio) {
         SIGDEUI.mostrarAviso(
@@ -221,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function () {
   SIGDEUI.alCerrarModal(wizardModalEl, function reiniciarAlCerrar() {
     pasoActual        = 1;
     editandoDesdePaso = null;
-    /* La lista de familiares vive en FamiliaresUI (abajo); aquí solo se vacía.*/
+    /* La lista de familiares vive en FamiliaresUI (abajo); acá solo se vacía.*/
     familiaresUI.cargar([]);
     form.reset();
     form.classList.remove('was-validated');
@@ -511,8 +502,7 @@ document.addEventListener('DOMContentLoaded', function () {
       titulo.className = 'fw-semibold';
       titulo.textContent = recaudo.nombre
         + (recaudo.persona_nombre ? ' — ' + recaudo.persona_nombre : '');
-      var obligatorios = ['constancia_prosecucion', 'permiso_lopnna', 'autorizacion_retiro', 'cedula_autorizada'];
-      if (recaudo.requerido && obligatorios.indexOf(recaudo.codigo) !== -1) {
+      if (recaudo.requerido) {
         var asterisco = document.createElement('span');
         asterisco.className = 'text-danger';
         asterisco.setAttribute('aria-label', 'Obligatorio');
@@ -539,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function () {
       observacion.type = 'text';
       observacion.className = 'form-control form-control-sm';
       observacion.maxLength = 255;
-      observacion.placeholder = 'Observación';
+      observacion.placeholder = 'Observación opcional';
       observacion.setAttribute('data-recaudo-observacion', '');
       observacion.value = estado.observacion || '';
       celdaObservacion.appendChild(observacion);
@@ -818,7 +808,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var recaudo = recaudosActuales.find(function (item) {
           return item.clave === fila.dataset.recaudoClave;
         });
-        var nombreDoc = fila.querySelector('.fw-semibold').textContent;
+        var nombreDoc = fila.querySelector('.fw-semibold').textContent.replace('*', '').trim();
         var tipo = recaudo && recaudo.requerido ? 'Obligatorio' : '';
         var estado = chk && chk.checked ? 'Consignado' : 'Pendiente';
         var detalle = nombreDoc + (tipo ? ' · ' + tipo : '') + ' · ' + estado;

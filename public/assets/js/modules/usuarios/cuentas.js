@@ -229,7 +229,7 @@ function initCrearUsuarioForm() {
 
 /**
  * Modal "Ver Detalle": carga los datos vía AJAX a
- * cuentaUsuario/getDetail en lugar de leerlos de data-* de la fila,
+ * cuentaUsuario/getDetalle en lugar de leerlos de data-* de la fila,
  * ya que el detalle incluye campos (documento, último acceso, miembro
  * desde) que la tabla no expone.
 */
@@ -243,7 +243,7 @@ function initVerUsuarioModal() {
 
     var id = btnVer.dataset.id;
 
-    SIGDEUI.enviar(baseUrl + rutaControlador + '/getDetail?id=' + encodeURIComponent(id))
+    SIGDEUI.enviar(baseUrl + rutaControlador + '/getDetalle?id=' + encodeURIComponent(id))
       .then(function (r) {
         if (!r.ok || !r.data.ok) {
           SIGDEUI.mostrarError((r.data && r.data.mensaje) || 'No se pudo cargar el detalle del usuario.');

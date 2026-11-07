@@ -40,28 +40,7 @@ include __DIR__ . '/modals/anular-reposo-modal.php';
 $urlPdf = BASE_URL . 'empleado/exportar?id=' . (int) ($empleado['id_empleado'] ?? 0);
 ob_start();
 ?>
-<div class="student-record__pdf-preview position-relative" id="contenedorPreviewExpediente">
-  <!-- Spinner de carga -->
-  <div id="loaderPreviewExpediente" class="position-absolute top-50 start-50 translate-middle text-center p-3" style="display: none; z-index: 10;">
-    <div class="spinner-border text-primary mb-2" role="status" style="width: 3rem; height: 3rem;">
-      <span class="visually-hidden">Cargando...</span>
-    </div>
-    <div class="text-dark fw-medium small">Cargando vista previa...</div>
-  </div>
-  <!-- Fallback de contingencia -->
-  <div id="fallbackPreviewExpediente" class="p-4 text-center my-auto" style="display: none;">
-    <i class="bi bi-file-earmark-pdf text-primary fs-1 mb-2 d-block"></i>
-    <h6 class="fw-bold mb-1">Vista previa no disponible</h6>
-    <p class="text-muted small mb-3">Use los botones para abrir o descargar el documento.</p>
-    <div class="d-flex justify-content-center gap-2">
-      <a href="#" id="btnFallbackAbrirExp" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-box-arrow-up-right me-1"></i> Abrir en nueva pestaña
-      </a>
-      <a href="#" id="btnFallbackDescargarExp" download target="_blank" rel="noopener" class="btn btn-primary btn-sm">
-        <i class="bi bi-download me-1"></i> Descargar
-      </a>
-    </div>
-  </div>
+<div class="student-record__pdf-preview">
   <iframe id="iframeVistaPreviaExpediente" data-src="<?= htmlspecialchars($urlPdf) ?>" title="Vista previa del expediente del personal"></iframe>
 </div>
 <?php
@@ -70,9 +49,6 @@ $modalBody = ob_get_clean();
 ob_start();
 ?>
 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-<a href="<?= htmlspecialchars($urlPdf) ?>" target="_blank" rel="noopener" class="btn btn-outline-primary">
-  <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Abrir en nueva pestaña
-</a>
 <button type="button" class="btn btn-outline-primary" id="btnImprimirExpedientePdf">
   <i class="bi bi-printer me-1" aria-hidden="true"></i>Imprimir
 </button>

@@ -99,13 +99,14 @@ $sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
     }
 
     /**
- * Los períodos nuevos siempre comienzan planificados y no alteran el año vigente. Se
- * audita la creación porque el nombre del período es lo que aparece en cada
- * matrícula, una estructura y un histórico: un año creado sin rastro de quién lo
- * pidió es el punto de partida de toda una generación de datos sin origen conocido.
+ * Los períodos nuevos siempre comienzan planificados y no alteran el año vigente.
+ *
+ * Se audita la creación porque el nombre del período es lo que aparece en cada
+ * matrícula, una estructura y un histórico: un año creado sin rastro de quién lo pidió
+ * es el punto de partida de toda una generación de datos sin origen conocido.
  *
  * @param array $data ['nombre' => string, 'id_usuario' => ?int]
- */
+*/
     public function create(array $data): bool
     {
         $ok = $this->pdo->prepare(
@@ -212,8 +213,8 @@ $sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
             }
 
             /* Cerrar congela el período. Si se cierra con asuntos sin resolver, esos asuntos
- quedan sin salida: un retiro PENDIENTE no se puede aprobar en un año cerrado y la
- solicitud quedaría bloqueada, y un alumno de sexto sin egresar ni retiro
+ quedan sin salida: un retiro PENDIENTE ya no se puede aprobar (el año cerrado lo
+ bloquea) y la solicitud moriría ahí, y un alumno de sexto sin egresar ni retiro
  se quedaría colgando sin registro de a qué año pertenece. Por eso se comprueba antes
  de cerrar, que es el único momento en el que aún se puede actuar.*/
             if ($estadoDestino === 'CERRADO') {
@@ -267,9 +268,15 @@ $sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
     }
 
     /**
- * Qué impide cerrar el año. Devuelve una lista de motivos; vacía significa que se
- * puede.
- */
+ * Qué impide cerrar el año. Devuelve una lista de motivos; vacía significa que se puede.
+ *
+ * Son dos, y los dos se quedan sin salida al cerrar:
+ * - Retiros PENDIENTE: al cerrarse el año ya no se pueden aprobar, y la solicitud
+ * quedaría eternamente pendiente sin que nadie pueda resolverla.
+ * - Alumnos de último grado cursando: no tienen salida en este modelo, porque el
+ * egreso exige el período activo y el retiro solo alcanza hasta el cierre. Hay que
+ * egresarlos o retirarlos antes.
+*/
     public function pendientesDeCierre(int $idAnioEscolar): array
     {
         $motivos = [];
@@ -329,11 +336,19 @@ $sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
     }
 
     /**
- * Reabre un año escolar cerrado, dejando registro de quién, cuándo y por qué. Es el
- * mecanismo que faltaba para corregir un cierre por error.
+ * Reabre un año escolar cerrado, dejando registro de quién, cuándo y por qué.
+ *
+ * Es el mecanismo que faltaba para corregir un cierre por error. No es un simple cambio
+ * de estado por tres razones: exige un motivo escrito, queda en la bitácora, y se niega
+ * si el año ya tiene movimientos posteriores a su cierre (eso significaría que se está
+ * reabriendo sobre un período que ya se usó como histórico, y eso necesita revisión
+ * manual, no un clic).
+ *
+ * `cerrado_en` y `cerrado_por` se conservan: documentan el cierre anterior. Si el
+ * período se vuelve a cerrar, se sobrescriben con los datos de ese nuevo ciclo.
  *
  * @return array{ok:bool,mensaje:string}
- */
+*/
     public function reabrir(int $id, int $idUsuario, string $motivo, ?string $ip = null): array
     {
         $motivo = trim($motivo);
@@ -433,9 +448,12 @@ $sql = "SELECT ae.id_anio_escolar AS id, ae.nombre_periodo AS nombre,
     }
 
     /**
- * Deja una entrada en la bitácora. `accion` se recorta aquí, y no en quien la llama:
- * la columna es varchar(100) y el texto lo compone el llamador.
- */
+ * Deja una entrada en la bitácora.
+ *
+ * `accion` se recorta aquí, y no en quien la llama: la columna es varchar(100) y el texto lo
+ * compone el llamador. En reabrir() el texto lleva el MOTIVO, que es texto libre del usuario y
+ * no tiene tope: sin recorte, un motivo largo revienta la columna y la reapertura se pierde.
+*/
     private function registrarBitacora(int $idUsuario, string $accion, ?string $ip): void
     {
         $limite = 100;

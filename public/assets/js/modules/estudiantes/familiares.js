@@ -65,9 +65,9 @@
  ser familiar" es la operación de verdad; en ratificación también y lo decide quien llama.*/
       var permitirDesactivar = config.permitirDesactivar !== false;
 
-            /* Desvincular, en vez de desactivar. Solo se usa en la pantalla con la
- lista ya guardada; en inscripción sigue el switch porque al quitar a alguien se cometió un error
- La papelera lo reemplaza: el switch lo deja en el payload.*/
+            /* Desvincular, en vez de desactivar (hallazgo MEDIO 4.7). Solo la usa la pantalla con la
+ lista ya guardada; en inscripción sigue el switch porque ahí quitar a alguien es "me
+ equivoqué al escribirlo". La papelera lo reemplaza: el switch lo dejaba en el payload.*/
       var permitirDesvinculo = config.permitirDesvinculo === true;
 
         /* ¿Se puede editar el contacto de ESTE familiar? En inscripción siempre; en ratificación solo
@@ -188,7 +188,7 @@
 
     /* Campos que identifican a la persona (nombres y fecha de nacimiento). Cuando
  la cédula ya está registrada se bloquean: son los datos con los que está en
- el sistema y no tienen sentido cambiarlos desde aquí. El contacto y el
+ el sistema y no tienen sentido cambiarlos desde acá. El contacto y el
  domicilio sí se pueden modificar, porque cambian.*/
     var CAMPOS_IDENTIDAD = [
       'familiarPrimerNombre', 'familiarSegundoNombre',
@@ -699,12 +699,12 @@
               }
             }
 
-            /* Desde aquí hay datos de ESTA persona en el formulario: si la cédula se
+            /* Desde acá hay datos de ESTA persona en el formulario: si la cédula se
  borra o se corrige, se limpian (ver revisarCedula()).*/
             cedulaCargada = documento;
 
             /* Sus datos de identidad no se tocan: ya están en el sistema y cambiarlos
- desde aquí dejaría el registro inconsistente con el resto de los módulos
+ desde acá dejaría el registro inconsistente con el resto de los módulos
  que lo usan. El contacto y el domicilio sí quedan editables, que es lo
  que realmente cambia. Esto incluye el sexo (radios + tarjetas).*/
             bloquearIdentidad(true);
@@ -917,18 +917,38 @@
         suelto. El asterisco lo lleva `data-requerido-instruccion`, que aunque se
         llama así sigue apuntando a la profesión: el nombre del atributo quedó de
         cuando también había nivel de instrucción. */
-        var pideDatosPersonales = pide;
+        var exigeProfesion = !esFallecido && (esRepresentante || esPadreOMadre);
+        var tieneOcupacion = !!(ocupacionPrecargada || (ocupacionEl && ocupacionEl.value));
+        var pideDatosPersonales = !esFallecido && (exigeProfesion || tieneOcupacion);
         if (datosRepresentanteEl) datosRepresentanteEl.classList.toggle('d-none', !pideDatosPersonales);
 
         [ocupacionEl].forEach(function (campo) {
           if (!campo) return;
-          if (pideDatosPersonales) {
+          if (exigeProfesion) {
             campo.setAttribute('required', '');
           } else {
             campo.removeAttribute('required');
-            campo.value = '';
           }
         });
+
+        /* Restaurar ocupación si vino de la persona encontrada o precargada */
+        if (ocupacionEl && (!ocupacionEl.value || ocupacionEl.value === '') && ocupacionPrecargada) {
+          var matchOcu = Array.prototype.find.call(ocupacionEl.options, function (opt) {
+            var val = opt.value.trim().toLowerCase();
+            var txt = opt.textContent.trim().toLowerCase();
+            var target = String(ocupacionPrecargada).trim().toLowerCase();
+            return (val && val === target) || (txt && txt === target);
+          });
+          if (matchOcu) {
+            ocupacionEl.value = matchOcu.value;
+          } else if (ocupacionPrecargada) {
+            var optOcu = document.createElement('option');
+            optOcu.value = ocupacionPrecargada;
+            optOcu.textContent = ocupacionPrecargada;
+            ocupacionEl.appendChild(optOcu);
+            ocupacionEl.value = ocupacionPrecargada;
+          }
+        }
 
         /* Si el bloque aplica y los selectores están vacíos, se pone lo que traía la
  persona encontrada por cédula. Solo rellena un select VACÍO, así que no
@@ -938,18 +958,6 @@
           var nacEstadoEl = document.getElementById('familiarEstadoNacimiento');
           if (nacEstadoEl && (!nacEstadoEl.value || nacEstadoEl.value === '0') && estadoNacimientoPrecargado > 0) {
             nacEstadoEl.value = String(estadoNacimientoPrecargado);
-          }
-
-          /* Restaurar ocupación si vino de la persona encontrada o precargada */
-          if (ocupacionEl && (!ocupacionEl.value || ocupacionEl.value === '') && ocupacionPrecargada) {
-            var matchOcu = Array.prototype.find.call(ocupacionEl.options, function (opt) {
-              return opt.value.trim().toLowerCase() === String(ocupacionPrecargada).trim().toLowerCase();
-            });
-            if (matchOcu) {
-              ocupacionEl.value = matchOcu.value;
-            } else {
-              ocupacionEl.value = ocupacionPrecargada;
-            }
           }
 
           /* Restaurar nacionalidad si vino de la persona encontrada o por defecto */
@@ -1053,9 +1061,16 @@
             retirosEl.disabled = false;
           }
         }
+
+        var avisoRetiroEl = document.getElementById('avisoRecaudosRetiro');
+        if (avisoRetiroEl) {
+          var exigeDocRetiro = !esFallecido && !esRepresentante && !esPadreOMadre && retirosEl && retirosEl.checked;
+          avisoRetiroEl.classList.toggle('d-none', !exigeDocRetiro);
+        }
       }
 
       switchEl.addEventListener('change', sincronizar);
+      if (retirosEl) retirosEl.addEventListener('change', sincronizar);
       /* También el parentesco: el bloque de nivel y ocupación aparece con "Padre" o
  "Madre", así que elegirlo tiene que reevaluar las reglas. Sin este listener,
  el bloque solo aparecería al tocar otro interruptor.*/
@@ -1199,7 +1214,7 @@
  están a la vista y vienen vacíos. */
         ocupacion: esFallecido
           ? (base && base.ocupacion ? base.ocupacion : '')
-          : (pideDatosPersonales ? valor('familiarOcupacion') : ''),
+          : (valor('familiarOcupacion') || (base && base.ocupacion ? base.ocupacion : '')),
         autorizado_retiros: !esFallecido && (esRepresentante
           ? true
           : (document.getElementById('familiarAutorizadoRetiros') || {}).checked === true) ? 1 : 0,
@@ -1273,7 +1288,7 @@
       var faltantes = [];
 
       /* Si el contacto está apagado (familiar que ya estaba y no es representante), NO se
- pide nada: sus datos no se pueden cambiar desde aquí y ya están guardados.*/
+ pide nada: sus datos no se pueden cambiar desde acá y ya están guardados.*/
       var filaBase = filaEnEdicion();
       if (!esFallecido) {
         var contactoEditableAhora = !(filaBase && !contactoEditable(filaBase) && !esRepresentante);
@@ -1449,7 +1464,7 @@
       poner('familiarFechaNacimiento', f.fecha_nacimiento || '');
 
       estadoNacimientoPrecargado = parseInt(f.id_estado_nacimiento, 10) || 0;
-      ocupacionPrecargada = f.ocupacion || '';
+      ocupacionPrecargada = f.ocupacion || f.profesion || '';
       direccionPrecargada = f.direccion || null;
       nacionalidadPrecargada = parseInt(f.id_nacionalidad, 10) || 0;
 
@@ -1466,13 +1481,40 @@
       if (sexo) sexo.checked = true;
 
       /* El select del parentesco guarda el NOMBRE del catálogo, que es lo que lleva la
- fila en `parentesco`.*/
-      if (f.parentesco) poner('familiarParentesco', f.parentesco);
+ fila en `parentesco`. Se busca por valor, texto o código (case-insensitive y sin espacios) para garantizar selección.*/
+      if (window.__CATALOGOS_FAMILIARES__ && window.__CATALOGOS_FAMILIARES__.parentescos) {
+        sincronizarCatalogoParentescos(window.__CATALOGOS_FAMILIARES__.parentescos);
+      }
+      var parValor = f.parentesco || f.parentesco_texto || '';
+      var parEl = document.getElementById('familiarParentesco');
+      if (parValor && parEl) {
+        var matchPar = Array.prototype.find.call(parEl.options, function (opt) {
+          var optVal = opt.value.trim().toLowerCase();
+          var optTxt = opt.textContent.trim().toLowerCase();
+          var target = String(parValor).trim().toLowerCase();
+          return (optVal && optVal === target)
+            || (optTxt && optTxt === target)
+            || (f.parentesco_codigo && opt.dataset.codigo && opt.dataset.codigo.toLowerCase() === String(f.parentesco_codigo).toLowerCase());
+        });
+        if (matchPar) {
+          parEl.value = matchPar.value;
+        } else {
+          var optPar = document.createElement('option');
+          optPar.value = parValor;
+          optPar.textContent = parValor;
+          parEl.appendChild(optPar);
+          parEl.value = parValor;
+        }
+      }
 
       marcar('familiarEsFallecido', f.es_fallecido);
       marcar('familiarRepresentantePrincipal', f.representante_principal);
       marcar('familiarAutorizadoRetiros', f.autorizado_retiros);
       marcar('familiarViveConEstudiante', f.vive_con_estudiante);
+
+      if (window.__CATALOGOS_FAMILIARES__ && window.__CATALOGOS_FAMILIARES__.ocupaciones) {
+        sincronizarCatalogoOcupaciones(window.__CATALOGOS_FAMILIARES__.ocupaciones);
+      }
 
       /* Sincronizar de inmediato para que los bloques dependientes (profesión, domicilio, nacimiento)
          se muestren sin esperar la cascada asíncrona de dirección */
@@ -1482,11 +1524,18 @@
       var ocupacionEl = document.getElementById('familiarOcupacion');
       if (ocuValor && ocupacionEl) {
         var matchOcu = Array.prototype.find.call(ocupacionEl.options, function (opt) {
-          return opt.value.trim().toLowerCase() === String(ocuValor).trim().toLowerCase();
+          var val = opt.value.trim().toLowerCase();
+          var txt = opt.textContent.trim().toLowerCase();
+          var target = String(ocuValor).trim().toLowerCase();
+          return (val && val === target) || (txt && txt === target);
         });
         if (matchOcu) {
           ocupacionEl.value = matchOcu.value;
         } else {
+          var optOcu = document.createElement('option');
+          optOcu.value = ocuValor;
+          optOcu.textContent = ocuValor;
+          ocupacionEl.appendChild(optOcu);
           ocupacionEl.value = ocuValor;
         }
       }
@@ -1529,6 +1578,23 @@
  representante quedaría editable cuando no debe.*/
         bloquearContacto(!contactoEditable(f));
         if (bloqueRepresentanteUI) bloqueRepresentanteUI.sincronizar();
+        if (ocuValor && ocupacionEl) {
+          var matchOcuFinal = Array.prototype.find.call(ocupacionEl.options, function (opt) {
+            var val = opt.value.trim().toLowerCase();
+            var txt = opt.textContent.trim().toLowerCase();
+            var target = String(ocuValor).trim().toLowerCase();
+            return (val && val === target) || (txt && txt === target);
+          });
+          if (matchOcuFinal) {
+            ocupacionEl.value = matchOcuFinal.value;
+          } else {
+            var optOcuFinal = document.createElement('option');
+            optOcuFinal.value = ocuValor;
+            optOcuFinal.textContent = ocuValor;
+            ocupacionEl.appendChild(optOcuFinal);
+            ocupacionEl.value = ocuValor;
+          }
+        }
         if (f.id_estado_nacimiento) {
           poner('familiarEstadoNacimiento', f.id_estado_nacimiento);
         }
@@ -1547,6 +1613,15 @@
     function abrirParaEditar(indice, quitarRol) {
       var f = familiares[indice];
       if (!f) return;
+
+      if (window.__CATALOGOS_FAMILIARES__) {
+        if (window.__CATALOGOS_FAMILIARES__.parentescos) {
+          sincronizarCatalogoParentescos(window.__CATALOGOS_FAMILIARES__.parentescos);
+        }
+        if (window.__CATALOGOS_FAMILIARES__.ocupaciones) {
+          sincronizarCatalogoOcupaciones(window.__CATALOGOS_FAMILIARES__.ocupaciones);
+        }
+      }
 
       vaciarSubModal(false);
       editandoIndice = indice;
@@ -1609,7 +1684,7 @@
  * fila cambiara al marcar, y ese salto es justo lo que hace dudar de si la
  * operación llegó a aplicarse.
  *
- * En el representante legal NO se usa el atributo `disabled` de propósito.
+ * En el representante legal NO se usa el atributo `disabled` a propósito.
  * El CSS del sistema pone `pointer-events:none` en `.action-btn:disabled`, y un
  * botón deshabilitado tampoco dispara click: con cualquiera de las dos cosas,
  * el clic se pierde en silencio y la secretaria no tiene forma de aprender por
@@ -1682,7 +1757,7 @@
                   + '<i class="bi bi-trash me-1" aria-hidden="true"></i>Se va a desvincular</span>'
                 : '') +
           '</td>' +
-          '<td>' + SIGDEUI.escapeHtml(f.parentesco_texto) + '</td>' +
+          '<td>' + SIGDEUI.escapeHtml(f.parentesco_texto || f.parentesco || '—') + '</td>' +
           '<td>' + (roles.length ? roles.map(function (r) {
             return '<span class="status-badge status-badge--active">' + SIGDEUI.escapeHtml(r) + '</span>';
           }).join(' ') : '—') + '</td>' +
@@ -1702,7 +1777,7 @@
         });
       });
 
-      /* Papelera de desvincular. Va delegada sobre el tbody
+      /* Papelera de desvincular (hallazgo MEDIO 4.7). Va delegada sobre el tbody
  porque render() rehace el HTML de las filas en cada cambio: si el listener
  se enganchara por fila, el siguiente render() lo perdería.*/
       tbodyFam.querySelectorAll('[data-desvincular]').forEach(function (btn) {
@@ -1722,7 +1797,7 @@
             return;
           }
 
-          /* El representante legal no se desvincula desde aquí. No por capricho: el
+          /* El representante legal no se desvincula desde acá. No por capricho: el
  backend lo rechaza igual (guarda 2 de sincronizarFamiliares), y es mejor
  decirlo antes que devolver un error al guardar, con el formulario entero
  ya cheio. Si es el único, el aviso lo dice explícitamente.*/
@@ -1761,12 +1836,59 @@
       });
     }
 
+    function sincronizarCatalogoParentescos(parentescos) {
+      var parEl = document.getElementById('familiarParentesco');
+      if (!parEl || !Array.isArray(parentescos) || parentescos.length === 0) return;
+      if (parEl.options.length <= 1) {
+        var actual = parEl.value;
+        parEl.innerHTML = '<option value="">Seleccione el parentesco</option>';
+        parentescos.forEach(function (par) {
+          var nombre = typeof par === 'string' ? par : (par.nombre || '');
+          var codigo = typeof par === 'object' && par ? (par.codigo || '') : '';
+          if (!nombre) return;
+          var opt = document.createElement('option');
+          opt.value = nombre;
+          opt.textContent = nombre;
+          if (codigo) opt.dataset.codigo = codigo;
+          parEl.appendChild(opt);
+        });
+        if (actual) parEl.value = actual;
+      }
+    }
+
+    function sincronizarCatalogoOcupaciones(ocupaciones) {
+      var ocuEl = document.getElementById('familiarOcupacion');
+      if (!ocuEl || !Array.isArray(ocupaciones) || ocupaciones.length === 0) return;
+      if (ocuEl.options.length <= 1) {
+        var actual = ocuEl.value;
+        ocuEl.innerHTML = '<option value="">Seleccione la profesión</option>';
+        ocupaciones.forEach(function (ocu) {
+          var nombre = typeof ocu === 'string' ? ocu : (ocu.nombre || '');
+          if (!nombre) return;
+          var opt = document.createElement('option');
+          opt.value = nombre;
+          opt.textContent = nombre;
+          ocuEl.appendChild(opt);
+        });
+        if (actual) ocuEl.value = actual;
+      }
+    }
+
     // =================================================================
     // Arranque
     // =================================================================
 
     function arrancar() {
       if (!modalEl) return false;   // esta pantalla no tiene el sub-modal
+
+      if (window.__CATALOGOS_FAMILIARES__) {
+        if (window.__CATALOGOS_FAMILIARES__.parentescos) {
+          sincronizarCatalogoParentescos(window.__CATALOGOS_FAMILIARES__.parentescos);
+        }
+        if (window.__CATALOGOS_FAMILIARES__.ocupaciones) {
+          sincronizarCatalogoOcupaciones(window.__CATALOGOS_FAMILIARES__.ocupaciones);
+        }
+      }
 
       /* Previsualización, "quitar foto" y filtros de escritura delegan en
  public/assets/js/core/wizard-ui.js, el mismo módulo que consume el wizard de
@@ -1815,8 +1937,21 @@
 
     return {
       /** Carga la lista desde el servidor y la pinta (edición de un registro ya existente).*/
-      cargar: function (lista) {
-        familiares = Array.isArray(lista) ? lista.slice() : [];
+      cargar: function (lista, catalogos) {
+        if (catalogos && catalogos.parentescos) {
+          sincronizarCatalogoParentescos(catalogos.parentescos);
+        } else if (window.__CATALOGOS_FAMILIARES__ && window.__CATALOGOS_FAMILIARES__.parentescos) {
+          sincronizarCatalogoParentescos(window.__CATALOGOS_FAMILIARES__.parentescos);
+        }
+        if (catalogos && catalogos.ocupaciones) {
+          sincronizarCatalogoOcupaciones(catalogos.ocupaciones);
+        } else if (window.__CATALOGOS_FAMILIARES__ && window.__CATALOGOS_FAMILIARES__.ocupaciones) {
+          sincronizarCatalogoOcupaciones(window.__CATALOGOS_FAMILIARES__.ocupaciones);
+        }
+        familiares = Array.isArray(lista) ? lista.map(function (f) {
+          f.parentesco_texto = f.parentesco_texto || f.parentesco || '';
+          return f;
+        }) : [];
         editandoIndice = null;
         pendiente = null;
         estadoFamiliar = 'ACTIVO';

@@ -37,6 +37,11 @@ declare(strict_types=1);
  */
 
 $pageTitle       = 'Ratificación de Matrícula';
+/* La descripción dice cuándo se usa, porque de eso se trata. Antes decía "gestione
+ la continuidad y proyecte el próximo periodo", que era cierto en cualquier
+ momento del año y por eso la pantalla se llenaba de alumnos que seguían
+ cursando: ratificar no es una gestión del día a día, es lo que se hace al cerrar
+ el año para los que continúan.*/
 $pageDescription = 'Al cierre del año escolar, coloque en el periodo en curso a los alumnos que continúan. '
     . 'Los que ya están matriculados en el año en curso no se listan: todavía están cursando.';
 $currentNav      = 'ratificacion';

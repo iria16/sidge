@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Http\BinaryResponse;
+use App\Models\AuditLogModel;
 use App\Models\StudentsModel;
 use App\Models\TeacherAssignmentModel;
 use App\Support\Configuracion;
@@ -195,9 +196,9 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
         return $grupos;
     }
 
-    /*
+    /* ======================================================================
        /docente/estudiante  ·  Ficha
-    */
+       ====================================================================== */
 
     public function estudiante(): void
     {
@@ -252,9 +253,9 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
         require_once __DIR__ . '/../Views/docente/estudiante.php';
     }
 
-    /*
+    /* ======================================================================
        /docente/buscar  ·  Búsqueda por AJAX de la nómina
-    */
+       ====================================================================== */
 
     public function buscar(): void
     {
@@ -284,9 +285,9 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
         $this->jsonResponse(true, ['nomina' => $nomina, 'total' => count($nomina)]);
     }
 
-    /*
+    /* ======================================================================
        /docente/nomina  ·  Listados de solo lectura (pantalla, impresión y PDF)
-    */
+       ====================================================================== */
 
     /**
      * Vistas permitidas al docente y las columnas de cada una. Es la lista

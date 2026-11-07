@@ -52,7 +52,7 @@ ob_start();
     </div>
   </section>
 
-  <section class="wizard-summary__section">
+  <section class="wizard-summary__section mt-2">
     <div class="wizard-summary__section-header">
       <span class="wizard-summary__icon"><i class="bi bi-person-gear" aria-hidden="true"></i></span>
       <span class="wizard-summary__section-title">Credenciales de acceso</span>

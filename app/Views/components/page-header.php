@@ -11,7 +11,7 @@ $pageSubheading    = $pageSubheading ?? '';
 $pageHeaderActions = $pageHeaderActions ?? '';
 ?>
 <div class="page-header">
-  <div class="page-header__main">
+  <div>
     <h1 class="page-header__title"><?php echo htmlspecialchars($pageHeading); ?></h1>
     <?php if ($pageSubheading !== ''): ?>
       <p class="page-header__subtitle"><?php echo htmlspecialchars($pageSubheading); ?></p>

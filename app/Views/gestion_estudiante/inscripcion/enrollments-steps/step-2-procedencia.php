@@ -12,10 +12,11 @@
 */
 $instituciones = $instituciones ?? [];
 
-/* Grados de procedencia del catálogo `grado`, ordenados por su número y no por
- id: en el catálogo el 2do grado es id 6 y el 3er grado es id 2. Solo se
- incluyen los grados 1 a 6 de primaria, que es el rango que valida
- App\Support\Instituciones para el tipo TIPO_ESCUELA. */
+/* Grados de procedencia, del catálogo `grado` y ordenados por su número, no
+ por id: en el catálogo el 2do grado es id 6 y el 3er es id 2. Se queda solo
+ con los que caen en el rango 1-6 de la primaria, que es el rango que valida
+ App\Support\Instituciones para el tipo TIPO_ESCUELA. Antes esta lista estaba
+ escrita a mano en el <select> y se le había quedado fuera el 6to grado.*/
 $gradosPrimaria = [];
 foreach ($gradosModal ?? [] as $grado) {
     $ordinal = \App\Support\Instituciones::ordinalGrado((string) ($grado['nombre'] ?? ''));
@@ -77,7 +78,7 @@ ksort($gradosPrimaria);
         </div>
         <div class="invalid-feedback">Seleccione la institución de procedencia.</div>
       </div>
-      <div class="col-12 col-sm-6">
+      <div class="col-6">
         <label class="label-sigde" for="ultimoGradoCursado">Último grado cursado *</label>
         <?php /* "Educación Inicial" es la etapa anterior a la primaria: sirve
  para quien viene de un preescolar (TIPO_PREESCOLAR), que no
@@ -93,7 +94,7 @@ ksort($gradosPrimaria);
         </select>
         <div class="invalid-feedback">Seleccione el último grado cursado.</div>
       </div>
-      <div class="col-12 col-sm-6">
+      <div class="col-6">
         <label class="label-sigde" for="anioEscolarProcedencia">Año escolar anterior</label>
         <input type="text" class="form-control" id="anioEscolarProcedencia"
                name="anio_escolar_procedencia" placeholder="Ej: 2024-2025" maxlength="9">

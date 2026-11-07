@@ -238,6 +238,7 @@ trait RecaudosModelTrait
         $consulta = $this->pdo->prepare(
             "SELECT ed.id_estudiante_documento AS id,
                     ed.id_tipo_documento,
+                    ed.id_persona_estudiante,
                     t.nombre,
                     t.codigo,
                     ed.consignado,
@@ -247,6 +248,7 @@ trait RecaudosModelTrait
                     u.nombre_usuario AS actualizado_por_nombre,
                     CONCAT_WS(' ', p.primer_nombre, p.segundo_nombre,
                         p.primer_apellido, p.segundo_apellido) AS persona_nombre,
+                    p.numero_documento AS documento_persona,
                     i.documentos_evaluados_en IS NOT NULL AS evaluado
                FROM estudiante_documento ed
                JOIN tipo_documento t ON t.id_tipo_documento = ed.id_tipo_documento
@@ -387,10 +389,107 @@ trait RecaudosModelTrait
             $observacion = trim((string) ($estado['observacion'] ?? ''));
             $consignado = !empty($estado['consignado']) ? 1 : 0;
 
-            if (preg_match('/^tipo_([1-9]\d*)(?:_.*)?$/', $clave, $coincidencia)) {
+            if (preg_match('/^tipo_([1-9]\d*)(?:_([0-9]+))?$/', $clave, $coincidencia)) {
                 $idTipo = (int) $coincidencia[1];
+                $docPersona = $coincidencia[2] ?? null;
                 $tipoActivo->execute(['tipo' => $idTipo]);
                 if ($tipoActivo->fetchColumn() === false) {
+                    continue;
+                }
+
+                $idPe = null;
+                if ($docPersona !== null && $docPersona !== '') {
+                    $buscarPe = $this->pdo->prepare(
+                        'SELECT pe.id_persona_estudiante
+                           FROM persona_estudiante pe
+                           JOIN persona p ON p.id_persona = pe.id_persona
+                          WHERE pe.id_estudiante = :estudiante
+                            AND REGEXP_REPLACE(p.numero_documento, \'[^0-9]\', \'\') = :doc
+                          LIMIT 1'
+                    );
+                    $buscarPe->execute(['estudiante' => $estudianteId, 'doc' => $docPersona]);
+                    $valPe = $buscarPe->fetchColumn();
+                    if ($valPe !== false && $valPe !== null) {
+                        $idPe = (int) $valPe;
+                    }
+                }
+
+                if ($idPe === null && in_array($idTipo, [5, 9, 12], true)) {
+                    $buscarRep = $this->pdo->prepare(
+                        'SELECT id_persona_estudiante
+                           FROM persona_estudiante
+                          WHERE id_estudiante = :estudiante
+                            AND es_representante_legal = 1
+                            AND estado_relacion = \'VIGENTE\'
+                          LIMIT 1'
+                    );
+                    $buscarRep->execute(['estudiante' => $estudianteId]);
+                    $valRep = $buscarRep->fetchColumn();
+                    if ($valRep !== false && $valRep !== null) {
+                        $idPe = (int) $valRep;
+                    }
+                }
+
+                $esRequerido = in_array($idTipo, [10, 11, 12], true) ? 1 : 0;
+
+                if ($idPe !== null) {
+                    $buscarPeDoc = $this->pdo->prepare(
+                        'SELECT id_estudiante_documento, consignado, observacion
+                           FROM estudiante_documento
+                          WHERE id_estudiante = :estudiante
+                            AND id_tipo_documento = :tipo
+                            AND id_persona_estudiante_unico = :pe'
+                    );
+                    $buscarPeDoc->execute(['estudiante' => $estudianteId, 'tipo' => $idTipo, 'pe' => $idPe]);
+                    $fila = $buscarPeDoc->fetch(PDO::FETCH_ASSOC);
+
+                    if ($fila) {
+                        if ((int) $fila['consignado'] === $consignado
+                            && (string) ($fila['observacion'] ?? '') === $observacion) {
+                            continue;
+                        }
+                        $this->pdo->prepare(
+                            'UPDATE estudiante_documento
+                                SET consignado = :consignado,
+                                    requerido = :requerido,
+                                    observacion = :observacion,
+                                    actualizado_en = NOW(),
+                                    actualizado_por = :usuario
+                              WHERE id_estudiante_documento = :id'
+                        )->execute([
+                            'consignado'  => $consignado,
+                            'requerido'   => $esRequerido,
+                            'observacion' => $observacion !== '' ? $observacion : null,
+                            'usuario'     => $idUsuario > 0 ? $idUsuario : null,
+                            'id'          => $fila['id_estudiante_documento'],
+                        ]);
+                    } else {
+                        $this->pdo->prepare(
+                            'INSERT INTO estudiante_documento
+                                (id_estudiante, id_persona_estudiante, id_persona_estudiante_unico, id_tipo_documento,
+                                 consignado, requerido, observacion, actualizado_en, actualizado_por)
+                             VALUES
+                                (:estudiante, :pe, :pe_unico, :tipo, :consignado, :requerido, :observacion, NOW(), :usuario)
+                             ON DUPLICATE KEY UPDATE
+                                consignado = VALUES(consignado),
+                                requerido = VALUES(requerido),
+                                observacion = VALUES(observacion),
+                                actualizado_en = NOW(),
+                                actualizado_por = VALUES(actualizado_por)'
+                        )->execute([
+                            'estudiante' => $estudianteId,
+                            'pe'         => $idPe,
+                            'pe_unico'   => $idPe,
+                            'tipo'       => $idTipo,
+                            'consignado' => $consignado,
+                            'requerido'  => $esRequerido,
+                            'observacion'=> $observacion !== '' ? $observacion : null,
+                            'usuario'    => $idUsuario > 0 ? $idUsuario : null,
+                        ]);
+                    }
+                    $tocados++;
+                    $cambios[] = ($consignado ? 'entregado' : 'pendiente')
+                        . ': ' . $this->nombreRecaudo($idTipo);
                     continue;
                 }
 

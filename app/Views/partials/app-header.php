@@ -93,14 +93,11 @@ $rolEtiqueta          = sigde_rol_etiqueta($rolSesion);
           <div class="app-header__profile-role"><?php echo htmlspecialchars($rolEtiqueta); ?></div>
         </div>
         <?php
-          $avatarSize = 'sm';
-          $avatarTone = 'dark';
-          $avatarInitials = (string) ($_SESSION['avatar_iniciales'] ?? $iniciales);
-          $avatarSrc = !empty($_SESSION['avatar_foto'])
-              ? BASE_URL . ltrim((string) $_SESSION['avatar_foto'], '/')
-              : '';
-          $avatarAlt = $nombreUsuario;
-          $avatarId = 'headerUserAvatar';
+          $avatarSize     = 'sm';
+          $avatarTone     = 'dark';
+          $avatarInitials = $iniciales;
+          $avatarSrc      = !empty($_SESSION['foto']) ? (string) $_SESSION['foto'] : '';
+          $avatarId       = 'headerUserAvatar';
           include __DIR__ . '/../components/avatar.php';
         ?>
       </button>

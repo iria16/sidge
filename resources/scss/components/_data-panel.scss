@@ -212,6 +212,7 @@
 
 .data-panel__table {
   width: 100%;
+  min-width: 760px;
   margin-bottom: 0;
   font-size: $sigde-table-font-size;
   table-layout: fixed;
@@ -222,7 +223,9 @@
     color: $secondary;
     text-transform: uppercase;
     letter-spacing: $sigde-table-head-letter-spacing;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: break-word;
+    vertical-align: middle;
     padding: $sigde-table-head-padding-y $sigde-table-head-padding-x;
     border-bottom: 1px solid $sigde-table-border;
     background: $sigde-table-head-bg;

@@ -39,7 +39,7 @@
         <select class="form-select" id="turnoEmpleado" name="id_turno">
           <option value="">Sin turno asignado</option>
           <?php foreach ($turnos as $turno): ?>
-          <option value="<?= (int) $turno['id_turno'] ?>"><?= htmlspecialchars($turno['nombre'] === \App\Models\TurnoModel::TURNO_COMPLETO ? 'Tiempo Completo (Mañana y Tarde)' : (string) $turno['nombre']) ?></option>
+            <option value="<?= (int) $turno['id_turno'] ?>"><?= htmlspecialchars($turno['nombre']) ?></option>
           <?php endforeach; ?>
         </select>
       </div>

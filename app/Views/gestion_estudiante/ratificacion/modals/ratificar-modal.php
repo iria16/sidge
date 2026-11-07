@@ -167,7 +167,7 @@ ob_start();
           <label class="form-label text-muted small mb-1" for="ratificarGradoNuevo">Grado a Cursar *</label>
           <?php /* Predictivo pero editable: el servidor deja marcado el grado
              siguiente al que cursa el alumno, y la secretaria lo cambia si repite o
-              si va a otro. El <select> va vacío de propósito —lo puebla el JS con las
+             si va a otro. El <select> va vacío a propósito —lo puebla el JS con las
              combinaciones del año destino— para no tener dos fuentes de verdad. */ ?>
           <select class="form-select" id="ratificarGradoNuevo" name="id_grado" required></select>
           <div class="form-text" id="ratificarGradoAviso" hidden></div>

@@ -47,12 +47,13 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     {
         [$where, $params] = $this->filters($filters);
 
-        /* La fecha mostrada es la de la SOLICITUD, no la de la matrícula. Los
- registros anteriores a la migración no tienen fecha y se muestran como '—',
- sin inventar un dato. */
+        /* La fecha que se muestra es la de la SOLICITUD, no la de la matrícula: antes se
+ leía m.fecha_matricula, así que una solicitud registrada hoy aparecía con la
+ fecha en que el alumno se matriculó, que es un dato distinto y más antiguo.
+ Los registros anteriores a la migración no tienen fecha y salen como '—', que es
+ lo honesto: no se inventa una fecha que nadie registró.*/
         $sql = "SELECT r.id_retiro AS id, r.estado_solicitud AS estado,
                        r.observaciones AS observaciones, r.fecha_solicitud AS fecha_solicitud,
-                       e.id_estudiante AS id_estudiante,
                        CONCAT_WS(' ', p.primer_nombre, p.primer_apellido) AS estudiante,
                        CONCAT(p.tipo_documento, '-', p.numero_documento) AS cedula,
                        g.nombre AS grado, s.nombre AS seccion, mr.nombre AS motivo,
@@ -65,7 +66,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  vez de decir que no hay registro. NULLIF convierte el '' en NULL y el
  COALESCE vuelve a hacer su trabajo.*/
                        r.id_usuario_registro AS id_usuario_registro,
-                       COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
+                    COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
                        COALESCE(NULLIF(CONCAT_WS(' ', ru.primer_nombre, ru.primer_apellido), ''), '') AS resuelto_por,
                        r.fecha_resolucion AS fecha_resolucion,
                        UPPER(CONCAT(LEFT(p.primer_nombre, 1), LEFT(p.primer_apellido, 1))) AS iniciales
@@ -102,10 +103,13 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  *
  * Devuelve exactamente los mismos campos que getAll(), porque pasa por el mismo
  * mapRow: así el modal y la fila del listado no pueden mostrar dos versiones de
- * un mismo dato.
+ * un mismo dato (por ejemplo, una fecha de solicitud en un formato y otra en el
+ * otro lado).
  *
- * El detalle se carga en el servidor a partir del id, sin duplicar el modelo en
- * atributos data- del markup.
+ * Existe porque el botón de la fila ya no lleva los datos en atributos data-:
+ * duplicar el modelo en el markup obliga a mantenerlo en dos lugares y se
+ * desincroniza solo. Con el id alcanza y el detalle se pide al servidor, que es
+ * quien tiene la fuente de verdad.
  *
  * @return array<string, mixed>|null Null si no existe (el controller responde 404).
 */
@@ -116,7 +120,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
         }
 
         $stmt = $this->pdo->prepare(
-            "SELECT r.id_retiro AS id, r.estado_solicitud AS estado,
+            "SELECT r.id_retiro AS id, r.id_usuario_registro, r.estado_solicitud AS estado,
                     r.observaciones AS observaciones, r.fecha_solicitud AS fecha_solicitud,
                     /* No se muestra en la vista, pero el controlador lo necesita para
                        comprobar el turno con secretariaTieneAccesoAEstudiante(). La
@@ -132,8 +136,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
                     COALESCE(NULLIF(CONCAT_WS(' ', pu.primer_nombre, pu.primer_apellido), ''), 'Sin registro') AS registrado_por,
                     COALESCE(NULLIF(CONCAT_WS(' ', ru.primer_nombre, ru.primer_apellido), ''), '') AS resuelto_por,
                     r.fecha_resolucion AS fecha_resolucion,
-                    UPPER(CONCAT(LEFT(p.primer_nombre, 1), LEFT(p.primer_apellido, 1))) AS iniciales,
-                    r.id_usuario_registro AS id_usuario_registro
+                    UPPER(CONCAT(LEFT(p.primer_nombre, 1), LEFT(p.primer_apellido, 1))) AS iniciales
                FROM retiro r
                INNER JOIN matricula m ON m.id_matricula = r.id_matricula
                INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
@@ -293,8 +296,9 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  * rastro y la bitácora sola no alcanza, porque una solicitud puede estar rechazada y
  * Approved sin que se sepa quién la tocó.
  *
- * rowCount() permite distinguir un id inexistente: execute() devuelve true
- * aunque no se haya afectado ninguna fila.
+ * Ojo con rowCount(): execute() devuelve true aunque no se haya
+ * afectado ninguna fila, así que un id inexistente se reportaría como
+ * éxito si solo se mirara el execute().
  *
  * @param int $idUsuario quién resuelve; 0 si no hay sesión (no se audita, pero no falla)
 */
@@ -398,7 +402,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
 
             /* Se audita al final, ya con la transacción aún abierta: si algo de lo anterior
  falla y se revierte, la bitácora tampoco deja constancia de una aprobación que
- no ocurrió. Va en la misma conexión de propósito.*/
+ no ocurrió. Va en la misma conexión a propósito.*/
             $this->registrarBitacora(
                 $idUsuario,
                 ($status === 'APROBADO' ? 'RETIRO APROBADO ' : 'RETIRO RECHAZADO ')
@@ -462,7 +466,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     /**
  * Busca estudiantes por cédula para el formulario de la secretaria.
  *
- * SOLO por documento, de propósito. Un retiro identifica a una persona, y el
+ * SOLO por documento, a propósito. Un retiro identifica a una persona, y el
  * documento es lo único que no se repite; buscar por nombre traía a homónimos
  * ("Leo Pinto" y otro "Pinto") y hacía elegir entre alumnos que en realidad
  * no se podían distinguir. Con el documento hay un solo resultado o ninguno.
@@ -475,9 +479,12 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  * La matrícula que se mira es la ÚLTIMA de cada alumno, y "última" se decide
  * por la FECHA del año, nunca por el id del año.
  *
- * Los ids de `anio_escolar` son de inserción y no siguen el orden cronológico,
- * por lo que comparar años por id puede invertir el orden. El subquery ordena
- * por `a2.anio_inicio`, que representa la fecha real del período.
+ * Los ids de `anio_escolar` son de inserción: un año cargado antes puede
+ * tener un id mayor que uno cargado después, así que comparar años por id
+ * invierte el orden sin que nada parezca roto. Con 175 = 2025-2026 y
+ * 238 = 2026-2027 los ids y las fechas coinciden y el error no aparece;
+ * aparece en cuanto se carga un año viejo, que es justo lo que se hace al
+ * abrir un período nuevo. Por eso el subquery ordena por `a2.anio_inicio`.
  *
  * @return array<int, array{id_matricula:?int,nombre:string,cedula:string,grado:string,
  * seccion:string,anio:string,elegible:bool,motivo:string}>
@@ -596,7 +603,7 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
  * La fila nace siempre en estado PENDIENTE: aprobar o rechazar es una
  * decisión posterior del directivo (updateStatus). Las validaciones de
  * negocio (motivo existente, retiro duplicado) las hace el controlador
- * en validate() antes de llegar aquí.
+ * en validate() antes de llegar acá.
  *
  * @param array $data ['id_matricula' => int, 'id_motivo_retiro' => int,
  * 'observaciones' => string, 'id_usuario' => ?int]
@@ -954,9 +961,10 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
     {
         $nombre = trim($row['estudiante'] ?? 'Estudiante');
         return [
-            'id'              => (int) $row['id'],
+            'id'                  => (int) $row['id'],
+            'id_usuario_registro' => (int) ($row['id_usuario_registro'] ?? 0),
             /* Para el control de turno del controlador; la vista no lo usa. */
-            'id_estudiante'   => (int) ($row['id_estudiante'] ?? 0),
+            'id_estudiante'       => (int) ($row['id_estudiante'] ?? 0),
             'estudiante'      => $nombre,
             'cedula'          => $row['cedula'] ?? '—',
             'iniciales'       => $row['iniciales'] ?: mb_strtoupper(mb_substr($nombre, 0, 1)),
@@ -964,8 +972,8 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
             'avatar_img'      => $row['avatar_img'] ?? '',
             'grado'           => $row['grado'] ?? '—',
             'seccion'         => $row['seccion'] ?? '—',
-            // '—' cuando la fila es anterior a la migración y no tiene fecha registrada.
-            // No se usa la fecha de la matrícula porque es un dato distinto.
+            // '—' cuando la fila es anterior a la migración: no hay fecha registrada y
+            // llenarla con la de la matrícula fue justo el dato falso que se corrigió.
             'fecha_solicitud' => !empty($row['fecha_solicitud'])
                 ? date('d/m/Y', strtotime((string) $row['fecha_solicitud']))
                 : '—',
@@ -977,7 +985,6 @@ public function getAll(array $filters = [], int $page = 1, int $perPage = 10): a
             'motivo'          => $row['motivo'] ?? '—',
             'observaciones'   => $row['observaciones'] ?? '',
             'estado'          => strtolower($row['estado'] ?? 'pendiente'),
-            'id_usuario_registro' => (int) ($row['id_usuario_registro'] ?? 0),
         ];
     }
 }

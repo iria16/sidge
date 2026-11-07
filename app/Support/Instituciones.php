@@ -175,7 +175,7 @@ final class Instituciones
      * Número de grado que representa un texto del catálogo `grado` o del
      * <select> de procedencia: "1er Grado" y "1er grado" -> 1, "6to" -> 6.
      *
-     * Se usa el número escrito y no el id del catálogo de propósito: los ids no
+     * Se usa el número escrito y no el id del catálogo a propósito: los ids no
      * siguen el orden (en el catálogo actual el 2do grado es id 6 y el 3er es
      * id 2), así que comparar ids daría resultados equivocados.
      *

@@ -121,6 +121,7 @@ class RatificationModel extends BaseModel implements Listable
     /** Procesos de ingreso al plantel. La inscripción es única y la primera.*/
     public const FLUJO_INSCRIPCION  = 'INSCRIPCION';
     public const FLUJO_RATIFICACION = 'RATIFICACION';
+    public const FLUJO_REINGRESO    = 'REINGRESO';
 
     /**
  * EL CRITERIO: ¿tiene el estudiante alguna matrícula previa? No → INSCRIPCIÓN; sí
@@ -587,6 +588,36 @@ class RatificationModel extends BaseModel implements Listable
                 }
             }
 
+            // Sincronizar recaudos de personas autorizadas para retiro en estudiante_documento
+            foreach ($familiares as $fam) {
+                $docFam = (string) preg_replace('/\D/', '', (string) ($fam['numero_documento'] ?? ''));
+                if ($docFam === '') {
+                    continue;
+                }
+                $esAutorizado = !empty($fam['autorizado_retiros']) && empty($fam['representante_principal']);
+                $parentescoFam = strtolower(trim((string) ($fam['parentesco'] ?? '')));
+                if (in_array($parentescoFam, ['padre', 'madre', 'papa', 'papá', 'mama', 'mamá'], true)) {
+                    $esAutorizado = false;
+                }
+                $idPeAut = $relaciones[$docFam] ?? null;
+                if ($idPeAut && $esAutorizado) {
+                    $this->pdo->prepare(
+                        'UPDATE estudiante_documento ed
+                           JOIN tipo_documento t ON t.id_tipo_documento = ed.id_tipo_documento
+                            SET ed.id_persona_estudiante = :pe,
+                                ed.id_persona_estudiante_unico = :pe_unico,
+                                ed.requerido = 1
+                          WHERE ed.id_estudiante = :estudiante
+                            AND t.codigo IN (\'autorizacion_retiro\', \'cedula_autorizada\')
+                            AND (ed.id_persona_estudiante = :pe OR ed.id_persona_estudiante IS NULL)'
+                    )->execute([
+                        'pe'         => $idPeAut,
+                        'pe_unico'   => $idPeAut,
+                        'estudiante' => $idEstudiante,
+                    ]);
+                }
+            }
+
             /**
  * Los recaudos van en la MISMA transacción y no en una llamada aparte del controlador:
  * el modal "Actualizar expediente" tiene un solo botón de guardar, y Guardar Cambios
@@ -704,8 +735,19 @@ class RatificationModel extends BaseModel implements Listable
                     p.id_estado_nacimiento, p.id_parroquia_nacimiento,
                     ' . $columnasNacionalidad . ',
                     COALESCE(pa.nombre, "") AS parentesco,
+                    COALESCE(pa.nombre, "") AS parentesco_texto,
+                    pe.id_parentesco,
+                    COALESCE(pa.codigo, "") AS parentesco_codigo,
                     "" AS nivel_instruccion,
-                    COALESCE(oc.nombre, "") AS ocupacion,
+                    COALESCE(oc.nombre, (
+                        SELECT oc_rec.nombre
+                          FROM persona_estudiante pe_rec
+                          JOIN ocupacion oc_rec ON oc_rec.id_ocupacion = pe_rec.id_profesion
+                         WHERE pe_rec.id_persona = pe.id_persona
+                           AND pe_rec.id_profesion IS NOT NULL
+                         ORDER BY pe_rec.id_persona_estudiante DESC
+                         LIMIT 1
+                    ), "") AS ocupacion,
                     pe.es_representante_legal, pe.es_autorizado_retiro,
                     pe.vive_con_estudiante, pe.estado_relacion,
                     p.es_fallecido,
@@ -759,8 +801,12 @@ es.nombre AS estado_nombre
                 'primer_apellido' => (string) $fila['primer_apellido'],
                 'segundo_apellido'=> (string) ($fila['segundo_apellido'] ?? ''),
                 'parentesco'      => (string) $fila['parentesco'],
+                'parentesco_texto'=> (string) $fila['parentesco'],
+                'id_parentesco'   => (int) ($fila['id_parentesco'] ?? 0),
+                'parentesco_codigo' => (string) ($fila['parentesco_codigo'] ?? ''),
                 'nivel_instruccion' => (string) $fila['nivel_instruccion'],
                 'ocupacion'       => (string) $fila['ocupacion'],
+                'profesion'       => (string) $fila['ocupacion'],
                 'tipo_documento'  => (string) $fila['tipo_documento'],
                 'numero_documento'=> (string) $fila['numero_documento'],
                 'sexo'            => ((string) $fila['sexo']) === 'F' ? 'F' : 'M',
@@ -821,20 +867,19 @@ es.nombre AS estado_nombre
  * nombre en la lista del niño parecía un familiar cuando podía no serlo.*/
 
     /**
- * Parentescos que describen un vínculo logístico y no un lazo familiar. Con "Otro"
- * alcanza: es lo que se usa para el transporte y para quien se autoriza por confianza
- * sin parentesco.
- */
-    private const PARENTESCOS_LOGISTICOS = ['Otro'];
+     * Parentescos que describen familiares directos del estudiante (padre / madre).
+     */
+    private const PARENTESCOS_DIRECTOS = ['padre', 'madre', 'papá', 'papa', 'mamá', 'mama'];
 
     /**
- * Los vinculados al alumno, ya separados en los dos grupos de la ficha. No reemplaza a
- * getFamiliares(): esa sigue devolviendo la lista completa y plana, que es lo que
- * necesitan el modal de edición de ratificación y el alta de inscripción.
- *
- * @param bool $soloDocente true cuando quien lee es un docente: se quitan el
- * @return array{nucleo: array<int, array<string,mixed>>, autorizados: array<int, array<string,mixed>>}
- */
+     * Los vinculados al alumno, ya separados en los dos grupos de la ficha:
+     * - Grupo Familiar: ÚNICAMENTE familiares directos (padre, madre) o el representante legal.
+     * - Personas autorizadas para retirar: Personas asociadas que NO sean familiares directos
+     *   (ni el representante legal), pero que cuentan con autorización para el retiro del menor.
+     *
+     * @param bool $soloDocente true cuando quien lee es un docente: se quitan datos sensibles
+     * @return array{nucleo: array<int, array<string,mixed>>, autorizados: array<int, array<string,mixed>>}
+     */
     public function getFamiliaresParaExpediente(int $idEstudiante, bool $soloDocente = false): array
     {
         $nucleo = [];
@@ -847,21 +892,24 @@ es.nombre AS estado_nombre
         foreach ($this->getFamiliares($idEstudiante, $soloDocente) as $familiar) {
             $esRepresentante = (int) ($familiar['representante_principal'] ?? 0) === 1;
             $parentesco = trim((string) ($familiar['parentesco'] ?? ''));
-            $esLogistico = $parentesco !== ''
-                && in_array($parentesco, self::PARENTESCOS_LOGISTICOS, true);
+            $parentescoNorm = mb_strtolower($parentesco, 'UTF-8');
+            $idParentesco = (int) ($familiar['id_parentesco'] ?? 0);
+            $parentescoCodigo = strtolower(trim((string) ($familiar['parentesco_codigo'] ?? '')));
 
-    /* NÚCLEO FAMILIAR: entra el representante legal siempre y los demás solo si tienen un
- parentesco informado que no sea «Otro». Un tercero con parentesco «Otro» se autoriza a
- retirar, pero no cuenta como familia. Los dos conjuntos pueden compartir personas.*/
-            if ($esRepresentante || ($parentesco !== '' && !$esLogistico)) {
+            $esFamiliarDirecto = $idParentesco === 2 || $idParentesco === 3
+                || in_array($parentescoCodigo, ['padre', 'madre'], true)
+                || in_array($parentescoNorm, self::PARENTESCOS_DIRECTOS, true);
+
+            /* DATOS DEL GRUPO FAMILIAR:
+               Deben ser los datos de familiares directos (padre, madre) o representante legal únicamente. */
+            if ($esRepresentante || $esFamiliarDirecto) {
                 $nucleo[] = $familiar;
             }
 
-            /* AUTORIZADOS PARA RETIRAR
-               Se excluye al representante legal porque ya figura en el núcleo familiar
-               con su insignia y se sobreentiende por ley que está autorizado para retirar
-               al estudiante. Aquí solo aparecen las personas adicionales autorizadas. */
-            if (!$esRepresentante && (int) ($familiar['autorizado_retiros'] ?? 0) === 1) {
+            /* PERSONAS AUTORIZADAS PARA RETIRAR AL ESTUDIANTE:
+               Deben ir personas asociadas al estudiante que NO sean familiares directos es decir padre, madre
+               o representante legal, y que tengan permiso de retiro. */
+            if (!$esRepresentante && !$esFamiliarDirecto && (int) ($familiar['autorizado_retiros'] ?? 0) === 1) {
                 $autorizados[] = $familiar;
             }
         }
@@ -1036,7 +1084,7 @@ es.nombre AS estado_nombre
                INNER JOIN persona p ON p.id_persona = est.id_persona
                LEFT JOIN matricula md ON md.id_estudiante = est.id_estudiante
                     AND md.id_anio_escolar = :anio
-                    AND md.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                    AND md.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                LEFT JOIN anio_escolar ad        ON ad.id_anio_escolar  = md.id_anio_escolar
                LEFT JOIN estructura_academica ed ON ed.id_estructura_academica = md.id_estructura_academica
                LEFT JOIN grado gd    ON gd.id_grado   = ed.id_grado
@@ -1614,7 +1662,7 @@ es.nombre AS estado_nombre
             self::CONDICION_ANIO_ANTERIOR . ' < ' . $this->inicioDelAnioEnCurso(),
 
             // (2) Último tipo con continuación; RETIRO y EGRESO son finales.
-            "m.tipo IN ('" . self::FLUJO_INSCRIPCION . "', '" . self::FLUJO_RATIFICACION . "')",
+            "m.tipo IN ('" . self::FLUJO_INSCRIPCION . "', '" . self::FLUJO_RATIFICACION . "', '" . self::FLUJO_REINGRESO . "')",
 
             // (3) Sin retiro pendiente, sobre la matrícula concreta y no sobre el estudiante.
             'NOT EXISTS (

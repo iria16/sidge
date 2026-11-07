@@ -14,8 +14,7 @@ class TurnoModel extends CatalogModel
     protected string $campoNombre = 'nombre';
 
     /** Turnos exclusivos de personal/empleados que no aplican para matrícula estudiantil. */
-    public const TURNO_COMPLETO = 'Tiempo Completo';
-    public const TURNOS_EXCLUSIVOS_PERSONAL = [self::TURNO_COMPLETO];
+    public const TURNOS_EXCLUSIVOS_PERSONAL = ['Tiempo Completo'];
 
     /** Nombre visible del turno; null si el id no existe o no es válido. */
     public function getNombreById(int $id): ?string

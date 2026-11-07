@@ -92,9 +92,11 @@ class StudentsModel extends BaseModel implements Listable
             }
 /* Sin año seleccionado se muestra la matrícula más reciente del alumno.
  ROW_NUMBER y no MAX(id_anio_escolar): los ids de año son de inserción y no
- siguen el orden cronológico, por lo que comparar por id invierte "último" y
- "primero". El desempate por id_matricula deja una fila por estudiante: con
- MAX() un alumno con dos filas en el mismo año aparecía duplicado. */
+ siguen el orden, así que comparar por id invertía "último" y "primero" cuando
+ se cargaba un año viejo, que es justo lo que se hace al abrir un período.
+ El desempate por id_matricula además deja UNA fila por estudiante: con
+ MAX() el alumno que tiene dos filas en el mismo año (inscripción y retiro)
+ salía duplicado en el listado.*/
             /* id_matricula tiene que estar en la proyección: el ON de más abajo
                (INNER JOIN matricula m ON m.id_matricula = ult.id_matricula) la
                necesita, y sin ella la consulta reventaba con "Unknown column
@@ -371,7 +373,7 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
 
     public function getTurnos(): array
     {
-        return $this->pdo->query("SELECT id_turno AS id, nombre FROM turno WHERE estado = 'ACTIVO' AND nombre != 'Tiempo Completo' ORDER BY id_turno ASC")
+        return $this->pdo->query("SELECT id_turno AS id, nombre FROM turno WHERE estado = 'ACTIVO' ORDER BY id_turno ASC")
                          ->fetchAll(\PDO::FETCH_ASSOC);
     }
 
@@ -383,7 +385,7 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
  * le toca a cada cual", así que se toma de ahí y no de un turno ni de un grado.
  *
  * Un docente sin asignaciones no ve a nadie: antes del filtro esto tampoco sefiltraba
- * y por eso la pantalla queda vacía de propósito, con un aviso que lo explica.
+ * y por eso la pantalla queda vacía a propósito, con un aviso que lo explica.
  *
  * @return array{0:array<int,string>,1:array<string,int>}
 */
@@ -645,7 +647,7 @@ c.numero_telefono_principal,
 
         /* ORDEN. La pantalla permite cambiarlo sin recargar (lo reordena el JS
            sobre la lista ya cargada) y el PDF se arma con el mismo criterio, así
-           que la clave se define UNA vez aquí y el JS la replica. La collation de
+           que la clave se define UNA vez acá y el JS la replica. La collation de
            las tablas es utf8mb4_uca1400_ai_ci, que ordena el español igual que
            localeCompare('es').
              - apellido: 1er apellido, 2do apellido, 1er nombre, 2do nombre
@@ -777,7 +779,7 @@ c.numero_telefono_principal,
            luego por nombre, con collation del español para que las tildes y la ñ
            caigan donde toca.
 
-           La consulta ya viene en ese orden; se repite aquí de propósito. El orden
+           La consulta ya viene en ese orden; se repite aquí a propósito. El orden
            de los AUTORIZADOS no lo elige el docente —el selector de la barra solo
            mueve a los estudiantes de grupo en grupo—, así que la garantía tiene
            que estar en el sitio donde se arma la lista y no depender de un
@@ -1125,7 +1127,7 @@ c.numero_telefono_principal,
                INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                INNER JOIN persona p ON p.id_persona = e.id_persona
               WHERE m.id_estructura_academica = :estructura
-                AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                 AND " . Matriculas::condicionCursando('m') . "
                 AND MONTH(p.fecha_nacimiento) = :mes
               ORDER BY dia_nac ASC, p.primer_nombre ASC, p.primer_apellido ASC"

@@ -158,8 +158,7 @@ class EnrollmentController extends CrudController
     /**
  * Arma los datos del alta a partir del wizard.
  * Se aplica limpieza profunda (XSS, mayúsculas, formato) a todo el arreglo.
- * La foto se procesa después de validar el formulario, para no dejar archivos
- * huérfanos si la validación falla.
+ * Nota: La foto ya no se procesa aquí para evitar archivos basura si falla la validación.
 */
     protected function extractData(array $source): array
     {
@@ -422,9 +421,10 @@ class EnrollmentController extends CrudController
         try {
             $model->create($data);
         } catch (AnioEscolarCerradoException $e) {
-            /* La estructura elegida pertenece a un año cerrado y no admite
- inscripciones. Se responde 403 porque el formulario es válido; la operación
- no está permitida sobre ese período. */
+            /* El año de la estructura elegida ya no admite inscripciones.
+ Es un 403 y no un 422: el formulario está bien, lo que no se permite es la
+ operación sobre ese período. Un 422 dejaría a la secretaria corrigiendo
+ campos de un formulario que no tiene nada de malo.*/
             if ($data['foto'] !== null) {
                 $this->borrarFoto($data['foto']);
             }
@@ -637,7 +637,7 @@ class EnrollmentController extends CrudController
  * Ruta: inscripciones/buscarPersona?documento= (GET, JSON).
  * Responde 200 (data null si no existe) o 422 si la cédula es inválida.
  *
- * Este método es una envoltura de una línea de propósito: la consulta y el
+ * Este método es una envoltura de una línea a propósito: la consulta y el
  * formato de la respuesta son los mismos que ratificación necesita, y la
  * lógica está en el modelo (buscarPersonaPorDocumento), que es donde debe
  * estar. RatificationController::buscarPersona es igual de corto.

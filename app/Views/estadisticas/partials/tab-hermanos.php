@@ -7,18 +7,8 @@ declare(strict_types=1);
  *
  * @var array<string, mixed>            $resumenHermanos
  * @var array<int, array<string, mixed>> $detalleHermanos
- * @var array<string, int>              $paginacionHermanos
  * @var string                          $q
  */
-
-$paginacionHermanos = $paginacionHermanos ?? [
-    'desde'         => 0,
-    'hasta'         => 0,
-    'total'         => count($detalleHermanos),
-    'pagina_actual' => 1,
-    'total_paginas' => 1,
-    'per_page'      => 25,
-];
 
 // Helper para codificar configuraciones JSON de gráficas
 $encodeConfig = static function (array $config): string {
@@ -172,7 +162,7 @@ $donutFamiliasConfig = [
         <h2 class="h6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
           <i class="bi bi-people-fill text-primary" aria-hidden="true"></i>Control de Hermanos y Familias
         </h2>
-        <span class="text-secondary small">Total registrados: <?= number_format((int) $paginacionHermanos['total'], 0, ',', '.') ?> familias</span>
+        <span class="text-secondary small">Total registrados: <?= count($detalleHermanos) ?> familias</span>
       </div>
 
       <!-- Buscador en tiempo real -->
@@ -181,15 +171,11 @@ $donutFamiliasConfig = [
           <span class="input-group-text bg-light border-end-0">
             <i class="bi bi-search text-secondary" aria-hidden="true"></i>
           </span>
-          <input type="search"
+          <input type="text"
                  id="buscarHermanos"
-                 name="q"
-                 form="formFiltrosEstadisticas"
-                 value="<?= htmlspecialchars((string) $q) ?>"
                  class="form-control border-start-0"
                  placeholder="Buscar por representante o alumno..."
-                 aria-label="Buscar representante o alumno"
-                 autocomplete="off">
+                 aria-label="Buscar representante o alumno">
         </div>
       </div>
     </div>
@@ -295,39 +281,13 @@ $donutFamiliasConfig = [
             <?php endforeach; ?>
           <?php endif; ?>
 
+          <tr id="sinResultadosHermanos" class="d-none">
+            <td colspan="7" class="text-center text-secondary py-4">
+              No se encontraron coincidencias para la búsqueda.
+            </td>
+          </tr>
         </tbody>
       </table>
-    </div>
-
-    <div class="data-panel__footer">
-      <span>
-        Mostrando <?= (int) $paginacionHermanos['desde'] ?> a <?= (int) $paginacionHermanos['hasta'] ?>
-        de <?= number_format((int) $paginacionHermanos['total'], 0, ',', '.') ?> representantes
-      </span>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <label for="perPageHermanos" class="small text-secondary mb-0">Filas</label>
-        <select id="perPageHermanos"
-                name="per_page"
-                form="formFiltrosEstadisticas"
-                class="form-select form-select-sm"
-                style="width: auto"
-                aria-label="Filas por página">
-          <?php foreach ([25, 50, 100] as $opcion): ?>
-            <option value="<?= $opcion ?>" <?= (int) $paginacionHermanos['per_page'] === $opcion ? 'selected' : '' ?>>
-              <?= $opcion ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-        <?php
-        $paginacion = [
-            'pagina_actual' => (int) $paginacionHermanos['pagina_actual'],
-            'total_paginas' => (int) $paginacionHermanos['total_paginas'],
-        ];
-        $paginacionAriaLabel = 'Paginación de Control de Hermanos';
-        include __DIR__ . '/../../partials/pagination.php';
-        unset($paginacion, $paginacionAriaLabel);
-        ?>
-      </div>
     </div>
   </div>
 

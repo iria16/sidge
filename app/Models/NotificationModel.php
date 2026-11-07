@@ -33,10 +33,34 @@ class NotificationModel
                 continue;
             }
             $rolesLower[] = $rLower;
-            if (in_array($rLower, ['directivo', 'director', 'directora'], true)) {
+            if (in_array($rLower, ['directivo', 'directiva', 'director', 'directora', 'direccion', 'dirección'], true)) {
                 $rolesLower[] = 'directivo';
+                $rolesLower[] = 'directiva';
                 $rolesLower[] = 'director';
                 $rolesLower[] = 'directora';
+                $rolesLower[] = 'direccion';
+                $rolesLower[] = 'dirección';
+            }
+            if (in_array($rLower, ['admin', 'administrador', 'administradora'], true)) {
+                $rolesLower[] = 'admin';
+                $rolesLower[] = 'administrador';
+                $rolesLower[] = 'administradora';
+            }
+            if (in_array($rLower, ['secretaria', 'secretario', 'secretaría'], true)) {
+                $rolesLower[] = 'secretaria';
+                $rolesLower[] = 'secretario';
+                $rolesLower[] = 'secretaría';
+            }
+            if (in_array($rLower, ['coordinador', 'coordinadora', 'coordinacion', 'coordinación'], true)) {
+                $rolesLower[] = 'coordinador';
+                $rolesLower[] = 'coordinadora';
+                $rolesLower[] = 'coordinacion';
+                $rolesLower[] = 'coordinación';
+            }
+            if (in_array($rLower, ['docente', 'profesor', 'profesora'], true)) {
+                $rolesLower[] = 'docente';
+                $rolesLower[] = 'profesor';
+                $rolesLower[] = 'profesora';
             }
         }
         $rolesLower = array_values(array_unique($rolesLower));

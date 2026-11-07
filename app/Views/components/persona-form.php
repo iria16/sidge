@@ -91,22 +91,13 @@ $nameSexo = $prefixName . 'sexo';
     <div class="wizard-photo-upload__preview" id="<?= $idFotoPreview ?>">
       <i class="bi bi-person"></i>
     </div>
-    <label class="wizard-photo-upload__edit" for="<?= $idFotoInput ?>" title="Elegir foto">
+    <label class="wizard-photo-upload__edit" for="<?= $idFotoInput ?>">
       <i class="bi bi-pencil-fill"></i>
     </label>
-    <input type="file" id="<?= $idFotoInput ?>" name="<?= $nameFoto ?>" accept="image/*" class="d-none" data-foto-archivo>
-    <input type="file" id="<?= $idFotoInput ?>Camara" accept="image/*" capture="environment" class="d-none" data-foto-camara-input data-foto-destino="<?= $idFotoInput ?>">
+    <input type="file" id="<?= $idFotoInput ?>" name="<?= $nameFoto ?>" accept="image/*" class="d-none">
   </div>
   <div class="text-center">
     <span class="wizard-photo-upload__hint">Foto de perfil (Opcional)</span>
-    <div class="d-flex justify-content-center gap-2 mt-2">
-      <label class="btn btn-outline-primary btn-sm mb-0" for="<?= $idFotoInput ?>Camara">
-        <i class="bi bi-camera me-1" aria-hidden="true"></i>Tomar foto
-      </label>
-      <label class="btn btn-outline-secondary btn-sm mb-0" for="<?= $idFotoInput ?>" data-foto-elegir>
-        <i class="bi bi-image me-1" aria-hidden="true"></i>Elegir foto
-      </label>
-    </div>
     <div>
       <button type="button" class="btn btn-link btn-sm text-danger p-0" id="<?= $btnQuitarFotoId ?>" hidden>
         <i class="bi bi-x-circle me-1"></i>Quitar foto
@@ -126,11 +117,11 @@ $nameSexo = $prefixName . 'sexo';
       <?php
       $tipoDocId    = $prefixId ? $prefixId . 'TipoDocumento' : 'tipoDocumento';
       $tipoDocName  = $prefixName ? $prefixName . 'tipo_documento' : 'tipo_documento';
-      $tipoDocCol   = 'col-12 col-md-3';
+      $tipoDocCol   = 'col-3';
       // Las variables de opciones las provee el formulario padre o se dejan las default del componente hijo
       include __DIR__ . '/tipo-documento-select.php';
       ?>
-      <div class="col-12 col-md-5">
+      <div class="col-5">
         <label class="label-sigde" for="<?= $idNumeroDocumento ?>">Nro documento *</label>
         <div class="input-icon-group">
           <i class="bi bi-person-vcard" aria-hidden="true"></i>
@@ -148,7 +139,7 @@ $nameSexo = $prefixName . 'sexo';
             required>
         </div>
       </div>
-      <div class="col-12 col-md-4">
+      <div class="col-4">
         <label class="label-sigde" for="<?= $idFechaNacimiento ?>">Fecha de nacimiento *</label>
         <input
           type="date"
@@ -196,11 +187,13 @@ include __DIR__ . '/lugar-nacimiento-form.php';
    vacío, porque un vacío se ve y una inventada no.
 
    Por eso el campo sale sin marcar y con un aviso de que falta el dato. El `required`
-   impide guardar sin elegir. */
+   hace que no se pueda guardar sin elegir, que es justo lo que hay que hacer. */
 if ($pideNacionalidad) {
   /* Se recibe el sobre tal como lo arma getNacionalidades() —
-     ['nacionalidades' => [...], 'id_por_defecto' => int] — y se desarma aquí.
-     Todas las vistas usan la misma estructura. */
+     ['nacionalidades' => [...], 'id_por_defecto' => int] — y se desarma acá. Antes cada
+     vista lo desarmaba por su cuenta con un nombre distinto, y añadir un formulario
+     obligaba a acordarse de cuál era cuál. Con una sola forma, incluir el componente
+     y ya está. */
   $catNacionalidades = $nacionalidades ?? [];
   $listaNacionalidades = $catNacionalidades['nacionalidades'] ?? [];
   $idNacionalidadPorDefecto = (int) ($catNacionalidades['id_por_defecto']
@@ -256,7 +249,7 @@ if ($pideNacionalidad) {
   <?= $slotTrasIdentificacion ?>
 <?php endif; ?>
 
-<section class="wizard-summary__section">
+<section class="wizard-summary__section mt-2">
   <div class="wizard-summary__section-header">
     <span class="wizard-summary__icon"><i class="bi bi-person" aria-hidden="true"></i></span>
     <span class="wizard-summary__section-title">Nombres y apellidos</span>
@@ -321,7 +314,7 @@ if ($pideNacionalidad) {
   </div>
 </section>
 
-<section class="wizard-summary__section">
+<section class="wizard-summary__section mt-2">
   <div class="wizard-summary__section-header">
     <span class="wizard-summary__icon"><i class="bi bi-gender-ambiguous" aria-hidden="true"></i></span>
     <span class="wizard-summary__section-title">Sexo</span>

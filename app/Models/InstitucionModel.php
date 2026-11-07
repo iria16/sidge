@@ -8,10 +8,20 @@ use App\Support\Instituciones;
 use PDO;
 
 /**
- * InstitucionModel Catálogo `institucion`: es el único catálogo del sistema con un
- * campo extra obligatorio (el tipo), así que sobrescribe create() de CatalogModel para
- * incluirlo. El resto (Listable, Toggleable, existeNombre, getPrimaryKey, búsqueda por
- * nombre) lo hereda igual que los demás catálogos.
+ * InstitucionModel
+ *
+ * Catálogo `institucion`: es el único catálogo del sistema con un campo extra
+ * obligatorio (el tipo), así que sobrescribe create() de CatalogModel para
+ * incluirlo. El resto (Listable, Toggleable, existeNombre, getPrimaryKey,
+ * búsqueda por nombre) lo hereda igual que los demás catálogos.
+ *
+ * El tipo es el código del enum de App\Support\Instituciones
+ * (titulo_academico, preescolar, escuela), guardado en `institucion.id_tipo_institucion`.
+ *
+ * `institucion.id_tipo_institucion` es una FK a `tipo_institucion` con los ids
+ * 1 (Preescolar), 6 (Universidad) y 8 (Escuela). El enum NO cambia: sigue
+ * siendo el que decide, y `Instituciones::idCatalogo()` traduce su código al
+ * id. La tabla deja de ser un histórico y pasa a ser la que manda.
  */
 class InstitucionModel extends CatalogModel
 {
@@ -22,14 +32,16 @@ class InstitucionModel extends CatalogModel
     protected array $allowedColumns = ['id_institucion', 'nombre', 'estado', 'id_tipo_institucion', 'codigo_dea', 'es_extranjera', 'id_estado_geo', 'id_municipio', 'id_parroquia'];
 
     /**
- * Opciones de tipo para el <select> de alta rápida, en el formato que esperan los
- * modales: el código del enum (lo que viaja en el POST) y su texto. No consulta la
- * base: la lista sale del enum, que es quien sabe qué tipos existen y qué regla tiene
- * cada uno.
- *
- * @param array<int, string> $tipos Códigos del enum a ofrecer.
- * @return array<int, array{tipo: string, nombre: string}>
- */
+     * Opciones de tipo para el <select> de alta rápida, en el formato que
+     * esperan los modales: el código del enum (lo que viaja en el POST) y su
+     * texto.
+     *
+     * No consulta la base: la lista sale del enum, que es quien sabe qué tipos
+     * existen y qué regla tiene cada uno.
+     *
+     * @param array<int, string> $tipos Códigos del enum a ofrecer.
+     * @return array<int, array{tipo: string, nombre: string}>
+     */
     public function tiposFormulario(array $tipos): array
     {
         return array_map(
@@ -68,10 +80,16 @@ class InstitucionModel extends CatalogModel
     }
 
     /**
- * Alta de institución. Escribe el tipo a través de la FK `id_tipo_institucion`.
- *
- * @param array $data Se espera 'nombre' y 'tipo' (código del enum).
- */
+     * Alta de institución.
+     *
+     * Escribe el tipo a través de la FK `id_tipo_institucion`. La columna
+     * histórica `tipo` (texto) fue eliminada: el catálogo manda.
+     *
+     * El id no se toma del formulario: sale del enum, que es quien sabe qué
+     * categoría es cada tipo.
+     *
+     * @param array $data Se espera 'nombre' y 'tipo' (código del enum).
+     */
     public function create(array $data): bool
     {
         return $this->createAndGetId($data) > 0;
@@ -98,10 +116,14 @@ class InstitucionModel extends CatalogModel
     }
 
     /**
- * Edición de institución. Actualiza el tipo a través de la FK.
- *
- * @param array $data Se espera 'nombre' y 'tipo' (código del enum).
- */
+     * Edición de institución. Actualiza el tipo a través de la FK.
+     *
+     * El padre (CatalogModel) solo toca `nombre`, así que sin este sobrescribe
+     * el tipo quedaría congelado con el valor del alta. Desde la pantalla de
+     * Catálogos se puede corregir una institución creada por error.
+     *
+     * @param array $data Se espera 'nombre' y 'tipo' (código del enum).
+     */
     public function update(int $id, array $data): bool
     {
         $tipo = trim((string) ($data['tipo'] ?? ''));
@@ -117,14 +139,24 @@ class InstitucionModel extends CatalogModel
     }
 
     /**
- * Datos de alta y de edición, ya resueltos según sea nacional o extranjera. Las dos
- * rutas (alta y edición) arman el mismo conjunto de columnas, y por eso viven en un
- * solo método: si divergieran, corregir un alta y no una edición dejaría la base con
- * datos distintos según por dónde se tocó.
- *
- * @param string $tipo Código del enum de App\Support\Instituciones.
- * @return array<string, int|string|null>
- */
+     * Datos de alta y de edición, ya resueltos según sea nacional o extranjera.
+     *
+     * Las dos rutas (alta y edición) arman el mismo conjunto de columnas, y por
+     * eso viven en un solo método: si divergieran, corregir un alta y no una
+     * edición dejaría la base con datos distintos según por dónde se tocó.
+     *
+     * La regla de fondo es una sola: **si es extranjera, se ignoran los datos
+     * nacionales; si es nacional, se ignoran los extranjeros.** Eso evita que un
+     * cambio de interruptor deje datos viejos pegados: si alguien marca
+     * "extranjera" y guarda, el estado, el municipio y la parroquia se van a
+     * NULL en vez de quedarse ahí sin que se usen.
+     *
+     * El código DEA tiene su propio matiz: se ignora cuando es extranjera, y
+     * cuando es nacional solo aplica a preescolar y escuela.
+     *
+     * @param string $tipo Código del enum de App\Support\Instituciones.
+     * @return array<string, int|string|null>
+     */
     private function datosDeAlta(array $data, string $tipo): array
     {
         $esExtranjera = $this->esExtranjera($data);
@@ -175,11 +207,14 @@ class InstitucionModel extends CatalogModel
     }
 
     /**
- * Código DEA: obligatorio en preescolar y escuela, y en universidad se guarda NULL
- * aunque venga informado. Se guarda como NULL cuando no aplica, nunca como cadena
- * vacía: `codigo_dea` tiene índice UNIQUE, y dos universidades sin código con ''
- * chocarían una contra otra.
- */
+     * Código DEA: obligatorio en preescolar y escuela, y en universidad se
+     * guarda NULL aunque venga informado.
+     *
+     * Se guarda como NULL cuando no aplica, nunca como cadena vacía:
+     * `codigo_dea` tiene índice UNIQUE, y dos universidades sin código con ''
+     * chocarían una contra otra. Los NULL no chocan entre sí porque en un
+     * índice UNIQUE los nulos no se consideran duplicados.
+     */
     private function codigoDea(array $data): ?string
     {
         $tipo = trim((string) ($data['tipo'] ?? ''));

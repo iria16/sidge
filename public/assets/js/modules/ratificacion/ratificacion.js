@@ -751,23 +751,28 @@ document.addEventListener('DOMContentLoaded', function () {
   let idEstudianteActual = 0;
   let representanteInicial = null;
 
-  function sincronizarRecaudosDinamicos() {
+  function sincronizarRecaudosDinamicos(esCargaInicial) {
     const panelRec = document.getElementById('recaudosModalEditar');
     if (!panelRec || !window.SIGDERecaudos) return;
 
-    // 1. Guardar estado visible actual marcado en la tabla
+    // 1. Guardar estado visible actual marcado en la tabla solo si no es carga inicial
     const estadosActuales = {};
-    panelRec.querySelectorAll('[data-recaudo-row]').forEach(function (tr) {
-      const toggle = tr.querySelector('[data-recaudo-toggle]');
-      const obs = tr.querySelector('[data-recaudo-observacion]');
-      if (toggle) {
-        const key = toggle.getAttribute('data-recaudo-toggle');
-        estadosActuales[key] = {
-          consignado: toggle.checked ? 1 : 0,
-          observacion: obs ? obs.value : ''
-        };
-      }
-    });
+    if (!esCargaInicial) {
+      panelRec.querySelectorAll('[data-recaudo-row]').forEach(function (tr) {
+        const toggle = tr.querySelector('[data-recaudo-toggle]');
+        const obs = tr.querySelector('[data-recaudo-observacion]');
+        if (toggle) {
+          const key = toggle.getAttribute('data-recaudo-toggle');
+          estadosActuales[key] = {
+            consignado: toggle.checked ? 1 : 0,
+            observacion: obs ? obs.value : ''
+          };
+        }
+      });
+    } else {
+      const cuerpo = panelRec.querySelector('[data-recaudos-form] tbody');
+      if (cuerpo) cuerpo.innerHTML = '';
+    }
 
     const familiares = familiaresUI.lista();
     const repActual = familiares.find(function (f) {
@@ -788,6 +793,7 @@ document.addEventListener('DOMContentLoaded', function () {
       ? String(repActual.numero_documento).replace(/\D/g, '')
       : '';
     const cambioDeRepresentante = repActualDoc !== '' && repInicialDoc !== '' && repActualDoc !== repInicialDoc;
+    const repDoc = repActualDoc;
 
     // 2. Filtrar autorizados para retiro que NO sean el representante ni padre/madre
     const autorizadosRetiro = familiares.filter(function (f) {
@@ -815,7 +821,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 3.2 Foto y Cédula del Representante Legal (SIEMPRE con el nombre del representante actual)
     const baseFotoRep = recaudosBaseEstudiante.find(function (r) { return r.codigo === 'foto_representante'; });
-    const fotoKey = cambioDeRepresentante ? 'tipo_5' : (baseFotoRep ? baseFotoRep.id : 'tipo_5');
+    const fotoKey = cambioDeRepresentante
+      ? ('tipo_5' + (repDoc ? '_' + repDoc : ''))
+      : (baseFotoRep ? baseFotoRep.id : ('tipo_5' + (repDoc ? '_' + repDoc : '')));
     lista.push({
       id: fotoKey,
       codigo: 'foto_representante',
@@ -832,7 +840,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     const baseCedulaRep = recaudosBaseEstudiante.find(function (r) { return r.codigo === 'cedula_representante'; });
-    const cedulaKey = cambioDeRepresentante ? 'tipo_9' : (baseCedulaRep ? baseCedulaRep.id : 'tipo_9');
+    const cedulaKey = cambioDeRepresentante
+      ? ('tipo_9' + (repDoc ? '_' + repDoc : ''))
+      : (baseCedulaRep ? baseCedulaRep.id : ('tipo_9' + (repDoc ? '_' + repDoc : '')));
     lista.push({
       id: cedulaKey,
       codigo: 'cedula_representante',
@@ -851,7 +861,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // 3.3 Permiso de la LOPNNA: SOLO si el representante actual no es padre ni madre
     if (exigeLopnna) {
       const baseLopnna = recaudosBaseEstudiante.find(function (r) { return r.codigo === 'permiso_lopnna'; });
-      const lopnnaKey = cambioDeRepresentante ? 'tipo_12' : (baseLopnna ? baseLopnna.id : 'tipo_12');
+      const lopnnaKey = cambioDeRepresentante
+        ? ('tipo_12' + (repDoc ? '_' + repDoc : ''))
+        : (baseLopnna ? baseLopnna.id : ('tipo_12' + (repDoc ? '_' + repDoc : '')));
       lista.push({
         id: lopnnaKey,
         codigo: 'permiso_lopnna',
@@ -871,15 +883,26 @@ document.addEventListener('DOMContentLoaded', function () {
     // 3.4 Documentos para personas autorizadas a retirar (no padre/madre)
     autorizadosRetiro.forEach(function (aut) {
       const autNombre = (aut.primer_nombre + ' ' + (aut.primer_apellido || '')).trim();
+      const autNombreCompleto = [aut.primer_nombre, aut.segundo_nombre, aut.primer_apellido, aut.segundo_apellido].filter(Boolean).join(' ').trim().toLowerCase();
       const autDoc = (aut.numero_documento || '').replace(/\D/g, '');
       const keyRetiro = 'tipo_10' + (autDoc ? '_' + autDoc : '');
       const keyCedula = 'tipo_11' + (autDoc ? '_' + autDoc : '');
 
       const baseRetiro = recaudosBaseEstudiante.find(function (r) {
-        return r.codigo === 'autorizacion_retiro' && (r.persona_nombre || '').trim() === autNombre;
+        if (r.codigo !== 'autorizacion_retiro') return false;
+        const rDoc = (r.documento_persona || '').replace(/\D/g, '');
+        if (autDoc && rDoc && autDoc === rDoc) return true;
+        const rNombre = (r.persona_nombre || '').trim().toLowerCase();
+        if (rNombre && (rNombre === autNombre.toLowerCase() || rNombre === autNombreCompleto || rNombre.includes(autNombre.toLowerCase()))) return true;
+        return !autDoc && !rDoc;
       });
       const baseCedulaAut = recaudosBaseEstudiante.find(function (r) {
-        return r.codigo === 'cedula_autorizada' && (r.persona_nombre || '').trim() === autNombre;
+        if (r.codigo !== 'cedula_autorizada') return false;
+        const rDoc = (r.documento_persona || '').replace(/\D/g, '');
+        if (autDoc && rDoc && autDoc === rDoc) return true;
+        const rNombre = (r.persona_nombre || '').trim().toLowerCase();
+        if (rNombre && (rNombre === autNombre.toLowerCase() || rNombre === autNombreCompleto || rNombre.includes(autNombre.toLowerCase()))) return true;
+        return !autDoc && !rDoc;
       });
 
       const idRetiro = baseRetiro ? baseRetiro.id : keyRetiro;
@@ -930,14 +953,14 @@ document.addEventListener('DOMContentLoaded', function () {
       return true;
     },
     alCambiar: function () {
-      sincronizarRecaudosDinamicos();
+      sincronizarRecaudosDinamicos(false);
     }
   });
 
   async function abrirEditor(id, tabInicial, editarRepresentante, modalOrigen) {
     if (!modalEditarEl || !id) return;
 
-    modalPadreActivo = modalOrigen || modalRatificarEl;
+    modalPadreActivo = modalOrigen || (modalRatificarEl && modalRatificarEl.classList.contains('show') ? modalRatificarEl : null);
     if (modalPadreActivo) {
       modalPadreActivo.dataset.enEdicion = '1';
       const abierto = bootstrap.Modal.getInstance(modalPadreActivo);
@@ -947,6 +970,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputId = document.getElementById('editEstudianteId');
     if (!inputId || !id) return;
     inputId.value = id;
+
+    const btnGuardar = document.querySelector('button[form="formEditarEstudiante"]');
+    if (btnGuardar) {
+      btnGuardar.disabled = false;
+      btnGuardar.innerHTML = '<i class="bi bi-floppy me-1"></i> Guardar Cambios';
+    }
 
     inicializarPuntosEdicion();
 
@@ -1063,8 +1092,11 @@ document.addEventListener('DOMContentLoaded', function () {
       representanteInicial = (d.familiares || []).find(function (f) {
         return (Number(f.representante_principal) === 1 || f.representante_principal === true);
       }) || null;
-      familiaresUI.cargar(d.familiares || []);
-      sincronizarRecaudosDinamicos();
+      if (d.catalogos) {
+        window.__CATALOGOS_FAMILIARES__ = d.catalogos;
+      }
+      familiaresUI.cargar(d.familiares || [], d.catalogos || null);
+      sincronizarRecaudosDinamicos(true);
 
       // Los bloques plegables se abren si hay algo guardado adentro.
     ['talla', 'medica'].forEach(function (clave) {
@@ -1165,9 +1197,6 @@ async function guardarDatosEstudiante() {
         }
       }
 
-      bloquearBoton(btn,
-        '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...');
-
       const confirmado = await SIGDEUI.confirmar({
         icono: 'warning',
         titulo: '¿Guardar los cambios?',
@@ -1175,6 +1204,9 @@ async function guardarDatosEstudiante() {
         confirmar: 'Sí, guardar'
       });
       if (!confirmado) return;
+
+      bloquearBoton(btn,
+        '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...');
 
       /* El JSON de los familiares lo escribe el módulo, que es quien tiene la lista:
  el hidden viaja dentro del FormData solo si ya está al día.*/
@@ -1218,13 +1250,33 @@ async function guardarDatosEstudiante() {
 
       SIGDEUI.exito(sobre.data.mensaje || 'Datos actualizados correctamente.', '¡Listo!');
       modalEditarEl.dataset.recargarExpediente = '1';
+
+      // Actualizar recaudosBaseEstudiante con los valores actuales guardados
+      if (panelRec) {
+        panelRec.querySelectorAll('[data-recaudo-row]').forEach(function (tr) {
+          const toggle = tr.querySelector('[data-recaudo-toggle]');
+          const obs = tr.querySelector('[data-recaudo-observacion]');
+          if (!toggle) return;
+          const key = toggle.getAttribute('data-recaudo-toggle');
+          const encontrado = recaudosBaseEstudiante.find(function (r) {
+            return String(r.id) === String(key);
+          });
+          if (encontrado) {
+            encontrado.consignado = toggle.checked ? 1 : 0;
+            encontrado.observacion = obs ? obs.value : '';
+          }
+        });
+      }
+
       bootstrap.Modal.getOrCreateInstance(modalEditarEl).hide();
     } catch (err) {
       console.error('Error al guardar los datos del estudiante:', err);
       SIGDEUI.mostrarError('No se pudo conectar con el servidor.');
     } finally {
       enviandoDatos = false;
-      if (!guardado) desbloquearBoton(btn, oldHtml);
+      if (btn) {
+        desbloquearBoton(btn, oldHtml || '<i class="bi bi-floppy me-1"></i> Guardar Cambios');
+      }
     }
   }
 
@@ -1290,13 +1342,13 @@ async function guardarDatosEstudiante() {
           delete padre.dataset.enEdicion;
           bootstrap.Modal.getOrCreateInstance(padre).show();
         }, 150);
-      } else if (modalRatificarEl) {
-        setTimeout(function () {
-          delete modalRatificarEl.dataset.enEdicion;
-          bootstrap.Modal.getOrCreateInstance(modalRatificarEl).show();
-        }, 150);
       } else if (modalEditarEl.dataset.recargarExpediente === '1') {
-        window.location.reload();
+        const formFiltros = document.querySelector('form.data-panel__filters, form.auto-filters');
+        if (formFiltros && typeof formFiltros.refreshDataPanel === 'function') {
+          formFiltros.refreshDataPanel();
+        } else {
+          window.location.reload();
+        }
       }
       delete modalEditarEl.dataset.recargarExpediente;
     });

@@ -16,12 +16,14 @@ class ParentescoModel extends CatalogModel
     protected string $campoNombre = 'nombre';
 
     /**
- * Nombres de los parentescos ACTIVOS. Los módulos de inscripción y ratificación
- * validan el `familiares_json` contra esta lista: si el catálogo cambia, ambos dejan
- * de aceptar el mismo parentesco sin tocar el controlador.
- *
- * @return string[]
- */
+     * Nombres de los parentescos ACTIVOS.
+     *
+     * Los módulos de inscripción y ratificación validan el `familiares_json`
+     * contra esta lista: si el catálogo cambia, ambos dejan de aceptar el mismo
+     * parentesco sin tocar el controlador.
+     *
+     * @return string[]
+     */
     public function nombresActivos(): array
     {
         $stmt = $this->pdo->prepare(

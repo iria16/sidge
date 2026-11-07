@@ -56,7 +56,7 @@ trait AvatarTrait
      * Decide cómo debe pintarse el avatar: si la persona tiene foto
      * asignada (persona.foto), se usa esa; si no, se cae a iniciales+color.
      * Única fuente de verdad para esta decisión — así ninguna pantalla
-     * puede omitir revisar la foto antes de generar iniciales.
+     * puede "olvidarse" de revisar la foto antes de generar iniciales.
      *
      * @param string|null $foto      valor de persona.foto (ruta relativa, ej. 'uploads/fotos/123.jpg')
      * @param string|null $nombre    primer_nombre de la persona

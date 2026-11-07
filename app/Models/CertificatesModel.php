@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Traits\OpcionesCatalogoTrait;
 use PDO;
 
 /**
- * CertificatesModel --------------- Modelo unificado para la gestión y consulta de
- * datos académicos requeridos en la emisión de Constancias oficiales (Estudio,
- * Inscripción / Ratificación, Prosecución y Retiro).
+ * CertificatesModel
+ * ---------------
+ * Modelo unificado para la gestión y consulta de datos académicos requeridos en la
+ * emisión de Constancias oficiales (Estudio, Inscripción / Ratificación, Prosecución y Retiro).
+ *
+ * Los datos se resuelven exclusivamente desde la base de datos a partir de
+ * las tablas estudiante, persona, matricula, estructura_academica, grado,
+ * seccion, anio_escolar, parroquia, municipio, estado, retiro y resultado_academico.
  */
 class CertificatesModel extends BaseModel
 {
-    use OpcionesCatalogoTrait;
-
     protected string $table = 'estudiante';
     protected string $primaryKey = 'id_estudiante';
 
@@ -23,10 +25,11 @@ class CertificatesModel extends BaseModel
     protected array $allowedColumns = ['id_estudiante', 'id_persona'];
 
     /**
- * Fragmento SQL canónico de la condición única de elegibilidad para Constancia de
- * Estudio: - Persona con estado ACTIVO. - Matrícula de tipo INSCRIPCION o RATIFICACION
- * en el año escolar activo.
- */
+     * Fragmento SQL canónico de la condición única de elegibilidad para Constancia de Estudio:
+     * - Persona con estado ACTIVO.
+     * - Matrícula de tipo INSCRIPCION o RATIFICACION en el año escolar activo.
+     * - Último movimiento del estudiante distinto de RETIRO y EGRESO (ordenado por fecha_matricula DESC, id_matricula DESC).
+     */
     public function sqlCondicionElegibilidadEstudio(): string
     {
         return "p.estado = 'ACTIVO'
@@ -35,7 +38,7 @@ class CertificatesModel extends BaseModel
                 FROM matricula m_act
                 WHERE m_act.id_estudiante = est.id_estudiante
                   AND m_act.id_anio_escolar = :id_anio_activo
-                  AND m_act.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                  AND m_act.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
             )
             AND (
                 SELECT m_sub.tipo
@@ -113,7 +116,7 @@ class CertificatesModel extends BaseModel
                   WHERE id_matricula = :id_matricula 
                     AND id_estudiante = :id_estudiante 
                     AND id_anio_escolar = :id_anio_activo
-                    AND tipo IN ('INSCRIPCION', 'RATIFICACION') 
+                    AND tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO') 
                   LIMIT 1"
             );
             $stmt->execute([
@@ -129,7 +132,7 @@ class CertificatesModel extends BaseModel
                FROM matricula 
               WHERE id_estudiante = :id_estudiante 
                 AND id_anio_escolar = :id_anio_activo
-                AND tipo IN ('INSCRIPCION', 'RATIFICACION') 
+                AND tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO') 
               LIMIT 1"
         );
         $stmt->execute([
@@ -196,14 +199,6 @@ class CertificatesModel extends BaseModel
                 AND (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
                 AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
                 AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
-                /* Constancia de Procesución: solo si el estudiante tiene un retiro aprobado
-                   (se retiró y, además, fue promovido). Sin retiro aprobado no se emite. */
-                AND EXISTS (
-                    SELECT 1 FROM retiro r
-                    INNER JOIN matricula m ON m.id_matricula = r.id_matricula
-                   WHERE m.id_estudiante = ra.id_estudiante
-                     AND r.estado_solicitud = 'APROBADO'
-                )
               LIMIT 1"
         );
         $stmt->execute([
@@ -214,11 +209,11 @@ class CertificatesModel extends BaseModel
     }
 
     /**
- * Valida si un estudiante o registro de egreso es elegible para el Certificado de
- * Educación Primaria: Opera exclusivamente mientras el año escolar está ACTIVO. El
- * estudiante cursa 6to grado en el año escolar activo y tiene literal aprobatorio (A,
- * B, C o D) cargado por el docente o un registro formal en la tabla egreso.
- */
+     * Valida si un estudiante o registro de egreso es elegible para el Certificado de Educación Primaria:
+     * Opera exclusivamente mientras el año escolar está ACTIVO.
+     * El estudiante cursa 6to grado en el año escolar activo y tiene literal aprobatorio (A, B, C o D)
+     * cargado por el docente o un registro formal en la tabla egreso.
+     */
     public function esElegibleParaEgreso(int $idEgreso, ?int $idEstudiante = null): bool
     {
         if ($idEgreso <= 0 && ($idEstudiante === null || $idEstudiante <= 0)) {
@@ -256,7 +251,7 @@ class CertificatesModel extends BaseModel
                                                AND ra.id_anio_escolar = m.id_anio_escolar
               WHERE {$whereCond}
                 AND m.id_anio_escolar = :id_anio_activo
-                AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'EGRESO')
+                AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO', 'EGRESO')
                 AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) = 6
                 AND (
                     eg.id_egreso IS NOT NULL
@@ -270,15 +265,15 @@ class CertificatesModel extends BaseModel
     }
 
     /**
- * MÉTODO UNIFICADO DE LISTADO: Retorna las filas para el listado según el tipo
- * seleccionado y sus condiciones de elegibilidad.
- *
- * @param string $tipo 'estudio' | 'inscripcion' | 'prosecucion' | 'retiro' | 'egreso'
- * @param array $filters
- * @param int $page
- * @param int $perPage
- * @return array
- */
+     * MÉTODO UNIFICADO DE LISTADO:
+     * Retorna las filas para el listado según el tipo seleccionado y sus condiciones de elegibilidad.
+     *
+     * @param string $tipo 'estudio' | 'inscripcion' | 'prosecucion' | 'retiro' | 'egreso'
+     * @param array $filters
+     * @param int $page
+     * @param int $perPage
+     * @return array
+     */
     public function getListado(string $tipo, array $filters = [], int $page = 1, int $perPage = 10): array
     {
         return match ($tipo) {
@@ -342,7 +337,7 @@ class CertificatesModel extends BaseModel
                     FROM matricula m2
                     WHERE m2.id_estudiante = est.id_estudiante
                       AND m2.id_anio_escolar = :id_anio_activo_join
-                      AND m2.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                      AND m2.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                     ORDER BY m2.fecha_matricula DESC, m2.id_matricula DESC
                     LIMIT 1
                 )
@@ -396,7 +391,7 @@ class CertificatesModel extends BaseModel
                     FROM matricula m2
                     WHERE m2.id_estudiante = est.id_estudiante
                       AND m2.id_anio_escolar = :id_anio_activo_join
-                      AND m2.tipo IN ('INSCRIPCION', 'RATIFICACION')
+                      AND m2.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                     ORDER BY m2.fecha_matricula DESC, m2.id_matricula DESC
                     LIMIT 1
                 )
@@ -451,7 +446,7 @@ class CertificatesModel extends BaseModel
                 INNER JOIN anio_escolar a ON a.id_anio_escolar = m.id_anio_escolar
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                WHERE m.tipo IN ('INSCRIPCION', 'RATIFICACION')";
+                WHERE m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -489,7 +484,7 @@ class CertificatesModel extends BaseModel
                 INNER JOIN anio_escolar a ON a.id_anio_escolar = m.id_anio_escolar
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                WHERE m.tipo IN ('INSCRIPCION', 'RATIFICACION')";
+                WHERE m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -641,18 +636,11 @@ class CertificatesModel extends BaseModel
                 INNER JOIN estructura_academica ea ON ea.id_estructura_academica = ra.id_estructura_academica
                 INNER JOIN anio_escolar a ON a.id_anio_escolar = ra.id_anio_escolar
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
-                 LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
-                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                 WHERE (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
-                   AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
-                   AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
-                   /* Constancia de Procesución: solo estudiantes con retiro aprobado. */
-                   AND EXISTS (
-                       SELECT 1 FROM retiro r
-                       INNER JOIN matricula m2 ON m2.id_matricula = r.id_matricula
-                      WHERE m2.id_estudiante = est.id_estudiante
-                        AND r.estado_solicitud = 'APROBADO'
-                   )";
+                LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
+                LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
+                WHERE (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
+                  AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
+                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -695,14 +683,7 @@ class CertificatesModel extends BaseModel
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
                 WHERE (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
                   AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
-                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
-                  /* Constancia de Procesución: solo estudiantes con retiro aprobado. */
-                  AND EXISTS (
-                      SELECT 1 FROM retiro r
-                      INNER JOIN matricula m2 ON m2.id_matricula = r.id_matricula
-                     WHERE m2.id_estudiante = est.id_estudiante
-                       AND r.estado_solicitud = 'APROBADO'
-                  )";
+                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -781,7 +762,7 @@ class CertificatesModel extends BaseModel
                     LEFT JOIN (
                         SELECT id_estudiante, MAX(id_matricula) AS max_mat_cursando
                         FROM matricula
-                        WHERE tipo IN ('INSCRIPCION', 'RATIFICACION')
+                        WHERE tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
                         GROUP BY id_estudiante
                     ) ult_cursando ON ult_cursando.id_estudiante = est.id_estudiante
                     LEFT JOIN matricula m_cursando ON m_cursando.id_matricula = ult_cursando.max_mat_cursando
@@ -840,6 +821,12 @@ class CertificatesModel extends BaseModel
             'total'   => $total,
             'activos' => $total,
         ];
+    }
+
+    public function getAniosEscolares(): array
+    {
+        return $this->pdo->query("SELECT id_anio_escolar, nombre_periodo, estado FROM anio_escolar ORDER BY anio_inicio DESC")
+                         ->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getGrados(): array
@@ -1132,18 +1119,11 @@ class CertificatesModel extends BaseModel
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                 WHERE ra.id_resultado = :id_resultado
-                   AND (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
-                   AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
-                   AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
-                   /* Constancia de Procesución: solo si el estudiante tiene un retiro aprobado. */
-                   AND EXISTS (
-                       SELECT 1 FROM retiro r
-                       INNER JOIN matricula m2 ON m2.id_matricula = r.id_matricula
-                      WHERE m2.id_estudiante = est.id_estudiante
-                        AND r.estado_solicitud = 'APROBADO'
-                   )
-                 LIMIT 1";
+                WHERE ra.id_resultado = :id_resultado
+                  AND (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
+                  AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
+                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                LIMIT 1";
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(['id_resultado' => $idResultado]);
@@ -1165,8 +1145,11 @@ class CertificatesModel extends BaseModel
     }
 
     /**
- * Listado para Certificado de Educación Primaria / Egreso:.
- */
+     * Listado para Certificado de Educación Primaria / Egreso:
+     * Reconoce automáticamente a todos los estudiantes de 6to grado en el año escolar activo
+     * que tengan literal aprobatorio (A, B, C o D) cargado por el docente o que ya posean
+     * un registro en la tabla egreso.
+     */
     public function getEstudiantesEgreso(array $filters = [], int $page = 1, int $perPage = 10): array
     {
         $idAnioActivo = \App\Support\AniosEscolares::idEnCurso($this->pdo);
@@ -1214,7 +1197,7 @@ class CertificatesModel extends BaseModel
                 LEFT JOIN resultado_academico ra ON ra.id_estudiante = est.id_estudiante
                                                 AND ra.id_anio_escolar = m.id_anio_escolar
                 WHERE m.id_anio_escolar = :id_anio_activo
-                  AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'EGRESO')
+                  AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO', 'EGRESO')
                   AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) = 6
                   AND (
                       eg.id_egreso IS NOT NULL
@@ -1270,7 +1253,7 @@ class CertificatesModel extends BaseModel
                 LEFT JOIN resultado_academico ra ON ra.id_estudiante = est.id_estudiante
                                                 AND ra.id_anio_escolar = m.id_anio_escolar
                 WHERE m.id_anio_escolar = :id_anio_activo
-                  AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'EGRESO')
+                  AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO', 'EGRESO')
                   AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) = 6
                   AND (
                       eg.id_egreso IS NOT NULL
@@ -1390,7 +1373,7 @@ class CertificatesModel extends BaseModel
                 LEFT JOIN resultado_academico ra ON ra.id_estudiante = est.id_estudiante
                                                 AND ra.id_anio_escolar = m.id_anio_escolar
                 WHERE {$whereCond}
-                  AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'EGRESO')
+                  AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO', 'EGRESO')
                   AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) = 6
                   AND (
                       eg.id_egreso IS NOT NULL
@@ -1420,12 +1403,14 @@ class CertificatesModel extends BaseModel
     }
 
     /**
- * Tipos de constancia que puede emitir un rol. Estudio e Inscripción están abiertos a
- * los roles con acceso al módulo; Prosecución, Retiro y Egreso son exclusivos de
- * secretaría.
- *
- * @return array<string, string> clave técnica => etiqueta visible
- */
+     * Tipos de constancia que puede emitir un rol.
+     *
+     * Estudio e Inscripción están abiertos a los roles con acceso al módulo;
+     * Prosecución, Retiro y Egreso son exclusivos de secretaría. La regla vive
+     * aquí y no en el controlador para que una nueva vista no la reimplemente.
+     *
+     * @return array<string, string> clave técnica => etiqueta visible
+     */
     public static function tiposPermitidosPorRol(string $rol): array
     {
         $tipos = [
@@ -1443,12 +1428,12 @@ class CertificatesModel extends BaseModel
     }
 
     /**
- * Carga la configuración institucional reutilizando la conexión del request.
- * Configuracion guarda el PDO en estático; inyectarlo aquí evita que abra una segunda
- * conexión y mantiene el PDO fuera del controlador.
- *
- * @return array<string, string>
- */
+     * Carga la configuración institucional reutilizando la conexión del request.
+     * Configuracion guarda el PDO en estático; inyectarlo aquí evita que abra
+     * una segunda conexión y mantiene el PDO fuera del controlador.
+     *
+     * @return array<string, string>
+     */
     public function getConfiguracion(): array
     {
         \App\Support\Configuracion::setPdo($this->pdo);

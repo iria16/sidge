@@ -713,7 +713,7 @@ CREATE TABLE `matricula` (
   `fecha_matricula` date NOT NULL,
   `id_anio_escolar` int(11) NOT NULL,
   `id_estructura_academica` int(11) NOT NULL,
-  `tipo` enum('INSCRIPCION','RATIFICACION','RETIRO','EGRESO') NOT NULL,
+  `tipo` enum('INSCRIPCION','RATIFICACION','RETIRO','EGRESO','REINGRESO') NOT NULL,
   `motivo_anticipo` varchar(200) DEFAULT NULL,
   `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id_matricula`),
@@ -3041,8 +3041,7 @@ LOCK TABLES `turno` WRITE;
 /*!40000 ALTER TABLE `turno` DISABLE KEYS */;
 INSERT INTO `turno` VALUES
 (1,'Tarde','ACTIVO'),
-(2,'Mañana','ACTIVO'),
-(3,'Tiempo Completo','ACTIVO');
+(2,'Mañana','ACTIVO');
 /*!40000 ALTER TABLE `turno` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;

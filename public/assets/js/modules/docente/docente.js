@@ -2,7 +2,7 @@
  * Módulo Docente: búsqueda sin recargar y agrupación por representante.
  *
  * La agrupación NO vuelve a pedir la lista al servidor: usa el mismo JSON que
- * ya venía con la página. Es de propósito. Si el interruptor cambiara el conjunto
+ * ya venía con la página. Es a propósito. Si el interruptor cambiara el conjunto
  * de datos, el contador del encabezado dejaría de cuadrar con la tabla, que es
  * justo la clase de sorpresa que hace desconfiar de una pantalla.
  *

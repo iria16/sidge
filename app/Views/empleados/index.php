@@ -13,7 +13,14 @@
 $pageTitle       = 'Gestión de Empleados';
 $pageDescription = 'Administre el personal docente, administrativo y auxiliar de la institución.';
 $currentNav      = 'empleados';
-$extraScripts    = ['/js/empleado.js']; // la version la agrega partials/scripts.php
+$extraScripts    = [
+    '/js/modules/empleados/empleado-comun.js',
+    '/js/modules/empleados/empleado-listado.js',
+    '/js/modules/empleados/empleado-alta.js',
+    '/js/modules/empleados/empleado-editar.js',
+    '/js/modules/empleados/empleado-reposo.js',
+    '/js/modules/empleados/empleado-estado.js',
+];
 $breadcrumbs     = [['label' => 'Personal', 'href' => null], ['label' => 'Empleados', 'href' => null]];
 
 // ---------- Valores por defecto (contrato de variables de la vista) ----------
@@ -31,7 +38,6 @@ $puedeGestionar   = $puedeGestionar ?? (function_exists('App\Traits\sigde_rol_cl
 
 // Filtros activos (se reflejan en los <select> al recargar)
 $filtroCargo  = (string) ($_GET['cargo'] ?? '');
-$filtroTurno  = (string) ($_GET['turno'] ?? '');
 $filtroEstado = (string) ($_GET['estado'] ?? '');
 
 ob_start(); // todo lo que sigue se captura en $pageContent
@@ -84,15 +90,6 @@ ob_start();
   <?php foreach ($cargos as $cargo): ?>
     <option value="<?= (int) $cargo['id_cargo'] ?>" <?= $filtroCargo === (string) $cargo['id_cargo'] ? 'selected' : '' ?>>
       <?= htmlspecialchars($cargo['nombre']) ?>
-    </option>
-  <?php endforeach; ?>
-</select>
-<select name="turno" class="form-select" aria-label="Filtrar por turno">
-  <option value="">Turno (Todos)</option>
-  <?php foreach ($turnos as $turno): ?>
-    <?php $idTurno = (int) $turno['id_turno']; ?>
-    <option value="<?= $idTurno ?>" <?= $filtroTurno === (string) $idTurno ? 'selected' : '' ?>>
-      <?= htmlspecialchars((string) $turno['nombre']) ?>
     </option>
   <?php endforeach; ?>
 </select>

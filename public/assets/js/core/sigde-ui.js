@@ -80,7 +80,7 @@ window.SIGDEUI = (function () {
  * Sesión vencida: el front controller (index.php) responde JSON con
  * codigo 'sesion_expirada' cuando una petición AJAX llega sin sesión.
  * Se avisa y se lleva al login. Devuelve una promesa que nunca se
- * resuelve de propósito: así el código que llamó a enviar() no sigue y
+ * resuelve a propósito: así el código que llamó a enviar() no sigue y
  * no muestra un segundo error encima de este aviso; la página igual se
  * está yendo al login.
 */

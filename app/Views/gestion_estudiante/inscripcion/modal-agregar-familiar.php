@@ -132,6 +132,10 @@ ob_start();
         </label>
       </div>
 
+      <div id="avisoRecaudosRetiro" class="alert alert-info py-2 px-3 small mt-2 d-none">
+        <i class="bi bi-info-circle me-1" aria-hidden="true"></i> Al autorizar a una persona distinta a padre/madre/representante, se exigirá consignar en <strong>Recaudos</strong>: <em>Autorización de retiro</em> y <em>Copia de cédula</em>.
+      </div>
+
       <div class="wizard-toggle-card wizard-toggle-card--compact mt-2">
         <div class="wizard-toggle-card__text">
           <strong>Vive con el estudiante</strong>

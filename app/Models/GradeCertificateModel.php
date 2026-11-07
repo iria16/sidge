@@ -7,8 +7,15 @@ namespace App\Models;
 use PDO;
 
 /**
- * GradeCertificateModel ---------------------------- Modelo para la gestión de
- * Certificados de Calificaciones (según Art. 108 RGLOE).
+ * GradeCertificateModel
+ * ----------------------------
+ * Modelo para la gestión de Certificados de Calificaciones (según Art. 108 RGLOE).
+ *
+ * Este modelo gestiona:
+ * - El almacenamiento de los Certificados de Calificaciones en el sistema
+ * - La verificación de certificados existentes
+ * - La comparación con las hojas físicas del colegio
+ * - El historial de generación de certificados
  */
 class GradeCertificateModel extends BaseModel
 {
@@ -215,7 +222,7 @@ class GradeCertificateModel extends BaseModel
             LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
             WHERE est.id_estudiante = :id_estudiante
               AND m.id_estructura_academica = :id_estructura
-              AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+              AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
             LIMIT 1
         ";
 
@@ -277,7 +284,7 @@ class GradeCertificateModel extends BaseModel
                 AND ra.id_anio_escolar = m.id_anio_escolar
             LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
             WHERE m.id_estructura_academica = :id_estructura
-              AND m.tipo IN ('INSCRIPCION', 'RATIFICACION')
+              AND m.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
               AND ra.literal IS NOT NULL
               AND ra.literal != ''
             ORDER BY p.primer_apellido ASC, p.primer_nombre ASC

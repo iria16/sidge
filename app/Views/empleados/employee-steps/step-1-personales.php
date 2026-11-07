@@ -17,5 +17,13 @@ $btnQuitarFotoId = 'btnQuitarFotoRegistro';
    de familiares: los `include` de PHP comparten el scope y basta con que otra vista de
    la misma pantalla haya puesto la marca en true para que se cuele. */
 $pideMunicipioParroquiaNacimiento = false;
+
+// Aviso dinámico si la persona ya existe en el sistema (ej. representante / familiar)
+$slotTrasIdentificacion = '
+<div id="avisoPersonaExistente" class="alert alert-info py-2 px-3 small d-none mt-2 d-flex align-items-center gap-2">
+  <i class="bi bi-info-circle-fill fs-5 text-primary"></i>
+  <div id="avisoPersonaExistenteTexto"></div>
+</div>';
+
 include __DIR__ . '/../../components/persona-form.php';
 ?>

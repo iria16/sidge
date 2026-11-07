@@ -19,11 +19,12 @@ class TeacherAssignmentController extends CrudController
     protected string $routeName = 'teacherAssignment';
 
     /**
- * Devuelve el modelo con su tipo concreto.
+ * Devuelve el modelo con su tipo real, porque getModel() retorna ?object y el editor no resuelve sus métodos.
+ * Este envoltorio fija el tipo de createModel() y evita los subrayados rojos.
 */
     private function modelo(): TeacherAssignmentModel
     {
-        /** @var TeacherAssignmentModel $model */
+        /** @var TeacherAssignmentModel $model*/
         $model = $this->getModel();
 
         return $model;

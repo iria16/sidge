@@ -152,7 +152,7 @@ function initAutoFilters() {
     // Filtros de selección inmediata
     form.querySelectorAll('select').forEach(function (select) {
       /* Un filtro marcado con data-carga-completa recarga la página entera por su cuenta, y aquí se le
- quita la escucha de propósito: el refresco por AJAX solo reemplaza el cuerpo y el pie del
+ quita la escucha a propósito: el refresco por AJAX solo reemplaza el cuerpo y el pie del
  panel, así que lo que está por fuera se quedaría con el valor anterior.*/
       if (select.hasAttribute('data-carga-completa')) return;
 

@@ -323,11 +323,11 @@ ob_start();
              aria-labelledby="familiaresHeading">
       <div class="content-card__header">
         <h2 class="content-card__title" id="familiaresHeading">
-          <i class="bi bi-people me-2" aria-hidden="true"></i>Familiares
+          <i class="bi bi-people me-2" aria-hidden="true"></i>Datos del grupo familiar
         </h2>
         <?php if ($familiaresNucleo): ?>
           <span class="status-badge status-badge--active">
-            <?= count($familiaresNucleo) ?> en el núcleo familiar
+            <?= count($familiaresNucleo) ?> en el grupo familiar
           </span>
         <?php endif; ?>
       </div>
@@ -335,7 +335,7 @@ ob_start();
       <?php /* ── Bloque A · NÚCLEO FAMILIAR Solo quien tiene parentesco de sangre o civil, más el representante
  legal aunque su vínculo esté registrado como "Otro" (es representante
  por ley, no por sangre). Quien solo tiene un vínculo logístico —el
- transporte, el vecino de confianza— queda en el Bloque B: mezclarlo aquí
+ transporte, el vecino de confianza— queda en el Bloque B: mezclarlo acá
  lo haría parecer pariente, y es la confusión que esta separación
  evita.*/ ?>
       <?php if ($familiaresNucleo): ?>
@@ -393,14 +393,17 @@ ob_start();
       <?php else: ?>
         <div class="content-card__empty">
           <i class="bi bi-people" aria-hidden="true"></i>
-          <p>No hay familiares registrados en el expediente.</p>
+          <p>No hay familiares directos registrados en el expediente.</p>
         </div>
       <?php endif; ?>
     </section>
 
-<?php /* Bloque B · AUTORIZADOS PARA RETIRAR. Usa el mismo componente y aspecto que el
- Bloque A: tarjeta content-card, lista, avatar y badge. La separación la da el
- título y el contenido, no el color. Solo cambia la columna de condición. */ ?>
+<?php /* Bloque B · AUTORIZADOS PARA RETIRAR. Mismo componente y mismo aspecto que el Bloque A: misma
+ tarjeta content-card, misma lista y mismas filas, mismo círculo de avatar y mismo badge.
+ Antes esta tarjeta se distinguía con un borde azul grueso y fondos celestes, y eso rompía
+ la lectura: el mismo componente se veía de dos maneras distintas. La separación la da el
+ título y el contenido, no el color. Lo único que cambia es la columna de condición: si esa
+ persona es también familiar o solo está autorizada por confianza.*/ ?>
     <section class="content-card student-record__section mt-4" id="autorizadosRetiro"
              aria-labelledby="autorizadosRetiroHeading">
       <div class="content-card__header">
@@ -417,8 +420,7 @@ ob_start();
       <?php if ($autorizadosParaRetiro): ?>
         <p class="text-support small mb-3">
           <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
-          Estas personas pueden retirar al alumno del plantel. No todas son familiares:
-          aquí puede haber quien esté autorizado solo por confianza, como el transporte escolar.
+          Estas personas pueden retirar al alumno del plantel. Son personas asociadas que no son familiares directos (padre, madre o representante legal).
         </p>
 
         <div class="student-record__family-list">
@@ -474,7 +476,7 @@ ob_start();
       <?php else: ?>
         <div class="content-card__empty">
           <i class="bi bi-people" aria-hidden="true"></i>
-          <p>No hay personas adicionales autorizadas para retirar al alumno (además de su representante legal).</p>
+          <p>No hay personas adicionales autorizadas para retirar al alumno (además de sus familiares directos o representante legal).</p>
         </div>
       <?php endif; ?>
     </section>
@@ -544,28 +546,7 @@ if (!$esDocente) {
     $urlPdf = BASE_URL . 'estudiantes/exportar/' . (int) ($estudiante['id'] ?? 0) . '?anio=' . $anioId;
     ob_start();
     ?>
-    <div class="student-record__pdf-preview position-relative" id="contenedorPreviewExpediente">
-      <!-- Spinner de carga -->
-      <div id="loaderPreviewExpediente" class="position-absolute top-50 start-50 translate-middle text-center p-3" style="display: none; z-index: 10;">
-        <div class="spinner-border text-primary mb-2" role="status" style="width: 3rem; height: 3rem;">
-          <span class="visually-hidden">Cargando...</span>
-        </div>
-        <div class="text-dark fw-medium small">Cargando vista previa...</div>
-      </div>
-      <!-- Fallback de contingencia -->
-      <div id="fallbackPreviewExpediente" class="p-4 text-center my-auto" style="display: none;">
-        <i class="bi bi-file-earmark-pdf text-primary fs-1 mb-2 d-block"></i>
-        <h6 class="fw-bold mb-1">Vista previa no disponible</h6>
-        <p class="text-muted small mb-3">Use los botones para abrir o descargar el documento.</p>
-        <div class="d-flex justify-content-center gap-2">
-          <a href="#" id="btnFallbackAbrirExp" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-box-arrow-up-right me-1"></i> Abrir en nueva pestaña
-          </a>
-          <a href="#" id="btnFallbackDescargarExp" download target="_blank" rel="noopener" class="btn btn-primary btn-sm">
-            <i class="bi bi-download me-1"></i> Descargar PDF
-          </a>
-        </div>
-      </div>
+    <div class="student-record__pdf-preview">
       <iframe id="iframeVistaPreviaExpediente" data-src="<?= htmlspecialchars($urlPdf) ?>" title="Vista previa del expediente estudiantil"></iframe>
     </div>
     <?php
@@ -574,9 +555,6 @@ if (!$esDocente) {
     ob_start();
     ?>
     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-    <a href="<?= htmlspecialchars($urlPdf) ?>" target="_blank" rel="noopener" class="btn btn-outline-primary">
-      <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Abrir en nueva pestaña
-    </a>
     <button type="button" class="btn btn-outline-primary" id="btnImprimirExpedientePdf">
       <i class="bi bi-printer me-1" aria-hidden="true"></i>Imprimir
     </button>

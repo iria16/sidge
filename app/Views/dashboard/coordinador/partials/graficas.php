@@ -30,15 +30,27 @@ $donutSexoConfig = [
     'emptyMessage' => 'Sin estudiantes cursando en el período activo',
 ];
 
-// 2. Configuración: Composición del Personal Activo (Dona)
-$docentes = (int) ($metricasPersonal['docentes_activos'] ?? 0);
-$administrativos = (int) ($metricasPersonal['administrativos'] ?? 0);
-$obreros = (int) ($metricasPersonal['obreros'] ?? 0);
+// 2. Configuración: Composición del Personal Activo (Dona dinámica por cargo registrado)
+$cargosPersonal = $metricasPersonal['por_cargo'] ?? [];
+$personalLabels = [];
+$personalValues = [];
+
+foreach ($cargosPersonal as $cp) {
+    $personalLabels[] = (string) ($cp['cargo'] ?? '');
+    $personalValues[] = (int) ($cp['total'] ?? 0);
+}
+
+// Paleta cíclica c1 a c6 para los cargos
+$personalColors = [];
+$paletaKeys = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
+foreach ($personalLabels as $idx => $lbl) {
+    $personalColors[] = $paletaKeys[$idx % count($paletaKeys)];
+}
 
 $donutPersonalConfig = [
-    'labels'       => ['Docentes', 'Administrativos', 'Obreros / Apoyo'],
-    'values'       => [$docentes, $administrativos, $obreros],
-    'colors'       => ['c1', 'c2', 'c3'],
+    'labels'       => $personalLabels,
+    'values'       => $personalValues,
+    'colors'       => $personalColors,
     'emptyMessage' => 'Sin personal activo registrado en nómina',
 ];
 

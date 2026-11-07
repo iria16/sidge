@@ -10,8 +10,11 @@ declare(strict_types=1);
   $modalSubtitle = 'Información de la solicitud seleccionada.';
   ob_start();
   ?>
-<?php /* El cuerpo del modal se carga desde retiro/ver.php y el JS lo inserta en
- #retiroDetalleCuerpo. */ ?>
+<?php /* El cuerpo del modal lo arma el servidor (retiro/ver.php) y el JS lo vuelca
+ dentro de #retiroDetalleCuerpo. Antes estos campos vivían en el markup con un
+ id cada uno y los llenaba el navegador leyendo atributos data- del botón, que
+ ya no lleva: quedaban todos en "—". Al pedirlo al servidor, el modal y la
+ fila del listado no pueden mostrar dos versiones del mismo dato.*/ ?>
 <div id="retiroDetalleCuerpo">
   <div class="text-center text-support py-4">
     <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>

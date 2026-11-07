@@ -128,7 +128,8 @@ class FichaEmpleadoPdf
     }
 
     /**
-     * Convierte una ruta relativa pública a Data URI para Dompdf.
+     * Convierte una ruta relativa pública a Data URI para Dompdf, recortando al centro
+     * con la proporción exacta de la ficha (80 / 102 pt) para evitar distorsiones.
      */
     public static function imagenADataUri(?string $rutaRelativa): ?string
     {
@@ -137,6 +138,12 @@ class FichaEmpleadoPdf
         }
 
         $limpia = '/' . ltrim(str_replace('\\', '/', $rutaRelativa), '/');
+
+        $dataUri = ImagenPdf::publicaDataUri($limpia, false, 80 / 102);
+        if ($dataUri !== null) {
+            return $dataUri;
+        }
+
         $basePublic = realpath(dirname(__DIR__, 2) . '/public');
         $archivo = realpath(dirname(__DIR__, 2) . '/public' . $limpia);
 

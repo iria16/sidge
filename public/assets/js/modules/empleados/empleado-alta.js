@@ -232,7 +232,147 @@ function initWizardRegistro() {
   // ---------- Cascada estado->municipio->parroquia (paso 3) ----------
   // El mismo comportamiento del modal de edición: al cambiar el padre, el hijo
   // queda deshabilitado mostrando qué falta elegir. Está en SIGDEWizardUI.
-  SIGDEEmpleados.iniciarCascadaUbicacion();
+  var cascadaUbicacion = SIGDEEmpleados.iniciarCascadaUbicacion();
+
+  // ---------- Búsqueda y Precarga de Persona Existente por Cédula (paso 1) ----------
+  var inputCedula = formNuevo.querySelector('#numeroDocumento');
+  var avisoPersona = document.getElementById('avisoPersonaExistente');
+  var avisoTexto = document.getElementById('avisoPersonaExistenteTexto');
+  var cedulaCargada = null;
+
+  function limpiarAvisoPersona() {
+    if (avisoPersona) {
+      avisoPersona.classList.add('d-none');
+      avisoPersona.classList.remove('alert-info', 'alert-warning', 'alert-danger');
+    }
+    if (avisoTexto) avisoTexto.innerHTML = '';
+  }
+
+  function precargarDatosPersona(pData) {
+    if (!pData || !pData.persona) return;
+    var per = pData.persona;
+
+    var setVal = function (sel, val) {
+      var el = formNuevo.querySelector(sel);
+      if (el && val !== undefined && val !== null) el.value = val;
+    };
+
+    // Paso 1: Personales
+    setVal('#primerNombre', per.primer_nombre || '');
+    setVal('#segundoNombre', per.segundo_nombre || '');
+    setVal('#primerApellido', per.primer_apellido || '');
+    setVal('#segundoApellido', per.segundo_apellido || '');
+    if (per.tipo_documento) setVal('#tipoDocumento', per.tipo_documento);
+    if (per.fecha_nacimiento) setVal('#fechaNacimiento', per.fecha_nacimiento);
+    if (per.id_estado_nacimiento) setVal('#nacimientoEstado', per.id_estado_nacimiento);
+    if (per.id_nacionalidad) setVal('#nacionalidad', per.id_nacionalidad);
+
+    if (per.sexo) {
+      var radioSexo = formNuevo.querySelector('input[name="sexo"][value="' + per.sexo + '"]');
+      if (radioSexo) {
+        radioSexo.checked = true;
+        radioSexo.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
+    // Paso 2: Contacto
+    if (pData.contacto) {
+      var con = pData.contacto;
+      setVal('#codigo_telefono_principal', con.codigo || '');
+      setVal('#numero_telefono_principal', con.numero || '');
+      setVal('#codigo_telefono_alternativo', con.codigo_alt || '');
+      setVal('#numero_telefono_alternativo', con.numero_alt || '');
+      setVal('#correoElectronico', con.correo || '');
+    }
+
+    // Paso 3: Dirección
+    if (pData.direccion) {
+      var dir = pData.direccion;
+      setVal('#calleAvenida', dir.calle || '');
+      setVal('#nroCasaApto', dir.casa || '');
+      setVal('#sectorUrbanizacion', dir.sector || '');
+      setVal('#punto_referencia', dir.referencia || '');
+
+      if (cascadaUbicacion && typeof cascadaUbicacion.elegirParroquia === 'function') {
+        cascadaUbicacion.elegirParroquia(
+          Number(dir.estado || 0),
+          Number(dir.municipio || 0),
+          Number(dir.parroquia || 0)
+        );
+      }
+    }
+  }
+
+  var buscarPersonaPorCedula = (function () {
+    var timer = null;
+    return function () {
+      if (!inputCedula) return;
+      var docLimpio = inputCedula.value.replace(/\D/g, '');
+
+      if (timer) clearTimeout(timer);
+
+      if (docLimpio.length < 7 || docLimpio.length > 8) {
+        if (cedulaCargada && docLimpio !== cedulaCargada) {
+          limpiarAvisoPersona();
+          cedulaCargada = null;
+        }
+        return;
+      }
+
+      if (docLimpio === cedulaCargada) return;
+
+      timer = setTimeout(function () {
+        var url = SIGDEEmpleados.baseUrl + SIGDEEmpleados.rutaControlador + '/buscarPersona?documento=' + encodeURIComponent(docLimpio);
+        SIGDEUI.enviar(url, { metodo: 'GET' })
+          .then(function (r) {
+            if (!r.ok || !r.data || !r.data.ok) {
+              limpiarAvisoPersona();
+              return;
+            }
+
+            var encontrado = r.data.data;
+            if (!encontrado) {
+              limpiarAvisoPersona();
+              cedulaCargada = docLimpio;
+              return;
+            }
+
+            cedulaCargada = docLimpio;
+
+            if (encontrado.es_empleado === true) {
+              if (avisoPersona && avisoTexto) {
+                avisoPersona.className = 'alert alert-warning py-2 px-3 small mt-2 d-flex align-items-center gap-2';
+                avisoTexto.innerHTML = '<strong>Atención:</strong> Esta persona ya se encuentra registrada como empleado en el sistema.';
+                avisoPersona.classList.remove('d-none');
+              }
+              SIGDEUI.mostrarAviso('warning', 'Empleado ya registrado', 'Ya existe un empleado en nómina con la cédula indicada.');
+              return;
+            }
+
+            var nom = [
+              encontrado.persona && encontrado.persona.primer_nombre,
+              encontrado.persona && encontrado.persona.primer_apellido
+            ].filter(Boolean).join(' ');
+
+            if (avisoPersona && avisoTexto) {
+              avisoPersona.className = 'alert alert-info py-2 px-3 small mt-2 d-flex align-items-center gap-2';
+              avisoTexto.innerHTML = '<strong>Persona encontrada:</strong> ' + SIGDEUI.escapeHtml(nom) + ' ya está registrada en el sistema. Se precargaron sus datos personales, contacto y dirección. Complete los datos laborales y académicos.';
+              avisoPersona.classList.remove('d-none');
+            }
+
+            precargarDatosPersona(encontrado);
+          })
+          .catch(function () {
+            limpiarAvisoPersona();
+          });
+      }, 400);
+    };
+  })();
+
+  if (inputCedula) {
+    inputCedula.addEventListener('input', buscarPersonaPorCedula);
+    inputCedula.addEventListener('change', buscarPersonaPorCedula);
+  }
 
   // ---------- Títulos académicos (paso 5) ----------
   function pintarTablaTitulos() {
@@ -609,11 +749,7 @@ function initWizardRegistro() {
         case 'fecha_ingreso': valor = SIGDEUI.formatearFechaCorta(textoCampo('fecha_ingreso')); break;
         default: valor = textoCampo(el.dataset.resumen);
       }
-      if (el.dataset.resumen === 'turno') {
-        var itemTurno = el.closest('[data-resumen-item="turno"]');
-        if (itemTurno) itemTurno.hidden = !valor;
-      }
-      el.textContent = el.dataset.resumen === 'turno' ? valor : (valor || '—');
+      el.textContent = valor || '—';
     });
     pintarTitulosResumen();
   }
@@ -689,6 +825,8 @@ function initWizardRegistro() {
     activarPaso();
     paneles.forEach(function (p) { p.classList.remove('was-validated'); });
     if (fotoRegistro) fotoRegistro.vaciar();
+    limpiarAvisoPersona();
+    cedulaCargada = null;
 
     // El formulario se reutiliza entre registros (el modal no se recrea),
     // así que sin esto un customValidity() forzado en un intento anterior

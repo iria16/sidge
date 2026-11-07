@@ -3,21 +3,41 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\AniosEscolares;
 use App\Support\ConQuienVive;
 use App\Support\Instituciones;
 use App\Support\Matriculas;
-use App\Traits\OpcionesCatalogoTrait;
 use PDO;
 use Throwable;
 
 /**
- * ReporteModel Consultas consolidadas para reportes institucionales, estadísticos y
- * nóminas: - Estadístico general oficial (Matrícula inicial / mensual por grado,
- * sexo y edad). - Distribución académica y asignación docente.
+ * ReporteModel
+ * ------------
+ * Consultas consolidadas para reportes institucionales, estadísticos y nóminas:
+ * - Estadístico general oficial (Matrícula inicial / mensual por grado, sexo y edad).
+ * - Listado general de estudiantes por sección con datos del representante.
+ * - Distribución académica y asignación docente.
+ * - Nómina y directorio institucional del personal.
  */
 class ReporteModel extends Model
 {
-    use OpcionesCatalogoTrait;
+    /**
+     * Catálogo de años escolares registrados.
+     */
+    public function getAniosEscolares(): array
+    {
+        try {
+            $stmt = $this->pdo->query(
+                "SELECT id_anio_escolar, nombre_periodo, estado
+                   FROM anio_escolar
+                  ORDER BY anio_inicio DESC, id_anio_escolar DESC"
+            );
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            error_log('ReporteModel::getAniosEscolares: ' . $e->getMessage());
+            return [];
+        }
+    }
 
     /**
      * Grados registrados ordenados según el orden pedagógico oficial.
@@ -55,11 +75,15 @@ class ReporteModel extends Model
     }
 
     /**
- * Matrícula oficial desagregada por sección, sexo y edad cumplida. Estructura
- * estándar del Ministerio del Poder Popular para la Educación (MPPE / CDCE).
- *
- * @return array{
- */
+     * Matrícula oficial desagregada por sección, sexo y edad cumplida.
+     * Estructura estándar del Ministerio del Poder Popular para la Educación (MPPE / CDCE).
+     *
+     * @return array{
+     *   edades: list<int>,
+     *   filas: list<array<string, mixed>>,
+     *   totales: array<string, int>
+     * }
+     */
     public function getEstadisticoGeneral(int $idAnio): array
     {
         $vacio = ['edades' => [], 'filas' => [], 'totales' => []];
