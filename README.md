@@ -1,7 +1,8 @@
 # SIGDE — Sistema de Gestión de Datos Educativos
 
 Aplicación web para la gestión de inscripciones, ratificaciones, expedientes de
-estudiantes, retiros, egresos y configuración académica de una escuela.
+estudiantes, retiros, egresos y configuración académica de la **Escuela Básica «Isidro Ramírez»**,
+desarrollada como proyecto para la **Universidad Politécnica Territorial de Valencia (UPTVAL)**.
 
 ## Índice
 
@@ -18,12 +19,18 @@ estudiantes, retiros, egresos y configuración académica de una escuela.
 
 ## Datos del proyecto
 
-- **Institución:** ¿Qué institución debe figurar?
-- **Autores:** ¿Quiénes deben figurar como autores?
+- **Casa de Estudios:** Universidad Politécnica Territorial de Valencia (UPTVAL).
+- **Carrera / PNF:** PNF en Informática.
+- **Institución Beneficiaria:** Escuela Básica «Isidro Ramírez» (sede donde se atiende la problemática).
+- **Tutor / Asesor:** Ing. Luis Oliveros.
+- **Autores:**
+  - Iriamar D. Maita B. — C.I. 25.863.136
+  - Erickmar E. Sánchez P. — C.I. 30.431.260
+  - Elyenay M. Ocanto G. — C.I. 16.771.283
+- **Año:** 2026.
 - **Estado:** Preparación de despliegue; falta definir el dominio y probar HTTPS en
   el VPS.
-- **Licencia:** Los manifiestos de Composer y npm indican `ISC`, pero no hay un
-  archivo `LICENSE`. ¿Confirmas que esa licencia aplica al proyecto?
+- **Licencia:** Proyecto Académico — Uso institucional para la E.B. «Isidro Ramírez» y UPTVAL.
 
 ## Requisitos
 
@@ -136,6 +143,8 @@ configuración para Apache y Nginx.
 | `20261101_enrollment_document_snapshots.sql` | Agrega campos, índices y restricciones para los recaudos de inscripción. | No elimina datos, pero puede fallar si los datos existentes incumplen las nuevas restricciones. |
 | `20261102_remove_unused_pais.sql` | Elimina la tabla `pais`. | Sí: elimina la tabla. |
 | `20261102_uniform_sizes_enum.sql` | Limita las tallas de uniforme a las opciones admitidas y conserva la cadena vacía para indicar que no se registró una talla opcional. | No elimina datos válidos; se detiene si encuentra tallas fuera del catálogo. |
+| `20261106_add_reingreso_to_matricula_enum.sql` | Agrega `REINGRESO` a `matricula.tipo`, actualiza el disparador `trg_matricula_transicion` para permitir reincorporaciones de alumnos retirados y sincroniza registros previos. | No elimina datos; actualiza la columna, el disparador y estados de matrícula. |
+| `20261106_seed_parentescos_profesionales.sql` | Estandariza los códigos canónicos (slugs) del catálogo `parentesco` e incorpora parentescos ampliados según LOPNNA y MPPE. | No elimina datos; actualiza códigos e inserta opciones adicionales. |
 
 Para una instalación nueva, importa solo `schema_actual.sql`; no ejecutes después las
 migraciones ya incluidas en ese esquema. Para actualizar una instalación existente,
@@ -170,7 +179,7 @@ app/
   Views/          plantillas PHP
 database/         esquema actual y migraciones incrementales
 docs/             documentos del proyecto
-public/           raíz web: index.php y assets
+public/           raíz web: index.php y assets (js/core, js/modules, css, img)
 resources/scss/   fuentes de estilos
 scripts/          utilidades de mantenimiento (fuera de la raíz web)
 ```
@@ -220,6 +229,7 @@ El acceso puede variar por acción dentro de un módulo.
 | Estructura académica | `academicStructure/*` | — | Sí | Sí | — | — | — |
 | Asignación docente | `teacherAssignment/*` | — | Sí | Sí | — | — | — |
 | Retiros | `withdrawal/*` | — | Sí | — | Sí | — | — |
+| Reingresos | `reingreso/*` | — | — | — | Sí | — | — |
 | Estudiantes y expedientes | `estudiantes/*` | — | Sí | Sí | Sí | Sí | — |
 | Inscripción | `inscripciones/*` | — | — | — | Sí | — | — |
 | Ratificación | `ratificacion/*` | Sí* | Sí* | — | Sí | — | — |
