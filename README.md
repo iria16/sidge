@@ -135,24 +135,6 @@ El procedimiento de instalación, publicación y alta del administrador inicial 
 La raíz del servidor web debe apuntar a `public/`; la guía de despliegue explica la
 configuración para Apache y Nginx.
 
-`database/migrations/` contiene una línea base histórica y cambios incrementales:
-
-| Archivo | Qué hace | ¿Destructiva? |
-|---|---|---|
-| `20261030_initial_schema.sql` | Línea base histórica anterior al esquema actual; no es una copia idéntica de `schema_actual.sql`. | Sí: contiene `DROP TABLE IF EXISTS`; solo debe usarse con una base vacía. |
-| `20261101_enrollment_document_snapshots.sql` | Agrega campos, índices y restricciones para los recaudos de inscripción. | No elimina datos, pero puede fallar si los datos existentes incumplen las nuevas restricciones. |
-| `20261102_remove_unused_pais.sql` | Elimina la tabla `pais`. | Sí: elimina la tabla. |
-| `20261102_uniform_sizes_enum.sql` | Limita las tallas de uniforme a las opciones admitidas y conserva la cadena vacía para indicar que no se registró una talla opcional. | No elimina datos válidos; se detiene si encuentra tallas fuera del catálogo. |
-| `20261106_add_reingreso_to_matricula_enum.sql` | Agrega `REINGRESO` a `matricula.tipo`, actualiza el disparador `trg_matricula_transicion` para permitir reincorporaciones de alumnos retirados y sincroniza registros previos. | No elimina datos; actualiza la columna, el disparador y estados de matrícula. |
-| `20261106_seed_parentescos_profesionales.sql` | Estandariza los códigos canónicos (slugs) del catálogo `parentesco` e incorpora parentescos ampliados según LOPNNA y MPPE. | No elimina datos; actualiza códigos e inserta opciones adicionales. |
-
-Para una instalación nueva, importa solo `schema_actual.sql`; no ejecutes después las
-migraciones ya incluidas en ese esquema. Para actualizar una instalación existente,
-respalda primero la base y aplica, una sola vez y en orden cronológico, únicamente las
-migraciones que todavía no se hayan aplicado. La aplicación no lleva un registro
-automático de migraciones, así que anota cuáles ejecutaste. Revisa la columna de
-destructividad y respalda la base antes de cada actualización.
-
 Para verificar que el esquema instala bien, sobre una base temporal:
 
 ```bash
