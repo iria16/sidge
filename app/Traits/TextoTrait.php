@@ -73,7 +73,12 @@ trait TextoTrait
             }
         }
 
-        return implode(' ', $palabras);
+        $resultado = implode(' ', $palabras);
+
+        // Conserva o convierte en mayúsculas siglas o acrónimos entre paréntesis: ej. (UC), (UNEFA)
+        return preg_replace_callback('/\(([^)]+)\)/u', static function (array $m): string {
+            return '(' . mb_strtoupper(trim($m[1]), 'UTF-8') . ')';
+        }, $resultado);
     }
 
     /**
@@ -106,7 +111,12 @@ trait TextoTrait
             }
         }
 
-        return implode(' ', $palabras);
+        $resultado = implode(' ', $palabras);
+
+        // Conserva o convierte en mayúsculas cualquier sigla o abreviatura entre paréntesis: ej. (UC), (UNEFA), (IUT)
+        return preg_replace_callback('/\(([^)]+)\)/u', static function (array $m): string {
+            return '(' . mb_strtoupper(trim($m[1]), 'UTF-8') . ')';
+        }, $resultado);
     }
 
     /**

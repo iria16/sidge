@@ -7,6 +7,11 @@
    window.BASE_URL (definido globalmente en layouts/app.php).
    ========================================================================== */
 
+// --- Configuración Global de Rutas ---
+var rawBaseUrl = window.BASE_URL || '';
+var baseUrl = rawBaseUrl.endsWith('/') ? rawBaseUrl : rawBaseUrl + '/';
+var rutaControlador = 'catalogo';
+
 // --- Inicialización Módulo ---
 function initCatalogoModule() {
   initSelectorTipoCatalogo();
@@ -22,11 +27,6 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
 } else {
   document.addEventListener('DOMContentLoaded', initCatalogoModule);
 }
-
-// --- Configuración Global de Rutas ---
-var rawBaseUrl = window.BASE_URL || '';
-var baseUrl = rawBaseUrl.endsWith('/') ? rawBaseUrl : rawBaseUrl + '/';
-var rutaControlador = 'catalogo';
 
 // --- Funciones Auxiliares ---
 function getTipoCatalogoActivo() {
@@ -275,9 +275,13 @@ function alternarBloquesNacionalExtranjera(form) {
  */
 function iniciarCascadaInstitucion(prefijo) {
   if (typeof SIGDEWizardUI === 'undefined' || !SIGDEWizardUI.initCascadaUbicacion) return null;
+  if (!document.getElementById(prefijo + 'Estado')) return null;
+
+  var currentBase = (window.BASE_URL || baseUrl || '');
+  if (!currentBase.endsWith('/')) currentBase += '/';
 
   return SIGDEWizardUI.initCascadaUbicacion({
-    url: baseUrl + rutaControlador + '/getUbicacion',
+    url: currentBase + rutaControlador + '/getUbicacion',
     estadoId: prefijo + 'Estado',
     municipioId: prefijo + 'Municipio',
     parroquiaId: prefijo + 'Parroquia'
