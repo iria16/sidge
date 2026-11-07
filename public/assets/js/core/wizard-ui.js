@@ -524,7 +524,13 @@ window.SIGDEWizardUI = (function () {
     video.style.cssText = 'display:block;width:100%;max-height:60vh;object-fit:cover;';
 
     var acciones = document.createElement('div');
-    acciones.style.cssText = 'display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem;';
+    acciones.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem;';
+
+    var btnCambiar = document.createElement('button');
+    btnCambiar.type = 'button';
+    btnCambiar.className = 'btn btn-outline-primary btn-sm me-auto';
+    btnCambiar.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Cambiar cámara';
+    btnCambiar.hidden = true;
 
     var btnCancelar = document.createElement('button');
     btnCancelar.type = 'button';
@@ -537,6 +543,7 @@ window.SIGDEWizardUI = (function () {
     btnCapturar.innerHTML = '<i class="bi bi-camera me-1"></i>Capturar';
 
     escenario.appendChild(video);
+    acciones.appendChild(btnCambiar);
     acciones.appendChild(btnCancelar);
     acciones.appendChild(btnCapturar);
     caja.appendChild(titulo);
@@ -547,14 +554,22 @@ window.SIGDEWizardUI = (function () {
 
     var stream = null;
     var cerrado = false;
+    var cambiando = false;
+    /* Por defecto la trasera: quien registra a otra persona suele fotografiarla
+    de frente. El botón "Cambiar cámara" permite pasar a la frontal. */
+    var camaraActual = 'environment';
 
-    function cerrar() {
-      if (cerrado) return;
-      cerrado = true;
+    function detenerStream() {
       if (stream) {
         stream.getTracks().forEach(function (pista) { pista.stop(); });
         stream = null;
       }
+    }
+
+    function cerrar() {
+      if (cerrado) return;
+      cerrado = true;
+      detenerStream();
       document.removeEventListener('keydown', alTeclear);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
     }
@@ -563,32 +578,75 @@ window.SIGDEWizardUI = (function () {
       if (evento.key === 'Escape') cerrar();
     }
 
+    /* Muestra el botón de cambio solo cuando el equipo tiene más de una cámara.
+    enumerateDevices necesita el permiso ya concedido, por eso se consulta
+    después de abrir el primer stream. */
+    function actualizarBotonCambiar() {
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') return;
+      navigator.mediaDevices.enumerateDevices()
+        .then(function (dispositivos) {
+          var camaras = dispositivos.filter(function (d) { return d.kind === 'videoinput'; });
+          if (!cerrado) btnCambiar.hidden = camaras.length < 2;
+        })
+        .catch(function () {});
+    }
+
+    /* Abre la cámara pedida. En un cambio se detiene antes la anterior (en
+    móviles no se puede tener abiertas las dos). Si el cambio falla se
+    recupera la cámara que estaba funcionando. */
+    function iniciarStream(camara, esCambio) {
+      if (cerrado || cambiando) return;
+      cambiando = true;
+      btnCambiar.disabled = true;
+      detenerStream();
+
+      navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: camara } }
+      })
+        .then(function (capturado) {
+          cambiando = false;
+          btnCambiar.disabled = false;
+          if (cerrado) {
+            capturado.getTracks().forEach(function (pista) { pista.stop(); });
+            return;
+          }
+          stream = capturado;
+          camaraActual = camara;
+          video.srcObject = capturado;
+          var reproduccion = video.play();
+          if (reproduccion && typeof reproduccion.catch === 'function') {
+            reproduccion.catch(function () {});
+          }
+          actualizarBotonCambiar();
+        })
+        .catch(function () {
+          cambiando = false;
+          btnCambiar.disabled = false;
+          if (esCambio) {
+            iniciarStream(camaraActual, false);
+            return;
+          }
+          cerrar();
+          if (window.SIGDEUI && typeof SIGDEUI.mostrarError === 'function') {
+            SIGDEUI.mostrarError('No se pudo abrir la cámara. Revisa los permisos del navegador o selecciona una foto.', 'Cámara no disponible');
+          }
+          input.click();
+        });
+    }
+
     document.addEventListener('keydown', alTeclear);
     overlay.addEventListener('click', function (evento) {
       if (evento.target === overlay) cerrar();
     });
     btnCancelar.addEventListener('click', cerrar);
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-      .then(function (capturado) {
-        if (cerrado) {
-          capturado.getTracks().forEach(function (pista) { pista.stop(); });
-          return;
-        }
-        stream = capturado;
-        video.srcObject = capturado;
-        var reproduccion = video.play();
-        if (reproduccion && typeof reproduccion.catch === 'function') {
-          reproduccion.catch(function () {});
-        }
-      })
-      .catch(function () {
-        cerrar();
-        if (window.SIGDEUI && typeof SIGDEUI.mostrarError === 'function') {
-          SIGDEUI.mostrarError('No se pudo abrir la cámara. Revisa los permisos del navegador o selecciona una foto.', 'Cámara no disponible');
-        }
-        input.click();
-      });
+    btnCambiar.addEventListener('click', function () {
+      if (cambiando) return;
+      iniciarStream(camaraActual === 'environment' ? 'user' : 'environment', true);
+    });
+
+    iniciarStream(camaraActual, false);
 
     btnCapturar.addEventListener('click', function () {
       if (!video.videoWidth || !video.videoHeight) return;
