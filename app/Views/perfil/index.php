@@ -57,11 +57,15 @@ ob_start();
             <span class="wizard-photo-upload__edit">
               <i class="bi bi-pencil-fill"></i>
             </span>
-            <input type="file" id="inputFotoPerfil" name="foto" accept="image/jpeg,image/png,image/webp" class="visually-hidden">
+            <input type="file" id="inputFotoPerfil" name="foto" accept="image/*" class="visually-hidden">
           </label>
           <label for="inputFotoPerfil" class="wizard-photo-upload__hint mt-2" role="button" style="cursor: pointer;">
-            <i class="bi bi-camera me-1"></i>Foto de perfil (Opcional)
+            <i class="bi bi-image me-1"></i>Foto de perfil (Opcional)
           </label>
+          <button type="button" class="btn btn-link btn-sm p-0" id="btnTomarFotoPerfil">
+            <i class="bi bi-camera me-1"></i>Tomar foto
+          </button>
+          <input type="file" id="inputFotoPerfilCamara" name="foto_camara" accept="image/*" capture="user" class="visually-hidden">
           <button type="button" class="btn btn-link btn-sm text-danger p-0 mt-1 <?= empty($perfil['avatar_foto']) ? 'd-none' : '' ?>" id="btnQuitarFotoPerfil">
             <i class="bi bi-x-circle me-1"></i>Quitar foto
           </button>
