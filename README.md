@@ -224,7 +224,7 @@ El acceso puede variar por acción dentro de un módulo.
 | Recuperación de acceso | `recuperacionAcceso/*` | Sí | — | — | — | — | — |
 | Notificaciones | `notificacion/*` | Sí | Sí | — | Sí | — | — |
 | Catálogos | `catalogo/*` | Sí | — | — | — | — | — |
-| Empleados | `empleado/*` | — | Sí | Sí | — | — | — |
+| Empleados | `empleado/*` | — | Sí | Sí | Sí | — | — |
 | Años escolares | `academicYear/*` | — | Sí | — | — | — | — |
 | Estructura académica | `academicStructure/*` | — | Sí | Sí | — | — | — |
 | Asignación docente | `teacherAssignment/*` | — | Sí | Sí | — | — | — |
@@ -232,7 +232,7 @@ El acceso puede variar por acción dentro de un módulo.
 | Reingresos | `reingreso/*` | — | — | — | Sí | — | — |
 | Estudiantes y expedientes | `estudiantes/*` | — | Sí | Sí | Sí | Sí | — |
 | Inscripción | `inscripciones/*` | — | — | — | Sí | — | — |
-| Ratificación | `ratificacion/*` | Sí* | Sí* | — | Sí | — | — |
+| Ratificación | `ratificacion/*` | — | Sí* | — | Sí | — | — |
 | Configuración institucional | `configuracionInstitucional/*` | Sí | — | — | — | — | — |
 | Constancias | `constancias/*` | — | — | — | Sí | — | — |
 | Resultados académicos | `resultadoAcademico/*` | — | — | — | — | Sí | — |
@@ -242,12 +242,13 @@ El acceso puede variar por acción dentro de un módulo.
 | Egresos | `egresos/*` | — | — | — | — | — | — |
 | Perfil | `perfil/*` | Sí | Sí | Sí | Sí | Sí | — |
 
-`*` En Ratificación, Admin y Directivo solo tienen permiso para la acción
+`*` En Ratificación, Directivo solo tiene permiso para la acción
 `updateEstudiante`; las demás acciones de ese módulo son exclusivas de Secretaria.
-La edición de recaudos en Estudiantes también es exclusiva de Secretaria. En
-Empleados, Coordinador tiene acceso a un subconjunto de consulta; Directivo puede
-gestionar el módulo. Egresos no tiene rutas declaradas en la lista blanca, aunque
-aparezca en la lista de acciones POST.
+Admin no tiene acceso a este módulo. La edición de recaudos en Estudiantes también
+es exclusiva de Secretaria. En Empleados, Coordinador y Secretaria tienen acceso
+a un subconjunto de consulta; Directivo puede gestionar el módulo. Egresos no
+tiene rutas declaradas en la lista blanca, aunque aparezca en la lista de acciones
+POST.
 
 ## Reporte PDF
 
@@ -273,6 +274,19 @@ la única forma de que entren sin depender de rutas del servidor.
 La plantilla comparte con la pantalla el método de agrupación de familiares
 (`RatificacionModel::getFamiliaresParaExpediente()`), de modo que el documento impreso y
 la ficha digital no pueden apartarse.
+
+## Caché de PDF generados
+
+`app/Support/PdfCache.php` guarda en `storage/temp/pdf/` (fuera de `public/`)
+los binarios de los PDF emitidos por lote (Certificados de Calificaciones por
+sección y Certificados de Educación Primaria por lote). Cada PDF se genera una
+sola vez y se reutiliza en la vista previa y la descarga durante 30 minutos;
+después expira y se regenera. Esto evita que Dompdf procese el mismo lote varias
+veces por cada clic del usuario, reduciendo el consumo de CPU y memoria en
+hosting compartido.
+
+`scripts/pdf-cache-clean.php` borra los archivos de caché con más de 1 hora. Ejecutarlo
+manual o por cron para evitar acumulación en disco.
 
 ## Problemas frecuentes
 

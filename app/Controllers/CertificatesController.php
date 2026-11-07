@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Http\BinaryResponse;
 use App\Models\CertificatesModel;
 use App\Support\ConstanciaPdf;
+use App\Support\PdfCache;
 use DomainException;
 use InvalidArgumentException;
 use PDO;
@@ -320,7 +321,24 @@ class CertificatesController extends BaseController
         }
 
         try {
+            $sufijo = $filters['seccion'] !== ''
+                ? '_seccion_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $filters['seccion'])
+                : '';
+            $filename = "certificados_primaria_lote{$sufijo}.pdf";
+            $cacheKey = 'egresolote_' . md5($filename);
+
+            $cached = PdfCache::get($cacheKey);
+            if ($cached !== null) {
+                $esDescarga = (isset($_GET['descargar']) && $_GET['descargar'] === '1')
+                           || (isset($_POST['descargar']) && $_POST['descargar'] === '1');
+                $disposition = $esDescarga ? 'attachment' : 'inline';
+                BinaryResponse::pdf(file_get_contents($cached), $filename, $disposition === 'inline')->send();
+                return;
+            }
+
             $pdf = ConstanciaPdf::generarEgresoPorLote($config, $estudiantesData);
+
+            PdfCache::put($cacheKey, $pdf);
 
             if ($idUsuario > 0) {
                 $seccionTexto = $filters['seccion'] !== '' ? " (Sección {$filters['seccion']})" : '';
@@ -329,11 +347,6 @@ class CertificatesController extends BaseController
                     sprintf('EMISIÓN POR LOTE DE CERTIFICADOS DE EDUCACIÓN PRIMARIA: %d estudiantes%s', count($estudiantesData), $seccionTexto)
                 );
             }
-
-            $sufijo = $filters['seccion'] !== ''
-                ? '_seccion_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $filters['seccion'])
-                : '';
-            $filename = "certificados_primaria_lote{$sufijo}.pdf";
 
             $esDescarga = (isset($_GET['descargar']) && $_GET['descargar'] === '1')
                        || (isset($_POST['descargar']) && $_POST['descargar'] === '1');

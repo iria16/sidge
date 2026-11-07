@@ -10,6 +10,7 @@ use App\Models\GradeCertificateModel;
 use App\Models\AcademicResultModel;
 use App\Support\CertificadoCalificacionesPdf;
 use App\Support\Configuracion;
+use App\Support\PdfCache;
 use DateTimeImmutable;
 use DomainException;
 use Throwable;
@@ -263,6 +264,15 @@ class GradeCertificateController extends BaseController
                 ];
             }, $estudiantes);
 
+            $filename = "certificados_seccion_{$idEstructura}.pdf";
+            $cacheKey = 'gradecert_' . $idEstructura;
+
+            $cached = PdfCache::get($cacheKey);
+            if ($cached !== null) {
+                BinaryResponse::pdf(file_get_contents($cached), $filename, true)->send();
+                return;
+            }
+
             $pdfBinary = CertificadoCalificacionesPdf::generarPorSeccion(
                 $config,
                 $datosEstudiantes,
@@ -270,6 +280,8 @@ class GradeCertificateController extends BaseController
                 false,
                 null
             );
+
+            PdfCache::put($cacheKey, $pdfBinary);
 
             // Registro formal en bitácora de auditoría
             $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
@@ -282,8 +294,6 @@ class GradeCertificateController extends BaseController
                 );
                 (new AuditLogModel($this->conexion()))->registrar($idUsuario, $accion, 'Evaluación');
             }
-
-            $filename = "certificados_seccion_{$idEstructura}.pdf";
 
             BinaryResponse::pdf($pdfBinary, $filename, true)->send();
 
