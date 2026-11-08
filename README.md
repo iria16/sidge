@@ -1,8 +1,7 @@
 # SIGDE — Sistema de Gestión de Datos Educativos
 
 Aplicación web para la gestión de inscripciones, ratificaciones, expedientes de
-estudiantes, retiros, egresos y configuración académica de la **Escuela Básica «Isidro Ramírez»**,
-desarrollada como proyecto para la **Universidad Politécnica Territorial de Valencia (UPTVAL)**.
+estudiantes, retiros, egresos y configuración académica de la **Escuela Básica «Isidro Ramírez»**, desarrollada como proyecto para la **Universidad Politécnica Territorial de Valencia (UPTVAL)**.
 
 ## Índice
 
@@ -12,9 +11,11 @@ desarrollada como proyecto para la **Universidad Politécnica Territorial de Val
 - [Scripts npm](#scripts-npm)
 - [Pruebas](#pruebas)
 - [Base de datos](#base-de-datos)
-- [Estructura](#estructura)
-- [Módulos y roles](#módulos-y-roles)
+- [Eestructura](#estructura)
+- [Detalle de módulos](#detalle-de-módulos)
+- [Matriz de roles](#matriz-de-roles)
 - [Reporte PDF](#reporte-pdf)
+- [Caché de PDF generados](#caché-de-pdf-generados)
 - [Problemas frecuentes](#problemas-frecuentes)
 
 ## Datos del proyecto
@@ -125,9 +126,8 @@ y los valores reales de conexión en `.env`.
 mariadb -u root -p sidge < database/schema_actual.sql
 ```
 
-`database/schema_actual.sql` es el esquema completo para una instalación nueva. Incluye
-los cambios de estructura que también aparecen como migraciones incrementales.
-Los archivos SQL conservan los catálogos de referencia, pero omiten usuarios, personas,
+`database/schema_actual.sql` es el esquema completo para una instalación nueva. Los
+archivos SQL conservan los catálogos de referencia, pero omiten usuarios, personas,
 matrículas y demás datos operativos. La instalación debe provisionar una cuenta inicial
 y configurar la institución antes de habilitar el uso normal.
 El procedimiento de instalación, publicación y alta del administrador inicial está en
@@ -159,7 +159,7 @@ app/
   Support/        herramientas reutilizables e independientes
   Traits/         comportamiento compartido que encaja en sus clases anfitrionas
   Views/          plantillas PHP
-database/         esquema actual y migraciones incrementales
+database/         esquema actual
 docs/             documentos del proyecto
 public/           raíz web: index.php y assets (js/core, js/modules, css, img)
 resources/scss/   fuentes de estilos
@@ -192,12 +192,375 @@ Ese servidor no sirve archivos estáticos por su cuenta y devuelve 400 en ellos;
 desarrollar conviene apuntar el navegador a las rutas PHP y dejar los assets a un
 servidor web real (Apache o Nginx), que sí los sirve directamente.
 
-## Módulos y roles
+## Detalle de módulos
 
-La matriz resume los roles admitidos por la lista blanca de `public/index.php`.
-El acceso puede variar por acción dentro de un módulo.
+Cada módulo tiene su propio controlador en `app/Controllers/`, su modelo en
+`app/Models/` y sus vistas bajo `app/Views/`. El acceso se controla en la lista
+blanca de `public/index.php` y el menú lateral se filtra con
+`sigde_nav_sections()` en `app/Views/helpers/ui.php`.
 
-| Módulo | Ruta | Admin | Directivo | Coordinador | Secretaria | Docente | Público |
+### Acceso y seguridad
+
+#### Autenticación
+- **Nombre en la interfaz:** Dashboard (punto de entrada tras el login)
+- **Ruta:** `auth/*`
+- **Controlador / Modelos:** `AuthController`; `LoginModel`, `PasswordRecoveryModel`, `AuditLogModel`
+- **Roles con acceso:** `publico` para `login`, `authenticate`, `recoverAccess` y `requestRecovery`; `admin`, `docente`, `coordinador`, `directivo`, `secretaria` para `logout`, `cambiarPasswordProvisional` y `updatePassword`
+- **Descripción:** Gestiona el ingreso al sistema, el cambio de clave provisional obligatoria y la recuperación de acceso. Es el primer módulo con el que interactúa cualquier usuario.
+- **Funcionalidades:**
+  - Iniciar sesión con cédula y contraseña.
+  - Bloqueo de cuenta tras intentos fallidos repetidos.
+  - Cambio obligatorio de clave provisional al primer acceso.
+  - Solicitud de recuperación de acceso (atendida por el administrador).
+  - Cierre de sesión.
+- **Flujo principal:** el usuario accede a `/auth/login`, ingresa sus credenciales y, si tiene clave provisional, debe cambiarla antes de continuar al panel correspondiente.
+- **Reglas y restricciones:** el front controller impide el acceso a rutas privadas sin sesión activa. Las rutas públicas redirigen al dashboard si ya hay sesión iniciada.
+- **Acciones técnicas:** `login`, `authenticate`, `logout`, `cambiarPasswordProvisional`, `updatePassword`, `recoverAccess`, `requestRecovery`.
+
+#### Paneles
+- **Nombre en la interfaz:** Dashboard (uno por rol: administrador, directivo, coordinador, secretaria, docente)
+- **Ruta:** `dashboard/*`
+- **Controlador:** `DashboardController`
+- **Roles con acceso:** `admin`, `directivo`, `coordinador`, `secretaria`, `docente`
+- **Descripción:** Punto de entrada principal tras la autenticación. Cada rol visualiza un panel con los indicadores y accesos rápidos correspondientes a su responsabilidad.
+- **Funcionalidades:**
+  - Ver el panel de control asignado según el rol.
+  - Acceder a las funciones principales del módulo propio.
+- **Flujo principal:** tras iniciar sesión, el usuario llega a `dashboard/index`, que lo redirige al panel de su rol (`dashboard/admin`, `dashboard/directivo`, etc.).
+- **Reglas y restricciones:** cada rol solo puede ver su propio panel; intentar acceder al panel de otro rol devuelve 403.
+- **Acciones técnicas:** `index`, `admin`, `docente`, `coordinador`, `directivo`, `secretaria`.
+
+#### Cuentas de usuario
+- **Nombre en la interfaz:** Cuentas de usuario
+- **Ruta:** `cuentaUsuario/*`
+- **Controlador / Modelo:** `UserAccountController`; `UserAccountModel`
+- **Roles con acceso:** `admin`
+- **Descripción:** Gestiona las cuentas de acceso al sistema, permitiendo crear, editar y desactivar usuarios a partir de los empleados registrados.
+- **Funcionalidades:**
+  - Listar cuentas de usuario con filtros.
+  - Crear una cuenta a partir de un empleado existente.
+  - Editar usuario, rol y estado.
+  - Ver detalle de una cuenta.
+  - Activar o desactivar una cuenta.
+- **Flujo principal:** el administrador abre el módulo, busca o crea un empleado, le asigna un rol y guarda la cuenta.
+- **Reglas y restricciones:** solo el rol `admin` puede acceder a todas las acciones de este módulo.
+- **Acciones técnicas:** `index`, `create`, `store`, `edit`, `update`, `toggleStatus`, `getDetalle`.
+
+#### Bitácora
+- **Nombre en la interfaz:** Bitácora
+- **Ruta:** `bitacora/*`
+- **Controlador / Modelo:** `AuditLogController`; `AuditLogModel`
+- **Roles con acceso:** `admin`
+- **Descripción:** Registra las acciones realizadas en el sistema para auditoría, permitiendo revisar quién hizo qué, cuándo y desde dónde.
+- **Funcionalidades:**
+  - Listar entradas de la bitácora con filtros de fecha, acción y texto libre.
+  - Exportar el registro de auditoría.
+- **Flujo principal:** el administrador consulta la bitácora, aplica filtros si es necesario y exporta el resultado para revisión externa.
+- **Reglas y restricciones:** módulo de solo lectura; solo `admin` tiene acceso.
+- **Acciones técnicas:** `index`, `exportar`.
+
+#### Recuperación de acceso
+- **Nombre en la interfaz:** Recuperación de acceso
+- **Ruta:** `recuperacionAcceso/*`
+- **Controlador / Modelo:** `PasswordRecoveryController`; `PasswordRecoveryModel`
+- **Roles con acceso:** `admin`
+- **Descripción:** Permite al administrador gestionar las solicitudes de restablecimiento de contraseña generadas por los usuarios y restablecer claves directamente cuando sea necesario.
+- **Funcionalidades:**
+  - Listar solicitudes de recuperación pendientes.
+  - Ver detalle de una solicitud.
+  - Aprobar o rechazar una solicitud (genera clave provisional).
+  - Restablecer la contraseña de cualquier usuario sin solicitud previa.
+- **Flujo principal:** un usuario solicita recuperación desde el login; el administrador revisa la solicitud en este módulo, la aprueba y el usuario recibe una clave provisional.
+- **Reglas y restricciones:** acceso exclusivo de `admin`.
+- **Acciones técnicas:** `index`, `getDetalle`, `updateEstado`, `resetPassword`.
+
+#### Notificaciones
+- **Nombre en la interfaz:** Notificaciones (dropdown del encabezado)
+- **Ruta:** `notificacion/*`
+- **Controlador / Modelo:** `NotificationController`; `NotificationModel`
+- **Roles con acceso:** `admin`, `secretaria`, `directivo`
+- **Descripción:** Informa al usuario sobre novedades del sistema mediante un contador y una lista de notificaciones recientes en el encabezado.
+- **Funcionalidades:**
+  - Consultar la cantidad de notificaciones no leídas.
+  - Listar las últimas notificaciones.
+  - Marcar notificaciones como leídas individualmente o todas a la vez.
+- **Flujo principal:** el usuario abre el dropdown de notificaciones en el encabezado, ve el contador y las notificaciones pendientes, y las marca como leídas al consultarlas.
+- **Reglas y restricciones:** accesible para `admin`, `secretaria` y `directivo`.
+- **Acciones técnicas:** `contador`, `listar`, `leer`, `leerTodas`.
+
+#### Perfil
+- **Nombre en la interfaz:** Mi perfil
+- **Ruta:** `perfil/*`
+- **Controlador / Modelo:** `ProfileController`; `ProfileModel`
+- **Roles con acceso:** `admin`, `docente`, `coordinador`, `directivo`, `secretaria`
+- **Descripción:** Permite a cualquier usuario autenticado consultar sus propios datos de identidad, información laboral y canales de contacto, y actualizar su foto de perfil.
+- **Funcionalidades:**
+  - Ver la ficha de identidad del usuario.
+  - Consultar datos de cuenta y canal de contacto.
+  - Actualizar la foto de perfil.
+- **Flujo principal:** el usuario accede a su perfil desde el menú de usuario en el encabezado y revisa o actualiza su información.
+- **Reglas y restricciones:** cada usuario solo puede ver y editar su propio perfil.
+- **Acciones técnicas:** `index`, `actualizarFoto`.
+
+### Administración del sistema
+
+#### Catálogos
+- **Nombre en la interfaz:** Catálogos
+- **Ruta:** `catalogo/*`
+- **Controlador / Modelos:** `CatalogController`; `CatalogModel` y modelos por catálogo (`GradoModel`, `SeccionModel`, `TurnoModel`, `TipoDocumentoModel`, `GradoAcademicoModel`, `TipoAsignacionModel`, `OcupacionModel`, `NacionalidadModel`, `CargoModel`, `ParentescoModel`, `NivelInstruccionModel`, `TituloModel`)
+- **Roles con acceso:** `admin`
+- **Descripción:** Administra los catálogos maestros del sistema que alimentan los formularios y listados (grados, secciones, turnos, tipos de documento, cargos, parentescos, etc.).
+- **Funcionalidades:**
+  - Listar registros de cada catálogo con filtros.
+  - Crear, editar y activar/desactivar catálogos.
+  - Consultar ubicaciones (estado, municipio, parroquia) para formularios.
+- **Flujo principal:** el administrador selecciona un catálogo, edita sus valores o agrega uno nuevo, y el sistema lo pone a disposición de los formularios correspondientes.
+- **Reglas y restricciones:** acceso exclusivo de `admin`.
+- **Acciones técnicas:** `index`, `store`, `update`, `toggleStatus`, `getUbicacion`.
+
+#### Configuración institucional
+- **Nombre en la interfaz:** Datos Institucionales
+- **Ruta:** `configuracionInstitucional/*`
+- **Controlador / Modelo:** `InstitutionalConfigController`; `InstitutionalConfigModel`
+- **Roles con acceso:** `admin`
+- **Descripción:** Administra los datos oficiales del plantel, los logos y los elementos de firma y sello del director.
+- **Funcionalidades:**
+  - Ver y editar los datos institucionales (nombre, código de dependencia, dirección, directivo).
+  - Subsistir y quitar imágenes públicas (logos) y privadas (firma y sello).
+  - Previsualizar firma y sello de forma segura.
+- **Flujo principal:** el administrador accede a Datos Institucionales, modifica los campos necesarios y guarda; las imágenes se procesan y se almacenan de forma segura.
+- **Reglas y restricciones:** acceso restringido estrictamente a `admin` mediante una segunda barrera de seguridad en el controlador.
+- **Acciones técnicas:** `index`, `guardar`, `subirImagen`, `quitarImagen`, `verPrivado`, `restablecerOficial`.
+
+#### Años escolares
+- **Nombre en la interfaz:** Años Escolares
+- **Ruta:** `academicYear/*`
+- **Controlador / Modelo:** `AcademicYearController`; `AcademicYearModel`
+- **Roles con acceso:** `directivo`
+- **Descripción:** Gestiona el ciclo lectivo de la institución, permitiendo iniciar, editar, cerrar y reabrir años escolares.
+- **Funcionalidades:**
+  - Listar años escolares con filtros.
+  - Crear y editar un año escolar.
+  - Iniciar y cerrar un año escolar.
+  - Reabrir un año cerrado por error.
+- **Flujo principal:** el directivo crea un año escolar, lo inicia cuando comienza el ciclo y lo cierra al finalizar; si se cierra por error, puede reabrirlo.
+- **Reglas y restricciones:** acceso exclusivo de `directivo`.
+- **Acciones técnicas:** `index`, `store`, `update`, `iniciar`, `cerrar`, `reabrir`.
+
+### Gestión del personal
+
+#### Empleados
+- **Nombre en la interfaz:** Empleados
+- **Ruta:** `empleado/*`
+- **Controlador / Modelos / Servicio:** `EmployeeController`; `EmployeeModel`, `TituloModel`, `InstitucionModel`, `AuditLogModel`; `ExpedienteEmpleadoService`
+- **Roles con acceso:** `directivo` (gestión completa); `coordinador` y `secretaria` (consulta a un subconjunto de acciones)
+- **Descripción:** Administra el personal empleado de la institución, sus expedientes laborales, reposos, títulos e instituciones de procedencia.
+- **Funcionalidades:**
+  - Listar empleados con filtros.
+  - Ver el expediente completo de un empleado.
+  - Crear, editar y activar/desactivar empleados.
+  - Gestionar reposos (registrar, editar, consultar historial).
+  - Gestionar títulos e instituciones de procedencia.
+- **Flujo principal:** el directivo da de alta un empleado, registra sus datos personales y laborales, y gestiona sus reposos y títulos según sea necesario.
+- **Reglas y restricciones:** `directivo` gestiona el módulo completo; `coordinador` y `secretaria` tienen acceso de consulta a un subconjunto de acciones (listado, expediente, exportar, ubicación).
+- **Acciones técnicas:** `index`, `expediente`, `exportar`, `estadoInfo`, `cambiarEstado`, `cerrarReposo`, `anularReposo`, `create`, `show`, `edit`, `store`, `update`, `toggleStatus`, `getUbicacion`, `buscarPersona`, `registrarReposo`, `updateReposo`, `getReposos`, `guardarTitulo`, `guardarInstitucion`.
+
+### Estructura académica
+
+#### Estructura académica
+- **Nombre en la interfaz:** Estructura Académica
+- **Ruta:** `academicStructure/*`
+- **Controlador / Modelo:** `AcademicStructureController`; `AcademicStructureModel`
+- **Roles con acceso:** `coordinador`, `directivo`
+- **Descripción:** Define la estructura académica de la institución (año, grado, sección, turno y cupo), permitiendo organizar a los estudiantes en grupos.
+- **Funcionalidades:**
+  - Listar estructuras académicas con filtros.
+  - Crear y editar combinaciones de año, grado, sección y turno.
+  - Consultar el impacto de una edición (cuántos alumnos se verían afectados).
+- **Flujo principal:** el coordinador o directivo define una estructura académica, asigna cupo y revisa el impacto antes de guardar cambios.
+- **Reglas y restricciones:** `coordinador` y `directivo` tienen acceso completo.
+- **Acciones técnicas:** `index`, `store`, `update`, `impacto`.
+
+#### Asignación docente
+- **Nombre en la interfaz:** Asignación Docente
+- **Ruta:** `teacherAssignment/*`
+- **Controlador / Modelo:** `TeacherAssignmentController`; `TeacherAssignmentModel`
+- **Roles con acceso:** `coordinador`, `directivo`
+- **Descripción:** Asigna docentes titulares a las secciones académicas y permite retirar asignaciones vigentes.
+- **Funcionalidades:**
+  - Listar asignaciones docentes por estructura.
+  - Asignar un docente a una sección.
+  - Actualizar o retirar una asignación vigente.
+  - Consultar docentes disponibles por estructura.
+- **Flujo principal:** el coordinador o directivo selecciona una estructura académica, elige un docente de la lista disponible y asigna o retira la asignación.
+- **Reglas y restricciones:** acceso para `coordinador` y `directivo`.
+- **Acciones técnicas:** `index`, `asignar`, `actualizar`, `retirar`, `getDocentesPorEstructura`.
+
+### Procesos estudiantiles
+
+#### Estudiantes y expedientes
+- **Nombre en la interfaz:** Estudiantes
+- **Ruta:** `estudiantes/*`
+- **Controlador / Modelo / Servicio:** `StudentsController`; `StudentsModel`; `ExpedienteEstudianteService`
+- **Roles con acceso:** `directivo`, `coordinador`, `secretaria`, `docente` (consulta); `secretaria` (guardar recaudos)
+- **Descripción:** Consulta los expedientes académicos de los estudiantes, permitiendo ver su información completa, filtros y marcación de recaudos entregados.
+- **Funcionalidades:**
+  - Listar estudiantes con filtros (nombre, grado, sección, estado, turno).
+  - Ver el expediente completo de un estudiante.
+  - Exportar el listado de estudiantes.
+  - Marcar recaudos como entregados.
+- **Flujo principal:** el usuario busca un estudiante por cédula o filtros, abre su expediente para revisar la información y, si es secretaria, marca los recaudos entregados.
+- **Reglas y restricciones:** la marcación de recaudos entregados es exclusiva de `secretaria`; los demás roles solo consultan.
+- **Acciones técnicas:** `index`, `show`, `expediente`, `exportar`, `guardarRecaudos`.
+
+#### Inscripción
+- **Nombre en la interfaz:** Inscripción
+- **Ruta:** `inscripciones/*`
+- **Controlador / Modelo:** `EnrollmentController`; `EnrollmentModel`
+- **Roles con acceso:** `secretaria`
+- **Descripción:** Registra nuevas inscripciones de estudiantes, gestionando la búsqueda por cédula, la alta de matrícula y la evaluación de recaudos.
+- **Funcionalidades:**
+  - Buscar estudiantes por cédula para el alta.
+  - Registrar una nueva inscripción.
+  - Evaluar los recaudos de una inscripción.
+  - Ver el detalle de una inscripción.
+  - Guardar la institución de procedencia.
+- **Flujo principal:** la secretaria busca al estudiante por cédula, registra la inscripción con sus datos y evalúa si los recaudos están completos.
+- **Reglas y restricciones:** acceso exclusivo de `secretaria`.
+- **Acciones técnicas:** `index`, `store`, `evaluarRecaudos`, `ver`, `continuar`, `buscarPersona`, `guardarInstitucion`, `getUbicacion`.
+
+#### Ratificación
+- **Nombre en la interfaz:** Ratificación
+- **Ruta:** `ratificacion/*`
+- **Controlador / Modelo:** `RatificationController`; `RatificationModel`
+- **Roles con acceso:** `secretaria` (todas las acciones); `directivo` (solo `updateEstudiante`)
+- **Descripción:** Gestiona la ratificación de matrícula para el año siguiente, permitiendo confirmar la continuidad de los estudiantes y editar sus datos desde el modal correspondiente.
+- **Funcionalidades:**
+  - Listar estudiantes para ratificación con filtros.
+  - Ver el detalle de una ratificación.
+  - Obtener datos del estudiante para el modal de edición.
+  - Ratificar la matrícula de un estudiante.
+  - Actualizar los datos del estudiante desde el modal.
+- **Flujo principal:** la secretaria busca al estudiante, revisa sus datos y ratifica la matrícula; el directivo puede editar los datos del estudiante desde el modal cuando sea necesario.
+- **Reglas y restricciones:** `admin` no tiene acceso a este módulo. Las acciones de `index`, `ver`, `datosEstudiante`, `getUbicacion`, `buscarPersona`, `secciones` y `ratificar` son exclusivas de `secretaria`; `updateEstudiante` está disponible para `secretaria` y `directivo`. La edición de recaudos en Estudiantes también es exclusiva de `secretaria`.
+- **Acciones técnicas:** `index`, `ver`, `datosEstudiante`, `getUbicacion`, `buscarPersona`, `secciones`, `ratificar`, `updateEstudiante`.
+
+#### Retiros
+- **Nombre en la interfaz:** Retiro
+- **Ruta:** `withdrawal/*`
+- **Controlador / Modelo:** `WithdrawalController`; `WithdrawalModel`
+- **Roles con acceso:** `directivo`, `secretaria`
+- **Descripción:** Gestiona las solicitudes de retiro de estudiantes, desde el registro por la secretaria hasta la resolución por la dirección.
+- **Funcionalidades:**
+  - Listar solicitudes de retiro.
+  - Ver el detalle de una solicitud.
+  - Buscar estudiantes para retiro.
+  - Registrar una solicitud de retiro.
+  - Evaluar los recaudos del retiro.
+  - Actualizar el estado de una solicitud (aprobar/rechazar).
+  - Eliminar una solicitud.
+- **Flujo principal:** la secretaria registra la solicitud de retiro y evalúa los recaudos; el directivo revisa y aprueba o rechaza la solicitud.
+- **Reglas y restricciones:** `directivo` y `secretaria` tienen acceso; `updateEstado` y `updateStatus` son exclusivos de `directivo`.
+- **Acciones técnicas:** `index`, `ver`, `buscarEstudiante`, `store`, `evaluarRecaudos`, `updateEstado`, `updateStatus`, `delete`.
+
+#### Reingresos
+- **Nombre en la interfaz:** Reingreso
+- **Ruta:** `reingreso/*`
+- **Controlador / Modelo:** `ReingresoController`; `ReingresoModel`
+- **Roles con acceso:** `secretaria`
+- **Descripción:** Gestiona la reincorporación de estudiantes retirados, permitiendo registrar y procesar solicitudes de reingreso.
+- **Funcionalidades:**
+  - Listar solicitudes de reingreso.
+  - Buscar estudiantes para reingreso.
+  - Ver los datos del estudiante.
+  - Guardar la solicitud de reingreso.
+- **Flujo principal:** la secretaria busca al estudiante retirado, revisa sus datos y guarda la solicitud de reingreso para su procesamiento.
+- **Reglas y restricciones:** acceso exclusivo de `secretaria`.
+- **Acciones técnicas:** `index`, `buscarEstudiante`, `datos`, `guardar`.
+
+### Docentes
+
+#### Docente
+- **Nombre en la interfaz:** Docente (listados, nómina, sección, enlace de WhatsApp)
+- **Ruta:** `docente/*`
+- **Controlador:** `TeacherController`
+- **Roles con acceso:** `docente`
+- **Descripción:** Proporciona al docente los listados de su sección, la nómina y el enlace de WhatsApp para comunicación con los representantes.
+- **Funcionalidades:**
+  - Ver el listado de estudiantes de su sección.
+  - Consultar la nómina de la sección.
+  - Ver los detalles de la sección asignada.
+  - Guardar el enlace de WhatsApp de la sección.
+- **Flujo principal:** el docente accede a su sección, revisa el listado de estudiantes y configura el enlace de WhatsApp para contacto con representantes.
+- **Reglas y restricciones:** acceso exclusivo de `docente`; cada docente solo ve su propia sección.
+- **Acciones técnicas:** `index`, `nomina`, `seccion`, `guardarEnlaceWhatsapp`.
+
+#### Resultados académicos
+- **Nombre en la interfaz:** Resultados y Promoción
+- **Ruta:** `resultadoAcademico/*`
+- **Controlador / Modelo:** `AcademicResultController`; `AcademicResultModel`
+- **Roles con acceso:** `docente`
+- **Descripción:** Permite al docente registrar los literales finales (A-E) de sus estudiantes al cierre del año, derivando automáticamente el estado de promoción.
+- **Funcionalidades:**
+  - Listar secciones con estudiantes para registrar resultados.
+  - Ver los estudiantes de una sección.
+  - Guardar la propuesta de literales y resultados.
+- **Flujo principal:** el docente selecciona su sección, registra el literal de cada estudiante y guarda la propuesta; el sistema determina automáticamente si está promovido o no.
+- **Reglas y restricciones:** acceso exclusivo de `docente`; el estado de promoción se deriva automáticamente del literal (A-D promovido, E no promovido, sin literal pendiente).
+- **Acciones técnicas:** `index`, `seccion`, `guardarPropuesta`.
+
+#### Certificados de calificaciones
+- **Nombre en la interfaz:** Certificados de Calificaciones
+- **Ruta:** `certificadoCalificaciones/*`
+- **Controlador / Modelos:** `GradeCertificateController`; `GradeCertificateModel`, `AcademicResultModel`
+- **Roles con acceso:** `docente`
+- **Descripción:** Emite Certificados de Calificaciones individuales o por sección, siguiendo el formato oficial (Art. 108 RGLOE), para estudiantes que no alcanzaron competencias en 6.º grado o para cualquier sección cuando corresponda.
+- **Funcionalidades:**
+  - Generar un certificado de calificaciones individual.
+  - Generar certificados de calificaciones por sección completa.
+- **Flujo principal:** el docente selecciona una sección, genera los certificados de los estudiantes correspondientes y los descarga o imprime.
+- **Reglas y restricciones:** solo la docente asignada a la sección puede emitir certificados. En 6.º grado, solo reciben Certificado de Calificaciones los estudiantes con literal E (no promovidos); los promovidos reciben el Certificado de Educación Primaria por el módulo de Constancias.
+- **Acciones técnicas:** `generarIndividual`, `generarPorSeccion`.
+
+### Documentos y reportes
+
+#### Constancias
+- **Nombre en la interfaz:** Emisión de Constancias
+- **Ruta:** `constancias/*`
+- **Controlador / Modelo:** `CertificatesController`; `CertificatesModel`
+- **Roles con acceso:** `secretaria`
+- **Descripción:** Emite constancias oficiales de estudio, inscripción/ratificación, retiro y prosecución, incluidas las de educación primaria para estudiantes de 6.º grado promovidos.
+- **Funcionalidades:**
+  - Emitir constancia de estudio.
+  - Emitir constancia de inscripción.
+  - Emitir constancia de retiro.
+  - Emitir constancia de prosecución.
+  - Ver prueba de constancia antes de emitir.
+  - Emitir constancias por lote.
+- **Flujo principal:** la secretaria selecciona el tipo de constancia, filtra por estudiante o sección, genera una prueba de vista y emite el documento final individualmente o por lote.
+- **Reglas y restricciones:** acceso exclusivo de `secretaria`.
+- **Acciones técnicas:** `index`, `estudio`, `inscripcion`, `retiro`, `prosecucion`, `verPrueba`, `emitir`, `emitirLote`.
+
+#### Estadísticas
+- **Nombre en la interfaz:** Estadísticas
+- **Ruta:** `estadistica/*`
+- **Controlador / Modelo:** `StatisticsController`; `StatisticsModel`
+- **Roles con acceso:** `directivo`, `coordinador`
+- **Descripción:** Proporciona estadísticas institucionales sobre matrícula, capacidad, hermanos, demografía, salud y talento humano, con exportación a Excel y PDF.
+- **Funcionalidades:**
+  - Ver el panel de estadísticas institucionales.
+  - Exportar datos de hermanos a Excel.
+  - Exportar datos de hermanos a PDF.
+  - Exportar datos de matrícula a Excel.
+- **Flujo principal:** el directivo o coordinador abre el panel de estadísticas, revisa los indicadores y exporta los reportes necesarios para la dirección.
+- **Reglas y restricciones:** acceso para `directivo` y `coordinador`.
+- **Acciones técnicas:** `index`, `exportarHermanosExcel`, `exportarHermanosPdf`, `exportarMatriculaExcel`.
+
+## Matriz de roles
+
+La tabla resume los módulos de la interfaz y los roles con acceso a cada uno, según la lista blanca de `public/index.php`. El acceso puede variar por acción dentro de un módulo.
+
+| Módulo (interfaz) | Ruta | Admin | Directivo | Coordinador | Secretaria | Docente | Público |
 |---|---|---:|---:|---:|---:|---:|---:|
 | Autenticación | `auth/*` | Sí | Sí | Sí | Sí | Sí | Sí |
 | Paneles | `dashboard/*` | Sí | Sí | Sí | Sí | Sí | — |
@@ -205,32 +568,25 @@ El acceso puede variar por acción dentro de un módulo.
 | Bitácora | `bitacora/*` | Sí | — | — | — | — | — |
 | Recuperación de acceso | `recuperacionAcceso/*` | Sí | — | — | — | — | — |
 | Notificaciones | `notificacion/*` | Sí | Sí | — | Sí | — | — |
+| Perfil | `perfil/*` | Sí | Sí | Sí | Sí | Sí | — |
 | Catálogos | `catalogo/*` | Sí | — | — | — | — | — |
-| Empleados | `empleado/*` | — | Sí | Sí | Sí | — | — |
+| Configuración institucional | `configuracionInstitucional/*` | Sí | — | — | — | — | — |
 | Años escolares | `academicYear/*` | — | Sí | — | — | — | — |
+| Empleados | `empleado/*` | — | Sí | Sí | Sí | — | — |
 | Estructura académica | `academicStructure/*` | — | Sí | Sí | — | — | — |
 | Asignación docente | `teacherAssignment/*` | — | Sí | Sí | — | — | — |
-| Retiros | `withdrawal/*` | — | Sí | — | Sí | — | — |
-| Reingresos | `reingreso/*` | — | — | — | Sí | — | — |
 | Estudiantes y expedientes | `estudiantes/*` | — | Sí | Sí | Sí | Sí | — |
 | Inscripción | `inscripciones/*` | — | — | — | Sí | — | — |
 | Ratificación | `ratificacion/*` | — | Sí* | — | Sí | — | — |
-| Configuración institucional | `configuracionInstitucional/*` | Sí | — | — | — | — | — |
-| Constancias | `constancias/*` | — | — | — | Sí | — | — |
+| Retiros | `withdrawal/*` | — | Sí | — | Sí | — | — |
+| Reingresos | `reingreso/*` | — | — | — | Sí | — | — |
+| Docente | `docente/*` | — | — | — | — | Sí | — |
 | Resultados académicos | `resultadoAcademico/*` | — | — | — | — | Sí | — |
 | Certificados de calificaciones | `certificadoCalificaciones/*` | — | — | — | — | Sí | — |
-| Docente | `docente/*` | — | — | — | — | Sí | — |
+| Constancias | `constancias/*` | — | — | — | Sí | — | — |
 | Estadísticas | `estadistica/*` | — | Sí | Sí | — | — | — |
-| Egresos | `egresos/*` | — | — | — | — | — | — |
-| Perfil | `perfil/*` | Sí | Sí | Sí | Sí | Sí | — |
 
-`*` En Ratificación, Directivo solo tiene permiso para la acción
-`updateEstudiante`; las demás acciones de ese módulo son exclusivas de Secretaria.
-Admin no tiene acceso a este módulo. La edición de recaudos en Estudiantes también
-es exclusiva de Secretaria. En Empleados, Coordinador y Secretaria tienen acceso
-a un subconjunto de consulta; Directivo puede gestionar el módulo. Egresos no
-tiene rutas declaradas en la lista blanca, aunque aparezca en la lista de acciones
-POST.
+`*` En Ratificación, Directivo solo tiene permiso para la acción `updateEstudiante`; las demás acciones de ese módulo son exclusivas de Secretaria. La edición de recaudos en Estudiantes también es exclusiva de Secretaria.
 
 ## Reporte PDF
 
@@ -264,186 +620,12 @@ los binarios de los PDF emitidos por lote (Certificados de Calificaciones por
 sección y Certificados de Educación Primaria por lote). Cada PDF se genera una
 sola vez y se reutiliza en la vista previa y la descarga durante 30 minutos;
 después expira y se regenera. Esto evita que Dompdf procese el mismo lote varias
-veces por cada clic del usuario, reduciendo el consumo de CPU y memoria en
-hosting compartido.
+veces por cada clic del usuario.
 
 `scripts/pdf-cache-clean.php` borra los archivos de caché con más de 1 hora. Ejecutarlo
 manual o por cron para evitar acumulación en disco.
 
 El renderizado de PDF sigue ocurriendo en el servidor, no en el navegador.
-
-## Detalle de módulos
-
-Cada módulo tiene su propio controlador en `app/Controllers/`, su modelo en
-`app/Models/` y sus vistas bajo `app/Views/`. El acceso se controla en la lista
-blanca de `public/index.php` y el menú lateral se filtra con
-`sigde_nav_sections()` en `app/Views/helpers/ui.php`.
-
-### Autenticación (`auth/*`)
-**Controlador:** `AuthController`  
-**Modelos:** `LoginModel`, `PasswordRecoveryModel`, `AuditLogModel`  
-**Acciones:** `login`, `authenticate`, `logout`, `cambiarPasswordProvisional`, `updatePassword`, `recoverAccess`, `requestRecovery`  
-**Roles:** `publico` (login y recuperación), `admin`, `docente`, `coordinador`, `directivo`, `secretaria` (logout y cambio de clave)  
-Flujo de acceso al sistema: login con bloqueo por intentos fallidos, cambio de clave provisional obligatoria, recuperación de acceso gestionada por el administrador y cierre de sesión.
-
-### Paneles (`dashboard/*`)
-**Controlador:** `DashboardController`  
-**Vistas:** `Views/dashboard/{rol}/index.php`  
-**Acciones:** `index`, `admin`, `docente`, `coordinador`, `directivo`, `secretaria`  
-**Roles:** todos los autenticados  
-Cada rol tiene su propio dashboard con indicadores relevantes. El controlador resuelve el destino después del login y comprueba que el rol coincida con el destino solicitado.
-
-### Cuentas de usuario (`cuentaUsuario/*`)
-**Controlador:** `UserAccountController`  
-**Modelo:** `UserAccountModel`  
-**Acciones:** `index`, `create`, `store`, `edit`, `update`, `toggleStatus`, `getDetalle`  
-**Roles:** `admin`  
-Gestión de cuentas de usuario del sistema: listado, alta desde un empleado, edición de usuario y rol, detalle y activación/desactivación. Todo por modales AJAX.
-
-### Bitácora (`bitacora/*`)
-**Controlador:** `AuditLogController`  
-**Modelo:** `AuditLogModel`  
-**Acciones:** `index`, `exportar`  
-**Roles:** `admin`  
-Registro de auditoría del sistema: listado de acciones (usuario, módulo, IP, fecha) y exportación. Solo lectura.
-
-### Recuperación de acceso (`recuperacionAcceso/*`)
-**Controlador:** `PasswordRecoveryController`  
-**Modelo:** `PasswordRecoveryModel`  
-**Acciones:** `index`, `getDetalle`, `updateEstado`, `resetPassword`  
-**Roles:** `admin`  
-Lado administrador de la recuperación de acceso: aprueba o rechaza solicitudes de restablecimiento, genera claves provisionales y permite restablecer claves sin solicitud previa.
-
-### Notificaciones (`notificacion/*`)
-**Controlador:** `NotificationController`  
-**Modelo:** `NotificationModel`  
-**Acciones:** `contador`, `listar`, `leer`, `leerTodas`  
-**Roles:** `admin`, `secretaria`, `directivo`  
-Endpoints AJAX para el contador de notificaciones no leídas, listado y marcado como leídas. Se consumen desde el dropdown del header.
-
-### Catálogos (`catalogo/*`)
-**Controlador:** `CatalogController`  
-**Modelos:** `CatalogModel` + modelos por catálogo (`GradoModel`, `SeccionModel`, `TurnoModel`, `TipoDocumentoModel`, etc.)  
-**Acciones:** `index`, `store`, `update`, `toggleStatus`, `getUbicacion`  
-**Roles:** `admin`  
-Gestión de catálogos maestros del sistema (grados, secciones, turnos, tipos de documento, grados académicos, tipos de asignación, ocupaciones, nacionalidades, cargos, parentescos, niveles de instrucción, títulos). Cada catálogo tiene su modelo y el controlador usa `tipo` para distinguirlos.
-
-### Empleados (`empleado/*`)
-**Controlador:** `EmployeeController`  
-**Modelos:** `EmployeeModel`, `TituloModel`, `InstitucionModel`, `AuditLogModel`  
-**Servicio:** `ExpedienteEmpleadoService`  
-**Acciones:** `index`, `expediente`, `exportar`, `estadoInfo`, `cambiarEstado`, `cerrarReposo`, `anularReposo`, `create`, `show`, `edit`, `store`, `update`, `toggleStatus`, `getUbicacion`, `buscarPersona`, `registrarReposo`, `updateReposo`, `getReposos`, `guardarTitulo`, `guardarInstitucion`  
-**Roles:** `directivo`, `coordinador`, `secretaria` (consulta/subconjunto); `directivo` (gestión completa)  
-CRUD de personal empleado, expedientes laborales, reposos, títulos e instituciones. Coordinador y secretaria tienen acceso de consulta a un subconjunto; el directivo gestiona el módulo completo.
-
-### Años escolares (`academicYear/*`)
-**Controlador:** `AcademicYearController`  
-**Modelo:** `AcademicYearModel`  
-**Acciones:** `index`, `store`, `update`, `iniciar`, `cerrar`, `reabrir`  
-**Roles:** `directivo`  
-Gestión del ciclo lectivo: creación, edición, apertura y cierre de años escolares. Solo la dirección puede iniciar o cerrar un año.
-
-### Estructura académica (`academicStructure/*`)
-**Controlador:** `AcademicStructureController`  
-**Modelo:** `AcademicStructureModel`  
-**Acciones:** `index`, `store`, `update`, `impacto`  
-**Roles:** `coordinador`, `directivo`  
-Definición de la estructura académica (año + grado + sección + turno + cupo). Incluye un endpoint de impacto que informa cuántos alumnos se moverían al editar una estructura.
-
-### Asignación docente (`teacherAssignment/*`)
-**Controlador:** `TeacherAssignmentController`  
-**Modelo:** `TeacherAssignmentModel`  
-**Acciones:** `index`, `asignar`, `actualizar`, `retirar`, `getDocentesPorEstructura`  
-**Roles:** `coordinador`, `directivo`  
-Asignación y retiro de docentes titulares por sección académica. Consumo de docentes por estructura para el formulario de asignación.
-
-### Retiros (`withdrawal/*`)
-**Controlador:** `WithdrawalController`  
-**Modelo:** `WithdrawalModel`  
-**Acciones:** `index`, `ver`, `buscarEstudiante`, `store`, `evaluarRecaudos`, `updateEstado`, `updateStatus`, `delete`  
-**Roles:** `directivo`, `secretaria`  
-Proceso de retiro de estudiantes: la secretaria registra la solicitud y evalúa recaudos; el directivo resuelve (aprueba/rechaza) y puede eliminar registros.
-
-### Reingresos (`reingreso/*`)
-**Controlador:** `ReingresoController`  
-**Modelo:** `ReingresoModel`  
-**Acciones:** `index`, `buscarEstudiante`, `datos`, `guardar`  
-**Roles:** `secretaria`  
-Reincorporación de estudiantes retirados: listado de solicitudes, datos del estudiante y guardado de la solicitud de reingreso.
-
-### Estudiantes y expedientes (`estudiantes/*`)
-**Controlador:** `StudentsController`  
-**Modelo:** `StudentsModel`  
-**Servicio:** `ExpedienteEstudianteService`  
-**Acciones:** `index`, `show`, `expediente`, `exportar`, `guardarRecaudos`  
-**Roles:** `directivo`, `coordinador`, `secretaria`, `docente` (consulta); `secretaria` (guardar recaudos)  
-Consulta de expedientes académicos: listado con filtros, expediente completo del estudiante, exportación y marcación de recaudos entregados (exclusivo de secretaria).
-
-### Inscripción (`inscripciones/*`)
-**Controlador:** `EnrollmentController`  
-**Modelo:** `EnrollmentModel`  
-**Acciones:** `index`, `store`, `evaluarRecaudos`, `ver`, `continuar`, `buscarPersona`, `guardarInstitucion`, `getUbicacion`  
-**Roles:** `secretaria`  
-Registro de nuevas inscripciones: búsqueda de estudiante por cédula, alta de matrícula, evaluación de recaudos y datos de institución de procedencia.
-
-### Ratificación (`ratificacion/*`)
-**Controlador:** `RatificationController`  
-**Modelo:** `RatificationModel`  
-**Acciones:** `index`, `ver`, `datosEstudiante`, `getUbicacion`, `buscarPersona`, `secciones`, `ratificar`, `updateEstudiante`  
-**Roles:** `secretaria` (todas las acciones); `directivo` (solo `updateEstudiante`)  
-Ratificación de matrícula para el año siguiente. Admin no tiene acceso a este módulo. La edición de recaudos en Estudiantes también es exclusiva de secretaria.
-
-### Configuración institucional (`configuracionInstitucional/*`)
-**Controlador:** `InstitutionalConfigController`  
-**Modelo:** `InstitutionalConfigModel`  
-**Acciones:** `index`, `guardar`, `subirImagen`, `quitarImagen`, `verPrivado`, `restablecerOficial`  
-**Roles:** `admin`  
-Datos oficiales del plantel (nombre, código de dependencia, dirección, directivo), logos públicos y privados (firma y sello del director). Acceso restringido estrictamente a administrador.
-
-### Constancias (`constancias/*`)
-**Controlador:** `CertificatesController`  
-**Modelo:** `CertificatesModel`  
-**Acciones:** `index`, `estudio`, `inscripcion`, `retiro`, `prosecucion`, `verPrueba`, `emitir`, `emitirLote`  
-**Roles:** `secretaria`  
-Emisión oficial de constancias: estudio, inscripción/ratificación, prosecución y retiro. Incluye vista previa de prueba y emisión por lote de certificados de educación primaria (6.º grado).
-
-### Resultados académicos (`resultadoAcademico/*`)
-**Controlador:** `AcademicResultController`  
-**Modelo:** `AcademicResultModel`  
-**Acciones:** `index`, `seccion`, `guardarPropuesta`  
-**Roles:** `docente`  
-Registro de literales finales (A-E) por estudiante al cierre del año. El estado de promoción se deriva automáticamente: A-D = promovido, E = no promovido, sin literal = pendiente.
-
-### Certificados de calificaciones (`certificadoCalificaciones/*`)
-**Controlador:** `GradeCertificateController`  
-**Modelos:** `GradeCertificateModel`, `AcademicResultModel`  
-**Acciones:** `generarIndividual`, `generarPorSeccion`  
-**Roles:** `docente`  
-Emisión de Certificados de Calificaciones (Art. 108 RGLOE) individuales o por sección. Solo la docente asignada a la sección puede emitir. En 6.º grado solo reciben certificado quienes no alcanzaron competencias (literal E); los promovidos reciben el Certificado de Educación Primaria por el módulo de Constancias.
-
-### Docente (`docente/*`)
-**Controlador:** `TeacherController`  
-**Acciones:** `index`, `nomina`, `seccion`, `guardarEnlaceWhatsapp`  
-**Roles:** `docente`  
-Listados del docente (nómina de su sección), ver sección y enlace de WhatsApp de la sección.
-
-### Estadísticas (`estadistica/*`)
-**Controlador:** `StatisticsController`  
-**Modelo:** `StatisticsModel`  
-**Acciones:** `index`, `exportarHermanosExcel`, `exportarHermanosPdf`, `exportarMatriculaExcel`  
-**Roles:** `directivo`, `coordinador`  
-Estadísticas institucionales: control de representantes y hermanos, matrícula y capacidad, demografía, salud y talento humano. Exportación a Excel y PDF.
-
-### Egresos (`egresos/*`)
-**Roles:** —  
-Módulo sin rutas declaradas en la lista blanca del front controller, aunque aparezca en la lista de acciones POST. No está operativo en la versión actual.
-
-### Perfil (`perfil/*`)
-**Controlador:** `ProfileController`  
-**Modelo:** `ProfileModel`  
-**Acciones:** `index`, `actualizarFoto`  
-**Roles:** `admin`, `docente`, `coordinador`, `directivo`, `secretaria`  
-Ficha de identidad del usuario autenticado: datos de cuenta, información laboral y canales de contacto en modo solo lectura, más actualización de foto de perfil.
 
 ## Problemas frecuentes
 
