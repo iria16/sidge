@@ -398,6 +398,37 @@ blanca de `public/index.php` y el menú lateral se filtra con
 
 ### Procesos estudiantiles
 
+#### Proceso de egreso
+- **Nombre en la interfaz:** Certificado de Educación Primaria / Egreso (proceso interno, no módulo de navegación propio)
+- **Ruta:** Se dispara desde `academicYear/*` (acción `cerrar`) y se emite desde `constancias/*` (tipo `egreso`)
+- **Controlador / Modelos / Servicios:** `AcademicYearController`, `AcademicYearModel` (método `cerrar()` → `egresarPromovidosSextoGrado()`); `EgresoModel` (método `graduar()`, `graduarMasivo()`); `CertificatesController` (tipo `egreso`); `ConstanciaPdf` (`generarEgreso()`, `generarEgresoPorLote()`); `Matriculas` (constante `EGRESO`)
+- **Roles con acceso:** `directivo` (cierra el año y dispara egresos automáticos); `secretaria` (emite certificados de educación primaria individuales y por lote)
+- **Descripción:** El egreso es el cierre natural del ciclo escolar para estudiantes de 6.° grado que culminan la educación primaria. No es una baja ni un retiro: el estudiante cumplió satisfactoriamente todo el nivel y su ciclo académico en la institución termina con el egreso. El sistema lo registra como estado final de matrícula (`EGRESO`), que es terminal: no admite más matrículas para ese estudiante.
+- **Condiciones de egreso:**
+  - El estudiante debe estar cursando 6.° grado (último grado del ciclo).
+  - Debe tener un literal aprobatorio cargado por la docente (A, B, C o D) y su estado de resultado académico no debe ser `NO_PROMOVIDO`.
+  - Para el egreso individual, el año escolar debe estar activo. Al cerrar el año, el sistema egresa automáticamente a todos los promovidos de 6.° grado.
+- **Flujo paso a paso:**
+  1. La docente registra el literal final (A-E) de cada estudiante de su sección en Resultados Académicos. Los literales A-D se consideran aprobatorio; el E, no promovido.
+  2. El directivo cierra el año escolar desde el módulo de Años Escolares.
+  3. Al cerrar, el sistema identifica automáticamente a todos los estudiantes de 6.° grado con literal A-D y registra su egreso: crea una fila en la tabla `egreso`, crea una nueva fila `EGRESO` en `matricula` (estado final, terminal), actualiza `resultado_academico.estado_resultado` a `PROMOVIDO` si aún no lo está, y guarda el motivo "Culminación exitosa" en `inscripcion`.
+  4. La secretaria puede emitir el Certificado de Educación Primaria individualmente o por lote desde el módulo de Constancias (tipo Egreso).
+- **Roles que intervienen:**
+  - `docente`: registra literales de promoción en Resultados Académicos.
+  - `directivo`: cierra el año escolar, lo que dispara el egreso masivo automático de promovidos de 6.° grado.
+  - `secretaria`: emite certificados de educación primaria (individuales y por lote).
+- **Efectos en los datos:**
+  - Se inserta una fila en la tabla `egreso` (`id_matricula`, `fecha_egreso`, `id_usuario`).
+  - Se crea una nueva fila de tipo `EGRESO` en `matricula` (no se modifica la fila original de cursada, se conserva el historial).
+  - La tabla `egreso` se actualiza para apuntar a la nueva fila `EGRESO`.
+  - `resultado_academico.estado_resultado` se actualiza a `PROMOVIDO` si no lo estaba.
+  - `inscripcion.motivo_egreso` se establece a "Culminación exitosa" si estaba vacía.
+  - Una vez `EGRESO`, el estudiante no puede tener más matrículas (estado final, terminal absoluto).
+- **Documentos relacionados:**
+  - Certificado de Educación Primaria (individual): generado por `ConstanciaPdf::generarEgreso()`, emitido desde `CertificatesController` (tipo `egreso`), nombre de archivo `certificado_primaria_<nombre>.pdf`.
+  - Certificado de Educación Primaria por lote: generado por `ConstanciaPdf::generarEgresoPorLote()`, emitido desde `CertificatesController::emitirLote()`, nombre de archivo `certificados_primaria_lote<sufijo>.pdf`.
+- **Acciones técnicas:** `AcademicYearModel::cerrar()` → `egresarPromovidosSextoGrado()`; `EgresoModel::graduar()`, `EgresoModel::graduarMasivo()`; `CertificatesController::emitir()` (tipo `egreso`), `CertificatesController::emitirLote()`; `ConstanciaPdf::generarEgreso()`, `ConstanciaPdf::generarEgresoPorLote()`.
+
 #### Estudiantes y expedientes
 - **Nombre en la interfaz:** Estudiantes
 - **Ruta:** `estudiantes/*`
