@@ -11,11 +11,12 @@ estudiantes, retiros, egresos y configuración académica de la **Escuela Básic
 - [Scripts npm](#scripts-npm)
 - [Pruebas](#pruebas)
 - [Base de datos](#base-de-datos)
-- [Eestructura](#estructura)
+- [Estructura](#estructura)
 - [Detalle de módulos](#detalle-de-módulos)
 - [Matriz de roles](#matriz-de-roles)
 - [Reporte PDF](#reporte-pdf)
 - [Caché de PDF generados](#caché-de-pdf-generados)
+- [Seguridad y despliegue](#seguridad-y-despliegue)
 - [Problemas frecuentes](#problemas-frecuentes)
 
 ## Datos del proyecto
@@ -25,9 +26,9 @@ estudiantes, retiros, egresos y configuración académica de la **Escuela Básic
 - **Institución Beneficiaria:** Escuela Básica «Isidro Ramírez» (sede donde se atiende la problemática).
 - **Tutor / Asesor:** Ing. Luis Oliveros.
 - **Autores:**
-  - Iriamar D. Maita B. — C.I. 25.863.136
-  - Erickmar E. Sánchez P. — C.I. 30.431.260
-  - Elyenay M. Ocanto G. — C.I. 16.771.283
+  - Iriamar D. Maita B.
+  - Erickmar E. Sánchez P.
+  - Elyenay M. Ocanto G.
 - **Año:** 2026.
 - **Estado:** Proyecto culminado y operativo; desplegado en línea para pruebas y validación académica, en preparación para despliegue en servidor definitivo (VPS con HTTPS).
 - **Demostración en línea:** [Acceso al sistema](https://ebisidroramirez.nfy.fyi/sigdev1/public/)
@@ -164,6 +165,7 @@ docs/             documentos del proyecto
 public/           raíz web: index.php y assets (js/core, js/modules, css, img)
 resources/scss/   fuentes de estilos
 scripts/          utilidades de mantenimiento (fuera de la raíz web)
+storage/          archivos generados en ejecución (caché de PDF, control de solicitudes); fuera de la raíz web
 ```
 
 Como guía para mantener esas responsabilidades:
@@ -197,12 +199,13 @@ servidor web real (Apache o Nginx), que sí los sirve directamente.
 Cada módulo tiene su propio controlador en `app/Controllers/`, su modelo en
 `app/Models/` y sus vistas bajo `app/Views/`. El acceso se controla en la lista
 blanca de `public/index.php` y el menú lateral se filtra con
-`sigde_nav_sections()` en `app/Views/helpers/ui.php`.
+`sigde_nav_sections()` en `app/Views/helpers/ui.php`. Cada módulo se identifica con el
+nombre que ve el usuario en la interfaz.
 
 ### Acceso y seguridad
 
-#### Autenticación
-- **Nombre en la interfaz:** Dashboard (punto de entrada tras el login)
+#### Inicio de sesión
+- **Nombre en la interfaz:** Inicio de sesión
 - **Ruta:** `auth/*`
 - **Controlador / Modelos:** `AuthController`; `LoginModel`, `PasswordRecoveryModel`, `AuditLogModel`
 - **Roles con acceso:** `publico` para `login`, `authenticate`, `recoverAccess` y `requestRecovery`; `admin`, `docente`, `coordinador`, `directivo`, `secretaria` para `logout`, `cambiarPasswordProvisional` y `updatePassword`
@@ -214,11 +217,11 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Solicitud de recuperación de acceso (atendida por el administrador).
   - Cierre de sesión.
 - **Flujo principal:** el usuario accede a `/auth/login`, ingresa sus credenciales y, si tiene clave provisional, debe cambiarla antes de continuar al panel correspondiente.
-- **Reglas y restricciones:** el front controller impide el acceso a rutas privadas sin sesión activa. Las rutas públicas redirigen al dashboard si ya hay sesión iniciada.
+- **Reglas y restricciones:** el front controller impide el acceso a rutas privadas sin sesión activa. Las rutas públicas redirigen al dashboard si ya hay sesión iniciada. Con clave provisional, el único acceso permitido es cambiarla o cerrar sesión. La solicitud de recuperación de acceso está limitada a 5 intentos cada 15 minutos por IP.
 - **Acciones técnicas:** `login`, `authenticate`, `logout`, `cambiarPasswordProvisional`, `updatePassword`, `recoverAccess`, `requestRecovery`.
 
-#### Paneles
-- **Nombre en la interfaz:** Dashboard (uno por rol: administrador, directivo, coordinador, secretaria, docente)
+#### Dashboard
+- **Nombre en la interfaz:** Dashboard (cada rol ve su propio panel)
 - **Ruta:** `dashboard/*`
 - **Controlador:** `DashboardController`
 - **Roles con acceso:** `admin`, `directivo`, `coordinador`, `secretaria`, `docente`
@@ -242,7 +245,7 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Editar usuario, rol y estado.
   - Ver detalle de una cuenta.
   - Activar o desactivar una cuenta.
-- **Flujo principal:** el administrador abre el módulo, busca o crea un empleado, le asigna un rol y guarda la cuenta.
+- **Flujo principal:** el administrador abre el módulo, selecciona un empleado registrado, le asigna un rol y guarda la cuenta.
 - **Reglas y restricciones:** solo el rol `admin` puede acceder a todas las acciones de este módulo.
 - **Acciones técnicas:** `index`, `create`, `store`, `edit`, `update`, `toggleStatus`, `getDetalle`.
 
@@ -270,12 +273,12 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Ver detalle de una solicitud.
   - Aprobar o rechazar una solicitud (genera clave provisional).
   - Restablecer la contraseña de cualquier usuario sin solicitud previa.
-- **Flujo principal:** un usuario solicita recuperación desde el login; el administrador revisa la solicitud en este módulo, la aprueba y el usuario recibe una clave provisional.
+- **Flujo principal:** un usuario solicita recuperación desde el inicio de sesión; el administrador revisa la solicitud en este módulo, la aprueba y el usuario recibe una clave provisional.
 - **Reglas y restricciones:** acceso exclusivo de `admin`.
 - **Acciones técnicas:** `index`, `getDetalle`, `updateEstado`, `resetPassword`.
 
 #### Notificaciones
-- **Nombre en la interfaz:** Notificaciones (dropdown del encabezado)
+- **Nombre en la interfaz:** Notificaciones (menú desplegable del encabezado, no es una opción del menú lateral)
 - **Ruta:** `notificacion/*`
 - **Controlador / Modelo:** `NotificationController`; `NotificationModel`
 - **Roles con acceso:** `admin`, `secretaria`, `directivo`
@@ -284,11 +287,11 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Consultar la cantidad de notificaciones no leídas.
   - Listar las últimas notificaciones.
   - Marcar notificaciones como leídas individualmente o todas a la vez.
-- **Flujo principal:** el usuario abre el dropdown de notificaciones en el encabezado, ve el contador y las notificaciones pendientes, y las marca como leídas al consultarlas.
+- **Flujo principal:** el usuario abre el menú desplegable de notificaciones en el encabezado, ve el contador y las notificaciones pendientes, y las marca como leídas al consultarlas.
 - **Reglas y restricciones:** accesible para `admin`, `secretaria` y `directivo`.
 - **Acciones técnicas:** `contador`, `listar`, `leer`, `leerTodas`.
 
-#### Perfil
+#### Mi perfil
 - **Nombre en la interfaz:** Mi perfil
 - **Ruta:** `perfil/*`
 - **Controlador / Modelo:** `ProfileController`; `ProfileModel`
@@ -299,7 +302,7 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Consultar datos de cuenta y canal de contacto.
   - Actualizar la foto de perfil.
 - **Flujo principal:** el usuario accede a su perfil desde el menú de usuario en el encabezado y revisa o actualiza su información.
-- **Reglas y restricciones:** cada usuario solo puede ver y editar su propio perfil.
+- **Reglas y restricciones:** cada usuario solo puede ver y editar su propio perfil. Los datos de cuenta, laborales y de contacto son de solo lectura; solo la foto es editable.
 - **Acciones técnicas:** `index`, `actualizarFoto`.
 
 ### Administración del sistema
@@ -315,10 +318,10 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Crear, editar y activar/desactivar catálogos.
   - Consultar ubicaciones (estado, municipio, parroquia) para formularios.
 - **Flujo principal:** el administrador selecciona un catálogo, edita sus valores o agrega uno nuevo, y el sistema lo pone a disposición de los formularios correspondientes.
-- **Reglas y restricciones:** acceso exclusivo de `admin`.
+- **Reglas y restricciones:** acceso exclusivo de `admin`. Las altas y ediciones de catálogo están limitadas a 30 por minuto por IP.
 - **Acciones técnicas:** `index`, `store`, `update`, `toggleStatus`, `getUbicacion`.
 
-#### Configuración institucional
+#### Datos Institucionales
 - **Nombre en la interfaz:** Datos Institucionales
 - **Ruta:** `configuracionInstitucional/*`
 - **Controlador / Modelo:** `InstitutionalConfigController`; `InstitutionalConfigModel`
@@ -326,13 +329,14 @@ blanca de `public/index.php` y el menú lateral se filtra con
 - **Descripción:** Administra los datos oficiales del plantel, los logos y los elementos de firma y sello del director.
 - **Funcionalidades:**
   - Ver y editar los datos institucionales (nombre, código de dependencia, dirección, directivo).
-  - Subsistir y quitar imágenes públicas (logos) y privadas (firma y sello).
+  - Subir y quitar imágenes públicas (logos) y privadas (firma y sello).
   - Previsualizar firma y sello de forma segura.
+  - Restablecer los datos oficiales.
 - **Flujo principal:** el administrador accede a Datos Institucionales, modifica los campos necesarios y guarda; las imágenes se procesan y se almacenan de forma segura.
-- **Reglas y restricciones:** acceso restringido estrictamente a `admin` mediante una segunda barrera de seguridad en el controlador.
+- **Reglas y restricciones:** acceso restringido estrictamente a `admin` mediante una segunda barrera de seguridad en el controlador. La subida y el retiro de imágenes están limitados a 20 por minuto por IP.
 - **Acciones técnicas:** `index`, `guardar`, `subirImagen`, `quitarImagen`, `verPrivado`, `restablecerOficial`.
 
-#### Años escolares
+#### Años Escolares
 - **Nombre en la interfaz:** Años Escolares
 - **Ruta:** `academicYear/*`
 - **Controlador / Modelo:** `AcademicYearController`; `AcademicYearModel`
@@ -344,8 +348,41 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Iniciar y cerrar un año escolar.
   - Reabrir un año cerrado por error.
 - **Flujo principal:** el directivo crea un año escolar, lo inicia cuando comienza el ciclo y lo cierra al finalizar; si se cierra por error, puede reabrirlo.
-- **Reglas y restricciones:** acceso exclusivo de `directivo`.
+- **Reglas y restricciones:** acceso exclusivo de `directivo`. Reabrir un año queda registrado en la bitácora con el nombre de quien lo hizo y su motivo. El cierre del año ejecuta el proceso de egreso (ver más abajo).
 - **Acciones técnicas:** `index`, `store`, `update`, `iniciar`, `cerrar`, `reabrir`.
+
+##### Proceso de egreso
+
+El egreso no es un módulo con pantalla propia. Ocurre dentro del cierre del año escolar
+cuando el directivo ejecuta la acción `cerrar` desde Años Escolares.
+
+El flujo es:
+1. `AcademicYearController::cerrar()` llama a `AcademicYearModel::cerrar()`
+2. `AcademicYearModel::cerrar()` invoca `egresarPromovidosSextoGrado()`
+3. `egresarPromovidosSextoGrado()` obtiene los IDs de estudiantes de 6.º grado promovidos
+4. Por cada estudiante, `EgresoModel::graduar()` registra el egreso
+
+**Condiciones para el egreso:**
+- El estudiante debe estar cursando 6.º grado (constante `GRADO_EGRESO = 6`)
+- Debe tener un literal aprobatorio (A, B, C o D) cargado por la docente
+- El resultado académico no debe estar marcado como `NO_PROMOVIDO`
+
+**Qué sucede con los datos:**
+- Se inserta una fila en `egreso` (`id_matricula`, `fecha_egreso`, `id_usuario`)
+- Se crea una nueva fila de tipo `EGRESO` en `matricula` (la original de cursada se conserva)
+- Se actualiza `resultado_academico.estado_resultado` a `PROMOVIDO`
+- Se establece `inscripcion.motivo_egreso` a "Culminación exitosa" si estaba vacío
+
+**Estudiantes no promovidos:** quienes reciben literal E (no promovido) no se egresan.
+Permanecen en el sistema y pueden continuar en el siguiente año escolar o recibir un
+Certificado de Calificaciones.
+
+**Documento relacionado:** ver [Resultados y Promoción](#resultados-y-promoción) para el registro
+de literales, y [Emisión de Constancias](#emisión-de-constancias) para el Certificado de Educación Primaria.
+
+**Acciones técnicas:** `AcademicYearModel::cerrar()` → `egresarPromovidosSextoGrado()`;
+`EgresoModel::graduar()`; `CertificatesController::emitir()` (tipo `egreso`);
+`ConstanciaPdf::generarEgreso()`
 
 ### Gestión del personal
 
@@ -353,21 +390,21 @@ blanca de `public/index.php` y el menú lateral se filtra con
 - **Nombre en la interfaz:** Empleados
 - **Ruta:** `empleado/*`
 - **Controlador / Modelos / Servicio:** `EmployeeController`; `EmployeeModel`, `TituloModel`, `InstitucionModel`, `AuditLogModel`; `ExpedienteEmpleadoService`
-- **Roles con acceso:** `directivo` (gestión completa); `coordinador` y `secretaria` (consulta a un subconjunto de acciones)
+- **Roles con acceso:** `directivo` (gestión completa); `coordinador` y `secretaria` (consulta de un subconjunto de acciones)
 - **Descripción:** Administra el personal empleado de la institución, sus expedientes laborales, reposos, títulos e instituciones de procedencia.
 - **Funcionalidades:**
   - Listar empleados con filtros.
   - Ver el expediente completo de un empleado.
   - Crear, editar y activar/desactivar empleados.
-  - Gestionar reposos (registrar, editar, consultar historial).
+  - Gestionar reposos (registrar, editar, cerrar, anular y consultar historial).
   - Gestionar títulos e instituciones de procedencia.
 - **Flujo principal:** el directivo da de alta un empleado, registra sus datos personales y laborales, y gestiona sus reposos y títulos según sea necesario.
-- **Reglas y restricciones:** `directivo` gestiona el módulo completo; `coordinador` y `secretaria` tienen acceso de consulta a un subconjunto de acciones (listado, expediente, exportar, ubicación).
+- **Reglas y restricciones:** `directivo` gestiona el módulo completo. `coordinador` y `secretaria` solo consultan: listado, ficha, expediente, exportación y ubicación; el `coordinador` además puede consultar los reposos. Registrar reposos es una decisión de la dirección. Las altas de empleados están limitadas a 20 por minuto por IP.
 - **Acciones técnicas:** `index`, `expediente`, `exportar`, `estadoInfo`, `cambiarEstado`, `cerrarReposo`, `anularReposo`, `create`, `show`, `edit`, `store`, `update`, `toggleStatus`, `getUbicacion`, `buscarPersona`, `registrarReposo`, `updateReposo`, `getReposos`, `guardarTitulo`, `guardarInstitucion`.
 
 ### Estructura académica
 
-#### Estructura académica
+#### Estructura Académica
 - **Nombre en la interfaz:** Estructura Académica
 - **Ruta:** `academicStructure/*`
 - **Controlador / Modelo:** `AcademicStructureController`; `AcademicStructureModel`
@@ -378,10 +415,10 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Crear y editar combinaciones de año, grado, sección y turno.
   - Consultar el impacto de una edición (cuántos alumnos se verían afectados).
 - **Flujo principal:** el coordinador o directivo define una estructura académica, asigna cupo y revisa el impacto antes de guardar cambios.
-- **Reglas y restricciones:** `coordinador` y `directivo` tienen acceso completo.
+- **Reglas y restricciones:** `coordinador` y `directivo` tienen acceso completo. La consulta de impacto es de solo lectura y permite pedir confirmación con el número real de alumnos afectados.
 - **Acciones técnicas:** `index`, `store`, `update`, `impacto`.
 
-#### Asignación docente
+#### Asignación Docente
 - **Nombre en la interfaz:** Asignación Docente
 - **Ruta:** `teacherAssignment/*`
 - **Controlador / Modelo:** `TeacherAssignmentController`; `TeacherAssignmentModel`
@@ -398,38 +435,7 @@ blanca de `public/index.php` y el menú lateral se filtra con
 
 ### Procesos estudiantiles
 
-#### Proceso de egreso
-- **Nombre en la interfaz:** Certificado de Educación Primaria / Egreso (proceso interno, no módulo de navegación propio)
-- **Ruta:** Se dispara desde `academicYear/*` (acción `cerrar`) y se emite desde `constancias/*` (tipo `egreso`)
-- **Controlador / Modelos / Servicios:** `AcademicYearController`, `AcademicYearModel` (método `cerrar()` → `egresarPromovidosSextoGrado()`); `EgresoModel` (método `graduar()`, `graduarMasivo()`); `CertificatesController` (tipo `egreso`); `ConstanciaPdf` (`generarEgreso()`, `generarEgresoPorLote()`); `Matriculas` (constante `EGRESO`)
-- **Roles con acceso:** `directivo` (cierra el año y dispara egresos automáticos); `secretaria` (emite certificados de educación primaria individuales y por lote)
-- **Descripción:** El egreso es el cierre natural del ciclo escolar para estudiantes de 6.° grado que culminan la educación primaria. No es una baja ni un retiro: el estudiante cumplió satisfactoriamente todo el nivel y su ciclo académico en la institución termina con el egreso. El sistema lo registra como estado final de matrícula (`EGRESO`), que es terminal: no admite más matrículas para ese estudiante.
-- **Condiciones de egreso:**
-  - El estudiante debe estar cursando 6.° grado (último grado del ciclo).
-  - Debe tener un literal aprobatorio cargado por la docente (A, B, C o D) y su estado de resultado académico no debe ser `NO_PROMOVIDO`.
-  - Para el egreso individual, el año escolar debe estar activo. Al cerrar el año, el sistema egresa automáticamente a todos los promovidos de 6.° grado.
-- **Flujo paso a paso:**
-  1. La docente registra el literal final (A-E) de cada estudiante de su sección en Resultados Académicos. Los literales A-D se consideran aprobatorio; el E, no promovido.
-  2. El directivo cierra el año escolar desde el módulo de Años Escolares.
-  3. Al cerrar, el sistema identifica automáticamente a todos los estudiantes de 6.° grado con literal A-D y registra su egreso: crea una fila en la tabla `egreso`, crea una nueva fila `EGRESO` en `matricula` (estado final, terminal), actualiza `resultado_academico.estado_resultado` a `PROMOVIDO` si aún no lo está, y guarda el motivo "Culminación exitosa" en `inscripcion`.
-  4. La secretaria puede emitir el Certificado de Educación Primaria individualmente o por lote desde el módulo de Constancias (tipo Egreso).
-- **Roles que intervienen:**
-  - `docente`: registra literales de promoción en Resultados Académicos.
-  - `directivo`: cierra el año escolar, lo que dispara el egreso masivo automático de promovidos de 6.° grado.
-  - `secretaria`: emite certificados de educación primaria (individuales y por lote).
-- **Efectos en los datos:**
-  - Se inserta una fila en la tabla `egreso` (`id_matricula`, `fecha_egreso`, `id_usuario`).
-  - Se crea una nueva fila de tipo `EGRESO` en `matricula` (no se modifica la fila original de cursada, se conserva el historial).
-  - La tabla `egreso` se actualiza para apuntar a la nueva fila `EGRESO`.
-  - `resultado_academico.estado_resultado` se actualiza a `PROMOVIDO` si no lo estaba.
-  - `inscripcion.motivo_egreso` se establece a "Culminación exitosa" si estaba vacía.
-  - Una vez `EGRESO`, el estudiante no puede tener más matrículas (estado final, terminal absoluto).
-- **Documentos relacionados:**
-  - Certificado de Educación Primaria (individual): generado por `ConstanciaPdf::generarEgreso()`, emitido desde `CertificatesController` (tipo `egreso`), nombre de archivo `certificado_primaria_<nombre>.pdf`.
-  - Certificado de Educación Primaria por lote: generado por `ConstanciaPdf::generarEgresoPorLote()`, emitido desde `CertificatesController::emitirLote()`, nombre de archivo `certificados_primaria_lote<sufijo>.pdf`.
-- **Acciones técnicas:** `AcademicYearModel::cerrar()` → `egresarPromovidosSextoGrado()`; `EgresoModel::graduar()`, `EgresoModel::graduarMasivo()`; `CertificatesController::emitir()` (tipo `egreso`), `CertificatesController::emitirLote()`; `ConstanciaPdf::generarEgreso()`, `ConstanciaPdf::generarEgresoPorLote()`.
-
-#### Estudiantes y expedientes
+#### Estudiantes
 - **Nombre en la interfaz:** Estudiantes
 - **Ruta:** `estudiantes/*`
 - **Controlador / Modelo / Servicio:** `StudentsController`; `StudentsModel`; `ExpedienteEstudianteService`
@@ -441,7 +447,7 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Exportar el listado de estudiantes.
   - Marcar recaudos como entregados.
 - **Flujo principal:** el usuario busca un estudiante por cédula o filtros, abre su expediente para revisar la información y, si es secretaria, marca los recaudos entregados.
-- **Reglas y restricciones:** la marcación de recaudos entregados es exclusiva de `secretaria`; los demás roles solo consultan.
+- **Reglas y restricciones:** la marcación de recaudos entregados es exclusiva de `secretaria`; los demás roles solo consultan. Además de la ruta, el controlador comprueba que el estudiante corresponda al turno de la secretaria. La edición de recaudos es un asiento sobre un requisito de matrícula, no una consulta.
 - **Acciones técnicas:** `index`, `show`, `expediente`, `exportar`, `guardarRecaudos`.
 
 #### Inscripción
@@ -454,10 +460,10 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Buscar estudiantes por cédula para el alta.
   - Registrar una nueva inscripción.
   - Evaluar los recaudos de una inscripción.
-  - Ver el detalle de una inscripción.
+  - Ver el detalle de una inscripción y continuar una inscripción pendiente.
   - Guardar la institución de procedencia.
 - **Flujo principal:** la secretaria busca al estudiante por cédula, registra la inscripción con sus datos y evalúa si los recaudos están completos.
-- **Reglas y restricciones:** acceso exclusivo de `secretaria`.
+- **Reglas y restricciones:** acceso exclusivo de `secretaria`. El registro de inscripciones está limitado a 20 por minuto por IP.
 - **Acciones técnicas:** `index`, `store`, `evaluarRecaudos`, `ver`, `continuar`, `buscarPersona`, `guardarInstitucion`, `getUbicacion`.
 
 #### Ratificación
@@ -470,13 +476,14 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Listar estudiantes para ratificación con filtros.
   - Ver el detalle de una ratificación.
   - Obtener datos del estudiante para el modal de edición.
+  - Consultar las secciones del grado en el año destino.
   - Ratificar la matrícula de un estudiante.
   - Actualizar los datos del estudiante desde el modal.
-- **Flujo principal:** la secretaria busca al estudiante, revisa sus datos y ratifica la matrícula; el directivo puede editar los datos del estudiante desde el modal cuando sea necesario.
-- **Reglas y restricciones:** `admin` no tiene acceso a este módulo. Las acciones de `index`, `ver`, `datosEstudiante`, `getUbicacion`, `buscarPersona`, `secciones` y `ratificar` son exclusivas de `secretaria`; `updateEstudiante` está disponible para `secretaria` y `directivo`. La edición de recaudos en Estudiantes también es exclusiva de `secretaria`.
+- **Flujo principal:** la secretaria busca al estudiante, revisa sus datos, elige grado y sección del año destino y ratifica la matrícula; el directivo puede editar los datos del estudiante desde el modal cuando sea necesario.
+- **Reglas y restricciones:** `admin` no tiene acceso a este módulo. Las acciones `index`, `ver`, `datosEstudiante`, `getUbicacion`, `buscarPersona`, `secciones` y `ratificar` son exclusivas de `secretaria`; `updateEstudiante` está disponible para `secretaria` y `directivo`.
 - **Acciones técnicas:** `index`, `ver`, `datosEstudiante`, `getUbicacion`, `buscarPersona`, `secciones`, `ratificar`, `updateEstudiante`.
 
-#### Retiros
+#### Retiro
 - **Nombre en la interfaz:** Retiro
 - **Ruta:** `withdrawal/*`
 - **Controlador / Modelo:** `WithdrawalController`; `WithdrawalModel`
@@ -491,10 +498,10 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Actualizar el estado de una solicitud (aprobar/rechazar).
   - Eliminar una solicitud.
 - **Flujo principal:** la secretaria registra la solicitud de retiro y evalúa los recaudos; el directivo revisa y aprueba o rechaza la solicitud.
-- **Reglas y restricciones:** `directivo` y `secretaria` tienen acceso; `updateEstado` y `updateStatus` son exclusivos de `directivo`.
+- **Reglas y restricciones:** `buscarEstudiante`, `store` y `evaluarRecaudos` son exclusivas de `secretaria`; `updateEstado` y `updateStatus` son exclusivas de `directivo`; `index`, `ver` y `delete` están disponibles para ambos roles. El registro de solicitudes está limitado a 20 por minuto por IP.
 - **Acciones técnicas:** `index`, `ver`, `buscarEstudiante`, `store`, `evaluarRecaudos`, `updateEstado`, `updateStatus`, `delete`.
 
-#### Reingresos
+#### Reingreso
 - **Nombre en la interfaz:** Reingreso
 - **Ruta:** `reingreso/*`
 - **Controlador / Modelo:** `ReingresoController`; `ReingresoModel`
@@ -506,7 +513,7 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Ver los datos del estudiante.
   - Guardar la solicitud de reingreso.
 - **Flujo principal:** la secretaria busca al estudiante retirado, revisa sus datos y guarda la solicitud de reingreso para su procesamiento.
-- **Reglas y restricciones:** acceso exclusivo de `secretaria`.
+- **Reglas y restricciones:** acceso exclusivo de `secretaria`. El guardado de solicitudes está limitado a 20 por minuto por IP.
 - **Acciones técnicas:** `index`, `buscarEstudiante`, `datos`, `guardar`.
 
 ### Docentes
@@ -523,10 +530,10 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Ver los detalles de la sección asignada.
   - Guardar el enlace de WhatsApp de la sección.
 - **Flujo principal:** el docente accede a su sección, revisa el listado de estudiantes y configura el enlace de WhatsApp para contacto con representantes.
-- **Reglas y restricciones:** acceso exclusivo de `docente`; cada docente solo ve su propia sección.
+- **Reglas y restricciones:** acceso exclusivo de `docente`; la sección se toma de la sesión, por lo que cada docente solo ve su propia sección.
 - **Acciones técnicas:** `index`, `nomina`, `seccion`, `guardarEnlaceWhatsapp`.
 
-#### Resultados académicos
+#### Resultados y Promoción
 - **Nombre en la interfaz:** Resultados y Promoción
 - **Ruta:** `resultadoAcademico/*`
 - **Controlador / Modelo:** `AcademicResultController`; `AcademicResultModel`
@@ -537,10 +544,10 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Ver los estudiantes de una sección.
   - Guardar la propuesta de literales y resultados.
 - **Flujo principal:** el docente selecciona su sección, registra el literal de cada estudiante y guarda la propuesta; el sistema determina automáticamente si está promovido o no.
-- **Reglas y restricciones:** acceso exclusivo de `docente`; el estado de promoción se deriva automáticamente del literal (A-D promovido, E no promovido, sin literal pendiente).
+- **Reglas y restricciones:** acceso exclusivo de `docente`; el estado de promoción se deriva automáticamente del literal (A-D promovido, E no promovido, sin literal pendiente). Los literales de 6.º grado determinan quiénes egresan al cerrar el año escolar (ver [Proceso de egreso](#proceso-de-egreso)).
 - **Acciones técnicas:** `index`, `seccion`, `guardarPropuesta`.
 
-#### Certificados de calificaciones
+#### Certificados de Calificaciones
 - **Nombre en la interfaz:** Certificados de Calificaciones
 - **Ruta:** `certificadoCalificaciones/*`
 - **Controlador / Modelos:** `GradeCertificateController`; `GradeCertificateModel`, `AcademicResultModel`
@@ -550,12 +557,12 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Generar un certificado de calificaciones individual.
   - Generar certificados de calificaciones por sección completa.
 - **Flujo principal:** el docente selecciona una sección, genera los certificados de los estudiantes correspondientes y los descarga o imprime.
-- **Reglas y restricciones:** solo la docente asignada a la sección puede emitir certificados. En 6.º grado, solo reciben Certificado de Calificaciones los estudiantes con literal E (no promovidos); los promovidos reciben el Certificado de Educación Primaria por el módulo de Constancias.
+- **Reglas y restricciones:** solo la docente asignada a la sección puede emitir certificados. En 6.º grado, solo reciben Certificado de Calificaciones los estudiantes con literal E (no promovidos); los promovidos reciben el Certificado de Educación Primaria por el módulo Emisión de Constancias.
 - **Acciones técnicas:** `generarIndividual`, `generarPorSeccion`.
 
 ### Documentos y reportes
 
-#### Constancias
+#### Emisión de Constancias
 - **Nombre en la interfaz:** Emisión de Constancias
 - **Ruta:** `constancias/*`
 - **Controlador / Modelo:** `CertificatesController`; `CertificatesModel`
@@ -569,7 +576,7 @@ blanca de `public/index.php` y el menú lateral se filtra con
   - Ver prueba de constancia antes de emitir.
   - Emitir constancias por lote.
 - **Flujo principal:** la secretaria selecciona el tipo de constancia, filtra por estudiante o sección, genera una prueba de vista y emite el documento final individualmente o por lote.
-- **Reglas y restricciones:** acceso exclusivo de `secretaria`.
+- **Reglas y restricciones:** acceso exclusivo de `secretaria`. Los PDF emitidos por lote se guardan en caché durante 30 minutos (ver [Caché de PDF generados](#caché-de-pdf-generados)).
 - **Acciones técnicas:** `index`, `estudio`, `inscripcion`, `retiro`, `prosecucion`, `verPrueba`, `emitir`, `emitirLote`.
 
 #### Estadísticas
@@ -589,35 +596,35 @@ blanca de `public/index.php` y el menú lateral se filtra con
 
 ## Matriz de roles
 
-La tabla resume los módulos de la interfaz y los roles con acceso a cada uno, según la lista blanca de `public/index.php`. El acceso puede variar por acción dentro de un módulo.
+La tabla resume los módulos con el nombre que ve el usuario en la interfaz y los roles con acceso a cada uno, según la lista blanca de `public/index.php`. El acceso puede variar por acción dentro de un módulo.
 
-| Módulo (interfaz) | Ruta | Admin | Directivo | Coordinador | Secretaria | Docente | Público |
+| Módulo (nombre en la interfaz) | Ruta | Admin | Directivo | Coordinador | Secretaria | Docente | Público |
 |---|---|---:|---:|---:|---:|---:|---:|
-| Autenticación | `auth/*` | Sí | Sí | Sí | Sí | Sí | Sí |
-| Paneles | `dashboard/*` | Sí | Sí | Sí | Sí | Sí | — |
+| Inicio de sesión | `auth/*` | Sí | Sí | Sí | Sí | Sí | Sí |
+| Dashboard | `dashboard/*` | Sí | Sí | Sí | Sí | Sí | — |
 | Cuentas de usuario | `cuentaUsuario/*` | Sí | — | — | — | — | — |
 | Bitácora | `bitacora/*` | Sí | — | — | — | — | — |
 | Recuperación de acceso | `recuperacionAcceso/*` | Sí | — | — | — | — | — |
 | Notificaciones | `notificacion/*` | Sí | Sí | — | Sí | — | — |
-| Perfil | `perfil/*` | Sí | Sí | Sí | Sí | Sí | — |
+| Mi perfil | `perfil/*` | Sí | Sí | Sí | Sí | Sí | — |
 | Catálogos | `catalogo/*` | Sí | — | — | — | — | — |
-| Configuración institucional | `configuracionInstitucional/*` | Sí | — | — | — | — | — |
-| Años escolares | `academicYear/*` | — | Sí | — | — | — | — |
+| Datos Institucionales | `configuracionInstitucional/*` | Sí | — | — | — | — | — |
+| Años Escolares | `academicYear/*` | — | Sí | — | — | — | — |
 | Empleados | `empleado/*` | — | Sí | Sí | Sí | — | — |
-| Estructura académica | `academicStructure/*` | — | Sí | Sí | — | — | — |
-| Asignación docente | `teacherAssignment/*` | — | Sí | Sí | — | — | — |
-| Estudiantes y expedientes | `estudiantes/*` | — | Sí | Sí | Sí | Sí | — |
+| Estructura Académica | `academicStructure/*` | — | Sí | Sí | — | — | — |
+| Asignación Docente | `teacherAssignment/*` | — | Sí | Sí | — | — | — |
+| Estudiantes | `estudiantes/*` | — | Sí | Sí | Sí | Sí | — |
 | Inscripción | `inscripciones/*` | — | — | — | Sí | — | — |
 | Ratificación | `ratificacion/*` | — | Sí* | — | Sí | — | — |
-| Retiros | `withdrawal/*` | — | Sí | — | Sí | — | — |
-| Reingresos | `reingreso/*` | — | — | — | Sí | — | — |
+| Retiro | `withdrawal/*` | — | Sí | — | Sí | — | — |
+| Reingreso | `reingreso/*` | — | — | — | Sí | — | — |
 | Docente | `docente/*` | — | — | — | — | Sí | — |
-| Resultados académicos | `resultadoAcademico/*` | — | — | — | — | Sí | — |
-| Certificados de calificaciones | `certificadoCalificaciones/*` | — | — | — | — | Sí | — |
-| Constancias | `constancias/*` | — | — | — | Sí | — | — |
+| Resultados y Promoción | `resultadoAcademico/*` | — | — | — | — | Sí | — |
+| Certificados de Calificaciones | `certificadoCalificaciones/*` | — | — | — | — | Sí | — |
+| Emisión de Constancias | `constancias/*` | — | — | — | Sí | — | — |
 | Estadísticas | `estadistica/*` | — | Sí | Sí | — | — | — |
 
-`*` En Ratificación, Directivo solo tiene permiso para la acción `updateEstudiante`; las demás acciones de ese módulo son exclusivas de Secretaria. La edición de recaudos en Estudiantes también es exclusiva de Secretaria.
+`*` En Ratificación, Directivo solo tiene permiso para la acción `updateEstudiante`; las demás acciones de ese módulo son exclusivas de Secretaria.
 
 ## Reporte PDF
 
@@ -658,6 +665,49 @@ manual o por cron para evitar acumulación en disco.
 
 El renderizado de PDF sigue ocurriendo en el servidor, no en el navegador.
 
+## Seguridad y despliegue
+
+`public/index.php` es el único punto de entrada y aplica estas protecciones antes de
+ejecutar cualquier controlador:
+
+- **Sesión:** la cookie lleva `httponly` y `samesite=Strict`, y `secure` cuando la conexión
+  es HTTPS (también detrás de un proxy que envíe `X-Forwarded-Proto`). El modo estricto
+  de PHP rechaza identificadores de sesión que el servidor no creó, y la sesión se cierra
+  tras 1 hora de inactividad.
+- **Cabeceras:** `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: same-origin` y, solo bajo HTTPS, `Strict-Transport-Security`
+  (HSTS, un año).
+- **Permisos por ruta:** lista blanca de controlador, acción y roles; lo que no está
+  declarado responde 404.
+- **Métodos:** las acciones que crean, modifican, cierran o eliminan datos solo aceptan
+  POST (405 en otro caso).
+- **CSRF:** todo POST en rutas privadas debe traer el token de la sesión, en el campo
+  `csrf` o en la cabecera `X-CSRF-Token`.
+- **Límite de solicitudes por IP:** protege los endpoints sensibles (recuperación de
+  acceso: 5 intentos cada 15 minutos; altas y cargas de imágenes: entre 20 y 30 por
+  minuto). El contador se guarda en archivos dentro de `storage/rate_limit/`, sin usar
+  la base de datos. Al superar el límite el sistema responde 429.
+
+### Pasos para desplegar bajo HTTPS
+
+1. **Redirección de HTTP a HTTPS:** se configura en Apache o Nginx, no en PHP.
+2. **Proxy inverso:** si el servidor está detrás de un proxy, debe enviar
+   `X-Forwarded-Proto: https` para que la cookie de sesión se marque como `secure`. En
+   ese caso `REMOTE_ADDR` es la IP del proxy y todos los usuarios compartirían el mismo
+   contador del límite de solicitudes; hay que tenerlo en cuenta.
+3. **HSTS:** el sistema lo envía automáticamente en cuanto detecta HTTPS. Confirma que
+   el certificado funciona antes de activar el dominio definitivo, porque los navegadores
+   recuerdan la regla durante un año.
+4. **Carpeta `storage/rate_limit/`:** el usuario del servidor web debe poder escribir en
+   ella. Si no puede, el límite de solicitudes deja de funcionar y el fallo se registra
+   en el log del servidor. Los archivos de control no se eliminan solos; conviene
+   limpiarlos periódicamente.
+5. **Referencias fijas a `http://`:** busca en el código, las vistas, el JavaScript y
+   `.env` cualquier URL escrita con `http://`. Si queda alguna, el navegador bloqueará
+   ese recurso como contenido mixto.
+
+El procedimiento completo está en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+
 ## Problemas frecuentes
 
 **Los botones no abren modales.** Falta Bootstrap o SweetAlert2 en `public/assets/`.
@@ -678,3 +728,7 @@ El código crea la carpeta raíz y sus subcarpetas cuando las necesita; el usuar
 del servidor web debe tener permiso de escritura en `public/` para crearlas y
 guardar archivos. La guía de [despliegue](docs/DESPLIEGUE.md) explica cómo asignar
 permisos sin hacer escribible todo el proyecto.
+
+**Un formulario responde «Demasiadas solicitudes» (429).** Se superó el límite de
+solicitudes por IP de esa acción. Esperar unos minutos; si ocurre con usuarios
+legítimos, revisar si el servidor está detrás de un proxy (ver Seguridad y despliegue).
