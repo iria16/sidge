@@ -1,6 +1,6 @@
 # SIGDE — Sistema de Gestión de Datos Educativos
 
-Aplicación web para la gestión de inscripciones, ratificaciones, expedientes de
+Aplicación web para la gestión de inscripciones, ratificaciones, reingresos, expedientes de
 estudiantes, retiros, egresos y configuración académica de la **Escuela Básica «Isidro Ramírez»**, desarrollada como proyecto para la **Universidad Politécnica Territorial de Valencia (UPTVAL)**.
 
 ## Índice
