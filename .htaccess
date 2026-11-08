@@ -7,7 +7,7 @@
 # descargarse el .env con las credenciales, los volcados SQL y el historial de git
 # (donde además vive una contraseña antigua que ya debe considerarse expuesta).
 #
-# En cuanto el DocumentRoot pase a .../sidgev1/public, esta carpeta deje de formar
+# En cuanto el DocumentRoot pase a .../sigdev1/public, esta carpeta deje de formar
 # parte del sitio y el archivo queda sin efecto. Véase DESPLIEGUE.md, punto 1.
 #
 # Solo protege contra acceso por HTTP. No reemplaza la rotación de la contraseña:
@@ -40,7 +40,7 @@ RedirectMatch 404 /\.git
 </FilesMatch>
 
 # Código fuente y carpetas internas: el DocumentRoot apunta a /var/www/html, no a
-# /var/www/html/sidgev1/public. Sin esta regla se pueden leer archivos PHP y SCSS
+# /var/www/html/sigdev1/public. Sin esta regla se pueden leer archivos PHP y SCSS
 # aunque no se puedan ejecutar.
 <IfModule mod_rewrite.c>
     RewriteEngine On

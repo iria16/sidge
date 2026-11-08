@@ -1,4 +1,4 @@
-# SIGDE — Sistema de Gestión de Datos Educativos
+# SIGDE — Sistema de Información para la Gestión de Datos Escolares
 
 Aplicación web para la gestión de inscripciones, ratificaciones, reingresos, expedientes de
 estudiantes, retiros, egresos y configuración académica de la **Escuela Básica «Isidro Ramírez»**, desarrollada como proyecto para la **Universidad Politécnica Territorial de Valencia (UPTVAL)**.
@@ -30,7 +30,7 @@ estudiantes, retiros, egresos y configuración académica de la **Escuela Básic
   - Elyenay M. Ocanto G. — C.I. 16.771.283
 - **Año:** 2026.
 - **Estado:** Proyecto culminado y operativo; desplegado en línea para pruebas y validación académica, en preparación para despliegue en servidor definitivo (VPS con HTTPS).
-- **Demostración en línea:** [Acceso al sistema](https://ebisidroramirez.nfy.fyi/sidgev1/public/)
+- **Demostración en línea:** [Acceso al sistema](https://ebisidroramirez.nfy.fyi/sigdev1/public/)
 - **Licencia:** Proyecto Académico — Uso institucional para la E.B. «Isidro Ramírez» y UPTVAL.
 
 ## Requisitos

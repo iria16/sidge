@@ -2,7 +2,7 @@ from PIL import Image
 import numpy as np
 
 # Load original logo
-img = Image.open("/var/www/html/sidgev1/public/assets/img/ministerio_logo_bandera.png")
+img = Image.open("/var/www/html/sigdev1/public/assets/img/ministerio_logo_bandera.png")
 rgb = np.array(img.convert("RGBA"))
 
 # The flag is on the left: x < 200

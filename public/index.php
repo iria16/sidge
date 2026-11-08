@@ -121,7 +121,7 @@ function responderJson(int $status, string $mensaje, ?string $codigo = null, mix
 
 
 // 2. DETECCION AUTOMATICA DE BASE_URL
-// Deduce la carpeta desde donde se sirve el sistema (ej. /sidgev1/public/),
+// Deduce la carpeta desde donde se sirve el sistema (ej. /sigdev1/public/),
 // para que funcione igual en local y en el hosting.
 $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
 $scriptDir = rtrim(dirname($scriptName), '/');
@@ -134,7 +134,7 @@ $uriSolicitada = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $uriDecodificada = urldecode($uriSolicitada);
 
 // Se quita BASE_URL solo si esta al inicio de la ruta (no en medio).
-// Tambien se acepta la ruta sin barra final (/sidgev1/public).
+// Tambien se acepta la ruta sin barra final (/sigdev1/public).
 $baseSinBarra = rtrim(BASE_URL, '/');
 
 if ($baseSinBarra !== '' && ($uriDecodificada === $baseSinBarra || strpos($uriDecodificada, BASE_URL) === 0)) {
