@@ -102,28 +102,28 @@ las variables necesarias sin valores reales.
 cp .env.example .env      # y reemplaza los valores de ejemplo
 ```
 
-El nombre de la base configurado en `.env.example` es `sidge`. Antes de importar
+El nombre de la base configurado en `.env.example` es `sigdev1`. Antes de importar
 el esquema, crea esa base con la intercalación requerida y un usuario exclusivo para
 la aplicación:
 
 ```sql
-CREATE DATABASE sidge
+CREATE DATABASE sigdev1
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_uca1400_ai_ci;
 
-CREATE USER 'sidge_app'@'localhost'
+CREATE USER 'sigdev_app'@'localhost'
   IDENTIFIED BY 'REEMPLAZA_POR_UNA_CLAVE_SEGURA';
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON sidge.* TO 'sidge_app'@'localhost';
+GRANT SELECT, INSERT, UPDATE, DELETE ON sigdev1.* TO 'sigdev_app'@'localhost';
 ```
 
 Reemplaza la clave de ejemplo antes de ejecutar el comando. El usuario de aplicación
-solo recibe permisos sobre `sidge`; usa una cuenta administrativa distinta para crear
-la base e importar el esquema. Configura después `DB_NAME=sidge`, `DB_USER=sidge_app`
+solo recibe permisos sobre `sigdev1`; usa una cuenta administrativa distinta para crear
+la base e importar el esquema. Configura después `DB_NAME=sigdev1`, `DB_USER=sigdev_app`
 y los valores reales de conexión en `.env`.
 
 ```bash
-mariadb -u root -p sidge < database/schema_actual.sql
+mariadb -u root -p sigdev1 < database/schema_actual.sql
 ```
 
 `database/schema_actual.sql` es el esquema completo para una instalación nueva. Los
@@ -138,12 +138,12 @@ configuración para Apache y Nginx.
 Para verificar que el esquema instala bien, sobre una base temporal:
 
 ```bash
-mariadb -u root -p -e "CREATE DATABASE sidge_prueba CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci"
-mariadb -u root -p sidge_prueba < database/schema_actual.sql
-mariadb -u root -p -e "DROP DATABASE sidge_prueba"
+mariadb -u root -p -e "CREATE DATABASE sigdev1_prueba CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci"
+mariadb -u root -p sigdev1_prueba < database/schema_actual.sql
+mariadb -u root -p -e "DROP DATABASE sigdev1_prueba"
 ```
 
-La base temporal `sidge_prueba` es independiente de la base de instalación `sidge`.
+La base temporal `sigdev1_prueba` es independiente de la base de instalación `sigdev1`.
 
 ## Estructura
 
