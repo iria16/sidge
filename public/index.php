@@ -393,11 +393,10 @@ $accionesSoloPost = [
     'notificacion' => ['leer', 'leerTodas'],
     'estudiantes' => ['guardarRecaudos'],
     'inscripciones' => ['store', 'evaluarRecaudos', 'guardarInstitucion'],
-    'egresos' => ['graduar', 'graduarMasivo'],
     'ratificacion' => ['ratificar', 'updateEstudiante'],
     'reingreso' => ['guardar'],
     'configuracionInstitucional' => ['guardar', 'subirImagen', 'quitarImagen', 'restablecerOficial'],
-    'resultadoAcademico' => ['guardarPropuesta', 'confirmar'],
+    'resultadoAcademico' => ['guardarPropuesta'],
     'docente' => ['guardarEnlaceWhatsapp'],
     'perfil' => ['actualizarFoto'],
 ];
@@ -600,11 +599,18 @@ if (isset($limitesSensibles[$claveLimite])) {
         }
     }
     $datos['intentos'] = (int) $datos['intentos'] + 1;
-    @file_put_contents($archivoLimite, json_encode($datos));
+    $directorioLimite = dirname($archivoLimite);
+    if (!is_dir($directorioLimite)) {
+        @mkdir($directorioLimite, 0755, true);
+    }
+    $guardo = @file_put_contents($archivoLimite, json_encode($datos));
+    if ($guardo === false) {
+        error_log("[rate_limit] No se pudo escribir el archivo de control: {$archivoLimite}");
+    }
     if ((int) $datos['intentos'] > $maxIntentos) {
         http_response_code(429);
         if (esPeticionAjax()) {
-            responderJson(false, null, 'Demasiadas solicitudes. Intente de nuevo en unos minutos.', 429);
+            responderJson(429, 'Demasiadas solicitudes. Intente de nuevo en unos minutos.', 'limite_solicitudes');
         }
         die('<h1>429 - Demasiadas solicitudes</h1>');
     }
