@@ -152,7 +152,7 @@ app/
   Config/         conexión a la base de datos
   Controllers/    un controlador por módulo
   Exceptions/     excepciones de dominio, con su código HTTP asociado
-  Http/           utilidades de respuesta
+  Http/           utilidades para construir respuestas HTTP (JSON, códigos de estado, redirecciones)
   Interfaces/     contratos que implementan los modelos
   Models/         consultas y operaciones sobre los datos
   Services/       procesos de aplicación que coordinan varios modelos
