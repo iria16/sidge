@@ -49,8 +49,12 @@ $direccion        = $direccionRepresentante !== '' ? $direccionRepresentante : $
 $fechaNacimiento  = !empty($estudiante['fecha_nacimiento']) ? date('d/m/Y', strtotime($estudiante['fecha_nacimiento'])) : '—';
 /* El lugar de nacimiento se arma con los mismos dos niveles que el PDF: del estado y la
    parroquia salen el nombre y el municipio, que no se guarda porque se deduce. */
-$lugarNacimiento = '';
-if ((int) ($estudiante['id_estado_nacimiento'] ?? 0) > 0) {
+$lugarNacimientoExtranjero = trim((string) ($estudiante['lugar_nacimiento_extranjero'] ?? ''));
+if ($lugarNacimientoExtranjero !== '') {
+    $lugarNacimiento = $lugarNacimientoExtranjero;
+} else {
+    $lugarNacimiento = '';
+    if ((int) ($estudiante['id_estado_nacimiento'] ?? 0) > 0) {
     $partes = [];
     if ((int) ($estudiante['id_parroquia_nacimiento'] ?? 0) > 0) {
         $partes[] = (string) ($estudiante['parroquia_nacimiento'] ?? '');
@@ -62,6 +66,7 @@ if ((int) ($estudiante['id_estado_nacimiento'] ?? 0) > 0) {
         $partes[] = (string) $estudiante['estado_nacimiento'];
     }
     $lugarNacimiento = trim(implode(', ', array_filter($partes)));
+    }
 }
 $nacionalidad = trim((string) ($estudiante['nacionalidad'] ?? ''));
 $sexo = match ($estudiante['sexo'] ?? '') {

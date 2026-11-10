@@ -9,7 +9,6 @@ use App\Support\CedulaEscolar;
 use App\Support\Documento;
 use App\Support\DocumentosObligatorios;
 use App\Support\Tallas;
-use App\Support\Validator;
 use App\Traits\ContactoValidacionTrait;
 use App\Traits\FotoSubidaTrait;
 use App\Traits\FamiliaresValidacionTrait;
@@ -222,39 +221,6 @@ class RatificationController extends CrudController
 
         // 3. Manejo de excepciones (try...catch)
         try {
-            $encuesta = [
-                'tiene_canaima'      => !empty($_POST['tiene_canaima']) ? 1 : 0,
-                'serial_canaima'     => trim((string) ($_POST['serial_canaima'] ?? '')),
-                'tiene_ingreso_sige' => !empty($_POST['tiene_ingreso_sige']) ? 1 : 0,
-                'fecha_ingreso_sige' => trim((string) ($_POST['fecha_ingreso_sige'] ?? '')),
-                'motivo_sige'        => trim((string) ($_POST['motivo_sige'] ?? '')),
-                /* La columna repite_grado es NOT NULL con CHECK (0,1). El grado de
-                   destino se elige en el desplegable, por lo que el formulario no
-                   envía este campo y se guarda 0. */
-                'repite_grado'       => 0,
-            ];
-
-            if ($encuesta['tiene_canaima'] === 1) {
-                if ($encuesta['serial_canaima'] === '') {
-                    $fallar('Debe ingresar el serial del equipo Canaima si posee uno.', 400);
-                }
-                if (mb_strlen($encuesta['serial_canaima'], 'UTF-8') > 50) {
-                    $fallar('El serial de la Canaima no puede superar 50 caracteres.', 422);
-                }
-            }
-
-            if ($encuesta['tiene_ingreso_sige'] === 1) {
-                if (mb_strlen($encuesta['motivo_sige'], 'UTF-8') > 200) {
-                    $fallar('El motivo del SIGE no puede superar 200 caracteres.', 422);
-                }
-                if ($encuesta['fecha_ingreso_sige'] !== '') {
-                    $v = Validator::make(['fecha' => $encuesta['fecha_ingreso_sige']], ['fecha' => 'date|date_not_future']);
-                    if (!$v->passes()) {
-                        $fallar('La fecha de ingreso al SIGE no es válida o es una fecha futura.', 422);
-                    }
-                }
-            }
-
             $destino = [
                 'id_grado'        => (int) ($_POST['id_grado'] ?? 0),
                 'id_seccion'      => (int) ($_POST['id_seccion'] ?? 0),
@@ -269,7 +235,6 @@ class RatificationController extends CrudController
                 // Justificación del salto de grado. El modelo decide si hace falta: solo es
                 // obligatoria cuando se adelante más de un nivel.
                 'motivo'          => trim((string) ($_POST['motivo'] ?? '')),
-                'encuesta'        => $encuesta,
             ];
             $turnoSecretaria = $this->turnoSecretariaActual();
             if ($turnoSecretaria !== null && $destino['id_turno'] !== $turnoSecretaria) {
@@ -463,9 +428,11 @@ class RatificationController extends CrudController
                 /* Esta ruta edita al estudiante, no a un familiar: es el único caso en que
                    se guardan los tres niveles. El municipio se deduce de la parroquia y no
                    se persiste. */
-                'id_estado_nacimiento'    => ((int) $crudo('id_estado_nacimiento')) ?: null,
+                'id_estado_nacimiento'    => ($crudo('nacimiento_extranjero') !== '') ? null : (((int) $crudo('id_estado_nacimiento')) ?: null),
                 'id_nacionalidad'         => ((int) $crudo('id_nacionalidad')) ?: null,
-                'id_parroquia_nacimiento' => ((int) $crudo('id_parroquia_nacimiento')) ?: null,
+                'id_parroquia_nacimiento' => ($crudo('nacimiento_extranjero') !== '') ? null : (((int) $crudo('id_parroquia_nacimiento')) ?: null),
+                'lugar_nacimiento_extranjero' => $this->vacioComoNull($crudo('lugar_nacimiento_extranjero')),
+                'nacimiento_extranjero' => ($crudo('nacimiento_extranjero') !== '') ? 1 : 0,
             ],
             'talla_uniforme' => [
                 'camisa'        => $this->aMayusculas($crudo('talla_camisa')),

@@ -255,7 +255,7 @@ class StudentsModel extends BaseModel implements Listable
                        p.tipo_documento, p.numero_documento, p.fecha_nacimiento,
                        p.id_estado_nacimiento,
                        p.id_nacionalidad, nac.nombre AS nacionalidad,
-                       p.id_parroquia_nacimiento, p.sexo, p.id_nacionalidad,
+                       p.id_parroquia_nacimiento, p.lugar_nacimiento_extranjero, p.sexo, p.id_nacionalidad,
                        p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
                        p.foto AS avatar_img,
                        " . self::EXPRESION_ESTADO . " AS estado_ciclo,

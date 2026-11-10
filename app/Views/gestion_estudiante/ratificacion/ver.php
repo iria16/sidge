@@ -136,23 +136,6 @@ ob_start();
   include $componentes . 'wizard-summary-section.php';
   ?>
 
-  <?php if (isset($item['tiene_canaima']) && $item['tiene_canaima'] !== null): ?>
-    <div class="wizard-summary__row mt-3">
-      <?php
-      $wsIcono  = 'card-checklist';
-      $wsTitulo = 'Encuesta de Ratificación';
-      $wsCampos = [
-          ['¿Posee Canaima?',   null, !empty($item['tiene_canaima']) ? ('Sí' . (!empty($item['serial_canaima']) ? ' (Serial: ' . $item['serial_canaima'] . ')' : '')) : 'No'],
-          ['¿Ingreso SIGE?',    null, !empty($item['tiene_ingreso_sige']) ? ('Sí' . (!empty($item['fecha_ingreso_sige']) ? ' (' . $item['fecha_ingreso_sige'] . ')' : '')) : 'No'],
-      ];
-      if (!empty($item['motivo_sige'])) {
-          $wsCampos[] = ['Motivo SIGE', null, $item['motivo_sige']];
-      }
-      include $componentes . 'wizard-summary-section.php';
-      ?>
-    </div>
-  <?php endif; ?>
-
 <?php else: ?>
   <?php /* Vista de página completa: los mismos datos en content-card de dos columnas.*/ ?>
   <div class="row g-4">
@@ -218,33 +201,6 @@ ob_start();
         </div>
       <?php endif; ?>
 
-      <?php if (isset($item['tiene_canaima']) && $item['tiene_canaima'] !== null): ?>
-        <div class="content-card mb-4">
-          <div class="content-card__header">
-            <p class="content-card__title"><i class="bi bi-card-checklist me-2"></i> Encuesta de Ratificación</p>
-          </div>
-          <div class="content-card__body">
-            <div class="detail-list__item">
-              <div class="label-sigde">¿Posee Canaima?</div>
-              <div class="detail-list__value">
-                <?= !empty($item['tiene_canaima']) ? 'Sí' . (!empty($item['serial_canaima']) ? ' · Serial: ' . htmlspecialchars($item['serial_canaima']) : '') : 'No' ?>
-              </div>
-            </div>
-            <div class="detail-list__item">
-              <div class="label-sigde">¿Tiene ingreso SIGE?</div>
-              <div class="detail-list__value">
-                <?= !empty($item['tiene_ingreso_sige']) ? 'Sí' . (!empty($item['fecha_ingreso_sige']) ? ' · Fecha: ' . htmlspecialchars($item['fecha_ingreso_sige']) : '') : 'No' ?>
-              </div>
-            </div>
-            <?php if (!empty($item['motivo_sige'])): ?>
-              <div class="detail-list__item">
-                <div class="label-sigde">Motivo SIGE</div>
-                <div class="detail-list__value"><?= htmlspecialchars($item['motivo_sige']) ?></div>
-              </div>
-            <?php endif; ?>
-          </div>
-        </div>
-      <?php endif; ?>
     </div>
 
     <div class="col-lg-4">

@@ -405,6 +405,7 @@ document.addEventListener('DOMContentLoaded', function () {
      no se podría guardar ni la edición más mínima. */
   window.SIGDECascadaNacimiento = cascadaNacimientoEstudiante;
   window.SIGDECascadaNacimientoEndpoint = route + 'getUbicacion';
+  SIGDEWizardUI.initNacimientoExtranjero();
 
   /* ---------- Toggle "Ingreso por primera vez" (paso 2) ----------*/
   var ingresoPrimeraVez   = document.getElementById('ingresoPrimeraVez');

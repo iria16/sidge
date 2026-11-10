@@ -18,9 +18,3 @@
 .ratificar-editar-datos {
   color: $primary;
 }
-
-// Bloques que el JS muestra u oculta según la encuesta. No usa d-none porque
-// esa utilidad lleva !important y el JS alterna con style.display.
-.ratificar-bloque-oculto {
-  display: none;
-}

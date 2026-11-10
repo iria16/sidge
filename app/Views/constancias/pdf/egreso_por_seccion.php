@@ -283,6 +283,7 @@ $epigrafePie = $epigrafeRaw !== ''
 
   $munNac = trim((string) ($estudiante['municipio_nacimiento'] ?? ''));
   $edoNac = trim((string) ($estudiante['estado_nacimiento'] ?? ''));
+  $lugarNacimientoExtranjero = trim((string) ($estudiante['lugar_nacimiento_extranjero'] ?? ''));
   $fechaNacTexto = (string) ($estudiante['fecha_nacimiento_texto'] ?? '');
   $fechaNacPartes = explode(' DE ', $fechaNacTexto);
   if (count($fechaNacPartes) === 3) {
@@ -294,7 +295,11 @@ $epigrafePie = $epigrafeRaw !== ''
       $fechaNacFormal = mb_strtolower($fechaNacTexto, 'UTF-8');
   }
 
-  if ($munNac !== '' && $edoNac !== '') {
+  if ($lugarNacimientoExtranjero !== '') {
+      $clausulaNacimiento = htmlspecialchars($nacidoPalabra, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+          . ' en ' . htmlspecialchars($lugarNacimientoExtranjero, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+          . ', el <strong>' . htmlspecialchars($fechaNacFormal, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</strong>, ';
+  } elseif ($munNac !== '' && $edoNac !== '') {
       $clausulaNacimiento = htmlspecialchars($nacidoPalabra, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
           . ' en el Municipio ' . htmlspecialchars($munNac, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
           . ' del Estado ' . htmlspecialchars($edoNac, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')

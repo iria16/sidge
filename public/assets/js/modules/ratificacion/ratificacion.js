@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
       BASE_URL + 'ratificacion/getUbicacion'
     );
   }
+  window.SIGDENacimientoExtranjero = SIGDEWizardUI.initNacimientoExtranjero();
 
   /* Cascada grado → sección → turno. Las opciones salen de las combinaciones del año activo que
  el servidor ya imprimió: dependen del año, no del alumno. Cada <option> lleva su clave
@@ -198,40 +199,6 @@ document.addEventListener('DOMContentLoaded', function () {
   if (selGrado) selGrado.addEventListener('change', function () { cascadaGrado(); });
   if (selSeccion) selSeccion.addEventListener('change', function () { cascadaSeccion(); });
 
-  /* ---------- Encuesta de ratificación: eventos dinámicos ---------- */
-  document.querySelectorAll('input[name="tiene_canaima"]').forEach(function (radio) {
-    radio.addEventListener('change', function () {
-      const bSerial = document.getElementById('bloqueSerialCanaima');
-      const inpSerial = document.getElementById('serialCanaima');
-      if (bSerial) {
-        if (this.value === '1') {
-          bSerial.style.display = 'block';
-          if (inpSerial) inpSerial.focus();
-        } else {
-          bSerial.style.display = 'none';
-          if (inpSerial) inpSerial.value = '';
-        }
-      }
-    });
-  });
-
-  document.querySelectorAll('input[name="tiene_ingreso_sige"]').forEach(function (radio) {
-    radio.addEventListener('change', function () {
-      const bSige = document.getElementById('bloqueDetallesSige');
-      if (bSige) {
-        if (this.value === '1') {
-          bSige.style.display = 'flex';
-        } else {
-          bSige.style.display = 'none';
-          const f = document.getElementById('fechaIngresoSige');
-          const m = document.getElementById('motivoSige');
-          if (f) f.value = '';
-          if (m) m.value = '';
-        }
-      }
-    });
-  });
-
   /* ---------- Ver detalle de una ratificación ----------
  El botón "ver" solo se pinta cuando el estudiante ya está ratificado, así
  que el cuerpo llega con datos y no hay estado que deducir desde la fila.
@@ -326,7 +293,6 @@ document.addEventListener('DOMContentLoaded', function () {
       if (avatarSpan) avatarSpan.textContent = iniciales ?? '';
     }
 
-    /* Guardar datos para responder a "¿Repite grado?" y resetear la encuesta */
     if (modalRatificarEl) {
       modalRatificarEl.dataset.gradoOrigenId = dato('grado-origen-id', '0');
       modalRatificarEl.dataset.gradoOrigenNombre = dato('grado-origen', 'el grado actual');
@@ -335,22 +301,6 @@ document.addEventListener('DOMContentLoaded', function () {
       modalRatificarEl.dataset.seccionDestinoId = dato('seccion-destino-id', '0');
       modalRatificarEl.dataset.turnoDestinoId = dato('turno-destino-id', '0');
     }
-
-    const radCanaimaNo = document.getElementById('tieneCanaimaNo');
-    if (radCanaimaNo) radCanaimaNo.checked = true;
-    const bSerial = document.getElementById('bloqueSerialCanaima');
-    if (bSerial) bSerial.style.display = 'none';
-    const inpSerial = document.getElementById('serialCanaima');
-    if (inpSerial) inpSerial.value = '';
-
-    const radSigeNo = document.getElementById('tieneIngresoSigeNo');
-    if (radSigeNo) radSigeNo.checked = true;
-    const bSige = document.getElementById('bloqueDetallesSige');
-    if (bSige) bSige.style.display = 'none';
-    const inpFechaSige = document.getElementById('fechaIngresoSige');
-    if (inpFechaSige) inpFechaSige.value = '';
-    const inpMotivoSige = document.getElementById('motivoSige');
-    if (inpMotivoSige) inpMotivoSige.value = '';
 
   /* Grado, sección y turno sí se eligen: por defecto el que corresponde (siguiente grado, misma
  sección, mismo turno), pero la secretaria puede cambiar los tres. El año no va en un
@@ -524,18 +474,6 @@ document.addEventListener('DOMContentLoaded', function () {
  un <input readonly> no protege nada por sí solo, y el servidor necesita el id
  para saber a qué período se ratifica. El modelo lo contrasta con el año que
  él resuelve.*/
-      const tieneCanaimaVal = document.querySelector('input[name="tiene_canaima"]:checked')?.value || '0';
-      const serialCanaimaVal = (document.getElementById('serialCanaima')?.value || '').trim();
-      const tieneSigeVal = document.querySelector('input[name="tiene_ingreso_sige"]:checked')?.value || '0';
-      const fechaSigeVal = (document.getElementById('fechaIngresoSige')?.value || '').trim();
-      const motivoSigeVal = (document.getElementById('motivoSige')?.value || '').trim();
-
-      if (tieneCanaimaVal === '1' && !serialCanaimaVal) {
-        SIGDEUI.mostrarError('Debe ingresar el serial del equipo Canaima.');
-        enviandoRatificacion = false;
-        return;
-      }
-
       const cuerpo = new URLSearchParams({
         id: id,
         id_grado: (document.getElementById('ratificarGradoNuevo') || {}).value || '',
@@ -543,11 +481,6 @@ document.addEventListener('DOMContentLoaded', function () {
         id_turno: (document.getElementById('ratificarTurnoNuevo') || {}).value || '',
         id_anio_escolar: (document.getElementById('ratificarAnioDestinoId') || {}).value || '',
         motivo: (document.getElementById('ratificarMotivo') || {}).value || '',
-        tiene_canaima: tieneCanaimaVal,
-        serial_canaima: serialCanaimaVal,
-        tiene_ingreso_sige: tieneSigeVal,
-        fecha_ingreso_sige: fechaSigeVal,
-        motivo_sige: motivoSigeVal,
       });
 
       bloquearBoton(btnEnviar,
@@ -1059,6 +992,12 @@ document.addEventListener('DOMContentLoaded', function () {
             est.id_parroquia_nacimiento || 0
           );
         });
+      }
+
+      poner('nacimientoExtranjero', est.lugar_nacimiento_extranjero ? 1 : 0);
+      poner('lugarNacimientoExtranjero', est.lugar_nacimiento_extranjero || '');
+      if (window.SIGDENacimientoExtranjero) {
+        window.SIGDENacimientoExtranjero.sincronizar();
       }
 
       ponerTalla('tallaCamisa', est.talla_camisa);

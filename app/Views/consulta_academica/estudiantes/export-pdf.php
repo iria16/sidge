@@ -116,19 +116,24 @@ $sexo = match ($sexoRaw) {
 };
 
 // 5. Lugar de nacimiento
-$lugarNacimiento = '';
-if ((int) ($estudiante['id_estado_nacimiento'] ?? 0) > 0) {
-    $partes = [];
-    if ((int) ($estudiante['id_parroquia_nacimiento'] ?? 0) > 0) {
-        $partes[] = (string) ($estudiante['parroquia_nacimiento'] ?? '');
-        if ((string) ($estudiante['municipio_nacimiento'] ?? '') !== '') {
-            $partes[] = 'Municipio ' . (string) $estudiante['municipio_nacimiento'];
+$lugarNacimientoExtranjero = trim((string) ($estudiante['lugar_nacimiento_extranjero'] ?? ''));
+if ($lugarNacimientoExtranjero !== '') {
+    $lugarNacimiento = $lugarNacimientoExtranjero;
+} else {
+    $lugarNacimiento = '';
+    if ((int) ($estudiante['id_estado_nacimiento'] ?? 0) > 0) {
+        $partes = [];
+        if ((int) ($estudiante['id_parroquia_nacimiento'] ?? 0) > 0) {
+            $partes[] = (string) ($estudiante['parroquia_nacimiento'] ?? '');
+            if ((string) ($estudiante['municipio_nacimiento'] ?? '') !== '') {
+                $partes[] = 'Municipio ' . (string) $estudiante['municipio_nacimiento'];
+            }
         }
+        if ((string) ($estudiante['estado_nacimiento'] ?? '') !== '') {
+            $partes[] = (string) $estudiante['estado_nacimiento'];
+        }
+        $lugarNacimiento = trim(implode(', ', array_filter($partes, static fn ($p): bool => trim((string) $p) !== '')));
     }
-    if ((string) ($estudiante['estado_nacimiento'] ?? '') !== '') {
-        $partes[] = (string) $estudiante['estado_nacimiento'];
-    }
-    $lugarNacimiento = trim(implode(', ', array_filter($partes, static fn ($p): bool => trim((string) $p) !== '')));
 }
 if ($lugarNacimiento === '') {
     $lugarNacimiento = trim((string) ($estudiante['lugar_nacimiento'] ?? ''));

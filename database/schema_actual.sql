@@ -348,31 +348,6 @@ CREATE TABLE `empleado_estado_historial` (
 
 --
 --
--- Table structure for table `encuesta_ratificacion`
---
-
-DROP TABLE IF EXISTS `encuesta_ratificacion`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `encuesta_ratificacion` (
-  `id_matricula` int(11) NOT NULL,
-  `tiene_canaima` tinyint(1) NOT NULL,
-  `serial_canaima` varchar(50) DEFAULT NULL,
-  `tiene_ingreso_sige` tinyint(1) NOT NULL,
-  `fecha_ingreso_sige` date DEFAULT NULL,
-  `motivo_sige` varchar(200) DEFAULT NULL,
-  `repite_grado` tinyint(1) NOT NULL,
-  `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id_matricula`),
-  CONSTRAINT `fk_encuesta_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `ck_encuesta_canaima` CHECK (`tiene_canaima` in (0,1)),
-  CONSTRAINT `ck_encuesta_sige` CHECK (`tiene_ingreso_sige` in (0,1)),
-  CONSTRAINT `ck_encuesta_repite` CHECK (`repite_grado` in (0,1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
---
 -- Table structure for table `estado`
 --
 
@@ -2590,6 +2565,7 @@ CREATE TABLE `persona` (
   `sexo` enum('F','M') NOT NULL,
   `id_estado_nacimiento` int(11) DEFAULT NULL,
   `id_parroquia_nacimiento` int(11) DEFAULT NULL,
+  `lugar_nacimiento_extranjero` varchar(150) DEFAULT NULL,
   `estado` enum('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
   `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
   `fecha_actualizacion` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),

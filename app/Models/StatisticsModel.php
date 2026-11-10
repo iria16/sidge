@@ -352,7 +352,7 @@ class StatisticsModel extends Model
     }
 
     /**
-     * Indicadores demográficos de matrícula: género, nuevos vs regulares, repitientes, retiros y edades.
+     * Indicadores demográficos de matrícula: género, nuevos vs regulares, retiros y edades.
      */
     public function getDemografiaMatricula(int $idAnio, ?int $idGrado = null, ?int $idSeccion = null): array
     {
@@ -389,19 +389,6 @@ class StatisticsModel extends Model
             $stmtG = $this->pdo->prepare($sqlGen);
             $stmtG->execute($params);
             $datosG = $stmtG->fetch(PDO::FETCH_ASSOC) ?: [];
-
-            // Repitientes según encuesta_ratificacion
-            $sqlRep = "SELECT COUNT(DISTINCT er.id_matricula) AS total_repitientes
-                         FROM encuesta_ratificacion er
-                        INNER JOIN matricula m ON m.id_matricula = er.id_matricula
-                        INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
-                        WHERE m.id_anio_escolar = :anio
-                          AND er.repite_grado = 1
-                          AND {$condCursando}
-                          {$filtroEa}";
-            $stmtR = $this->pdo->prepare($sqlRep);
-            $stmtR->execute($params);
-            $repitientes = (int) $stmtR->fetchColumn();
 
             // Retiros oficiales
             $sqlRet = "SELECT COUNT(DISTINCT m.id_estudiante) AS total_retirados
@@ -476,7 +463,6 @@ class StatisticsModel extends Model
                 'nuevos_ingresos'       => (int) ($datosG['nuevos_ingresos'] ?? 0),
                 'regulares'             => (int) ($datosG['regulares'] ?? 0),
                 'reingresos'            => (int) ($datosG['reingresos'] ?? 0),
-                'repitientes'           => $repitientes,
                 'retirados'             => $retirados,
                 'desglose_edades'       => array_values($desgloseEdades),
                 'estudiantes_extraedad' => $estudiantesExtraedad,
@@ -492,7 +478,6 @@ class StatisticsModel extends Model
                 'nuevos_ingresos'       => 0,
                 'regulares'             => 0,
                 'reingresos'            => 0,
-                'repitientes'           => 0,
                 'retirados'             => 0,
                 'desglose_edades'       => [],
                 'estudiantes_extraedad' => 0,

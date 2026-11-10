@@ -231,13 +231,13 @@ class EnrollmentController extends CrudController
                 /* El estudiante es el único caso en que se guardan los tres niveles del
                    lugar de nacimiento. El municipio se deduce de la parroquia, así que no
                    se persiste: su name en el formulario lleva el sufijo _ui. */
-                'id_estado_nacimiento'    => (int) ($raw('id_estado_nacimiento') ?? '0'),
+                'id_estado_nacimiento'    => ($this->normalizarEspacios($raw('nacimiento_extranjero')) !== '') ? null : (((int) ($raw('id_estado_nacimiento') ?? '0')) ?: null),
                 /* Se guarda tal cual la escribe la secretaria: el campo tiene una lista de
-                   países que sugiere al teclear, pero no es un catálogo cerrado. Se
-                   capitalizan las palabras para que "colombia" y "Colombia" queden
-                   iguales de leer en el expediente. */
+                   países que sugiere al teclear, pero no es un catálogo cerrado. */
                 'id_nacionalidad'         => (int) ($raw('id_nacionalidad') ?? '0'),
-                'id_parroquia_nacimiento' => (int) ($raw('id_parroquia_nacimiento') ?? '0'),
+                'id_parroquia_nacimiento' => ($this->normalizarEspacios($raw('nacimiento_extranjero')) !== '') ? null : (((int) ($raw('id_parroquia_nacimiento') ?? '0')) ?: null),
+                'lugar_nacimiento_extranjero' => $this->vacioComoNull($this->normalizarEspacios($raw('lugar_nacimiento_extranjero'))),
+                'nacimiento_extranjero' => ($this->normalizarEspacios($raw('nacimiento_extranjero')) !== '') ? 1 : 0,
             ],
             // La foto inicializa en null; se procesa en store() si la validación es exitosa.
             'foto'                    => null,

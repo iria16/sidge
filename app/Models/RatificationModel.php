@@ -423,7 +423,7 @@ class RatificationModel extends BaseModel implements Listable
                     e.id_persona,
                     ' . ConQuienVive::expresionSql('e.id_estudiante') . ' AS con_quien_vive,
                     p.tipo_documento, p.numero_documento, p.fecha_nacimiento,
-                    p.id_estado_nacimiento, p.id_parroquia_nacimiento, p.id_nacionalidad,
+                    p.id_estado_nacimiento, p.id_parroquia_nacimiento, p.lugar_nacimiento_extranjero, p.id_nacionalidad,
                     pn.id_municipio AS id_municipio_nacimiento,
                     p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
                     p.sexo, p.foto' . $datosSensibles . '
@@ -1073,13 +1073,7 @@ es.nombre AS estado_nombre
                     tr_d.nombre AS turno_destino,
                     md.id_matricula AS id_matricula_destino,
                     md.tipo AS tipo_destino,
-                    md.fecha_matricula AS fecha_ratificacion,
-                    er.tiene_canaima,
-                    er.serial_canaima,
-                    er.tiene_ingreso_sige,
-                    er.fecha_ingreso_sige,
-                    er.motivo_sige,
-                    er.repite_grado
+                    md.fecha_matricula AS fecha_ratificacion
                FROM estudiante est
                INNER JOIN persona p ON p.id_persona = est.id_persona
                LEFT JOIN matricula md ON md.id_estudiante = est.id_estudiante
@@ -1090,8 +1084,7 @@ es.nombre AS estado_nombre
                LEFT JOIN grado gd    ON gd.id_grado   = ed.id_grado
                LEFT JOIN seccion sd  ON sd.id_seccion = ed.id_seccion
                LEFT JOIN turno tr_d  ON tr_d.id_turno = ed.id_turno
-               LEFT JOIN encuesta_ratificacion er ON er.id_matricula = md.id_matricula
-              WHERE est.id_estudiante = :id
+               WHERE est.id_estudiante = :id
               LIMIT 1"
         );
         $stmt->execute([
@@ -1125,14 +1118,6 @@ es.nombre AS estado_nombre
                 ? (int) $fila['id_matricula_destino'] : null,
             'fecha_ratificacion'  => $fila['fecha_ratificacion']
                 ? date('d/m/Y', strtotime((string) $fila['fecha_ratificacion'])) : '—',
-
-            'tiene_canaima'       => isset($fila['tiene_canaima']) && $fila['tiene_canaima'] !== null ? (int) $fila['tiene_canaima'] : null,
-            'serial_canaima'      => $fila['serial_canaima'] ?? null,
-            'tiene_ingreso_sige'  => isset($fila['tiene_ingreso_sige']) && $fila['tiene_ingreso_sige'] !== null ? (int) $fila['tiene_ingreso_sige'] : null,
-            'fecha_ingreso_sige'  => !empty($fila['fecha_ingreso_sige'])
-                ? date('d/m/Y', strtotime((string) $fila['fecha_ingreso_sige'])) : null,
-            'motivo_sige'         => $fila['motivo_sige'] ?? null,
-            'repite_grado'        => isset($fila['repite_grado']) && $fila['repite_grado'] !== null ? (int) $fila['repite_grado'] : null,
 
             'es_ratificacion'     => $esRatif,
             'estado'              => $esRatif ? 'ratificado' : 'inscrito',
@@ -1322,16 +1307,6 @@ es.nombre AS estado_nombre
                 'motivo'     => $motivoAnticipo !== '' ? mb_substr($motivoAnticipo, 0, 200) : null,
             ]);
 
-            /* La encuesta va en la MISMA transacción y no en un INSERT aparte después
-               del commit. Si el commit fallara y la encuesta quedara, el expediente tendría una
-               respuesta de un proceso que no ocurrió; y si la encuesta fallara, la matrícula
-               quedaría sin los datos que la explican. Las dos cosas o ninguna. Por eso se hace
-               justo después del INSERT de la matrícula y antes del commit.*/
-            $this->guardarEncuesta(
-                (int) $this->pdo->lastInsertId(),
-                $destino['encuesta'] ?? null
-            );
-
             /* Dentro de la transacción, como en el resto de procesos: si el commit falla,
  el rollback se lleva también la bitácora y no queda constancia de una
  ratificación que no ocurrió. El mensaje incluye el origen y el destino, así
@@ -1371,54 +1346,6 @@ es.nombre AS estado_nombre
             error_log('RatificationModel::ratificar(): ' . $e->getMessage());
             return ['ok' => false, 'mensaje' => 'No se pudo registrar la ratificación.'];
         }
-    }
-
-    /**
-     * Registra las respuestas de la encuesta de ratificación (Canaima, SIGE, repitencia)
-     * vinculadas a la nueva matrícula.
-     */
-    private function guardarEncuesta(int $idMatricula, ?array $encuesta): void
-    {
-        if ($idMatricula <= 0 || $encuesta === null) {
-            return;
-        }
-
-        $tieneCanaima = !empty($encuesta['tiene_canaima']) ? 1 : 0;
-        $serialCanaima = ($tieneCanaima && isset($encuesta['serial_canaima']) && trim((string) $encuesta['serial_canaima']) !== '')
-            ? mb_substr(trim((string) $encuesta['serial_canaima']), 0, 50)
-            : null;
-
-        $tieneSige = !empty($encuesta['tiene_ingreso_sige']) ? 1 : 0;
-        $fechaSige = ($tieneSige && !empty($encuesta['fecha_ingreso_sige']))
-            ? trim((string) $encuesta['fecha_ingreso_sige'])
-            : null;
-        $motivoSige = ($tieneSige && isset($encuesta['motivo_sige']) && trim((string) $encuesta['motivo_sige']) !== '')
-            ? mb_substr(trim((string) $encuesta['motivo_sige']), 0, 200)
-            : null;
-
-        $repiteGrado = !empty($encuesta['repite_grado']) ? 1 : 0;
-
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO encuesta_ratificacion (
-                id_matricula, tiene_canaima, serial_canaima,
-                tiene_ingreso_sige, fecha_ingreso_sige, motivo_sige,
-                repite_grado
-            ) VALUES (
-                :id_matricula, :tiene_canaima, :serial_canaima,
-                :tiene_ingreso_sige, :fecha_ingreso_sige, :motivo_sige,
-                :repite_grado
-            )'
-        );
-
-        $stmt->execute([
-            'id_matricula'       => $idMatricula,
-            'tiene_canaima'      => $tieneCanaima,
-            'serial_canaima'     => $serialCanaima,
-            'tiene_ingreso_sige' => $tieneSige,
-            'fecha_ingreso_sige' => $fechaSige,
-            'motivo_sige'        => $motivoSige,
-            'repite_grado'       => $repiteGrado,
-        ]);
     }
 
     /** Nombre y cédula de un estudiante, para que la bitácora se lea sin consultar.*/

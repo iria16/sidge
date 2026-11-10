@@ -452,6 +452,58 @@ window.SIGDEWizardUI = (function () {
     });
   }
 
+  /* ---------- Alternar lugar de nacimiento en el extranjero ----------
+
+  Cuando la secretaria marca "Nació en el extranjero", se ocultan los selects de
+  entidad federal/municipio/parroquia y se exige el campo de texto "Ciudad y país
+  de nacimiento". Al desmarcarlo se restauran los selects. Los selects desactivados
+  no viajan ni se validan en el navegador, y el backend los anula si llega el texto
+  extranjero. */
+  function initNacimientoExtranjero() {
+    var toggle = document.getElementById('nacimientoExtranjero');
+    var texto = document.getElementById('lugarNacimientoExtranjero');
+    var venGrupo = document.querySelector('[data-nacimiento-venezolano-grupo]');
+    var extGrupo = document.querySelector('[data-nacimiento-extranjero-grupo]');
+    var requiere = (document.querySelector('[data-nacimiento-requerido="1"]') !== null);
+
+    if (!toggle || !texto || !venGrupo || !extGrupo) {
+      return null;
+    }
+
+    var selects = venGrupo.querySelectorAll('select');
+    var estaOculto = function (el) { return el.hidden || el.classList.contains('d-none'); };
+
+    var sincronizar = function () {
+      var extranjero = toggle.checked === true;
+      venGrupo.hidden = extranjero;
+      venGrupo.classList.toggle('d-none', extranjero);
+      extGrupo.hidden = !extranjero;
+      extGrupo.classList.toggle('d-none', !extranjero);
+
+      selects.forEach(function (sel) {
+        if (extranjero) {
+          sel.disabled = true;
+          sel.removeAttribute('required');
+        } else {
+          sel.disabled = false;
+          if (requiere) {
+            sel.setAttribute('required', '');
+          }
+        }
+      });
+
+      texto.disabled = !extranjero;
+      if (extranjero && requiere) {
+        texto.setAttribute('required', '');
+      } else {
+        texto.removeAttribute('required');
+      }
+    };
+
+    toggle.addEventListener('change', sincronizar);
+    return { sincronizar: sincronizar };
+  }
+
   /* ---------- Cámara: tomar la foto con la webcam o la cámara del móvil ----------
 
   Un <input type="file"> solo abre el selector de archivos en escritorio; la cámara
@@ -694,6 +746,7 @@ window.SIGDEWizardUI = (function () {
     initSoloDigitos: initSoloDigitos,
     initSoloLetras: initSoloLetras,
     initTipoDocumentoLetra: initTipoDocumentoLetra,
-    initCascadaUbicacion: initCascadaUbicacion
+    initCascadaUbicacion: initCascadaUbicacion,
+    initNacimientoExtranjero: initNacimientoExtranjero
   };
 })();

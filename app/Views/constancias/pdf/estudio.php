@@ -129,9 +129,12 @@ if ($fechaNacObj !== null) {
 // Cláusula opcional de lugar de nacimiento
 $municipioNac = trim((string) ($estudiante['municipio_nacimiento'] ?? ''));
 $estadoNac = trim((string) ($estudiante['estado_nacimiento'] ?? ''));
+$lugarNacimientoExtranjero = trim((string) ($estudiante['lugar_nacimiento_extranjero'] ?? ''));
 
 $clausulaLugar = '';
-if ($municipioNac !== '' && $estadoNac !== '') {
+if ($lugarNacimientoExtranjero !== '') {
+    $clausulaLugar = ' en ' . htmlspecialchars($lugarNacimientoExtranjero, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+} elseif ($municipioNac !== '' && $estadoNac !== '') {
     $clausulaLugar = ' en el Municipio ' . htmlspecialchars($municipioNac, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ' del Estado ' . htmlspecialchars($estadoNac, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 } elseif ($municipioNac !== '') {
     $clausulaLugar = ' en el Municipio ' . htmlspecialchars($municipioNac, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');

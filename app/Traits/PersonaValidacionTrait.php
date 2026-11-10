@@ -229,6 +229,16 @@ trait PersonaValidacionTrait
         $estado = (int) ($data['id_estado_nacimiento'] ?? 0);
         $parroquia = (int) ($data['id_parroquia_nacimiento'] ?? 0);
 
+        $extranjeroTexto = trim((string) ($data['lugar_nacimiento_extranjero'] ?? ''));
+        if (!empty($data['nacimiento_extranjero']) || $extranjeroTexto !== '') {
+            if ($extranjeroTexto === '') {
+                $errores['lugar_nacimiento_extranjero'] = 'Indique la ciudad y el país donde nació.';
+            } elseif (mb_strlen($extranjeroTexto, 'UTF-8') > 150) {
+                $errores['lugar_nacimiento_extranjero'] = 'La ciudad y país de nacimiento no pueden superar los 150 caracteres.';
+            }
+            return;
+        }
+
         if ($estado <= 0) {
             /* $exigir en false es para EDITAR un registro que ya existía sin el dato. Las
             personas que estaban antes de que estos campos existieran los tienen en NULL, y

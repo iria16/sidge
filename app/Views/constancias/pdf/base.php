@@ -413,7 +413,25 @@ $plantelDea = $config['plantel_codigo_dea'] ?? '';
     <?php if (isset($cuerpoConstancia)): ?>
       <?= $cuerpoConstancia ?>
     <?php else: ?>
-      Quien suscribe <strong><?= htmlspecialchars(mb_strtoupper($config['director_nombre'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong> titular de la Cédula de Identidad N.° <?= htmlspecialchars($dirDocTexto, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <?= htmlspecialchars($config['director_cargo'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> de la Institución Educativa <strong><?= htmlspecialchars(mb_strtoupper($config['plantel_nombre'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, CÓDIGO DEA: <strong><?= htmlspecialchars(mb_strtoupper($config['plantel_codigo_dea'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, ubicada en el Municipio <?= htmlspecialchars(mb_strtoupper($config['plantel_municipio'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> de la Parroquia <?= htmlspecialchars(mb_strtoupper($config['plantel_parroquia'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> adscrita al Centro de Desarrollo de la Calidad Educativa Estadal <?= htmlspecialchars(mb_strtoupper($config['cdce_estado'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>. Por la presente hace constar que el (la) estudiante <strong><?= htmlspecialchars(mb_strtoupper($estudiante['nombre_completo'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, titular de <?= htmlspecialchars($docEstEtiqueta ?? 'la Cédula de Identidad N.°', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <strong><?= htmlspecialchars($estudiante['numero_documento'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong> nacido (a) en el Municipio <?= htmlspecialchars(mb_strtoupper($estudiante['municipio_nacimiento'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> del Estado <?= htmlspecialchars(mb_strtoupper($estudiante['estado_nacimiento'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>, en fecha <strong><?= htmlspecialchars($fechaNacTexto ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, <?= $textoEspecifico ?? '' ?>
+      <?php
+        $lugarNacimientoExtranjeroBase = trim((string) ($estudiante['lugar_nacimiento_extranjero'] ?? ''));
+        if ($lugarNacimientoExtranjeroBase !== '') {
+          $clausulaLugarBase = ' en ' . htmlspecialchars(mb_strtoupper($lugarNacimientoExtranjeroBase, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ',';
+        } else {
+          $munNacBase = trim((string) ($estudiante['municipio_nacimiento'] ?? ''));
+          $edoNacBase = trim((string) ($estudiante['estado_nacimiento'] ?? ''));
+          if ($munNacBase !== '' && $edoNacBase !== '') {
+            $clausulaLugarBase = ' en el Municipio ' . htmlspecialchars(mb_strtoupper($munNacBase, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ' del Estado ' . htmlspecialchars(mb_strtoupper($edoNacBase, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ',';
+          } elseif ($munNacBase !== '') {
+            $clausulaLugarBase = ' en el Municipio ' . htmlspecialchars(mb_strtoupper($munNacBase, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ',';
+          } elseif ($edoNacBase !== '') {
+            $clausulaLugarBase = ' en el Estado ' . htmlspecialchars(mb_strtoupper($edoNacBase, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ',';
+          } else {
+            $clausulaLugarBase = '';
+          }
+        }
+      ?>
+      Quien suscribe <strong><?= htmlspecialchars(mb_strtoupper($config['director_nombre'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong> titular de la Cédula de Identidad N.° <?= htmlspecialchars($dirDocTexto, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <?= htmlspecialchars($config['director_cargo'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> de la Institución Educativa <strong><?= htmlspecialchars(mb_strtoupper($config['plantel_nombre'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, CÓDIGO DEA: <strong><?= htmlspecialchars(mb_strtoupper($config['plantel_codigo_dea'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, ubicada en el Municipio <?= htmlspecialchars(mb_strtoupper($config['plantel_municipio'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> de la Parroquia <?= htmlspecialchars(mb_strtoupper($config['plantel_parroquia'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> adscrita al Centro de Desarrollo de la Calidad Educativa Estadal <?= htmlspecialchars(mb_strtoupper($config['cdce_estado'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>. Por la presente hace constar que el (la) estudiante <strong><?= htmlspecialchars(mb_strtoupper($estudiante['nombre_completo'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, titular de <?= htmlspecialchars($docEstEtiqueta ?? 'la Cédula de Identidad N.°', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <strong><?= htmlspecialchars($estudiante['numero_documento'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong> nacido (a)<?= $clausulaLugarBase ?> en fecha <strong><?= htmlspecialchars($fechaNacTexto ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, <?= $textoEspecifico ?? '' ?>
     <?php endif; ?>
   </div>
 
