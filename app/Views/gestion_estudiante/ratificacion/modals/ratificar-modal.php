@@ -32,10 +32,7 @@ ob_start();
   <?php endforeach; ?>
   
   <div class="mb-4">
-    <div class="d-flex align-items-center mb-3">
-      <div class="bg-warning rounded ratificar-alerta-barra"></div>
-      <h6 class="mb-0 fw-bold">Estado Actual</h6>
-    </div>
+    <h6 class="mb-3 fw-bold">Estado Actual</h6>
     
     <div class="border rounded p-3">
       <div class="d-flex align-items-center mb-3">
@@ -71,10 +68,7 @@ ob_start();
   </div>
 
   <div>
-    <div class="d-flex align-items-center mb-3">
-      <div class="bg-warning rounded ratificar-alerta-barra"></div>
-      <h6 class="mb-0 fw-bold">Nueva Matrícula</h6>
-    </div>
+    <h6 class="mb-3 fw-bold">Nueva Matrícula</h6>
     <?php /* El AÑO es fijo y lo imprime el servidor: es el año escolar activo, el
        mismo para toda la lista, y no hay nada que elegir. Grado, sección y turno
        sí son <select> y sí se eligen: se mandan en el POST y el modelo los respeta

@@ -100,6 +100,16 @@ ob_start();
   include __DIR__ . '/../../components/page-header.php';
 ?>
 
+<?php if (empty($anioActivo['id'])): ?>
+  <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+    <i class="bi bi-exclamation-triangle-fill fs-5 me-2 flex-shrink-0" aria-hidden="true"></i>
+    <div>
+      <strong>No hay un año escolar activo actualmente.</strong>
+      Para registrar nuevas inscripciones o consultar cupos, la dirección del plantel debe iniciar el período escolar correspondiente.
+    </div>
+  </div>
+<?php endif; ?>
+
 <?php include __DIR__ . '/partials/stat-cards.php'; ?>
 
 <?php
