@@ -636,19 +636,38 @@ document.addEventListener('DOMContentLoaded', function () {
  (acotado a preescolar/primaria) y el nombre. Al guardar, la institución
  nueva se agrega al <select> de procedencia y queda elegida, para no tener
  que buscarla en la lista.*/
+  var cascadaNuevaInstitucion = SIGDEWizardUI.initCascadaUbicacion({
+    url: route + 'getUbicacion',
+    estadoId: 'nuevaInstEstado',
+    municipioId: 'nuevaInstMunicipio',
+    parroquiaId: 'nuevaInstParroquia'
+  });
+
+  var interruptorInstExtranjera = document.getElementById('nuevaInstEsExtranjera');
+  var bloqueInstNacional = document.getElementById('bloqueInstNacional');
+  if (interruptorInstExtranjera && bloqueInstNacional) {
+    interruptorInstExtranjera.addEventListener('change', function () {
+      bloqueInstNacional.classList.toggle('d-none', interruptorInstExtranjera.checked);
+    });
+  }
+
   var btnGuardarNuevaInstProcedencia = document.getElementById('btnGuardarNuevaInstitucionProcedencia');
 
   if (btnGuardarNuevaInstProcedencia) {
     btnGuardarNuevaInstProcedencia.addEventListener('click', async function () {
-      var elNombre = document.getElementById('nuevaInstitucionProcedenciaNombre');
-      var elTipo   = document.getElementById('nuevaInstitucionProcedenciaTipo');
-      var elEstado = document.getElementById('nuevaInstitucionProcedenciaEstado');
-      var elDea    = document.getElementById('nuevaInstitucionProcedenciaDea');
-      var nombre   = (elNombre && elNombre.value || '').trim();
-      var tipo     = (elTipo && elTipo.value) || '';
-      var estado   = (elEstado && elEstado.value) || '';
-      var dea      = (elDea && elDea.value || '').trim();
-    var extranjera = !!document.querySelector('#nuevaInstitucionProcedenciaExtranjera:checked');
+      var elNombre    = document.getElementById('nuevaInstitucionProcedenciaNombre');
+      var elTipo      = document.getElementById('nuevaInstitucionProcedenciaTipo');
+      var elEstado    = document.getElementById('nuevaInstEstado');
+      var elMunicipio = document.getElementById('nuevaInstMunicipio');
+      var elParroquia = document.getElementById('nuevaInstParroquia');
+      var elDea       = document.getElementById('nuevaInstCodigoDea');
+      var nombre      = (elNombre && elNombre.value || '').trim();
+      var tipo        = (elTipo && elTipo.value) || '';
+      var estado      = (elEstado && elEstado.value) || '';
+      var municipio   = (elMunicipio && elMunicipio.value) || '';
+      var parroquia   = (elParroquia && elParroquia.value) || '';
+      var dea         = (elDea && elDea.value || '').trim();
+      var extranjera  = !!(interruptorInstExtranjera && interruptorInstExtranjera.checked);
 
       if (!nombre) {
         SIGDEUI.mostrarAviso('warning', 'Nombre requerido', 'Escribe el nombre de la institución.');
@@ -658,14 +677,14 @@ document.addEventListener('DOMContentLoaded', function () {
         SIGDEUI.mostrarAviso('warning', 'Tipo requerido', 'Selecciona el tipo de institución.');
         return;
       }
-      if (!estado && !extranjera) {
-        SIGDEUI.mostrarAviso('warning', 'Ubicación requerida', 'Selecciona el estado donde está la institución.');
+      if (!extranjera && (!estado || !municipio || !parroquia)) {
+        SIGDEUI.mostrarAviso('warning', 'Ubicación requerida', 'Selecciona estado, municipio y parroquia.');
         return;
       }
-
-      /* Se manda el bloque entero. El servidor ignora el que no aplica y
-         limpia esos datos al guardar, así que mandar de más no rompe nada. */
-
+      if (!extranjera && !dea) {
+        SIGDEUI.mostrarAviso('warning', 'Código DEA requerido', 'Escribe el código DEA de la institución.');
+        return;
+      }
 
       var payloadInst = {
         nombre: nombre,
@@ -689,6 +708,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (elNombre) elNombre.value = '';
         if (elTipo) elTipo.value = '';
         if (elDea) elDea.value = '';
+        if (interruptorInstExtranjera) interruptorInstExtranjera.checked = false;
+        if (bloqueInstNacional) bloqueInstNacional.classList.remove('d-none');
+        cascadaNuevaInstitucion.reiniciar(elEstado);
+        cascadaNuevaInstitucion.reiniciar(elMunicipio);
+        cascadaNuevaInstitucion.reiniciar(elParroquia);
         SIGDEUI.ocultarModal('modalNuevaInstitucionProcedencia');
       }
     });
@@ -983,15 +1007,18 @@ document.addEventListener('DOMContentLoaded', function () {
             icon: 'success',
             title: 'Inscripción registrada',
             text: result.data.mensaje || 'El estudiante quedó registrado.',
-            confirmButtonText: 'Descargar ficha',
+            confirmButtonText: 'Imprimir ficha',
             cancelButtonText: 'Cerrar',
             showCancelButton: true,
             reverseButtons: true,
             allowOutsideClick: false
           }).then(function (respuesta) {
             if (respuesta.isConfirmed) {
+              /* Sin `descargar=1` el PDF se abre en el visor del navegador,
+ donde la secretaria puede revisarlo e imprimirlo. Antes se forzaba
+ la descarga directa y se perdía la opción de imprimir. */
               window.open(
-                (window.BASE_URL || '') + 'estudiantes/exportar?id=' + idNuevo + '&descargar=1',
+                (window.BASE_URL || '') + 'estudiantes/exportar?id=' + idNuevo,
                 '_blank'
               );
             }

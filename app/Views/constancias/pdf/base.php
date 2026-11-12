@@ -430,8 +430,19 @@ $plantelDea = $config['plantel_codigo_dea'] ?? '';
             $clausulaLugarBase = '';
           }
         }
+        $sexoEstBase = strtoupper(trim((string) ($estudiante['sexo'] ?? '')));
+        if ($sexoEstBase === 'F') {
+          $artEstudianteBase = 'la estudiante';
+          $nacidoPalabraBase = 'nacida';
+        } elseif ($sexoEstBase === 'M') {
+          $artEstudianteBase = 'el estudiante';
+          $nacidoPalabraBase = 'nacido';
+        } else {
+          $artEstudianteBase = 'el (la) estudiante';
+          $nacidoPalabraBase = 'nacido (a)';
+        }
       ?>
-      Quien suscribe <strong><?= htmlspecialchars(mb_strtoupper($config['director_nombre'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong> titular de la Cédula de Identidad N.° <?= htmlspecialchars($dirDocTexto, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <?= htmlspecialchars($config['director_cargo'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> de la Institución Educativa <strong><?= htmlspecialchars(mb_strtoupper($config['plantel_nombre'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, CÓDIGO DEA: <strong><?= htmlspecialchars(mb_strtoupper($config['plantel_codigo_dea'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, ubicada en el Municipio <?= htmlspecialchars(mb_strtoupper($config['plantel_municipio'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> de la Parroquia <?= htmlspecialchars(mb_strtoupper($config['plantel_parroquia'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> adscrita al Centro de Desarrollo de la Calidad Educativa Estadal <?= htmlspecialchars(mb_strtoupper($config['cdce_estado'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>. Por la presente hace constar que el (la) estudiante <strong><?= htmlspecialchars(mb_strtoupper($estudiante['nombre_completo'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, titular de <?= htmlspecialchars($docEstEtiqueta ?? 'la Cédula de Identidad N.°', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <strong><?= htmlspecialchars($estudiante['numero_documento'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong> nacido (a)<?= $clausulaLugarBase ?> en fecha <strong><?= htmlspecialchars($fechaNacTexto ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, <?= $textoEspecifico ?? '' ?>
+      Quien suscribe <strong><?= htmlspecialchars(mb_strtoupper($config['director_nombre'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong> titular de la Cédula de Identidad N.° <?= htmlspecialchars($dirDocTexto, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <?= htmlspecialchars($config['director_cargo'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> de la Institución Educativa <strong><?= htmlspecialchars(mb_strtoupper($config['plantel_nombre'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, CÓDIGO DEA: <strong><?= htmlspecialchars(mb_strtoupper($config['plantel_codigo_dea'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, ubicada en el Municipio <?= htmlspecialchars(mb_strtoupper($config['plantel_municipio'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> de la Parroquia <?= htmlspecialchars(mb_strtoupper($config['plantel_parroquia'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> adscrita al Centro de Desarrollo de la Calidad Educativa Estadal <?= htmlspecialchars(mb_strtoupper($config['cdce_estado'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>. Por la presente hace constar que <?= $artEstudianteBase ?> <strong><?= htmlspecialchars(mb_strtoupper($estudiante['nombre_completo'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, titular de <?= htmlspecialchars($docEstEtiqueta ?? 'la Cédula de Identidad N.°', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <strong><?= htmlspecialchars($estudiante['numero_documento'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong> <?= $nacidoPalabraBase ?><?= $clausulaLugarBase ?> en fecha <strong><?= htmlspecialchars($fechaNacTexto ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>, <?= $textoEspecifico ?? '' ?>
     <?php endif; ?>
   </div>
 

@@ -355,12 +355,11 @@ $rutasPermitidas = [
         'generarIndividual' => ['docente'],
         'generarPorSeccion' => ['docente'],
     ],
-    // Listados del docente (GET) y enlace de WhatsApp de su sección (POST). La sección sale de la sesión.
+    // Listados del docente (GET). La sección sale de la sesión.
     'docente' => [
-        'index'                 => ['docente'],
-        'nomina'                => ['docente'],
-        'seccion'               => ['docente'],
-        'guardarEnlaceWhatsapp' => ['docente'],
+        'index'   => ['docente'],
+        'nomina'  => ['docente'],
+        'seccion' => ['docente'],
     ],
     // Módulo de estadísticas oficiales (Directivo y Coordinador).
     'estadistica' => [
@@ -397,7 +396,6 @@ $accionesSoloPost = [
     'reingreso' => ['guardar'],
     'configuracionInstitucional' => ['guardar', 'subirImagen', 'quitarImagen', 'restablecerOficial'],
     'resultadoAcademico' => ['guardarPropuesta'],
-    'docente' => ['guardarEnlaceWhatsapp'],
     'perfil' => ['actualizarFoto'],
 ];
 

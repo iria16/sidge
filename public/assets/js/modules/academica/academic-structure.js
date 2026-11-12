@@ -190,7 +190,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!button) return;
 
     document.getElementById('editarEstructuraId').value = button.dataset.id;
-    document.getElementById('editarEstructuraAnio').value = button.dataset.anio;
     document.getElementById('editarEstructuraGrado').value = button.dataset.grado;
     document.getElementById('editarEstructuraSeccion').value = button.dataset.seccion;
     document.getElementById('editarEstructuraTurno').value = button.dataset.turno;

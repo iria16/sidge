@@ -98,9 +98,10 @@ ksort($gradosPrimaria);
         <label class="label-sigde" for="anioEscolarProcedencia">Año escolar anterior</label>
         <input type="text" class="form-control" id="anioEscolarProcedencia"
                name="anio_escolar_procedencia" placeholder="Ej: 2024-2025" maxlength="9">
+        <div class="invalid-feedback">Indique el año escolar con el formato AAAA-AAAA (por ejemplo, 2024-2025).</div>
       </div>
       <div class="col-12">
-        <label class="label-sigde" for="motivoRetiro">Motivo de retiro / Observaciones</label>
+        <label class="label-sigde" for="motivoRetiro">Motivo de salida de la institución anterior / Observaciones</label>
         <textarea class="form-control" id="motivoRetiro" name="motivo_retiro" rows="2"
                   maxlength="100" placeholder="Breve descripción del motivo de cambio de institución..."></textarea>
       </div>

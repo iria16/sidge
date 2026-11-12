@@ -245,6 +245,7 @@ class EnrollmentController extends CrudController
             'ult_grado_cursado'       => $this->capitalizarTitulo($raw('ultimo_grado_cursado')),
             'es_primer_ingreso'       => $esPrimerIngreso ? 1 : 0,
             'anio_escolar_pre'        => $this->normalizarEspacios($raw('anio_escolar_procedencia')),
+            'motivo_salida_institucion_previa' => $this->vacioComoNull($this->capitalizarOracion($raw('motivo_retiro'))),
             'id_institucion'          => $idInstitucion,
             'id_estructura_academica' => $estructuraId,
             'errores_combinacion'     => $erroresCombo,
@@ -549,6 +550,11 @@ class EnrollmentController extends CrudController
         }
 
         $this->validarGradoProcedencia($data, $errores);
+
+        $anioProcedencia = (string) ($data['anio_escolar_pre'] ?? '');
+        if ($anioProcedencia !== '' && preg_match('/^[0-9]{4}-[0-9]{4}$/', $anioProcedencia) !== 1) {
+            $errores['anio_escolar_procedencia'] = 'Indique el año escolar con el formato AAAA-AAAA (por ejemplo, 2024-2025).';
+        }
 
         $evaluacionRecaudos = $data['recaudos_evaluacion'];
         $documentosObligatorios = new DocumentosObligatorios($this->conexion());

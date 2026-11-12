@@ -13,15 +13,15 @@ use Throwable;
 /**
  * Egresos / Graduación (egreso ↔ matricula): candidatos son los estudiantes de 6to grado con matrícula vigente; por la UI circula id_estudiante.
  * El egreso es el cierre natural del ciclo; cualquier salida antes, de cualquier grado, es un retiro (WithdrawalModel).
- * El motivo se guarda en inscripcion.motivo_egreso con un valor único, sin catálogo, porque nunca se elige.
+ * El motivo se guarda en egreso.motivo_egreso con un valor único, sin catálogo, porque nunca se elige.
 */
 class EgresoModel extends BaseModel implements Listable
 {
     protected string $table = 'egreso';
     protected string $primaryKey = 'id_egreso';
 
-    protected array $columns = ['id_egreso', 'id_matricula', 'fecha_egreso', 'id_usuario'];
-    protected array $allowedColumns = ['id_egreso', 'id_matricula', 'fecha_egreso', 'id_usuario'];
+    protected array $columns = ['id_egreso', 'id_matricula', 'motivo_egreso', 'fecha_egreso', 'id_usuario'];
+    protected array $allowedColumns = ['id_egreso', 'id_matricula', 'motivo_egreso', 'fecha_egreso', 'id_usuario'];
 
     /** Solo 6to grado se egresa: ver el docblock de la clase.*/
     public const GRADO_EGRESO = 6;
@@ -295,33 +295,16 @@ class EgresoModel extends BaseModel implements Listable
                 )->execute(['id_res' => (int) $resAcad['id_resultado']]);
             }
 
-            // El motivo va en la inscripción del alumno, donde dice por qué terminó.
-            // Por id_estudiante y no por id_matricula: la inscripción siempre apunta a la
-            // matrícula de SU año de ingreso, así que filtrar por la matrícula vigente
-            // no encontraba fila en cuanto el alumno había ratificado una vez, y el motivo
-            // se perdía sin avisar. uk_inscripcion_estudiante deja una inscripción por
-            // alumno, así que el WHERE no es ambiguo.
-            //
-            // Solo se escribe si el campo está vacío: la misma columna guarda el motivo de
-            // procedencia (por qué salió del colegio anterior) y escribir encima borraría
-            // ese dato. Para quien viene por traslado, el motivo del egreso queda implícito
-            // en la fila EGRESO, que es una constante del sistema.
-            $this->pdo->prepare(
-                'UPDATE inscripcion SET motivo_egreso = :motivo
-                  WHERE id_estudiante = :estudiante
-                    AND (motivo_egreso IS NULL OR motivo_egreso = \'\')'
-            )->execute([
-                'motivo'     => self::MOTIVO_EGRESO,
-                'estudiante' => (int) $estudianteId,
-            ]);
-
-            /* La fecha y el usuario se guardan en el mismo INSERT que la fila: si se escribieran
- después, un fallo entre medias dejaría un egreso sin rastro de quién lo hizo.*/
-            $this->pdo->prepare('INSERT INTO egreso (id_matricula, fecha_egreso, id_usuario)
-                                 VALUES (:matricula, NOW(), :usuario)')
+            /* El motivo pertenece a la fila de egreso, no a la inscripción: esa
+ columna guarda por qué el alumno salió de su institución anterior.
+ La fecha y el usuario se guardan en el mismo INSERT: si se escribieran después,
+ un fallo entre medias dejaría un egreso sin rastro de quién lo hizo.*/
+            $this->pdo->prepare('INSERT INTO egreso (id_matricula, motivo_egreso, fecha_egreso, id_usuario)
+                                 VALUES (:matricula, :motivo, CURDATE(), :usuario)')
                       ->execute([
                           'matricula' => $matriculaId,
-                          'usuario'  => $idUsuario > 0 ? $idUsuario : null,
+                          'motivo'    => self::MOTIVO_EGRESO,
+                          'usuario'   => $idUsuario > 0 ? $idUsuario : null,
                       ]);
 
             /* Se crea una fila EGRESO nueva junto a la del año, sin cambiar esta, para no perder en el

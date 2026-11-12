@@ -237,7 +237,6 @@ class TeacherAssignmentModel extends BaseModel implements Listable
                     ea.id_seccion,
                     ea.id_turno,
                     ea.id_anio_escolar,
-                    ea.enlace_whatsapp,
                     ad.id_asignacion,
                     g.nombre AS grado,
                     s.nombre AS seccion,
@@ -278,29 +277,8 @@ class TeacherAssignmentModel extends BaseModel implements Listable
 
         $fila['id_estructura_academica'] = (int) $fila['id_estructura_academica'];
         $fila['total_estudiantes']       = (int) $fila['total_estudiantes'];
-        $fila['enlace_whatsapp']         = isset($fila['enlace_whatsapp']) && trim((string) $fila['enlace_whatsapp']) !== ''
-            ? trim((string) $fila['enlace_whatsapp'])
-            : null;
 
         return $fila;
-    }
-
-    /**
-     * Guarda o elimina (NULL) el enlace de invitación al grupo de WhatsApp
-     * de una sección (`estructura_academica`).
-     */
-    public function actualizarEnlaceWhatsapp(int $idEstructura, ?string $enlace): bool
-    {
-        $stmt = $this->pdo->prepare(
-            'UPDATE estructura_academica
-                SET enlace_whatsapp = :enlace
-              WHERE id_estructura_academica = :id'
-        );
-
-        return $stmt->execute([
-            'enlace' => $enlace,
-            'id'     => $idEstructura,
-        ]);
     }
 
     /**

@@ -519,19 +519,18 @@ de literales, y [Emisión de Constancias](#emisión-de-constancias) para el Cert
 ### Docentes
 
 #### Docente
-- **Nombre en la interfaz:** Docente (listados, nómina, sección, enlace de WhatsApp)
+- **Nombre en la interfaz:** Docente (listados, nómina, sección)
 - **Ruta:** `docente/*`
 - **Controlador:** `TeacherController`
 - **Roles con acceso:** `docente`
-- **Descripción:** Proporciona al docente los listados de su sección, la nómina y el enlace de WhatsApp para comunicación con los representantes.
+- **Descripción:** Proporciona al docente los listados de su sección y la nómina para comunicación con los representantes.
 - **Funcionalidades:**
   - Ver el listado de estudiantes de su sección.
   - Consultar la nómina de la sección.
   - Ver los detalles de la sección asignada.
-  - Guardar el enlace de WhatsApp de la sección.
-- **Flujo principal:** el docente accede a su sección, revisa el listado de estudiantes y configura el enlace de WhatsApp para contacto con representantes.
+- **Flujo principal:** el docente accede a su sección y revisa el listado de estudiantes y su nómina.
 - **Reglas y restricciones:** acceso exclusivo de `docente`; la sección se toma de la sesión, por lo que cada docente solo ve su propia sección.
-- **Acciones técnicas:** `index`, `nomina`, `seccion`, `guardarEnlaceWhatsapp`.
+- **Acciones técnicas:** `index`, `nomina`, `seccion`.
 
 #### Resultados y Promoción
 - **Nombre en la interfaz:** Resultados y Promoción

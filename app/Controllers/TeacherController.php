@@ -449,62 +449,6 @@ $nomina = $this->getModel()->getNominaDocente($idEstructura, $filtros);
     }
 
     /**
-     * Guarda, actualiza o elimina el enlace de invitación al grupo de WhatsApp
-     * de la sección asignada al docente en sesión (POST /docente/guardarEnlaceWhatsapp).
-     */
-    public function guardarEnlaceWhatsapp(): void
-    {
-        $this->exigirDocente();
-
-        $base    = $this->datosComunes();
-        $seccion = $base['seccion'];
-        if (!$base['tieneSeccion'] || $seccion === null) {
-            $this->jsonResponse(false, null, 'No tienes una sección activa asignada.', 403);
-        }
-
-        if (isset($_POST['enlace_whatsapp']) && !is_string($_POST['enlace_whatsapp'])) {
-            $this->jsonResponse(false, ['enlace_whatsapp' => 'El enlace no es válido.'], 'El enlace no es válido.', 422);
-        }
-
-        $enlaceRaw = trim((string) ($_POST['enlace_whatsapp'] ?? ''));
-        $enlaceNuevo = null;
-
-        if ($enlaceRaw !== '') {
-            if (preg_match('/\s/u', $enlaceRaw)) {
-                $msg = 'El enlace no debe contener espacios.';
-                $this->jsonResponse(false, ['enlace_whatsapp' => $msg], $msg, 422);
-            }
-            if (mb_strlen($enlaceRaw, 'UTF-8') > 120) {
-                $msg = 'El enlace admite hasta 120 caracteres.';
-                $this->jsonResponse(false, ['enlace_whatsapp' => $msg], $msg, 422);
-            }
-            if (!preg_match('#^https://chat\.whatsapp\.com/(?:invite/)?[A-Za-z0-9_-]{10,64}$#', $enlaceRaw)) {
-                $msg = 'El enlace debe comenzar por https://chat.whatsapp.com/ seguido del código de invitación válido.';
-                $this->jsonResponse(false, ['enlace_whatsapp' => $msg], $msg, 422);
-            }
-            $enlaceNuevo = $enlaceRaw;
-        }
-
-        $idEstructura   = (int) $base['idEstructura'];
-        $enlaceAnterior = $seccion['enlace_whatsapp'] ?? null;
-
-        try {
-            $modelo = new TeacherAssignmentModel($this->conexion());
-            $modelo->actualizarEnlaceWhatsapp($idEstructura, $enlaceNuevo);
-        } catch (Throwable $e) {
-            $this->jsonError($e, 'Enlace de WhatsApp');
-        }
-
-
-        $mensaje = $enlaceNuevo === null
-            ? 'Se quitó el enlace del grupo de WhatsApp.'
-            : 'Enlace del grupo de WhatsApp guardado correctamente.';
-
-        $this->jsonResponse(true, ['tiene_enlace' => $enlaceNuevo !== null], $mensaje);
-    }
-
-
-    /**
      * Lee un parámetro GET de lista cerrada. Ausente o vacío: valor por defecto.
      * Cualquier otro valor (o un arreglo) se rechaza con 422.
      *

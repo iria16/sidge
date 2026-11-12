@@ -337,8 +337,7 @@ class AuthController
                 'recuperacion_acceso',
                 'Solicitud de recuperación de acceso',
                 $mensaje,
-                BASE_URL . 'recuperacionAcceso/index',
-                $usuarioId
+                BASE_URL . 'recuperacionAcceso/index'
             );
         } catch (\Throwable $e) {
             error_log('Notificacion recuperacion: ' . $e->getMessage());

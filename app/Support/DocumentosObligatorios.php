@@ -407,7 +407,7 @@ final class DocumentosObligatorios
 
         return $this->faltantesInscripcion(
             (int) $procedencia['es_primer_ingreso'] === 1,
-            (int) $procedencia['id_institucion'] ?: null,
+            (int) $procedencia['id_institucion_procedencia'] ?: null,
             (string) ($procedencia['ult_grado_cursado'] ?? ''),
             $representante === null ? [] : [$representante],
             $recaudos,
@@ -561,12 +561,12 @@ final class DocumentosObligatorios
      * Procedencia de la inscripción del alumno. `uk_inscripcion_estudiante`
      * garantiza una sola fila por estudiante.
      *
-     * @return array{es_primer_ingreso: mixed, id_institucion: mixed, ult_grado_cursado: mixed}|null
+     * @return array{es_primer_ingreso: mixed, id_institucion_procedencia: mixed, ult_grado_cursado: mixed}|null
      */
     private function procedenciaDeEstudiante(int $idEstudiante): ?array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT es_primer_ingreso, id_institucion, ult_grado_cursado
+            'SELECT es_primer_ingreso, id_institucion_procedencia, ult_grado_cursado
                FROM inscripcion
               WHERE id_estudiante = :id
               LIMIT 1'

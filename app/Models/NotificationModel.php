@@ -91,8 +91,7 @@ class NotificationModel
         string $tipo,
         string $titulo,
         string $mensaje,
-        string $urlDestino,
-        ?int $idReferencia = null
+        string $urlDestino
     ): void {
         $ids = is_array($destinatarios) ? $destinatarios : [$destinatarios];
         $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
@@ -103,9 +102,9 @@ class NotificationModel
 
         $stmt = $this->pdo->prepare(
             "INSERT INTO notificacion
-                (id_usuario_destino, tipo, titulo, mensaje, url_destino, id_referencia)
+                (id_usuario_destino, tipo, titulo, mensaje, url_destino)
              VALUES
-                (:usuario, :tipo, :titulo, :mensaje, :url, :referencia)"
+                (:usuario, :tipo, :titulo, :mensaje, :url)"
         );
 
         foreach ($ids as $id) {
@@ -115,7 +114,6 @@ class NotificationModel
                 'titulo'      => $titulo,
                 'mensaje'     => $mensaje,
                 'url'         => $urlDestino,
-                'referencia'  => $idReferencia,
             ]);
         }
     }

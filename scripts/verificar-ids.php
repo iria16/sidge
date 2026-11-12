@@ -109,6 +109,14 @@ function idsDeLasVistas(string $raiz): array
                 }
             }
         }
+        /* La rama sin prefijo del mismo ternario también imprime un id:
+              $idFechaNacimiento = $prefixId ? $prefixId . 'FechaNacimiento' : 'fechaNacimiento';
+           Sin esto, el verificador marca como huérfano un id que sí existe. */
+        if (preg_match_all('/\$[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\$prefixId\s*\?\s*\$prefixId\s*\.\s*\'[A-Za-z]+\'\s*:\s*\'([A-Za-z]+)\'\s*;/u', $texto, $m)) {
+            foreach ($m[1] as $sinPrefijo) {
+                $ids[$sinPrefijo] = true;
+            }
+        }
 
         /* 3. Concatenaciones: $modalId . 'Label'. Con los valores de (2) se arma
               el id completo: modalAgregarFamiliar + Label. */

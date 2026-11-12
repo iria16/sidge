@@ -87,8 +87,8 @@ class EnrollmentModel extends BaseModel implements Listable, Creatable
     protected string $table = 'inscripcion';
     protected string $primaryKey = 'id_inscripcion';
 
-    protected array $columns = ['id_inscripcion', 'id_matricula', 'id_estudiante', 'id_estructura_academica', 'id_anio_escolar', 'numero_inscripcion', 'ult_grado_cursado', 'es_primer_ingreso', 'motivo_egreso', 'anio_escolar_pre', 'id_institucion'];
-    protected array $allowedColumns = ['id_inscripcion', 'id_matricula', 'id_estudiante', 'id_estructura_academica', 'id_anio_escolar', 'numero_inscripcion', 'ult_grado_cursado', 'es_primer_ingreso', 'motivo_egreso', 'anio_escolar_pre', 'id_institucion'];
+    protected array $columns = ['id_inscripcion', 'id_matricula', 'id_estudiante', 'id_estructura_academica', 'id_anio_escolar', 'numero_inscripcion', 'ult_grado_cursado', 'id_grado_procedencia', 'es_primer_ingreso', 'motivo_salida_institucion_previa', 'anio_escolar_pre', 'id_institucion_procedencia'];
+    protected array $allowedColumns = ['id_inscripcion', 'id_matricula', 'id_estudiante', 'id_estructura_academica', 'id_anio_escolar', 'numero_inscripcion', 'ult_grado_cursado', 'id_grado_procedencia', 'es_primer_ingreso', 'motivo_salida_institucion_previa', 'anio_escolar_pre', 'id_institucion_procedencia'];
 
     /** Último estudiante creado en esta petición; lo usa el controlador para ofrecer la ficha. */
     private ?int $ultimoEstudianteId = null;
@@ -465,6 +465,27 @@ $row['id']          = (int) $row['id'];
     }
 
     /**
+     * Id del catálogo `grado` a partir del nombre que llega del formulario.
+     * "Educación Inicial" no existe en `grado`: en ese caso se guarda null y
+     * el texto queda como respaldo en ult_grado_cursado.
+     */
+    private function idGradoPorNombre(string $nombre): ?int
+    {
+        $nombre = trim($nombre);
+        if ($nombre === '') {
+            return null;
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT id_grado FROM grado WHERE nombre = :nombre AND estado = 'ACTIVO' LIMIT 1"
+        );
+        $stmt->execute(['nombre' => $nombre]);
+        $id = $stmt->fetchColumn();
+
+        return $id === false ? null : (int) $id;
+    }
+
+    /**
      * Nacionalidades para el <select> del paso 1 del estudiante.
      *
      * Va aparte de getFamiliarCatalogs() a propósito: ese método arma el sub-modal de
@@ -776,12 +797,13 @@ $row['id']          = (int) $row['id'];
 // El folio se pide después de reservar el cupo: el año ya está resuelto arriba y el bloqueo de la
             // estructura ya está tomado, que es el orden que evita el deadlock que comenta el paso 0.
             $folio = $this->siguienteFolio($anioEscolar);
+            $ultimoGrado = mb_substr((string) ($data['ult_grado_cursado'] ?? ''), 0, 20) ?: null;
 
             $this->pdo->prepare(
                 'INSERT INTO inscripcion (id_matricula, id_estudiante, id_estructura_academica, id_anio_escolar,
-                 numero_inscripcion, ult_grado_cursado,
-                 es_primer_ingreso, motivo_egreso, anio_escolar_pre, id_institucion)
-                 VALUES (:matricula, :estudiante, :estructura, :anio, :folio, :ult_grado,
+                 numero_inscripcion, ult_grado_cursado, id_grado_procedencia,
+                 es_primer_ingreso, motivo_salida_institucion_previa, anio_escolar_pre, id_institucion_procedencia)
+                 VALUES (:matricula, :estudiante, :estructura, :anio, :folio, :ult_grado, :grado_procedencia,
                  :primer_ingreso, :motivo, :anio_pre, :institucion)'
             )->execute([
                 'matricula'      => $matriculaId,
@@ -789,12 +811,13 @@ $row['id']          = (int) $row['id'];
                 'estructura'     => $estructuraId,
                 'anio'           => $anioEscolar,
                 'folio'          => $folio,
-                'ult_grado'      => mb_substr((string) ($data['ult_grado_cursado'] ?? ''), 0, 20) ?: null,
+                'ult_grado'      => $ultimoGrado,
+                'grado_procedencia' => $this->idGradoPorNombre((string) $ultimoGrado),
                 /* `es_primer_ingreso` es un dato de procedencia ("Primera vez" o "Traslado"), no de proceso; no depende de que la inscripción sea única.
- Los que vienen de otro colegio llenan ult_grado_cursado, anio_escolar_pre y motivo_egreso.
+ Los que vienen de otro colegio llenan ult_grado_cursado, anio_escolar_pre y motivo_salida_institucion_previa.
  El default espeja el de la columna; el controlador siempre manda el dato (el checkbox sin marcar lo traduce a 0).*/
                 'primer_ingreso' => (int) ($data['es_primer_ingreso'] ?? 1),
-                'motivo'         => mb_substr((string) ($data['motivo_egreso'] ?? ''), 0, 100) ?: null,
+                'motivo'         => mb_substr((string) ($data['motivo_salida_institucion_previa'] ?? ''), 0, 100) ?: null,
                 'anio_pre'       => mb_substr((string) ($data['anio_escolar_pre'] ?? ''), 0, 9) ?: null,
                 'institucion'    => $idInstitucion,
             ]);
@@ -913,7 +936,7 @@ $row['id']          = (int) $row['id'];
     /** Detalle de una inscripción para la vista "ver".*/
     public function getById(int $id): ?array
     {
-        $sql = "SELECT i.id_inscripcion AS id, i.numero_inscripcion, i.es_primer_ingreso, i.ult_grado_cursado, i.motivo_egreso, i.anio_escolar_pre,
+        $sql = "SELECT i.id_inscripcion AS id, i.numero_inscripcion, i.es_primer_ingreso, i.ult_grado_cursado, i.motivo_salida_institucion_previa, i.anio_escolar_pre,
                        CONCAT(p.tipo_documento, '-', p.numero_documento) AS cedula,
                        p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
                        DATE_FORMAT(m.fecha_matricula, '%d/%m/%Y') AS fecha_inscripcion,

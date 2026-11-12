@@ -224,8 +224,7 @@ class WithdrawalController extends CrudController
                         'retiro_pendiente',
                         'Solicitud de retiro registrada',
                         'Se ha registrado una nueva solicitud de retiro para ' . $estudiante . '.',
-                        BASE_URL . 'withdrawal/index',
-                        (int) $data['id_matricula']
+                        BASE_URL . 'withdrawal/index'
                     );
                 } catch (\Throwable $e) {
                     error_log('Notificacion retiro: ' . $e->getMessage());
@@ -334,8 +333,7 @@ class WithdrawalController extends CrudController
                             'retiro_' . strtolower($estado),
                             'Solicitud de retiro ' . $verbo,
                             'La dirección ha ' . ($estado === 'APROBADO' ? 'aprobado' : 'rechazado') . ' la solicitud de retiro de ' . $estudiante . '.',
-                            BASE_URL . 'withdrawal/index',
-                            $id
+                            BASE_URL . 'withdrawal/index'
                         );
                     }
                 } catch (\Throwable $e) {
@@ -398,8 +396,7 @@ class WithdrawalController extends CrudController
                                 'retiro_eliminado',
                                 'Solicitud de retiro eliminada',
                                 'La dirección ha eliminado la solicitud de retiro de ' . $estudiante . '.',
-                                BASE_URL . 'withdrawal/index',
-                                $id
+                                BASE_URL . 'withdrawal/index'
                             );
                         }
                     } catch (\Throwable $e) {

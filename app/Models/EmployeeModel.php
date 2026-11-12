@@ -282,10 +282,12 @@ class EmployeeModel extends BaseModel implements Listable, Creatable, Updatable,
 */
     public function getCatalogosFormulario(): array
     {
+        $idTipoTitulo = (int) Instituciones::idCatalogo(Instituciones::TIPO_TITULO_ACADEMICO);
+
         return [
             'grados_academicos' => $this->pdo->query('SELECT id_grado_academico, nombre FROM grado_academico ORDER BY nombre ASC')->fetchAll(PDO::FETCH_ASSOC),
             'titulos'           => $this->pdo->query('SELECT id_titulo, nombre, id_grado_academico FROM titulo ORDER BY nombre ASC')->fetchAll(PDO::FETCH_ASSOC),
-            'instituciones'     => $this->pdo->query('SELECT id_institucion, nombre FROM institucion ORDER BY nombre ASC')->fetchAll(PDO::FETCH_ASSOC),
+            'instituciones'     => $this->pdo->query("SELECT id_institucion, nombre FROM institucion WHERE estado = 'ACTIVO' AND id_tipo_institucion = {$idTipoTitulo} ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC),
             'tipos_institucion' => $this->pdo->query('SELECT id_tipo_institucion, nombre FROM tipo_institucion ORDER BY nombre ASC')->fetchAll(PDO::FETCH_ASSOC),
             'estados'           => $this->pdo->query('SELECT id_estado, nombre FROM estado ORDER BY nombre ASC')->fetchAll(PDO::FETCH_ASSOC),
             'turnos'            => $this->pdo->query("SELECT id_turno, nombre FROM turno WHERE estado = 'ACTIVO' ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC),

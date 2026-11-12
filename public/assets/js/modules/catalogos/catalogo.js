@@ -455,7 +455,28 @@ function initEditarElementoModal() {
 
         if (tr) {
           var nombreCell = tr.querySelector('td');
-          if (nombreCell) nombreCell.textContent = nuevoNombre || '';
+          var lineaUbicacion = tr.querySelector('td .catalogo-ubicacion') || tr.querySelector('td .text-support');
+
+          if (nombreCell) {
+            if (lineaUbicacion) {
+              // Si tiene la línea de ubicación debajo (catálogo institución), actualizamos solo el nodo
+              // de texto para evitar que .textContent borre el <div> de ubicación
+              var primerNodoTexto = null;
+              for (var i = 0; i < nombreCell.childNodes.length; i++) {
+                if (nombreCell.childNodes[i].nodeType === Node.TEXT_NODE) {
+                  primerNodoTexto = nombreCell.childNodes[i];
+                  break;
+                }
+              }
+              if (primerNodoTexto) {
+                primerNodoTexto.textContent = (nuevoNombre || '') + '\n';
+              } else {
+                nombreCell.insertBefore(document.createTextNode((nuevoNombre || '') + '\n'), lineaUbicacion);
+              }
+            } else {
+              nombreCell.textContent = nuevoNombre || '';
+            }
+          }
 
           // El tipo también se actualiza en la fila. Antes solo se refrescaba
           // el nombre, así que cambiar el tipo se notaba al recargar la página.
@@ -481,19 +502,38 @@ function initEditarElementoModal() {
 
           // La linea de ubicacion y DEA bajo el nombre se reconstruye con lo
           // que se acaba de guardar.
-          if (selectEstadoEditar && inputDeaEditar) {
-            var lineaUbicacion = tr.querySelector('td .text-support');
+          if (selectEstadoEditar) {
+            if (!lineaUbicacion && nombreCell && selectTipoEditar) {
+              lineaUbicacion = document.createElement('div');
+              lineaUbicacion.className = 'text-support catalogo-ubicacion';
+              nombreCell.appendChild(lineaUbicacion);
+            }
             if (lineaUbicacion) {
-              var opcionEstadoElegida = selectEstadoEditar.options[selectEstadoEditar.selectedIndex];
-              var textoUbicacion = opcionEstadoElegida && opcionEstadoElegida.value
-                ? opcionEstadoElegida.text
-                : 'Sin ubicacion';
-              if (inputDeaEditar.value) textoUbicacion += ' \u00b7 DEA ' + inputDeaEditar.value.toUpperCase();
+              var interruptorExtranjera = modalEditarEl.querySelector('[name="es_extranjera"]');
+              var esExtranjera = interruptorExtranjera && interruptorExtranjera.checked;
+
+              var textoUbicacion = 'Sin ubicación';
+              if (esExtranjera) {
+                textoUbicacion = 'Extranjera';
+              } else if (selectEstadoEditar && selectEstadoEditar.selectedIndex >= 0) {
+                var opcionEstadoElegida = selectEstadoEditar.options[selectEstadoEditar.selectedIndex];
+                if (opcionEstadoElegida && opcionEstadoElegida.value) {
+                  textoUbicacion = opcionEstadoElegida.text;
+                }
+              }
+
+              if (!esExtranjera && inputDeaEditar && inputDeaEditar.value.trim() !== '') {
+                textoUbicacion += ' \u00b7 DEA ' + inputDeaEditar.value.trim().toUpperCase();
+              }
               lineaUbicacion.textContent = textoUbicacion;
             }
             if (btnEditarEnFila) {
-              btnEditarEnFila.dataset.elementoEstado = selectEstadoEditar.value;
-              btnEditarEnFila.dataset.elementoDea = inputDeaEditar.value;
+              btnEditarEnFila.dataset.elementoEstado = selectEstadoEditar ? selectEstadoEditar.value : '';
+              btnEditarEnFila.dataset.elementoDea = inputDeaEditar ? inputDeaEditar.value : '';
+              var interruptorExtranjera = modalEditarEl.querySelector('[name="es_extranjera"]');
+              if (interruptorExtranjera) {
+                btnEditarEnFila.dataset.elementoExtranjera = interruptorExtranjera.checked ? '1' : '0';
+              }
             }
           }
 

@@ -115,7 +115,7 @@ $wsCampos = [
     ['Tipo de ingreso',            null, null, $badgeIngreso],
     ['Último grado cursado',       null, ($item['ult_grado_cursado'] ?? '') ?: '—'],
     ['Año escolar de procedencia', null, ($item['anio_escolar_pre']  ?? '') ?: '—'],
-    ['Motivo de retiro',           null, ($item['motivo_egreso']     ?? '') ?: '—'],
+    ['Motivo de salida de la institución anterior', null, ($item['motivo_salida_institucion_previa'] ?? '') ?: '—'],
 ];
 include $componentes . 'wizard-summary-section.php';
 ?>
@@ -215,8 +215,8 @@ include $componentes . 'wizard-summary-section.php';
           <div class="detail-list__value"><?= htmlspecialchars(($item['anio_escolar_pre'] ?? '') ?: '—') ?></div>
         </div>
         <div class="detail-list__item">
-          <div class="label-sigde">Motivo de retiro</div>
-          <div class="detail-list__value"><?= htmlspecialchars(($item['motivo_egreso'] ?? '') ?: '—') ?></div>
+          <div class="label-sigde">Motivo de salida de la institución anterior</div>
+          <div class="detail-list__value"><?= htmlspecialchars(($item['motivo_salida_institucion_previa'] ?? '') ?: '—') ?></div>
         </div>
       </div>
     </div>

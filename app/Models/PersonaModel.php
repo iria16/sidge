@@ -13,8 +13,8 @@ class PersonaModel extends BaseModel
     protected string $table = 'persona';
     protected string $primaryKey = 'id_persona';
 
-    protected array $columns = ['id_persona', 'foto', 'tipo_documento', 'numero_documento', 'fecha_nacimiento', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'sexo', 'id_estado_nacimiento', 'id_parroquia_nacimiento', 'lugar_nacimiento_extranjero', 'estado', 'fecha_creacion', 'fecha_actualizacion', 'id_nacionalidad', 'es_fallecido'];
-    protected array $allowedColumns = ['id_persona', 'foto', 'tipo_documento', 'numero_documento', 'fecha_nacimiento', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'sexo', 'id_estado_nacimiento', 'id_parroquia_nacimiento', 'lugar_nacimiento_extranjero', 'estado', 'fecha_creacion', 'fecha_actualizacion', 'id_nacionalidad', 'es_fallecido'];
+    protected array $columns = ['id_persona', 'foto', 'tipo_documento', 'numero_documento', 'fecha_nacimiento', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'sexo', 'id_estado_nacimiento', 'id_parroquia_nacimiento', 'lugar_nacimiento_extranjero', 'nacimiento_extranjero', 'estado', 'fecha_creacion', 'fecha_actualizacion', 'id_nacionalidad', 'es_fallecido'];
+    protected array $allowedColumns = ['id_persona', 'foto', 'tipo_documento', 'numero_documento', 'fecha_nacimiento', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'sexo', 'id_estado_nacimiento', 'id_parroquia_nacimiento', 'lugar_nacimiento_extranjero', 'nacimiento_extranjero', 'estado', 'fecha_creacion', 'fecha_actualizacion', 'id_nacionalidad', 'es_fallecido'];
 
     private const CAMPOS_PERSONA = [
         'tipo_documento',
@@ -33,6 +33,7 @@ class PersonaModel extends BaseModel
         'id_estado_nacimiento',
         'id_parroquia_nacimiento',
         'lugar_nacimiento_extranjero',
+        'nacimiento_extranjero',
         /* Nacionalidad: la columna es de la persona pero SOLO el estudiante la
            completa; empleados y familiares quedan en NULL. Guarda el id del catálogo
            `nacionalidad`, no el texto, como el resto de los catálogos. */
@@ -49,6 +50,7 @@ class PersonaModel extends BaseModel
         'id_estado_nacimiento',
         'id_parroquia_nacimiento',
         'lugar_nacimiento_extranjero',
+        'nacimiento_extranjero',
         'id_nacionalidad',
     ];
 

@@ -13,7 +13,10 @@
 $tituloConstancia = 'CONSTANCIA DE INSCRIPCIÓN';
 $mostrarCodigoDependencia = false;
 
-$textoEspecifico = 'fue inscrito en esta institución para cursar el <u><strong>'
+$sexoEstInsc = strtoupper(trim((string) ($estudiante['sexo'] ?? '')));
+$fueInscritoTexto = ($sexoEstInsc === 'F') ? 'fue inscrita' : (($sexoEstInsc === 'M') ? 'fue inscrito' : 'fue inscrito (a)');
+
+$textoEspecifico = $fueInscritoTexto . ' en esta institución para cursar el <u><strong>'
     . htmlspecialchars(mb_strtoupper($estudiante['grado'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
     . '</strong></u> de <u><strong>'
     . htmlspecialchars(mb_strtoupper($config['nivel_educativo'] ?? '', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')

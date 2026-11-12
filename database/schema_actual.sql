@@ -33,8 +33,8 @@ CREATE TABLE `anio_escolar` (
   `iniciado_por` int(11) DEFAULT NULL,
   `cerrado_en` datetime DEFAULT NULL,
   `cerrado_por` int(11) DEFAULT NULL,
-  `reapierto_en` datetime DEFAULT NULL,
-  `reapierto_por` int(11) DEFAULT NULL,
+  `reabierto_en` datetime DEFAULT NULL,
+  `reabierto_por` int(11) DEFAULT NULL,
   `motivo_reapertura` varchar(200) DEFAULT NULL,
   `activo_unico` tinyint(4) GENERATED ALWAYS AS (case when `estado` = 'ACTIVO' then 1 else NULL end) STORED,
   PRIMARY KEY (`id_anio_escolar`),
@@ -44,10 +44,10 @@ CREATE TABLE `anio_escolar` (
   KEY `idx_anio_escolar_estado` (`estado`),
   KEY `idx_anio_escolar_iniciado_por` (`iniciado_por`),
   KEY `idx_anio_escolar_cerrado_por` (`cerrado_por`),
-  KEY `fk_anio_escolar_reapierto_por` (`reapierto_por`),
+  KEY `fk_anio_escolar_reabierto_por` (`reabierto_por`),
   CONSTRAINT `fk_anio_escolar_cerrado_por` FOREIGN KEY (`cerrado_por`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_anio_escolar_iniciado_por` FOREIGN KEY (`iniciado_por`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `fk_anio_escolar_reapierto_por` FOREIGN KEY (`reapierto_por`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE
+  CONSTRAINT `fk_anio_escolar_reabierto_por` FOREIGN KEY (`reabierto_por`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=687 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -285,7 +285,8 @@ DROP TABLE IF EXISTS `egreso`;
 CREATE TABLE `egreso` (
   `id_egreso` int(11) NOT NULL AUTO_INCREMENT,
   `id_matricula` int(11) NOT NULL,
-  `fecha_egreso` datetime DEFAULT NULL,
+  `motivo_egreso` varchar(200) DEFAULT NULL,
+  `fecha_egreso` date DEFAULT NULL,
   `id_usuario` int(11) DEFAULT NULL,
   PRIMARY KEY (`id_egreso`),
   UNIQUE KEY `id_matricula` (`id_matricula`),
@@ -414,8 +415,8 @@ CREATE TABLE `estructura_academica` (
   `id_seccion` int(11) NOT NULL,
   `id_turno` int(11) NOT NULL,
   `capacidad_maxima` int(11) NOT NULL,
-  `enlace_whatsapp` varchar(120) DEFAULT NULL,
   PRIMARY KEY (`id_estructura_academica`),
+  UNIQUE KEY `uk_estructura_id_anio` (`id_estructura_academica`,`id_anio_escolar`),
   UNIQUE KEY `uk_estructura_academica` (`id_anio_escolar`,`id_grado`,`id_seccion`,`id_turno`),
   KEY `idx_estructura_anio` (`id_anio_escolar`),
   KEY `idx_estructura_grado` (`id_grado`),
@@ -622,23 +623,27 @@ CREATE TABLE `inscripcion` (
   `id_anio_escolar` int(11) NOT NULL,
   `numero_inscripcion` int(11) NOT NULL,
   `ult_grado_cursado` varchar(20) DEFAULT NULL,
+  `id_grado_procedencia` int(11) DEFAULT NULL,
   `es_primer_ingreso` tinyint(1) NOT NULL DEFAULT 1,
-  `motivo_egreso` varchar(100) DEFAULT NULL,
+  `motivo_salida_institucion_previa` varchar(100) DEFAULT NULL,
   `anio_escolar_pre` varchar(9) DEFAULT NULL,
-  `id_institucion` int(11) NOT NULL,
+  `id_institucion_procedencia` int(11) NOT NULL,
   `documentos_evaluados_en` datetime DEFAULT NULL,
   PRIMARY KEY (`id_inscripcion`),
   UNIQUE KEY `id_matricula` (`id_matricula`),
   UNIQUE KEY `uk_inscripcion_estudiante` (`id_estudiante`),
   UNIQUE KEY `uk_inscripcion_anio_folio` (`id_anio_escolar`,`numero_inscripcion`),
-  KEY `idx_inscripcion_institucion` (`id_institucion`),
-  KEY `idx_inscripcion_estructura` (`id_estructura_academica`),
+  KEY `idx_inscripcion_grado_procedencia` (`id_grado_procedencia`),
+  KEY `idx_inscripcion_institucion_procedencia` (`id_institucion_procedencia`),
+  KEY `idx_inscripcion_estructura` (`id_estructura_academica`,`id_anio_escolar`),
   KEY `idx_inscripcion_estudiante` (`id_estudiante`),
   CONSTRAINT `fk_inscripcion_anio_escolar` FOREIGN KEY (`id_anio_escolar`) REFERENCES `anio_escolar` (`id_anio_escolar`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_inscripcion_estructura` FOREIGN KEY (`id_estructura_academica`) REFERENCES `estructura_academica` (`id_estructura_academica`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_inscripcion_estructura` FOREIGN KEY (`id_estructura_academica`,`id_anio_escolar`) REFERENCES `estructura_academica` (`id_estructura_academica`,`id_anio_escolar`) ON UPDATE CASCADE,
   CONSTRAINT `fk_inscripcion_estudiante` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_inscripcion_institucion` FOREIGN KEY (`id_institucion`) REFERENCES `institucion` (`id_institucion`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_inscripcion_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON UPDATE CASCADE
+  CONSTRAINT `fk_inscripcion_grado_procedencia` FOREIGN KEY (`id_grado_procedencia`) REFERENCES `grado` (`id_grado`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_inscripcion_institucion` FOREIGN KEY (`id_institucion_procedencia`) REFERENCES `institucion` (`id_institucion`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_inscripcion_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON UPDATE CASCADE,
+  CONSTRAINT `ck_inscripcion_anio_pre` CHECK (`anio_escolar_pre` IS NULL OR `anio_escolar_pre` REGEXP '^[0-9]{4}-[0-9]{4}$')
 ) ENGINE=InnoDB AUTO_INCREMENT=19184 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -696,10 +701,10 @@ CREATE TABLE `matricula` (
   KEY `idx_matricula_estudiante` (`id_estudiante`),
   KEY `idx_matricula_fecha` (`fecha_matricula`),
   KEY `idx_matricula_anio` (`id_anio_escolar`),
-  KEY `idx_matricula_estructura` (`id_estructura_academica`),
+  KEY `idx_matricula_estructura` (`id_estructura_academica`,`id_anio_escolar`),
   KEY `idx_matricula_tipo` (`tipo`),
   CONSTRAINT `fk_matricula_anio` FOREIGN KEY (`id_anio_escolar`) REFERENCES `anio_escolar` (`id_anio_escolar`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_matricula_estructura` FOREIGN KEY (`id_estructura_academica`) REFERENCES `estructura_academica` (`id_estructura_academica`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_matricula_estructura` FOREIGN KEY (`id_estructura_academica`,`id_anio_escolar`) REFERENCES `estructura_academica` (`id_estructura_academica`,`id_anio_escolar`) ON UPDATE CASCADE,
   CONSTRAINT `fk_matricula_estudiante` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=21307 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -722,7 +727,6 @@ BEGIN
     DECLARE v_previo_anio INT         DEFAULT NULL;
     DECLARE v_ordinal     INT         DEFAULT NULL;
 
-    
     SELECT m.tipo, m.id_anio_escolar INTO v_previo, v_previo_anio
       FROM matricula m
       INNER JOIN anio_escolar a ON a.id_anio_escolar = m.id_anio_escolar
@@ -732,29 +736,64 @@ BEGIN
 
     reglas: BEGIN
 
-    
     IF v_previo IS NULL THEN
         IF NEW.tipo <> 'INSCRIPCION' THEN
             SIGNAL SQLSTATE '45000'
-                SET MESSAGE_TEXT = 'Un estudiante sin matriculas previas no se ratifica, no se retira y no egresa: se inscribe.';
+                SET MESSAGE_TEXT = 'Un estudiante sin matriculas previas no se ratifica, no reingresa, no se retira y no egresa: se inscribe.';
         END IF;
 
         LEAVE reglas;
     END IF;
 
-    
-    IF v_previo IN ('RETIRO', 'EGRESO') THEN
+
+    IF v_previo = 'EGRESO' THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'El ciclo de este estudiante ya se cerro, no admite mas matriculas.';
+            SET MESSAGE_TEXT = 'El ciclo de este estudiante culmino por egreso, no admite mas matriculas.';
     END IF;
 
-    
+
+    IF v_previo = 'RETIRO' THEN
+        IF NEW.tipo = 'INSCRIPCION' THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'El estudiante ya tiene expediente: la inscripcion ocurre una sola vez de primer ingreso.';
+        END IF;
+
+        IF NEW.tipo IN ('RETIRO', 'EGRESO') THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'El estudiante ya se encuentra retirado.';
+        END IF;
+
+        IF NEW.tipo = 'RATIFICACION' THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Un estudiante retirado debe reincorporarse bajo el tipo REINGRESO.';
+        END IF;
+
+
+        IF (
+            SELECT an2.anio_inicio FROM anio_escolar an2
+             WHERE an2.id_anio_escolar = NEW.id_anio_escolar
+        ) < (
+            SELECT an1.anio_inicio FROM anio_escolar an1
+             WHERE an1.id_anio_escolar = v_previo_anio
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'El reingreso no puede registrarse en un anio escolar anterior al del retiro.';
+        END IF;
+
+        LEAVE reglas;
+    END IF;
+
+
     IF NEW.tipo = 'INSCRIPCION' THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'La inscripcion ocurre una sola vez en toda la vida escolar del alumno: los que ya estan inscriptos se ratifican.';
+            SET MESSAGE_TEXT = 'La inscripcion ocurre una sola vez en toda la vida escolar del alumno.';
     END IF;
 
-    
+    IF NEW.tipo = 'REINGRESO' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El reingreso solo aplica a estudiantes que se encuentran en estado de retiro.';
+    END IF;
+
     IF NEW.tipo = 'RATIFICACION' AND (
         SELECT an2.anio_inicio FROM anio_escolar an2
          WHERE an2.id_anio_escolar = NEW.id_anio_escolar
@@ -763,10 +802,9 @@ BEGIN
          WHERE an1.id_anio_escolar = v_previo_anio
     ) THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'La ratificacion debe ir en un anio escolar posterior al de la anterior.';
+            SET MESSAGE_TEXT = 'La ratificacion debe ir en un anio escolar posterior al de la anterior matricula cursada.';
     END IF;
 
-    
     IF NEW.tipo IN ('RETIRO', 'EGRESO') AND (
         SELECT an3.anio_inicio FROM anio_escolar an3
          WHERE an3.id_anio_escolar = NEW.id_anio_escolar
@@ -778,7 +816,6 @@ BEGIN
             SET MESSAGE_TEXT = 'El cierre no puede ir en un anio anterior al de la matricula del alumno.';
     END IF;
 
-    
     IF NEW.tipo = 'EGRESO' THEN
         SELECT CAST(REGEXP_SUBSTR(g.nombre, '^[0-9]+') AS UNSIGNED) INTO v_ordinal
           FROM estructura_academica ea
@@ -1267,7 +1304,6 @@ CREATE TABLE `notificacion` (
   `titulo` varchar(150) NOT NULL,
   `mensaje` text NOT NULL,
   `url_destino` varchar(255) NOT NULL,
-  `id_referencia` int(11) DEFAULT NULL,
   `leida` tinyint(1) NOT NULL DEFAULT 0,
   `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
   `fecha_lectura` datetime DEFAULT NULL,
@@ -2565,6 +2601,7 @@ CREATE TABLE `persona` (
   `sexo` enum('F','M') NOT NULL,
   `id_estado_nacimiento` int(11) DEFAULT NULL,
   `id_parroquia_nacimiento` int(11) DEFAULT NULL,
+  `nacimiento_extranjero` tinyint(1) DEFAULT NULL,
   `lugar_nacimiento_extranjero` varchar(150) DEFAULT NULL,
   `estado` enum('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
   `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
@@ -2642,12 +2679,43 @@ CREATE TABLE `recuperacion_acceso` (
 
 --
 --
+-- Table structure for table `reingreso`
+--
+
+DROP TABLE IF EXISTS `reingreso`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `reingreso` (
+  `id_reingreso` int(11) NOT NULL AUTO_INCREMENT,
+  `id_matricula` int(11) NOT NULL,
+  `id_retiro_previo` int(11) DEFAULT NULL,
+  `id_institucion_procedencia` int(11) DEFAULT NULL,
+  `motivo_reingreso` varchar(255) NOT NULL,
+  `fecha_reincorporacion` date NOT NULL,
+  `id_usuario_resolucion` int(11) DEFAULT NULL,
+  `observaciones` text DEFAULT NULL,
+  `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id_reingreso`),
+  UNIQUE KEY `uk_reingreso_matricula` (`id_matricula`),
+  KEY `fk_reingreso_retiro` (`id_retiro_previo`),
+  KEY `fk_reingreso_institucion` (`id_institucion_procedencia`),
+  KEY `fk_reingreso_usuario` (`id_usuario_resolucion`),
+  CONSTRAINT `fk_reingreso_institucion` FOREIGN KEY (`id_institucion_procedencia`) REFERENCES `institucion` (`id_institucion`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_reingreso_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_reingreso_retiro` FOREIGN KEY (`id_retiro_previo`) REFERENCES `retiro` (`id_retiro`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_reingreso_usuario` FOREIGN KEY (`id_usuario_resolucion`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `reposo_empleado`
 --
 
 DROP TABLE IF EXISTS `reposo_empleado`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
+
+
 CREATE TABLE `reposo_empleado` (
   `id_reposo` int(11) NOT NULL AUTO_INCREMENT,
   `id_empleado` int(11) NOT NULL,
@@ -2694,7 +2762,7 @@ CREATE TABLE `resultado_academico` (
   `fecha_actualizacion` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id_resultado`),
   UNIQUE KEY `uk_resultado_estudiante_anio` (`id_estudiante`,`id_anio_escolar`),
-  KEY `idx_resultado_estructura` (`id_estructura_academica`),
+  KEY `idx_resultado_estructura` (`id_estructura_academica`,`id_anio_escolar`),
   KEY `idx_resultado_matricula` (`id_matricula`),
   KEY `idx_resultado_estado` (`estado_resultado`),
   KEY `fk_res_acad_anio` (`id_anio_escolar`),
@@ -2703,7 +2771,7 @@ CREATE TABLE `resultado_academico` (
   KEY `fk_res_acad_confirmado` (`confirmado_por`),
   CONSTRAINT `fk_res_acad_anio` FOREIGN KEY (`id_anio_escolar`) REFERENCES `anio_escolar` (`id_anio_escolar`) ON UPDATE CASCADE,
   CONSTRAINT `fk_res_acad_confirmado` FOREIGN KEY (`confirmado_por`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `fk_res_acad_estructura` FOREIGN KEY (`id_estructura_academica`) REFERENCES `estructura_academica` (`id_estructura_academica`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_res_acad_estructura` FOREIGN KEY (`id_estructura_academica`,`id_anio_escolar`) REFERENCES `estructura_academica` (`id_estructura_academica`,`id_anio_escolar`) ON UPDATE CASCADE,
   CONSTRAINT `fk_res_acad_estudiante` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_res_acad_grado_destino` FOREIGN KEY (`id_grado_destino`) REFERENCES `grado` (`id_grado`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_res_acad_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON UPDATE CASCADE,
@@ -3066,3 +3134,97 @@ CREATE TABLE `usuario` (
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
 -- Dump completed on 2026-10-29 18:56:56
+
+--
+-- Triggers de consistencia agregados el 2026-11-11
+--
+DROP TRIGGER IF EXISTS `trg_matricula_bi_anio`;
+DROP TRIGGER IF EXISTS `trg_matricula_bu_anio`;
+DROP TRIGGER IF EXISTS `trg_inscripcion_bi_matricula`;
+DROP TRIGGER IF EXISTS `trg_inscripcion_bu_matricula`;
+DROP TRIGGER IF EXISTS `trg_matricula_au_inscripcion`;
+
+DELIMITER $$
+
+CREATE TRIGGER `trg_matricula_bi_anio`
+BEFORE INSERT ON `matricula`
+FOR EACH ROW PRECEDES `trg_matricula_transicion`
+BEGIN
+    DECLARE v_anio int(11);
+    SET v_anio = (SELECT `id_anio_escolar`
+                    FROM `estructura_academica`
+                   WHERE `id_estructura_academica` = NEW.`id_estructura_academica`);
+    IF v_anio IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La estructura académica indicada no existe.';
+    END IF;
+    SET NEW.`id_anio_escolar` = v_anio;
+END$$
+
+CREATE TRIGGER `trg_matricula_bu_anio`
+BEFORE UPDATE ON `matricula`
+FOR EACH ROW
+BEGIN
+    DECLARE v_anio int(11);
+    SET v_anio = (SELECT `id_anio_escolar`
+                    FROM `estructura_academica`
+                   WHERE `id_estructura_academica` = NEW.`id_estructura_academica`);
+    IF v_anio IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La estructura académica indicada no existe.';
+    END IF;
+    SET NEW.`id_anio_escolar` = v_anio;
+END$$
+
+CREATE TRIGGER `trg_inscripcion_bi_matricula`
+BEFORE INSERT ON `inscripcion`
+FOR EACH ROW
+BEGIN
+    DECLARE v_estudiante int(11);
+    DECLARE v_anio int(11);
+    DECLARE v_estructura int(11);
+    SELECT `id_estudiante`, `id_anio_escolar`, `id_estructura_academica`
+      INTO v_estudiante, v_anio, v_estructura
+      FROM `matricula`
+     WHERE `id_matricula` = NEW.`id_matricula`;
+    IF v_estudiante IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La matrícula indicada no existe.';
+    END IF;
+    SET NEW.`id_estudiante` = v_estudiante;
+    SET NEW.`id_anio_escolar` = v_anio;
+    SET NEW.`id_estructura_academica` = v_estructura;
+END$$
+
+CREATE TRIGGER `trg_inscripcion_bu_matricula`
+BEFORE UPDATE ON `inscripcion`
+FOR EACH ROW
+BEGIN
+    DECLARE v_estudiante int(11);
+    DECLARE v_anio int(11);
+    DECLARE v_estructura int(11);
+    SELECT `id_estudiante`, `id_anio_escolar`, `id_estructura_academica`
+      INTO v_estudiante, v_anio, v_estructura
+      FROM `matricula`
+     WHERE `id_matricula` = NEW.`id_matricula`;
+    IF v_estudiante IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La matrícula indicada no existe.';
+    END IF;
+    SET NEW.`id_estudiante` = v_estudiante;
+    SET NEW.`id_anio_escolar` = v_anio;
+    SET NEW.`id_estructura_academica` = v_estructura;
+END$$
+
+CREATE TRIGGER `trg_matricula_au_inscripcion`
+AFTER UPDATE ON `matricula`
+FOR EACH ROW
+BEGIN
+    UPDATE `inscripcion`
+       SET `id_estudiante` = NEW.`id_estudiante`,
+           `id_anio_escolar` = NEW.`id_anio_escolar`,
+           `id_estructura_academica` = NEW.`id_estructura_academica`
+     WHERE `id_matricula` = NEW.`id_matricula`;
+END$$
+
+DELIMITER ;

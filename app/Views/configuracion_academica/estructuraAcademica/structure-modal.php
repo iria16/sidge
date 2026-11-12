@@ -35,16 +35,10 @@ ob_start();
     </div>
     <div class="wizard-summary__card">
       <div class="row g-2">
-        <?php /* Solo hay un año ACTIVO a la vez —lo garantiza una clave única en la base—,
- así que la lista de editables tiene exactamente uno y ese es el que va
- marcado. Preguntarlo en un desplegable que no tiene por dónde elegir es una
- decisión que la secretaria no necesita tomar.
-
- En el modal de EDICIÓN no se marca nada: el valor lo pone el JavaScript con
- el año de la fila que se está editando, y dejar una opción marcada en el
- HTML lo dejaría fuera de paso hasta que el script corrigiera.*/ ?>
-        <?php $anioPorDefecto = ($editMode || $aniosEditables === []) ? 0 : (int) $aniosEditables[0]['id']; ?>
-        <?php foreach ([['anio', 'Año escolar', $aniosEditables], ['grado', 'Grado', $grados], ['seccion', 'Sección',$secciones], ['turno', 'Turno', $turnos]] as $field): ?>
+        <?php /* Solo hay un año ACTIVO a la vez, y solo se pueden crear o editar estructuras de ese período.
+         El año va oculto en el formulario: no es un dato que el usuario elija ni modifique.*/ ?>
+        <input type="hidden" name="id_anio_escolar" id="estructuraAnioEscolar" value="<?= (int) ($aniosEditables[0]['id'] ?? 0) ?>">
+        <?php foreach ([['grado', 'Grado', $grados], ['seccion', 'Sección', $secciones], ['turno', 'Turno', $turnos]] as $field): ?>
           <div class="col-12 col-md-6">
             <label class="label-sigde" for="<?= $prefix ?>Estructura<?= ucfirst($field[0]) ?>"><?= $field[1] ?></label>
             <select

@@ -230,7 +230,8 @@ DROP TABLE IF EXISTS `egreso`;
 CREATE TABLE `egreso` (
   `id_egreso` int(11) NOT NULL AUTO_INCREMENT,
   `id_matricula` int(11) NOT NULL,
-  `fecha_egreso` datetime DEFAULT NULL,
+  `motivo_egreso` varchar(200) DEFAULT NULL,
+  `fecha_egreso` date DEFAULT NULL,
   `id_usuario` int(11) DEFAULT NULL,
   PRIMARY KEY (`id_egreso`),
   UNIQUE KEY `id_matricula` (`id_matricula`),
@@ -359,8 +360,8 @@ CREATE TABLE `estructura_academica` (
   `id_seccion` int(11) NOT NULL,
   `id_turno` int(11) NOT NULL,
   `capacidad_maxima` int(11) NOT NULL,
-  `enlace_whatsapp` varchar(120) DEFAULT NULL,
   PRIMARY KEY (`id_estructura_academica`),
+  UNIQUE KEY `uk_estructura_id_anio` (`id_estructura_academica`,`id_anio_escolar`),
   UNIQUE KEY `uk_estructura_academica` (`id_anio_escolar`,`id_grado`,`id_seccion`,`id_turno`),
   KEY `idx_estructura_anio` (`id_anio_escolar`),
   KEY `idx_estructura_grado` (`id_grado`),
@@ -567,23 +568,27 @@ CREATE TABLE `inscripcion` (
   `id_anio_escolar` int(11) NOT NULL,
   `numero_inscripcion` int(11) NOT NULL,
   `ult_grado_cursado` varchar(20) DEFAULT NULL,
+  `id_grado_procedencia` int(11) DEFAULT NULL,
   `es_primer_ingreso` tinyint(1) NOT NULL DEFAULT 1,
-  `motivo_egreso` varchar(100) DEFAULT NULL,
+  `motivo_salida_institucion_previa` varchar(100) DEFAULT NULL,
   `anio_escolar_pre` varchar(9) DEFAULT NULL,
-  `id_institucion` int(11) NOT NULL,
+  `id_institucion_procedencia` int(11) NOT NULL,
   `documentos_evaluados_en` datetime DEFAULT NULL,
   PRIMARY KEY (`id_inscripcion`),
   UNIQUE KEY `id_matricula` (`id_matricula`),
   UNIQUE KEY `uk_inscripcion_estudiante` (`id_estudiante`),
   UNIQUE KEY `uk_inscripcion_anio_folio` (`id_anio_escolar`,`numero_inscripcion`),
-  KEY `idx_inscripcion_institucion` (`id_institucion`),
-  KEY `idx_inscripcion_estructura` (`id_estructura_academica`),
+  KEY `idx_inscripcion_grado_procedencia` (`id_grado_procedencia`),
+  KEY `idx_inscripcion_institucion_procedencia` (`id_institucion_procedencia`),
+  KEY `idx_inscripcion_estructura` (`id_estructura_academica`,`id_anio_escolar`),
   KEY `idx_inscripcion_estudiante` (`id_estudiante`),
   CONSTRAINT `fk_inscripcion_anio_escolar` FOREIGN KEY (`id_anio_escolar`) REFERENCES `anio_escolar` (`id_anio_escolar`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_inscripcion_estructura` FOREIGN KEY (`id_estructura_academica`) REFERENCES `estructura_academica` (`id_estructura_academica`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_inscripcion_estructura` FOREIGN KEY (`id_estructura_academica`,`id_anio_escolar`) REFERENCES `estructura_academica` (`id_estructura_academica`,`id_anio_escolar`) ON UPDATE CASCADE,
   CONSTRAINT `fk_inscripcion_estudiante` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_inscripcion_institucion` FOREIGN KEY (`id_institucion`) REFERENCES `institucion` (`id_institucion`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_inscripcion_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON UPDATE CASCADE
+  CONSTRAINT `fk_inscripcion_grado_procedencia` FOREIGN KEY (`id_grado_procedencia`) REFERENCES `grado` (`id_grado`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_inscripcion_institucion` FOREIGN KEY (`id_institucion_procedencia`) REFERENCES `institucion` (`id_institucion`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_inscripcion_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON UPDATE CASCADE,
+  CONSTRAINT `ck_inscripcion_anio_pre` CHECK (`anio_escolar_pre` IS NULL OR `anio_escolar_pre` REGEXP '^[0-9]{4}-[0-9]{4}$')
 ) ENGINE=InnoDB AUTO_INCREMENT=19184 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -641,10 +646,10 @@ CREATE TABLE `matricula` (
   KEY `idx_matricula_estudiante` (`id_estudiante`),
   KEY `idx_matricula_fecha` (`fecha_matricula`),
   KEY `idx_matricula_anio` (`id_anio_escolar`),
-  KEY `idx_matricula_estructura` (`id_estructura_academica`),
+  KEY `idx_matricula_estructura` (`id_estructura_academica`,`id_anio_escolar`),
   KEY `idx_matricula_tipo` (`tipo`),
   CONSTRAINT `fk_matricula_anio` FOREIGN KEY (`id_anio_escolar`) REFERENCES `anio_escolar` (`id_anio_escolar`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_matricula_estructura` FOREIGN KEY (`id_estructura_academica`) REFERENCES `estructura_academica` (`id_estructura_academica`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_matricula_estructura` FOREIGN KEY (`id_estructura_academica`,`id_anio_escolar`) REFERENCES `estructura_academica` (`id_estructura_academica`,`id_anio_escolar`) ON UPDATE CASCADE,
   CONSTRAINT `fk_matricula_estudiante` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=21307 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1118,7 +1123,6 @@ CREATE TABLE `notificacion` (
   `titulo` varchar(150) NOT NULL,
   `mensaje` text NOT NULL,
   `url_destino` varchar(255) NOT NULL,
-  `id_referencia` int(11) DEFAULT NULL,
   `leida` tinyint(1) NOT NULL DEFAULT 0,
   `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
   `fecha_lectura` datetime DEFAULT NULL,
@@ -2416,6 +2420,7 @@ CREATE TABLE `persona` (
   `sexo` enum('F','M') NOT NULL,
   `id_estado_nacimiento` int(11) DEFAULT NULL,
   `id_parroquia_nacimiento` int(11) DEFAULT NULL,
+  `nacimiento_extranjero` tinyint(1) DEFAULT NULL,
   `lugar_nacimiento_extranjero` varchar(150) DEFAULT NULL,
   `estado` enum('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
   `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
@@ -2493,12 +2498,43 @@ CREATE TABLE `recuperacion_acceso` (
 
 --
 --
+-- Table structure for table `reingreso`
+--
+
+DROP TABLE IF EXISTS `reingreso`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `reingreso` (
+  `id_reingreso` int(11) NOT NULL AUTO_INCREMENT,
+  `id_matricula` int(11) NOT NULL,
+  `id_retiro_previo` int(11) DEFAULT NULL,
+  `id_institucion_procedencia` int(11) DEFAULT NULL,
+  `motivo_reingreso` varchar(255) NOT NULL,
+  `fecha_reincorporacion` date NOT NULL,
+  `id_usuario_resolucion` int(11) DEFAULT NULL,
+  `observaciones` text DEFAULT NULL,
+  `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id_reingreso`),
+  UNIQUE KEY `uk_reingreso_matricula` (`id_matricula`),
+  KEY `fk_reingreso_retiro` (`id_retiro_previo`),
+  KEY `fk_reingreso_institucion` (`id_institucion_procedencia`),
+  KEY `fk_reingreso_usuario` (`id_usuario_resolucion`),
+  CONSTRAINT `fk_reingreso_institucion` FOREIGN KEY (`id_institucion_procedencia`) REFERENCES `institucion` (`id_institucion`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_reingreso_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_reingreso_retiro` FOREIGN KEY (`id_retiro_previo`) REFERENCES `retiro` (`id_retiro`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_reingreso_usuario` FOREIGN KEY (`id_usuario_resolucion`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `reposo_empleado`
 --
 
 DROP TABLE IF EXISTS `reposo_empleado`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
+
+
 CREATE TABLE `reposo_empleado` (
   `id_reposo` int(11) NOT NULL AUTO_INCREMENT,
   `id_empleado` int(11) NOT NULL,
@@ -2545,7 +2581,7 @@ CREATE TABLE `resultado_academico` (
   `fecha_actualizacion` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id_resultado`),
   UNIQUE KEY `uk_resultado_estudiante_anio` (`id_estudiante`,`id_anio_escolar`),
-  KEY `idx_resultado_estructura` (`id_estructura_academica`),
+  KEY `idx_resultado_estructura` (`id_estructura_academica`,`id_anio_escolar`),
   KEY `idx_resultado_matricula` (`id_matricula`),
   KEY `idx_resultado_estado` (`estado_resultado`),
   KEY `fk_res_acad_anio` (`id_anio_escolar`),
@@ -2554,7 +2590,7 @@ CREATE TABLE `resultado_academico` (
   KEY `fk_res_acad_confirmado` (`confirmado_por`),
   CONSTRAINT `fk_res_acad_anio` FOREIGN KEY (`id_anio_escolar`) REFERENCES `anio_escolar` (`id_anio_escolar`) ON UPDATE CASCADE,
   CONSTRAINT `fk_res_acad_confirmado` FOREIGN KEY (`confirmado_por`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `fk_res_acad_estructura` FOREIGN KEY (`id_estructura_academica`) REFERENCES `estructura_academica` (`id_estructura_academica`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_res_acad_estructura` FOREIGN KEY (`id_estructura_academica`,`id_anio_escolar`) REFERENCES `estructura_academica` (`id_estructura_academica`,`id_anio_escolar`) ON UPDATE CASCADE,
   CONSTRAINT `fk_res_acad_estudiante` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_res_acad_grado_destino` FOREIGN KEY (`id_grado_destino`) REFERENCES `grado` (`id_grado`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_res_acad_matricula` FOREIGN KEY (`id_matricula`) REFERENCES `matricula` (`id_matricula`) ON UPDATE CASCADE,
