@@ -132,12 +132,15 @@ document.addEventListener('DOMContentLoaded', function () {
         + '&anio=' + encodeURIComponent(anio),
         { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
       );
-      const cuerpo = await r.json();
+      /* SIGDEUI.enviar() ya devuelve {ok, status, data}; no es un Response.
+         Antes se llamaba a r.json() y el TypeError caía en el catch, dejando
+         sección y turno vacíos aunque el servidor respondiera bien. */
+      const cuerpo = r.data || { ok: false };
       /* Si llegó una respuesta vieja, se descarta: la pantalla tiene que mostrar
  siempre el grado que está elegido ahora.*/
       if (token !== peticionSecciones) return;
 
-      if (!cuerpo.ok) {
+      if (!r.ok || !cuerpo.ok) {
         llenar(selSeccion, null, []);
         mostrarAvisoSeccion(cuerpo.mensaje || 'No se pudieron cargar las secciones.');
         cascadaSeccion(idTurnoPrevio);

@@ -73,6 +73,7 @@ Estos son los comandos declarados en `package.json`:
 | `npm run build` | Copia las bibliotecas de terceros y compila los estilos de la aplicación y los PDF. |
 | `npm run verificar` | Comprueba los assets, IDs de vistas, vistas PHP y permisos del menú. |
 | `npm run test:inscripcion` | Ejecuta las pruebas de las reglas de inscripción y recaudos. |
+| `npm run test:constancias` | Ejecuta las pruebas de plantillas PDF y de las reglas de constancias. |
 | `npm run sass:build` | Compila el SCSS de la aplicación en `public/assets/css/app.css`. |
 | `npm run sass:watch` | Observa los cambios del SCSS de la aplicación y recompila automáticamente. |
 | `npm run sass:build:pdf` | Compila las hojas SCSS de los documentos PDF. |
@@ -87,11 +88,15 @@ Estos son los comandos declarados en `package.json`:
 
 ```bash
 npm run test:inscripcion
+npm run test:constancias
 ```
 
-Ejecuta pruebas automatizadas de las reglas de recaudos sin modificar la base de
-datos. `npm run verificar` ejecuta las comprobaciones estructurales descritas en
-la tabla de scripts npm.
+`test:inscripcion` ejecuta pruebas automatizadas de las reglas de recaudos sin
+modificar la base de datos. `test:constancias` valida las plantillas PDF y las
+reglas de negocio de constancias: prosecución solo con retiro aprobado, retiro
+solo si es el último movimiento e inscripción sin duplicados. Las pruebas de
+reglas usan una transacción y revierten los datos de prueba. `npm run verificar`
+ejecuta las comprobaciones estructurales descritas en la tabla de scripts npm.
 
 ## Base de datos
 
@@ -390,7 +395,7 @@ de literales, y [Emisión de Constancias](#emisión-de-constancias) para el Cert
 - **Nombre en la interfaz:** Empleados
 - **Ruta:** `empleado/*`
 - **Controlador / Modelos / Servicio:** `EmployeeController`; `EmployeeModel`, `TituloModel`, `InstitucionModel`, `AuditLogModel`; `ExpedienteEmpleadoService`
-- **Roles con acceso:** `directivo` (gestión completa); `coordinador` y `secretaria` (consulta de un subconjunto de acciones)
+- **Roles con acceso:** `directivo` (gestión completa); `coordinador` (consulta de un subconjunto de acciones)
 - **Descripción:** Administra el personal empleado de la institución, sus expedientes laborales, reposos, títulos e instituciones de procedencia.
 - **Funcionalidades:**
   - Listar empleados con filtros.
@@ -399,7 +404,7 @@ de literales, y [Emisión de Constancias](#emisión-de-constancias) para el Cert
   - Gestionar reposos (registrar, editar, cerrar, anular y consultar historial).
   - Gestionar títulos e instituciones de procedencia.
 - **Flujo principal:** el directivo da de alta un empleado, registra sus datos personales y laborales, y gestiona sus reposos y títulos según sea necesario.
-- **Reglas y restricciones:** `directivo` gestiona el módulo completo. `coordinador` y `secretaria` solo consultan: listado, ficha, expediente, exportación y ubicación; el `coordinador` además puede consultar los reposos. Registrar reposos es una decisión de la dirección. Las altas de empleados están limitadas a 20 por minuto por IP.
+- **Reglas y restricciones:** `directivo` gestiona el módulo completo. `coordinador` solo consulta: listado, ficha, expediente, exportación, ubicación y reposos. El rol `secretaria` no tiene acceso a este módulo. Registrar reposos es una decisión de la dirección. Las altas de empleados están limitadas a 20 por minuto por IP.
 - **Acciones técnicas:** `index`, `expediente`, `exportar`, `estadoInfo`, `cambiarEstado`, `cerrarReposo`, `anularReposo`, `create`, `show`, `edit`, `store`, `update`, `toggleStatus`, `getUbicacion`, `buscarPersona`, `registrarReposo`, `updateReposo`, `getReposos`, `guardarTitulo`, `guardarInstitucion`.
 
 ### Estructura académica
@@ -513,7 +518,7 @@ de literales, y [Emisión de Constancias](#emisión-de-constancias) para el Cert
   - Ver los datos del estudiante.
   - Guardar la solicitud de reingreso.
 - **Flujo principal:** la secretaria busca al estudiante retirado, revisa sus datos y guarda la solicitud de reingreso para su procesamiento.
-- **Reglas y restricciones:** acceso exclusivo de `secretaria`. El guardado de solicitudes está limitado a 20 por minuto por IP.
+- **Reglas y restricciones:** acceso exclusivo de `secretaria`. El guardado de solicitudes está limitado a 20 por minuto por IP. Al procesar un reingreso se reactiva la persona (`estado = 'ACTIVO'`) para que el estudiante vuelva a estar disponible en Constancia de Estudio. Los reingresos anteriores que quedaron con la persona inactiva se reparan con `php scripts/reparar-reingresos-inactivos.php`.
 - **Acciones técnicas:** `index`, `buscarEstudiante`, `datos`, `guardar`.
 
 ### Docentes
@@ -575,7 +580,10 @@ de literales, y [Emisión de Constancias](#emisión-de-constancias) para el Cert
   - Ver prueba de constancia antes de emitir.
   - Emitir constancias por lote.
 - **Flujo principal:** la secretaria selecciona el tipo de constancia, filtra por estudiante o sección, genera una prueba de vista y emite el documento final individualmente o por lote.
-- **Reglas y restricciones:** acceso exclusivo de `secretaria`. Los PDF emitidos por lote se guardan en caché durante 30 minutos (ver [Caché de PDF generados](#caché-de-pdf-generados)).
+- **Reglas y restricciones:** acceso exclusivo de `secretaria`. La prueba de vista (`verPrueba`) no registra emisión; la emisión final (`emitir`/`emitirLote`) se envía por POST con CSRF y queda en bitácora. Los PDF emitidos por lote se guardan en caché durante 30 minutos (ver [Caché de PDF generados](#caché-de-pdf-generados)).
+  - **Prosecución:** solo para estudiantes con `estado_resultado = 'PROMOVIDO'` confirmado, de 1.º a 5.º grado, que además tengan un retiro con estado `APROBADO`. Un literal A–D en estado `PENDIENTE` no habilita la emisión.
+  - **Retiro:** solo retiros con estado `APROBADO` que sean el último movimiento del estudiante. Si existe una matrícula posterior (por ejemplo, un `REINGRESO`), el retiro ya no se lista.
+  - **Inscripción / Ratificación:** incluye `INSCRIPCION`, `RATIFICACION` y `REINGRESO`; se muestra una sola fila por estudiante (su matrícula más reciente del año activo) y el reingreso se identifica como “Reingreso”.
 - **Acciones técnicas:** `index`, `estudio`, `inscripcion`, `retiro`, `prosecucion`, `verPrueba`, `emitir`, `emitirLote`.
 
 #### Estadísticas
@@ -609,7 +617,7 @@ La tabla resume los módulos con el nombre que ve el usuario en la interfaz y lo
 | Catálogos | `catalogo/*` | Sí | — | — | — | — | — |
 | Datos Institucionales | `configuracionInstitucional/*` | Sí | — | — | — | — | — |
 | Años Escolares | `academicYear/*` | — | Sí | — | — | — | — |
-| Empleados | `empleado/*` | — | Sí | Sí | Sí | — | — |
+| Empleados | `empleado/*` | — | Sí | Sí | — | — | — |
 | Estructura Académica | `academicStructure/*` | — | Sí | Sí | — | — | — |
 | Asignación Docente | `teacherAssignment/*` | — | Sí | Sí | — | — | — |
 | Estudiantes | `estudiantes/*` | — | Sí | Sí | Sí | Sí | — |
@@ -656,8 +664,9 @@ la ficha digital no pueden apartarse.
 los binarios de los PDF emitidos por lote (Certificados de Calificaciones por
 sección y Certificados de Educación Primaria por lote). Cada PDF se genera una
 sola vez y se reutiliza en la vista previa y la descarga durante 30 minutos;
-después expira y se regenera. Esto evita que Dompdf procese el mismo lote varias
-veces por cada clic del usuario.
+después expira y se regenera. La clave incluye el turno, los filtros y los
+estudiantes del lote para no mezclar documentos entre turnos o búsquedas. Esto
+evita que Dompdf procese el mismo lote varias veces por cada clic del usuario.
 
 `scripts/pdf-cache-clean.php` borra los archivos de caché con más de 1 hora. Ejecutarlo
 manual o por cron para evitar acumulación en disco.

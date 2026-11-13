@@ -336,12 +336,18 @@ LEFT JOIN direccion d          ON d.id_persona            = p.id_persona
 
     public function getAniosEscolares(?int $idTurno = null): array
     {
+        /* El año ACTIVO debe aparecer aunque todavía no tenga matrículas: al cerrar
+           un período y abrir el siguiente el filtro se quedaba sin esa opción y el
+           navegador mostraba "Todos", mientras la consulta seguía usando el año
+           activo y devolvía una tabla vacía. Los años cerrados solo se listan si
+           tienen matrículas (o matrículas del turno pedido). */
         $sql = "SELECT DISTINCT a.id_anio_escolar AS id, a.nombre_periodo AS nombre, a.estado
                   FROM anio_escolar a
-                  INNER JOIN matricula m ON m.id_anio_escolar = a.id_anio_escolar
-                  LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica";
+                  LEFT JOIN matricula m ON m.id_anio_escolar = a.id_anio_escolar
+                  LEFT JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
+                 WHERE m.id_matricula IS NOT NULL OR a.estado = 'ACTIVO'";
         if ($idTurno !== null) {
-            $sql .= ' WHERE ea.id_turno = :turno';
+            $sql .= " AND (a.estado = 'ACTIVO' OR ea.id_turno = :turno)";
         }
         $sql .= ' ORDER BY a.anio_inicio DESC';
         $stmt = $this->pdo->prepare($sql);

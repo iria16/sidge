@@ -49,6 +49,10 @@ $modalBody = ob_get_clean();
 ob_start();
 ?>
 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+<a href="<?= htmlspecialchars($urlPdf) ?>"
+   class="btn btn-outline-primary" target="_blank" rel="noopener">
+  <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Abrir en nueva pestaña
+</a>
 <button type="button" class="btn btn-outline-primary" id="btnImprimirExpedientePdf">
   <i class="bi bi-printer me-1" aria-hidden="true"></i>Imprimir
 </button>

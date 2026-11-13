@@ -131,7 +131,7 @@ trait FamiliaresModelTrait
             $this->pdo->prepare(
                 'INSERT INTO persona_estudiante
                     (id_persona, id_estudiante, es_representante_legal, es_autorizado_retiro,
-                     vive_con_estudiante, estado_relacion, id_parentesco, id_profesion)
+                     vive_con_estudiante, estado_relacion, id_parentesco, id_ocupacion)
                  VALUES
                     (:persona, :estudiante, :representante, :autorizado, :vive, :estado, :parentesco, :profesion)
                  ON DUPLICATE KEY UPDATE
@@ -140,7 +140,7 @@ trait FamiliaresModelTrait
                     vive_con_estudiante = VALUES(vive_con_estudiante),
                     estado_relacion = VALUES(estado_relacion),
                     id_parentesco = VALUES(id_parentesco),
-                    id_profesion = VALUES(id_profesion)'
+                    id_ocupacion = VALUES(id_ocupacion)'
             )->execute([
                 'persona' => $idPersona,
                 'estudiante' => $estudianteId,

@@ -24,8 +24,10 @@
 
     var modalTitleEl    = modalElement.querySelector('.modal-title');
     var modalSubtitleEl = modalElement.querySelector('.modal-subtitle, .app-modal__subtitle, small.text-muted');
-    var currentBlobUrl  = null;
-    var abortCtrl       = null;
+    var currentBlobUrl   = null;
+    var currentEmitirUrl = '';
+    var currentPreviewUrl = '';
+    var abortCtrl        = null;
 
     function limpiarBlob() {
         if (currentBlobUrl) {
@@ -50,15 +52,56 @@
         iframeElement.style.visibility = 'visible';
     }
 
-    function mostrarFallback(urlPreview, urlDownload) {
+    function mostrarFallback(urlPreview) {
         limpiarBlob();
         if (loaderElement) loaderElement.style.display = 'none';
         iframeElement.style.display = 'none';
         if (fallbackElement) {
             fallbackElement.style.display = 'block';
             if (btnFallbackAbrir) btnFallbackAbrir.setAttribute('href', urlPreview);
-            if (btnFallbackDescargar) btnFallbackDescargar.setAttribute('href', urlDownload);
         }
+    }
+
+    function descargarDocumento(url) {
+        if (!url) {
+            return;
+        }
+
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var token = (meta && meta.content) ? meta.content : '';
+        var iframeName = 'descargaConstanciaFrame';
+        var iframe = document.querySelector('iframe[name="' + iframeName + '"]');
+
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.name = iframeName;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
+
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = iframeName;
+        form.style.display = 'none';
+
+        if (token) {
+            var csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'csrf';
+            csrf.value = token;
+            form.appendChild(csrf);
+        }
+
+        var descargar = document.createElement('input');
+        descargar.type = 'hidden';
+        descargar.name = 'descargar';
+        descargar.value = '1';
+        form.appendChild(descargar);
+
+        document.body.appendChild(form);
+        form.submit();
+        window.setTimeout(function () { form.remove(); }, 1000);
     }
 
     function resetearVista() {
@@ -77,13 +120,16 @@
         }
 
         var urlPreview  = btn.getAttribute('data-url-preview') || '';
-        var urlDownload = btn.getAttribute('data-url-download') || urlPreview;
+        var urlEmitir   = btn.getAttribute('data-url-emitir') || '';
         var estudiante  = btn.getAttribute('data-estudiante') || 'Estudiante';
         var tipoLabel   = btn.getAttribute('data-tipo') || 'Constancia';
 
         if (!urlPreview) {
             return;
         }
+
+        currentPreviewUrl = urlPreview;
+        currentEmitirUrl = urlEmitir;
 
         // Configurar título y subtítulo del modal
         if (modalTitleEl) {
@@ -95,9 +141,6 @@
         }
 
         // Configurar botones de acción
-        if (btnDescargar) {
-            btnDescargar.setAttribute('href', urlDownload);
-        }
         if (btnAbrirTab) {
             btnAbrirTab.setAttribute('href', urlPreview);
         }
@@ -144,7 +187,7 @@
                     return;
                 }
                 console.warn('Carga directa Blob no completada, activando contingencia:', err);
-                mostrarFallback(urlPreview, urlDownload);
+                mostrarFallback(urlPreview);
             });
     });
 
@@ -155,16 +198,29 @@
                 iframeElement.contentWindow.focus();
                 iframeElement.contentWindow.print();
             } catch (err) {
-                var url = btnDescargar ? btnDescargar.getAttribute('href') : null;
-                if (url) {
-                    window.open(url, '_blank');
+                if (currentPreviewUrl) {
+                    window.open(currentPreviewUrl, '_blank');
                 }
             }
         });
     }
 
+    if (btnDescargar) {
+        btnDescargar.addEventListener('click', function () {
+            descargarDocumento(currentEmitirUrl);
+        });
+    }
+
+    if (btnFallbackDescargar) {
+        btnFallbackDescargar.addEventListener('click', function () {
+            descargarDocumento(currentEmitirUrl);
+        });
+    }
+
     // Limpiar iframe y blob al cerrar el modal para liberar memoria y recursos
     modalElement.addEventListener('hidden.bs.modal', function () {
+        currentEmitirUrl = '';
+        currentPreviewUrl = '';
         resetearVista();
     });
 })();

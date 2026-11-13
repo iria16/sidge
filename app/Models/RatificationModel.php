@@ -55,8 +55,7 @@ class RatificationModel extends BaseModel implements Listable
 */
     private function joinActual(): string
     {
-        $anio   = $this->anioEnCurso();
-        $inicio = $this->inicioDelAnioEnCurso();
+        $anio = $this->anioEnCurso();
 
         return "LEFT JOIN matricula m ON m.id_matricula = (
                     /**
@@ -69,7 +68,7 @@ class RatificationModel extends BaseModel implements Listable
                       FROM matricula m2
                       JOIN anio_escolar a2 ON a2.id_anio_escolar = m2.id_anio_escolar
                      WHERE m2.id_estudiante = est.id_estudiante
-                       AND a2.anio_inicio < $inicio
+                       AND " . $this->condicionAnioAnterior('a2', 'a2.id_anio_escolar') . "
                      ORDER BY a2.anio_inicio DESC, m2.id_matricula DESC
                      LIMIT 1
                 )
@@ -84,7 +83,8 @@ class RatificationModel extends BaseModel implements Listable
                 LEFT JOIN turno t ON t.id_turno = ea.id_turno
                 LEFT JOIN matricula sig ON sig.id_estudiante = est.id_estudiante
                                      AND sig.id_anio_escolar = $anio
-                LEFT JOIN resultado_academico ra ON ra.id_matricula = m.id_matricula";
+                LEFT JOIN resultado_academico ra ON ra.id_estudiante = m.id_estudiante
+                                                 AND ra.id_anio_escolar = m.id_anio_escolar";
     }
 
     /**
@@ -114,9 +114,6 @@ class RatificationModel extends BaseModel implements Listable
  cortaría en dos.*/
     private const ESTADO_VIGENTE = 'ACTIVO';
     private const ESTADO_DESVINCULADO = 'INACTIVO';
-
-    /** Columna de comparación del año anterior; compartida por listado, conteo y estadísticas para que cuadren.*/
-    private const CONDICION_ANIO_ANTERIOR = 'a.anio_inicio';
 
     /** Procesos de ingreso al plantel. La inscripción es única y la primera.*/
     public const FLUJO_INSCRIPCION  = 'INSCRIPCION';
@@ -742,9 +739,9 @@ class RatificationModel extends BaseModel implements Listable
                     COALESCE(oc.nombre, (
                         SELECT oc_rec.nombre
                           FROM persona_estudiante pe_rec
-                          JOIN ocupacion oc_rec ON oc_rec.id_ocupacion = pe_rec.id_profesion
+                          JOIN ocupacion oc_rec ON oc_rec.id_ocupacion = pe_rec.id_ocupacion
                          WHERE pe_rec.id_persona = pe.id_persona
-                           AND pe_rec.id_profesion IS NOT NULL
+                           AND pe_rec.id_ocupacion IS NOT NULL
                          ORDER BY pe_rec.id_persona_estudiante DESC
                          LIMIT 1
                     ), "") AS ocupacion,
@@ -762,7 +759,7 @@ es.nombre AS estado_nombre
                 FROM persona_estudiante pe
                   INNER JOIN persona p ON p.id_persona = pe.id_persona
                     LEFT JOIN parentesco pa         ON pa.id_parentesco         = pe.id_parentesco
-                    LEFT JOIN ocupacion oc         ON oc.id_ocupacion         = pe.id_profesion
+                    LEFT JOIN ocupacion oc         ON oc.id_ocupacion         = pe.id_ocupacion
                     LEFT JOIN contacto c           ON c.id_persona            = pe.id_persona
                     LEFT JOIN direccion d          ON d.id_persona            = pe.id_persona
                     LEFT JOIN parroquia pq         ON pq.id_parroquia         = d.id_parroquia
@@ -1203,9 +1200,13 @@ es.nombre AS estado_nombre
 
         /* Validar que la matrícula que se está ratificando tenga literal cargado por la docente */
         $stmtLiteral = $this->pdo->prepare(
-            'SELECT literal, estado_resultado FROM resultado_academico WHERE id_matricula = :id_matricula LIMIT 1'
+            'SELECT literal, estado_resultado FROM resultado_academico
+              WHERE id_estudiante = :id_estudiante AND id_anio_escolar = :id_anio LIMIT 1'
         );
-        $stmtLiteral->execute(['id_matricula' => (int) $matriculaVigente['id_matricula']]);
+        $stmtLiteral->execute([
+            'id_estudiante' => (int) $matriculaVigente['id_estudiante'],
+            'id_anio'       => (int) $matriculaVigente['id_anio_escolar'],
+        ]);
         $resLiteral = $stmtLiteral->fetch(\PDO::FETCH_ASSOC);
 
         if (!$resLiteral || empty($resLiteral['literal'])) {
@@ -1453,7 +1454,7 @@ es.nombre AS estado_nombre
                INNER JOIN anio_escolar ay          ON ay.id_anio_escolar = m.id_anio_escolar
                LEFT JOIN grado g            ON g.id_grado            = ea.id_grado
               WHERE m.id_estudiante = :estudiante
-                AND ay.anio_inicio < {$this->inicioDelAnioEnCurso()}
+                AND " . $this->condicionAnioAnterior('ay', 'ay.id_anio_escolar') . "
               ORDER BY ay.anio_inicio DESC, m.id_matricula DESC LIMIT 1"
         );
         $stmt->execute(['estudiante' => $estudianteId]);
@@ -1477,11 +1478,16 @@ es.nombre AS estado_nombre
         if ($gradoElegido > 0) {
             $gradoDestino = $gradoElegido;
         } else {
-            // Consultar si el estudiante tiene resultado académico NO_PROMOVIDO (o literal E) en su matrícula de origen
+            // El resultado es por estudiante y año; puede estar ligado a otra
+            // matrícula del mismo período si el reingreso se registró después.
             $stmtRes = $this->pdo->prepare(
-                'SELECT literal, estado_resultado FROM resultado_academico WHERE id_matricula = :id_matricula LIMIT 1'
+                'SELECT literal, estado_resultado FROM resultado_academico
+                  WHERE id_estudiante = :id_estudiante AND id_anio_escolar = :id_anio LIMIT 1'
             );
-            $stmtRes->execute(['id_matricula' => (int) $matricula['id_matricula']]);
+            $stmtRes->execute([
+                'id_estudiante' => (int) $matricula['id_estudiante'],
+                'id_anio'       => (int) $matricula['id_anio_escolar'],
+            ]);
             $resAcad = $stmtRes->fetch(\PDO::FETCH_ASSOC);
 
             if ($resAcad && ($resAcad['literal'] === 'E' || $resAcad['estado_resultado'] === AcademicResultModel::ESTADO_NO_PROMOVIDO)) {
@@ -1578,6 +1584,29 @@ es.nombre AS estado_nombre
     }
 
     /**
+     * Condición SQL para "matrícula de un año anterior al activo".
+     *
+     * Normalmente basta con comparar `anio_inicio`, pero dos períodos pueden
+     * compartir la misma fecha de inicio si se cargaron a mano. En ese caso el
+     * año cerrado con la misma fecha sigue siendo el anterior; el activo se
+     * excluye por id para no seleccionarlo como origen.
+     */
+    private function condicionAnioAnterior(string $aliasAnio, string $aliasId): string
+    {
+        $anio   = $this->anioEnCurso();
+        $inicio = $this->inicioDelAnioEnCurso();
+
+        if ($anio <= 0) {
+            return "{$aliasAnio}.anio_inicio < {$inicio}";
+        }
+
+        return "({$aliasAnio}.anio_inicio < {$inicio}
+                 OR ({$aliasAnio}.anio_inicio = {$inicio}
+                     AND {$aliasAnio}.estado = 'CERRADO'
+                     AND {$aliasId} <> {$anio}))";
+    }
+
+    /**
  * A quién le corresponde esta pantalla (la definición, no un filtro). Vive en un método para que listado y tarjetas cuadren.
  * (1) Su última matrícula es de un año anterior al en curso; (2) es de un tipo con continuación (INSCRIPCION o RATIFICACION);
  * (3) no tiene un retiro PENDIENTE sobre esa matrícula (uno rechazado no bloquea).
@@ -1585,8 +1614,8 @@ es.nombre AS estado_nombre
     private function condicionesBase(): array
     {
         return [
-            // (1) Año anterior, por FECHA y no por id del año (ver inicioDelAnioEnCurso()).
-            self::CONDICION_ANIO_ANTERIOR . ' < ' . $this->inicioDelAnioEnCurso(),
+            // (1) Año anterior, por FECHA y no por id del año (ver condicionAnioAnterior()).
+            $this->condicionAnioAnterior('a', 'a.id_anio_escolar'),
 
             // (2) Último tipo con continuación; RETIRO y EGRESO son finales.
             "m.tipo IN ('" . self::FLUJO_INSCRIPCION . "', '" . self::FLUJO_RATIFICACION . "', '" . self::FLUJO_REINGRESO . "')",

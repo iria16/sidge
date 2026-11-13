@@ -193,7 +193,7 @@ class PersonaModel extends BaseModel
     private function nivelYOcupacionDe(int $idPersona, ?int $idEstudiante): array
     {
         $base = 'FROM persona_estudiante pe
-                 LEFT JOIN ocupacion oc ON oc.id_ocupacion = pe.id_profesion
+                 LEFT JOIN ocupacion oc ON oc.id_ocupacion = pe.id_ocupacion
                 WHERE pe.id_persona = :persona';
 
         if ($idEstudiante !== null && $idEstudiante > 0) {

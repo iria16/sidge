@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Exceptions\DocumentoDuplicadoException;
 use App\Interfaces\Creatable;
 use App\Interfaces\Listable;
 use App\Interfaces\Toggleable;
@@ -13,8 +12,6 @@ use App\Support\Documento;
 use App\Support\Instituciones;
 use App\Traits\AvatarTrait;
 use PDO;
-use PDOException;
-use PDOStatement;
 use RuntimeException;
 use Throwable;
 

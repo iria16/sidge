@@ -131,136 +131,66 @@ class CertificatesController extends BaseController
     }
 
     /**
+     * Genera la vista previa del documento sin registrar emisión.
+     * La emisión formal se realiza por POST en emitir() o emitirLote().
+     */
+    public function verPrueba(): void
+    {
+        $esLote = (int) ($_GET['lote'] ?? 0) === 1;
+        $tipoRedireccion = $esLote ? 'egreso' : strtolower(trim((string) ($_GET['tipo'] ?? 'estudio')));
+
+        try {
+            if ($esLote) {
+                $filters = [
+                    'q'       => trim((string) ($_GET['q'] ?? '')),
+                    'seccion' => trim((string) ($_GET['seccion'] ?? '')),
+                    'turno'   => $this->turnoSecretariaActual(),
+                ];
+                $lote = $this->prepararLote($filters);
+                $pdf = $this->obtenerPdfLote($lote);
+                BinaryResponse::pdf($pdf, $lote['filename'], true)->send();
+            }
+
+            $tipo = strtolower(trim((string) ($_GET['tipo'] ?? 'estudio')));
+            $id = (int) ($_GET['id'] ?? 0);
+            $idMatricula = isset($_GET['id_matricula']) ? (int) $_GET['id_matricula'] : null;
+
+            $datos = $this->prepararConstancia($tipo, $id, $idMatricula);
+            $pdf = $this->generarPdfConstancia($tipo, $datos['config'], $datos['estudiante']);
+            $filename = $this->nombreArchivoConstancia($tipo, $datos['estudiante']);
+
+            BinaryResponse::pdf($pdf, $filename, true)->send();
+        } catch (DomainException | InvalidArgumentException $e) {
+            $this->setFlash('error', $e->getMessage());
+            $this->redirect('index?tipo=' . urlencode($tipoRedireccion));
+        } catch (Throwable $e) {
+            $this->handleError($e, static::class . '@verPrueba');
+        }
+    }
+
+    /**
      * Emite la constancia oficial en PDF.
      * Valida la elegibilidad estricta en el servidor y registra en bitácora.
      */
     public function emitir(): void
     {
-        $tiposDisponibles = $this->tiposPermitidosPorRol();
+        $this->exigirPost();
+
         $tipo = strtolower(trim((string) ($_POST['tipo'] ?? ($_GET['tipo'] ?? 'estudio'))));
         $id   = (int) ($_POST['id'] ?? ($_GET['id'] ?? 0));
         $idMatricula = isset($_POST['id_matricula']) ? (int) $_POST['id_matricula'] : (isset($_GET['id_matricula']) ? (int) $_GET['id_matricula'] : null);
 
-        // Validación de permisos por rol
-        if (!array_key_exists($tipo, $tiposDisponibles)) {
-            $this->prohibido('No tiene permisos para emitir este tipo de constancia.');
-        }
-
-        if ($id <= 0) {
-            $this->setFlash('error', 'Identificador inválido para la emisión.');
-            $this->redirect('index?tipo=' . urlencode($tipo));
-        }
-
-        $model = $this->modelo();
-        $estudiante = null;
-        $idEstudianteAuditoria = 0;
-
-        // Validación estricta de elegibilidad en el servidor según el tipo
-        if ($tipo === 'retiro') {
-            if (!$model->esElegibleParaRetiro($id)) {
-                $this->setFlash('error', 'El retiro solicitado no existe o no se encuentra en estado APROBADO.');
-                $this->redirect('index?tipo=retiro');
-            }
-            $estudiante = $model->getDatosConstanciaRetiro($id);
-            if (!$estudiante) {
-                $this->setFlash('error', 'No se pudieron recuperar los datos del retiro.');
-                $this->redirect('index?tipo=retiro');
-            }
-            $idEstudianteAuditoria = (int) $estudiante['id_estudiante'];
-        } elseif ($tipo === 'prosecucion') {
-            if (!$model->esElegibleParaProsecucion($id)) {
-                $this->setFlash('error', 'El resultado académico solicitado no existe o no corresponde a una prosecución aprobada (1º a 5º grado).');
-                $this->redirect('index?tipo=prosecucion');
-            }
-            $estudiante = $model->getDatosConstanciaProsecucion($id);
-            if (!$estudiante) {
-                $this->setFlash('error', 'No se pudieron recuperar los datos de prosecución.');
-                $this->redirect('index?tipo=prosecucion');
-            }
-            $idEstudianteAuditoria = (int) $estudiante['id_estudiante'];
-        } elseif ($tipo === 'egreso') {
-            if (!$model->esElegibleParaEgreso($id)) {
-                $this->setFlash('error', 'El estudiante seleccionado no posee literal aprobatorio (A–D) ni registro de egreso en 6to grado en el período escolar activo.');
-                $this->redirect('index?tipo=egreso');
-            }
-            $estudiante = $model->getDatosConstanciaEgreso($id);
-            if (!$estudiante) {
-                $this->setFlash('error', 'No se pudieron recuperar los datos de egreso.');
-                $this->redirect('index?tipo=egreso');
-            }
-            $idEstudianteAuditoria = (int) $estudiante['id_estudiante'];
-        } elseif ($tipo === 'inscripcion') {
-            if (!$model->esElegibleParaInscripcion($id, $idMatricula)) {
-                $this->setFlash('error', 'El estudiante no posee un registro de inscripción válido.');
-                $this->redirect('index?tipo=inscripcion');
-            }
-            $idEstudianteAuditoria = $id;
-            $estudiante = $model->getEstudianteParaConstancia($id, $idMatricula);
-            if (!$estudiante) {
-                $this->setFlash('error', 'El estudiante solicitado no existe en el sistema o no posee registros de matrícula.');
-                $this->redirect('index?tipo=inscripcion');
-            }
-        } else {
-            // estudio
-            if (!$model->esElegibleParaEstudio($id)) {
-                $this->prohibido('Solo se puede emitir constancia de estudio a estudiantes activos.');
-            }
-            $idEstudianteAuditoria = $id;
-            $estudiante = $model->getEstudianteParaConstancia($id, null);
-            if (!$estudiante) {
-                $this->setFlash('error', 'El estudiante solicitado no existe en el sistema o no posee registros de matrícula activos.');
-                $this->redirect('index?tipo=estudio');
-            }
-        }
-
-        // Comprobación de turno para la secretaria
-        if ($idEstudianteAuditoria > 0 && !$this->secretariaTieneAccesoAEstudiante($idEstudianteAuditoria)) {
-            $this->setFlash('error', 'Ese estudiante no pertenece a su turno asignado.');
-            $this->redirect('index?tipo=' . urlencode($tipo));
-        }
-
-        $config = $model->getConfiguracion();
-
-        if (!$model->estaConfiguradoDirector()) {
-            $this->setFlash('error', 'No se puede emitir la constancia: solicite al administrador que complete los datos del director(a) en Datos Institucionales.');
-            $this->redirect('index?tipo=' . urlencode($tipo));
-        }
-
         try {
-            if ($tipo === 'retiro') {
-                $pdf = ConstanciaPdf::generarRetiro($config, $estudiante);
-            } elseif ($tipo === 'prosecucion') {
-                $pdf = ConstanciaPdf::generarProsecucion($config, $estudiante);
-            } elseif ($tipo === 'egreso') {
-                $pdf = ConstanciaPdf::generarEgreso($config, $estudiante);
-            } elseif ($tipo === 'inscripcion') {
-                $pdf = ConstanciaPdf::generarInscripcion($config, $estudiante);
-            } else {
-                $modalidad = (string) ($estudiante['modalidad'] ?? 'activo');
-                $pdf = ConstanciaPdf::generarEstudio($config, $estudiante, $modalidad);
-            }
-
-            // Registro en bitácora de auditoría (quién, a qué estudiante, tipo de constancia, cuándo, IP)
-            $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
-            if ($idUsuario > 0) {
-                $accionBitacora = ($tipo === 'egreso')
-                    ? sprintf('EMISIÓN DE CERTIFICADO DE EDUCACIÓN PRIMARIA: %s (%s)', $estudiante['nombre_completo'] ?? 'Estudiante', $estudiante['numero_documento'] ?? 'Sin doc')
-                    : sprintf('EMISIÓN DE CONSTANCIA (%s): %s (%s)', mb_strtoupper($tipo), $estudiante['nombre_completo'] ?? 'Estudiante', $estudiante['numero_documento'] ?? 'Sin doc');
-                $model->registrarEmision($idUsuario, $accionBitacora);
-            }
-
-            $nombreLimpio = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) ($estudiante['nombre_completo'] ?? 'estudiante'));
-            $filename = ($tipo === 'egreso') ? "certificado_primaria_{$nombreLimpio}.pdf" : "constancia_{$tipo}_{$nombreLimpio}.pdf";
+            $datos = $this->prepararConstancia($tipo, $id, $idMatricula);
+            $pdf = $this->generarPdfConstancia($tipo, $datos['config'], $datos['estudiante']);
+            $this->registrarEmisionConstancia($datos, $tipo);
+            $filename = $this->nombreArchivoConstancia($tipo, $datos['estudiante']);
 
             $esDescarga = (isset($_GET['descargar']) && $_GET['descargar'] === '1')
                        || (isset($_POST['descargar']) && $_POST['descargar'] === '1');
-            $disposition = $esDescarga ? 'attachment' : 'inline';
 
-            BinaryResponse::pdf($pdf, $filename, $disposition === 'inline')->send();
-        } catch (DomainException $e) {
-            $this->setFlash('error', $e->getMessage());
-            $this->redirect('index?tipo=' . urlencode($tipo));
-        } catch (InvalidArgumentException $e) {
+            BinaryResponse::pdf($pdf, $filename, !$esDescarga)->send();
+        } catch (DomainException | InvalidArgumentException $e) {
             $this->setFlash('error', $e->getMessage());
             $this->redirect('index?tipo=' . urlencode($tipo));
         } catch (Throwable $e) {
@@ -274,35 +204,132 @@ class CertificatesController extends BaseController
      */
     public function emitirLote(): void
     {
+        $this->exigirPost();
+
+        $filters = [
+            'q'       => trim((string) ($_POST['q'] ?? ($_GET['q'] ?? ''))),
+            'seccion' => trim((string) ($_POST['seccion'] ?? ($_GET['seccion'] ?? ''))),
+            'turno'   => $this->turnoSecretariaActual(),
+        ];
+
+        try {
+            $lote = $this->prepararLote($filters);
+            $pdf = $this->obtenerPdfLote($lote);
+            $this->registrarEmisionLote($lote);
+
+            $esDescarga = (isset($_GET['descargar']) && $_GET['descargar'] === '1')
+                       || (isset($_POST['descargar']) && $_POST['descargar'] === '1');
+
+            BinaryResponse::pdf($pdf, $lote['filename'], !$esDescarga)->send();
+        } catch (DomainException | InvalidArgumentException $e) {
+            $this->setFlash('error', $e->getMessage());
+            $this->redirect('index?tipo=egreso');
+        } catch (Throwable $e) {
+            $this->handleError($e, static::class . '@emitirLote');
+        }
+    }
+
+    private function prepararConstancia(string $tipo, int $id, ?int $idMatricula): array
+    {
+        $tiposDisponibles = $this->tiposPermitidosPorRol();
+        if (!array_key_exists($tipo, $tiposDisponibles)) {
+            $this->prohibido('No tiene permisos para emitir este tipo de constancia.');
+        }
+
+        if ($id <= 0) {
+            throw new InvalidArgumentException('Identificador inválido para la emisión.');
+        }
+
+        $model = $this->modelo();
+        $estudiante = null;
+        $idEstudianteAuditoria = 0;
+
+        if ($tipo === 'retiro') {
+            if (!$model->esElegibleParaRetiro($id)) {
+                throw new DomainException('El retiro solicitado no existe, no está APROBADO o ya no es el retiro actual del estudiante.');
+            }
+            $estudiante = $model->getDatosConstanciaRetiro($id);
+            if (!$estudiante) {
+                throw new DomainException('No se pudieron recuperar los datos del retiro.');
+            }
+            $idEstudianteAuditoria = (int) $estudiante['id_estudiante'];
+        } elseif ($tipo === 'prosecucion') {
+            if (!$model->esElegibleParaProsecucion($id)) {
+                throw new DomainException('El resultado académico solicitado no existe o no corresponde a una prosecución aprobada (1º a 5º grado) con retiro aprobado.');
+            }
+            $estudiante = $model->getDatosConstanciaProsecucion($id);
+            if (!$estudiante) {
+                throw new DomainException('No se pudieron recuperar los datos de prosecución.');
+            }
+            $idEstudianteAuditoria = (int) $estudiante['id_estudiante'];
+        } elseif ($tipo === 'egreso') {
+            if (!$model->esElegibleParaEgreso($id)) {
+                throw new DomainException('El estudiante seleccionado no posee literal aprobatorio (A–D) ni registro de egreso en 6to grado en el período escolar activo.');
+            }
+            $estudiante = $model->getDatosConstanciaEgreso($id);
+            if (!$estudiante) {
+                throw new DomainException('No se pudieron recuperar los datos de egreso.');
+            }
+            $idEstudianteAuditoria = (int) $estudiante['id_estudiante'];
+        } elseif ($tipo === 'inscripcion') {
+            if (!$model->esElegibleParaInscripcion($id, $idMatricula)) {
+                throw new DomainException('El estudiante no posee un registro de inscripción válido.');
+            }
+            $idEstudianteAuditoria = $id;
+            $estudiante = $model->getEstudianteParaConstancia($id, $idMatricula);
+            if (!$estudiante) {
+                throw new DomainException('El estudiante solicitado no existe en el sistema o no posee registros de matrícula.');
+            }
+        } else {
+            if (!$model->esElegibleParaEstudio($id)) {
+                $this->prohibido('Solo se puede emitir constancia de estudio a estudiantes activos.');
+            }
+            $idEstudianteAuditoria = $id;
+            $estudiante = $model->getEstudianteParaConstancia($id, null);
+            if (!$estudiante) {
+                throw new DomainException('El estudiante solicitado no existe en el sistema o no posee registros de matrícula activos.');
+            }
+        }
+
+        if ($idEstudianteAuditoria > 0 && !$this->secretariaTieneAccesoAEstudiante($idEstudianteAuditoria)) {
+            throw new DomainException('Ese estudiante no pertenece a su turno asignado.');
+        }
+
+        $config = $model->getConfiguracion();
+        if (!$model->estaConfiguradoDirector()) {
+            throw new DomainException('No se puede emitir la constancia: solicite al administrador que complete los datos del director(a) en Datos Institucionales.');
+        }
+
+        return [
+            'model'      => $model,
+            'config'     => $config,
+            'estudiante' => $estudiante,
+        ];
+    }
+
+    private function prepararLote(array $filters): array
+    {
         $tiposDisponibles = $this->tiposPermitidosPorRol();
         if (!array_key_exists('egreso', $tiposDisponibles)) {
             $this->prohibido('No tiene permisos para emitir Certificados de Educación Primaria por lote.');
         }
 
-        $filters = [
-            'q'       => trim((string) ($_GET['q'] ?? '')),
-            'seccion' => trim((string) ($_GET['seccion'] ?? '')),
-            'turno'   => $this->turnoSecretariaActual(),
-        ];
+        if (sigde_rol_clave($_SESSION['rol'] ?? '') === 'secretaria' && (int) ($filters['turno'] ?? 0) <= 0) {
+            $this->prohibido('Su usuario no tiene un turno asignado.');
+        }
 
         $model = $this->modelo();
         $candidatos = $model->getEstudiantesEgresoParaLote($filters);
         if ($candidatos === []) {
-            $this->setFlash('error', 'No se encontraron estudiantes promovidos de 6.° grado para emitir certificados con los filtros seleccionados.');
-            $this->redirect('index?tipo=egreso');
-            return;
+            throw new DomainException('No se encontraron estudiantes promovidos de 6.° grado para emitir certificados con los filtros seleccionados.');
         }
 
         $config = $model->getConfiguracion();
         if (!$model->estaConfiguradoDirector()) {
-            $this->setFlash('error', 'No se pueden emitir los certificados: solicite al administrador que complete los datos del director(a) en Datos Institucionales.');
-            $this->redirect('index?tipo=egreso');
-            return;
+            throw new DomainException('No se pueden emitir los certificados: solicite al administrador que complete los datos del director(a) en Datos Institucionales.');
         }
 
-        $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
         $estudiantesData = [];
-
         foreach ($candidatos as $cand) {
             $idEst = (int) ($cand['id_estudiante'] ?? 0);
             if ($idEst <= 0) {
@@ -315,46 +342,126 @@ class CertificatesController extends BaseController
         }
 
         if ($estudiantesData === []) {
-            $this->setFlash('error', 'No se pudieron recuperar los datos de egreso de los estudiantes seleccionados.');
-            $this->redirect('index?tipo=egreso');
+            throw new DomainException('No se pudieron recuperar los datos de egreso de los estudiantes seleccionados.');
+        }
+
+        $sufijoTurno = !empty($filters['turno']) ? '_turno_' . (int) $filters['turno'] : '';
+        $sufijoSeccion = $filters['seccion'] !== ''
+            ? '_seccion_' . preg_replace('/[^a-zA-Z0-9_-]/', '', (string) $filters['seccion'])
+            : '';
+        $filename = "certificados_primaria_lote{$sufijoTurno}{$sufijoSeccion}.pdf";
+
+        $cacheKey = 'egresolote_' . md5((string) json_encode([
+            'turno'     => (int) ($filters['turno'] ?? 0),
+            'seccion'   => (string) ($filters['seccion'] ?? ''),
+            'q'         => (string) ($filters['q'] ?? ''),
+            'ids'       => array_map(static fn(array $e): int => (int) ($e['id_estudiante'] ?? 0), $estudiantesData),
+            'literales' => array_map(static fn(array $e): array => [
+                (int) ($e['id_estudiante'] ?? 0),
+                (string) ($e['literal'] ?? ''),
+                (string) ($e['periodo_escolar'] ?? ''),
+            ], $estudiantesData),
+            'director'  => [
+                (string) ($config['director_nombre'] ?? ''),
+                (string) ($config['director_cedula'] ?? ''),
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
+
+        return [
+            'model'       => $model,
+            'config'      => $config,
+            'estudiantes' => $estudiantesData,
+            'filename'    => $filename,
+            'cacheKey'    => $cacheKey,
+            'seccion'     => (string) ($filters['seccion'] ?? ''),
+        ];
+    }
+
+    private function generarPdfConstancia(string $tipo, array $config, array $estudiante): string
+    {
+        if ($tipo === 'retiro') {
+            return ConstanciaPdf::generarRetiro($config, $estudiante);
+        }
+        if ($tipo === 'prosecucion') {
+            return ConstanciaPdf::generarProsecucion($config, $estudiante);
+        }
+        if ($tipo === 'egreso') {
+            return ConstanciaPdf::generarEgreso($config, $estudiante);
+        }
+        if ($tipo === 'inscripcion') {
+            return ConstanciaPdf::generarInscripcion($config, $estudiante);
+        }
+
+        $modalidad = (string) ($estudiante['modalidad'] ?? 'activo');
+        return ConstanciaPdf::generarEstudio($config, $estudiante, $modalidad);
+    }
+
+    private function obtenerPdfLote(array $lote): string
+    {
+        $cached = PdfCache::get($lote['cacheKey']);
+        if ($cached !== null) {
+            $contenido = @file_get_contents($cached);
+            if ($contenido !== false) {
+                return $contenido;
+            }
+        }
+
+        $pdf = ConstanciaPdf::generarEgresoPorLote($lote['config'], $lote['estudiantes']);
+        PdfCache::put($lote['cacheKey'], $pdf);
+
+        return $pdf;
+    }
+
+    private function nombreArchivoConstancia(string $tipo, array $estudiante): string
+    {
+        $nombreLimpio = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) ($estudiante['nombre_completo'] ?? 'estudiante'));
+        return ($tipo === 'egreso')
+            ? "certificado_primaria_{$nombreLimpio}.pdf"
+            : "constancia_{$tipo}_{$nombreLimpio}.pdf";
+    }
+
+    private function registrarEmisionConstancia(array $datos, string $tipo): void
+    {
+        $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
+        if ($idUsuario <= 0) {
             return;
         }
 
-        try {
-            $sufijo = $filters['seccion'] !== ''
-                ? '_seccion_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $filters['seccion'])
-                : '';
-            $filename = "certificados_primaria_lote{$sufijo}.pdf";
-            $cacheKey = 'egresolote_' . md5($filename);
+        $estudiante = $datos['estudiante'];
+        $accion = ($tipo === 'egreso')
+            ? sprintf('EMISIÓN DE CERTIFICADO DE EDUCACIÓN PRIMARIA: %s (%s)', $estudiante['nombre_completo'] ?? 'Estudiante', $estudiante['numero_documento'] ?? 'Sin doc')
+            : sprintf('EMISIÓN DE CONSTANCIA (%s): %s (%s)', mb_strtoupper($tipo), $estudiante['nombre_completo'] ?? 'Estudiante', $estudiante['numero_documento'] ?? 'Sin doc');
 
-            $cached = PdfCache::get($cacheKey);
-            if ($cached !== null) {
-                $esDescarga = (isset($_GET['descargar']) && $_GET['descargar'] === '1')
-                           || (isset($_POST['descargar']) && $_POST['descargar'] === '1');
-                $disposition = $esDescarga ? 'attachment' : 'inline';
-                BinaryResponse::pdf(file_get_contents($cached), $filename, $disposition === 'inline')->send();
-                return;
-            }
+        $datos['model']->registrarEmision($idUsuario, $accion);
+    }
 
-            $pdf = ConstanciaPdf::generarEgresoPorLote($config, $estudiantesData);
-
-            PdfCache::put($cacheKey, $pdf);
-
-            if ($idUsuario > 0) {
-                $seccionTexto = $filters['seccion'] !== '' ? " (Sección {$filters['seccion']})" : '';
-                $model->registrarEmision(
-                    $idUsuario,
-                    sprintf('EMISIÓN POR LOTE DE CERTIFICADOS DE EDUCACIÓN PRIMARIA: %d estudiantes%s', count($estudiantesData), $seccionTexto)
-                );
-            }
-
-            $esDescarga = (isset($_GET['descargar']) && $_GET['descargar'] === '1')
-                       || (isset($_POST['descargar']) && $_POST['descargar'] === '1');
-            $disposition = $esDescarga ? 'attachment' : 'inline';
-
-            BinaryResponse::pdf($pdf, $filename, $disposition === 'inline')->send();
-        } catch (Throwable $e) {
-            $this->handleError($e, static::class . '@emitirLote');
+    private function registrarEmisionLote(array $lote): void
+    {
+        $idUsuario = (int) ($this->idUsuarioActual() ?? 0);
+        if ($idUsuario <= 0) {
+            return;
         }
+
+        $seccionTexto = $lote['seccion'] !== '' ? " (Sección {$lote['seccion']})" : '';
+        $lote['model']->registrarEmision(
+            $idUsuario,
+            sprintf('EMISIÓN POR LOTE DE CERTIFICADOS DE EDUCACIÓN PRIMARIA: %d estudiantes%s', count($lote['estudiantes']), $seccionTexto)
+        );
+    }
+
+    private function exigirPost(): void
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            return;
+        }
+
+        header('Allow: POST');
+        http_response_code(405);
+
+        if (function_exists('esPeticionAjax') && esPeticionAjax() && function_exists('responderJson')) {
+            responderJson(405, 'Método no permitido.');
+        }
+
+        exit('Método no permitido.');
     }
 }

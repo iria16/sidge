@@ -47,24 +47,55 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  var enviando = false;
+
   function submit(form, isEdit) {
+    if (enviando) return;
     if (!form.checkValidity()) {
       form.classList.add('was-validated');
+      var invalido = form.querySelector(':invalid');
+      if (invalido) invalido.focus();
+      SIGDEUI.mostrarError('Complete todos los campos obligatorios antes de guardar.', 'Faltan datos');
       return;
     }
+
     var asignacionInput = form.querySelector('[name="id_asignacion"]');
     var asignacionId = asignacionInput ? parseInt(asignacionInput.value, 10) : 0;
     var action = isEdit && asignacionId > 0 ? 'actualizar' : 'asignar';
+    var btn = form.querySelector('button[type="submit"]')
+      || document.querySelector('button[type="submit"][form="' + form.id + '"]');
+    var textoOriginal = btn ? btn.innerHTML : '';
+
+    enviando = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
+    }
+
     SIGDEUI.enviar(route + action, { metodo: 'POST', cuerpo: new FormData(form) })
       .then(function (result) {
         if (!result.ok || !result.data.ok) {
           SIGDEUI.mostrarError(result.data.mensaje || 'No se pudo guardar la asignación.');
           return;
         }
-        window.location.reload();
+        return SIGDEUI.exito(
+          result.data.mensaje || (isEdit
+            ? 'Asignación docente actualizada correctamente.'
+            : 'Docente asignado correctamente.'),
+          'Asignación guardada'
+        ).then(function () {
+          window.location.reload();
+        });
       })
       .catch(function () {
         SIGDEUI.mostrarError('No se pudo conectar con el servidor.');
+      })
+      .finally(function () {
+        enviando = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = textoOriginal;
+        }
       });
   }
 
@@ -125,7 +156,15 @@ document.addEventListener('DOMContentLoaded', function () {
             SIGDEUI.mostrarError(answer.data.mensaje || 'No se pudo retirar.');
             return;
           }
-          window.location.reload();
+          return SIGDEUI.exito(
+            answer.data.mensaje || 'Asignación retirada correctamente.',
+            'Asignación retirada'
+          ).then(function () {
+            window.location.reload();
+          });
+        })
+        .catch(function () {
+          SIGDEUI.mostrarError('No se pudo conectar con el servidor.');
         });
     });
   });

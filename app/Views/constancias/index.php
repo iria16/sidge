@@ -44,8 +44,9 @@ ob_start();
           'q'       => $filters['q'] ?? '',
       ], static fn ($v): bool => (string) $v !== '');
       $qsLote          = $paramsLote !== [] ? ('?' . http_build_query($paramsLote)) : '';
-      $urlLotePreview  = BASE_URL . 'constancias/emitirLote' . $qsLote;
-      $urlLoteDownload = $urlLotePreview . ($qsLote !== '' ? '&' : '?') . 'descargar=1';
+      $qsLotePreview   = '?' . http_build_query(array_merge(['lote' => 1, 'tipo' => 'egreso'], $paramsLote));
+      $urlLotePreview  = BASE_URL . 'constancias/verPrueba' . $qsLotePreview;
+      $urlLoteEmitir   = BASE_URL . 'constancias/emitirLote' . $qsLote;
       $subtituloLote   = !empty($filters['seccion'])
           ? '6.° Grado · Sección ' . $filters['seccion'] . ' (' . $total . ' estudiante' . ($total === 1 ? '' : 's') . ')'
           : '6.° Grado · Todas las secciones (' . $total . ' estudiante' . ($total === 1 ? '' : 's') . ')';
@@ -56,7 +57,7 @@ ob_start();
               id="btnCertificadosLote"
               class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm btn-previsualizar-constancia"
               data-url-preview="<?= htmlspecialchars($urlLotePreview) ?>"
-              data-url-download="<?= htmlspecialchars($urlLoteDownload) ?>"
+              data-url-emitir="<?= htmlspecialchars($urlLoteEmitir) ?>"
               data-estudiante="<?= htmlspecialchars($subtituloLote) ?>"
               data-tipo="Certificados de Educación Primaria (Lote)">
         <i class="bi bi-printer-fill" aria-hidden="true"></i>
@@ -186,11 +187,14 @@ ob_start();
       $idEmision = (int) ($e['id_registro'] ?? $e['id_estudiante']);
       $docTipo   = (string) ($e['tipo_documento'] ?? 'V');
       $docNum    = (string) ($e['numero_documento'] ?? '');
-      $urlPreview = BASE_URL . 'constancias/emitir?tipo=' . urlencode($tipo) . '&id=' . $idEmision;
+      $urlPreview = BASE_URL . 'constancias/verPrueba?tipo=' . urlencode($tipo) . '&id=' . $idEmision;
       if ($tipo === 'inscripcion' && !empty($e['id_matricula'])) {
           $urlPreview .= '&id_matricula=' . (int) $e['id_matricula'];
       }
-      $urlDownload = $urlPreview . '&descargar=1';
+      $urlEmitir = BASE_URL . 'constancias/emitir?tipo=' . urlencode($tipo) . '&id=' . $idEmision;
+      if ($tipo === 'inscripcion' && !empty($e['id_matricula'])) {
+          $urlEmitir .= '&id_matricula=' . (int) $e['id_matricula'];
+      }
       $tipoLabel   = ($tipo === 'egreso') ? 'Educación Primaria' : ($tiposDisponibles[$tipo] ?? 'Estudio');
       $tipoTitulo  = ($tipo === 'egreso') ? 'Certificado de ' . $tipoLabel : 'Constancia de ' . $tipoLabel;
   ?>
@@ -222,9 +226,16 @@ ob_start();
       <!-- Columna 4: Estado / Metadato según tipo -->
       <td class="text-support">
         <?php if ($tipo === 'inscripcion'): ?>
-          <?php $tipoMat = (string) ($e['tipo_matricula'] ?? 'INSCRIPCION'); ?>
+          <?php
+          $tipoMat = (string) ($e['tipo_matricula'] ?? 'INSCRIPCION');
+          $etiquetaMatricula = match (strtoupper($tipoMat)) {
+              'INSCRIPCION' => 'Primer Ingreso',
+              'REINGRESO'   => 'Reingreso',
+              default       => 'Continuidad',
+          };
+          ?>
           <span class="badge bg-light text-dark border">
-            <?= ($tipoMat === 'INSCRIPCION') ? 'Primer Ingreso' : 'Continuidad' ?>
+            <?= htmlspecialchars($etiquetaMatricula) ?>
           </span>
         <?php elseif ($tipo === 'prosecucion'): ?>
           <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Literal <?= htmlspecialchars((string) ($e['literal'] ?? 'A')) ?></span>
@@ -253,7 +264,7 @@ ob_start();
         <button type="button"
                 class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm btn-previsualizar-constancia"
                 data-url-preview="<?= htmlspecialchars($urlPreview) ?>"
-                data-url-download="<?= htmlspecialchars($urlDownload) ?>"
+                data-url-emitir="<?= htmlspecialchars($urlEmitir) ?>"
                 data-estudiante="<?= htmlspecialchars((string) ($e['nombre_completo'] ?? '')) ?>"
                 data-tipo="<?= htmlspecialchars($tipoTitulo) ?>"
                 title="Visualizar <?= htmlspecialchars($tipoTitulo) ?>">

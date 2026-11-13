@@ -50,6 +50,41 @@ class CertificatesModel extends BaseModel
     }
 
     /**
+     * Fragmento SQL: el estudiante tiene al menos un retiro con estado APROBADO.
+     * Se usa para la Constancia de Prosecución, que solo aplica a estudiantes
+     * retirados y promovidos.
+     */
+    private function sqlRetiroAprobadoEstudiante(string $aliasEstudiante = 'est'): string
+    {
+        return "EXISTS (
+            SELECT 1
+            FROM retiro r
+            INNER JOIN matricula m_ret ON m_ret.id_matricula = r.id_matricula
+            WHERE m_ret.id_estudiante = {$aliasEstudiante}.id_estudiante
+              AND r.estado_solicitud = 'APROBADO'
+        )";
+    }
+
+    /**
+     * Fragmento SQL: la matrícula del retiro es el último movimiento del estudiante.
+     * Si existe una matrícula posterior (por ejemplo, un REINGRESO), el retiro ya
+     * no representa el estado actual del estudiante.
+     */
+    private function sqlRetiroEsUltimoMovimiento(string $aliasMatricula = 'm', string $aliasAnio = 'a'): string
+    {
+        return "NOT EXISTS (
+            SELECT 1
+            FROM matricula m_post
+            INNER JOIN anio_escolar a_post ON a_post.id_anio_escolar = m_post.id_anio_escolar
+            WHERE m_post.id_estudiante = {$aliasMatricula}.id_estudiante
+              AND (
+                  a_post.anio_inicio > {$aliasAnio}.anio_inicio
+                  OR (a_post.anio_inicio = {$aliasAnio}.anio_inicio AND m_post.id_matricula > {$aliasMatricula}.id_matricula)
+              )
+        )";
+    }
+
+    /**
      * Valida de forma única y centralizada si un estudiante es elegible para Constancia de Estudio:
      */
     public function esElegibleParaEstudio(int $idEstudiante): bool
@@ -81,11 +116,6 @@ class CertificatesModel extends BaseModel
 
     /**
      * Retorna el ID del año escolar aplicable a prosecución:
-     * El último año escolar cerrado que tenga resultados académicos cargados.
-     * En caso de no existir un año cerrado con resultados, toma el año más reciente con resultados.
-     */
-    /**
-     * Retorna el ID del año escolar aplicable a prosecución:
      * Opera exclusivamente sobre el año escolar ACTIVO en curso.
      * Si el año escolar ya se cerró, el proceso está cerrado y retorna 0.
      */
@@ -96,7 +126,7 @@ class CertificatesModel extends BaseModel
 
     /**
      * Valida si un registro de inscripción es elegible:
-     * El estudiante tiene matrícula INSCRIPCION o RATIFICACION en el año escolar activo.
+     * El estudiante tiene matrícula INSCRIPCION, RATIFICACION o REINGRESO en el año escolar activo.
      */
     public function esElegibleParaInscripcion(int $idEstudiante, ?int $idMatricula = null): bool
     {
@@ -161,9 +191,11 @@ class CertificatesModel extends BaseModel
             "SELECT 1 
                FROM retiro r
               INNER JOIN matricula m ON m.id_matricula = r.id_matricula
+              INNER JOIN anio_escolar a ON a.id_anio_escolar = m.id_anio_escolar
               WHERE r.id_retiro = :id_retiro 
                 AND r.estado_solicitud = 'APROBADO'
                 AND m.id_anio_escolar = :id_anio_activo
+                AND {$this->sqlRetiroEsUltimoMovimiento()}
               LIMIT 1"
         );
         $stmt->execute([
@@ -175,8 +207,9 @@ class CertificatesModel extends BaseModel
 
     /**
      * Valida si un registro de prosecución es elegible:
-     * Existe en resultado_academico con literal aprobatorio (A-D) o estado_resultado = 'PROMOVIDO',
-     * grado entre 1 y 5, y pertenece al año escolar aplicable a prosecución.
+     * Existe en resultado_academico con estado_resultado = 'PROMOVIDO',
+     * grado entre 1 y 5, pertenece al año escolar aplicable a prosecución y el estudiante
+     * tiene al menos un retiro con estado APROBADO.
      */
     public function esElegibleParaProsecucion(int $idResultado): bool
     {
@@ -196,9 +229,9 @@ class CertificatesModel extends BaseModel
               INNER JOIN grado g ON g.id_grado = ea.id_grado
               WHERE ra.id_resultado = :id_resultado
                 AND ra.id_anio_escolar = :id_anio_prosecucion
-                AND (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
-                AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
+                AND ra.estado_resultado = 'PROMOVIDO'
                 AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                AND {$this->sqlRetiroAprobadoEstudiante('ra')}
               LIMIT 1"
         );
         $stmt->execute([
@@ -415,6 +448,10 @@ class CertificatesModel extends BaseModel
      */
     public function getEstudiantesInscripcion(array $filters = [], int $page = 1, int $perPage = 10): array
     {
+        if (\App\Support\AniosEscolares::idEnCurso($this->pdo) <= 0) {
+            return [];
+        }
+
         [$where, $params] = $this->buildFiltrosInscripcion($filters);
 
         $sql = "SELECT est.id_estudiante,
@@ -437,9 +474,17 @@ class CertificatesModel extends BaseModel
                        a.nombre_periodo AS anio_escolar,
                        m.tipo AS tipo_matricula,
                        m.fecha_matricula
-                FROM matricula m
-                INNER JOIN estudiante est ON est.id_estudiante = m.id_estudiante
+                FROM estudiante est
                 INNER JOIN persona p ON p.id_persona = est.id_persona
+                INNER JOIN matricula m ON m.id_matricula = (
+                    SELECT m2.id_matricula
+                    FROM matricula m2
+                    WHERE m2.id_estudiante = est.id_estudiante
+                      AND m2.id_anio_escolar = :id_anio_activo_join
+                      AND m2.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
+                    ORDER BY m2.fecha_matricula DESC, m2.id_matricula DESC
+                    LIMIT 1
+                )
                 LEFT JOIN parroquia par ON par.id_parroquia = p.id_parroquia_nacimiento
                 LEFT JOIN municipio mun ON mun.id_municipio = par.id_municipio
                 LEFT JOIN estado est_mun ON est_mun.id_estado = mun.id_estado
@@ -476,12 +521,24 @@ class CertificatesModel extends BaseModel
 
     public function countEstudiantesInscripcion(array $filters = []): int
     {
+        if (\App\Support\AniosEscolares::idEnCurso($this->pdo) <= 0) {
+            return 0;
+        }
+
         [$where, $params] = $this->buildFiltrosInscripcion($filters);
 
         $sql = "SELECT COUNT(*)
-                FROM matricula m
-                INNER JOIN estudiante est ON est.id_estudiante = m.id_estudiante
+                FROM estudiante est
                 INNER JOIN persona p ON p.id_persona = est.id_persona
+                INNER JOIN matricula m ON m.id_matricula = (
+                    SELECT m2.id_matricula
+                    FROM matricula m2
+                    WHERE m2.id_estudiante = est.id_estudiante
+                      AND m2.id_anio_escolar = :id_anio_activo_join
+                      AND m2.tipo IN ('INSCRIPCION', 'RATIFICACION', 'REINGRESO')
+                    ORDER BY m2.fecha_matricula DESC, m2.id_matricula DESC
+                    LIMIT 1
+                )
                 INNER JOIN estructura_academica ea ON ea.id_estructura_academica = m.id_estructura_academica
                 INNER JOIN anio_escolar a ON a.id_anio_escolar = m.id_anio_escolar
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
@@ -542,7 +599,8 @@ class CertificatesModel extends BaseModel
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
                 INNER JOIN motivo_retiro mr ON mr.id_motivo_retiro = r.id_motivo_retiro
-                WHERE r.estado_solicitud = 'APROBADO'";
+                WHERE r.estado_solicitud = 'APROBADO'
+                  AND {$this->sqlRetiroEsUltimoMovimiento()}";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -581,7 +639,8 @@ class CertificatesModel extends BaseModel
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
                 INNER JOIN motivo_retiro mr ON mr.id_motivo_retiro = r.id_motivo_retiro
-                WHERE r.estado_solicitud = 'APROBADO'";
+                WHERE r.estado_solicitud = 'APROBADO'
+                  AND {$this->sqlRetiroEsUltimoMovimiento()}";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -593,7 +652,7 @@ class CertificatesModel extends BaseModel
     }
 
     /**
-     * Listado para Constancias de Prosecución (estado_resultado = 'PROMOVIDO' y grado 1 a 5).
+     * Listado para Constancias de Prosecución (promovido, grado 1 a 5 y retiro APROBADO).
      */
     public function getEstudiantesProsecucion(array $filters = [], int $page = 1, int $perPage = 10): array
     {
@@ -642,9 +701,9 @@ class CertificatesModel extends BaseModel
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                WHERE (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
-                  AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
-                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5";
+                WHERE ra.estado_resultado = 'PROMOVIDO'
+                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                  AND {$this->sqlRetiroAprobadoEstudiante('est')}";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -685,9 +744,9 @@ class CertificatesModel extends BaseModel
                 INNER JOIN anio_escolar a ON a.id_anio_escolar = ra.id_anio_escolar
                 INNER JOIN grado g ON g.id_grado = ea.id_grado
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
-                WHERE (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
-                  AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
-                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5";
+                WHERE ra.estado_resultado = 'PROMOVIDO'
+                  AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                  AND {$this->sqlRetiroAprobadoEstudiante('est')}";
 
         if (!empty($where)) {
             $sql .= ' AND ' . implode(' AND ', $where);
@@ -915,6 +974,7 @@ class CertificatesModel extends BaseModel
         if ($idAnioActivo > 0) {
             $where[] = 'm.id_anio_escolar = :id_anio_activo';
             $params['id_anio_activo'] = $idAnioActivo;
+            $params['id_anio_activo_join'] = $idAnioActivo;
         } else {
             $where[] = "a.estado = 'ACTIVO'";
         }
@@ -1013,6 +1073,7 @@ class CertificatesModel extends BaseModel
                 INNER JOIN motivo_retiro mr ON mr.id_motivo_retiro = r.id_motivo_retiro
                 WHERE r.id_retiro = :id_retiro
                   AND r.estado_solicitud = 'APROBADO'
+                  AND {$this->sqlRetiroEsUltimoMovimiento()}
                 LIMIT 1";
 
         $stmt = $this->pdo->prepare($sql);
@@ -1073,7 +1134,7 @@ class CertificatesModel extends BaseModel
             $params['seccion'] = $filters['seccion'];
         }
 
-        // Prosecución: SOLO el último año escolar cerrado con resultados
+        // Prosecución: SOLO el año escolar activo en curso
         $idAnioPros = $this->getIdAnioProsecucion();
         if ($idAnioPros > 0) {
             $where[] = 'ra.id_anio_escolar = :id_anio_prosecucion';
@@ -1130,9 +1191,9 @@ class CertificatesModel extends BaseModel
                 LEFT JOIN grado g_dest ON g_dest.id_grado = ra.id_grado_destino
                 LEFT JOIN seccion s ON s.id_seccion = ea.id_seccion
                 WHERE ra.id_resultado = :id_resultado
-                  AND (ra.estado_resultado = 'PROMOVIDO' OR ra.literal IN ('A', 'B', 'C', 'D'))
-                  AND COALESCE(ra.estado_resultado, 'PENDIENTE') != 'NO_PROMOVIDO'
+                  AND ra.estado_resultado = 'PROMOVIDO'
                   AND CAST(REGEXP_SUBSTR(g.nombre, '[0-9]+') AS UNSIGNED) BETWEEN 1 AND 5
+                  AND {$this->sqlRetiroAprobadoEstudiante('est')}
                 LIMIT 1";
 
         $stmt = $this->pdo->prepare($sql);

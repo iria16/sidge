@@ -12,7 +12,6 @@ use Throwable;
 
 /**
  * DirectivoDashboardModel
- * -----------------------------------------------------------------------------
  * Lecturas y agregaciones para el panel de Dirección y Coordinación:
  * métricas demográficas de matrícula, capacidad institucional, personal escolar,
  * avance de literales y alertas operativas.

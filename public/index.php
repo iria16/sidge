@@ -228,20 +228,20 @@ $rutasPermitidas = [
         'getUbicacion' => ['admin']
     ],
     'empleado' => [
-        'index' => ['directivo', 'coordinador', 'secretaria'],
-        'expediente' => ['directivo', 'coordinador', 'secretaria'],
-        'exportar' => ['directivo', 'coordinador', 'secretaria'],
+        'index' => ['directivo', 'coordinador'],
+        'expediente' => ['directivo', 'coordinador'],
+        'exportar' => ['directivo', 'coordinador'],
         'estadoInfo' => ['directivo'],
         'cambiarEstado' => ['directivo'],
         'cerrarReposo' => ['directivo'],
         'anularReposo' => ['directivo'],
         'create' => ['directivo'],
-        'show' => ['directivo', 'coordinador', 'secretaria'],
+        'show' => ['directivo', 'coordinador'],
         'edit' => ['directivo'],
         'store' => ['directivo'],
         'update' => ['directivo'],
         'toggleStatus' => ['directivo'],
-        'getUbicacion' => ['directivo', 'coordinador', 'secretaria'],
+        'getUbicacion' => ['directivo', 'coordinador'],
         // Precarga en el wizard de alta a una persona ya registrada (p. ej. un familiar).
         'buscarPersona' => ['directivo'],
         // Reposos del personal (empleados y docentes). Registrarlos es una decisión de
@@ -394,6 +394,8 @@ $accionesSoloPost = [
     'inscripciones' => ['store', 'evaluarRecaudos', 'guardarInstitucion'],
     'ratificacion' => ['ratificar', 'updateEstudiante'],
     'reingreso' => ['guardar'],
+    // Emitir genera el documento oficial y registra en bitácora: nunca por GET.
+    'constancias' => ['emitir', 'emitirLote'],
     'configuracionInstitucional' => ['guardar', 'subirImagen', 'quitarImagen', 'restablecerOficial'],
     'resultadoAcademico' => ['guardarPropuesta'],
     'perfil' => ['actualizarFoto'],

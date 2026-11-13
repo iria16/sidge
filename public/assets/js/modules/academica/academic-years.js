@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
       });
       enviar('reabrir', { method: 'POST', body: cuerpo })
         .then(function (answer) {
-          if (!answer.ok || !answer.data.ok) {
+          if (!answer.response.ok || !answer.data.ok) {
             if (answer.data && answer.data.mensaje && answer.data.mensaje.indexOf('ya se encuentra activo') !== -1) {
               SIGDEUI.exito(answer.data.mensaje);
               SIGDEUI.ocultarModal(document.getElementById('reabrirAnioModal'));

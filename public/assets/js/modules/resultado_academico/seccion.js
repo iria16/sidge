@@ -413,6 +413,7 @@
   /* Vista previa interactiva de Certificados de Calificaciones */
   var modalCertificado = document.getElementById('modalVistaPreviaCertificado');
   var iframeCertificado = document.getElementById('iframeVistaPreviaCertificado');
+  var btnAbrirNuevaPestana = document.getElementById('btnAbrirNuevaPestanaCertificado');
   var btnDescargarCertificado = document.getElementById('btnDescargarCertificadoPdf');
   var btnImprimirCertificado = document.getElementById('btnImprimirCertificado');
 
@@ -439,6 +440,10 @@
       }
 
       iframeCertificado.src = urlPreview;
+
+      if (btnAbrirNuevaPestana) {
+        btnAbrirNuevaPestana.setAttribute('href', urlPreview);
+      }
 
       if (btnDescargarCertificado) {
         btnDescargarCertificado.setAttribute('href', urlDownload);

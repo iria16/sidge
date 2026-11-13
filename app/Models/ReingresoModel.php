@@ -213,7 +213,8 @@ class ReingresoModel extends BaseModel
     public function listarReingresos(array $filters = [], int $pagina = 1, int $porPagina = 10, ?int $idTurno = null): array
     {
         $offset = max(0, ($pagina - 1) * $porPagina);
-        $where = [];
+        // El historial visible es el del período activo, igual que las tarjetas.
+        $where = ["a_act.estado = 'ACTIVO'"];
         $params = [];
 
         $q = trim((string) ($filters['q'] ?? ''));
@@ -238,6 +239,7 @@ class ReingresoModel extends BaseModel
                        INNER JOIN matricula m ON m.id_matricula = rein.id_matricula
                        INNER JOIN estudiante e ON e.id_estudiante = m.id_estudiante
                        INNER JOIN persona p ON p.id_persona = e.id_persona
+                       INNER JOIN anio_escolar a_act ON a_act.id_anio_escolar = m.id_anio_escolar
                        INNER JOIN estructura_academica ea_act ON ea_act.id_estructura_academica = m.id_estructura_academica
                        $whereClause";
         $stmtCount = $this->pdo->prepare($sqlCount);
@@ -544,7 +546,28 @@ class ReingresoModel extends BaseModel
                 'obs'     => $observaciones,
             ]);
 
-            // 5. Registrar bitácora
+            // 5. Reactivar la persona: el retiro la dejó INACTIVA y el reingreso
+            // la vuelve a habilitar para constancias y demás procesos académicos.
+            $stmtActivar = $this->pdo->prepare(
+                "UPDATE persona p
+                 INNER JOIN estudiante e ON e.id_persona = p.id_persona
+                    SET p.estado = 'ACTIVO'
+                  WHERE e.id_estudiante = :estudiante"
+            );
+            $stmtActivar->execute(['estudiante' => $idEstudiante]);
+
+            $stmtEstado = $this->pdo->prepare(
+                "SELECT p.estado
+                   FROM persona p
+                   INNER JOIN estudiante e ON e.id_persona = p.id_persona
+                  WHERE e.id_estudiante = :estudiante"
+            );
+            $stmtEstado->execute(['estudiante' => $idEstudiante]);
+            if ((string) $stmtEstado->fetchColumn() !== 'ACTIVO') {
+                throw new RuntimeException('No se pudo reactivar el estado del estudiante reincorporado.');
+            }
+
+            // 6. Registrar bitácora
             if ($idUsuario > 0) {
                 (new AuditLogModel($this->pdo))->registrar(
                     $idUsuario,

@@ -794,12 +794,28 @@ BEGIN
             SET MESSAGE_TEXT = 'El reingreso solo aplica a estudiantes que se encuentran en estado de retiro.';
     END IF;
 
+    /* Dos periodos pueden compartir `anio_inicio` si se cargaron a mano.
+       En ese caso se desempata por id: el año activo se inserta después del
+       cerrado y por eso su id es mayor. Sin este desempate, la ratificación
+       quedaba bloqueada aunque el año destino fuera el correcto. */
     IF NEW.tipo = 'RATIFICACION' AND (
-        SELECT an2.anio_inicio FROM anio_escolar an2
-         WHERE an2.id_anio_escolar = NEW.id_anio_escolar
-    ) <= (
-        SELECT an1.anio_inicio FROM anio_escolar an1
-         WHERE an1.id_anio_escolar = v_previo_anio
+        (
+            SELECT an2.anio_inicio FROM anio_escolar an2
+             WHERE an2.id_anio_escolar = NEW.id_anio_escolar
+        ) < (
+            SELECT an1.anio_inicio FROM anio_escolar an1
+             WHERE an1.id_anio_escolar = v_previo_anio
+        )
+        OR (
+            (
+                SELECT an2.anio_inicio FROM anio_escolar an2
+                 WHERE an2.id_anio_escolar = NEW.id_anio_escolar
+            ) = (
+                SELECT an1.anio_inicio FROM anio_escolar an1
+                 WHERE an1.id_anio_escolar = v_previo_anio
+            )
+            AND NEW.id_anio_escolar <= v_previo_anio
+        )
     ) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'La ratificacion debe ir en un anio escolar posterior al de la anterior matricula cursada.';
@@ -2636,17 +2652,17 @@ CREATE TABLE `persona_estudiante` (
   `vive_con_estudiante` tinyint(1) NOT NULL DEFAULT 0,
   `estado_relacion` enum('ACTIVO','INACTIVO','SUSPENDIDO') NOT NULL DEFAULT 'ACTIVO',
   `id_parentesco` int(11) DEFAULT NULL,
-  `id_profesion` int(11) DEFAULT NULL,
+  `id_ocupacion` int(11) DEFAULT NULL,
   PRIMARY KEY (`id_persona_estudiante`),
   UNIQUE KEY `uk_relacion_persona_estudiante` (`id_persona`,`id_estudiante`),
   KEY `idx_relacion_estudiante` (`id_estudiante`),
   KEY `idx_relacion_estado_rel` (`estado_relacion`),
   KEY `idx_relacion_parentesco` (`id_parentesco`),
-  KEY `idx_relacion_profesion` (`id_profesion`),
+  KEY `idx_relacion_profesion` (`id_ocupacion`),
   CONSTRAINT `fk_relacion_estudiante` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_relacion_parentesco` FOREIGN KEY (`id_parentesco`) REFERENCES `parentesco` (`id_parentesco`) ON UPDATE CASCADE,
   CONSTRAINT `fk_relacion_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_relacion_profesion` FOREIGN KEY (`id_profesion`) REFERENCES `ocupacion` (`id_ocupacion`) ON DELETE SET NULL ON UPDATE CASCADE
+  CONSTRAINT `fk_relacion_profesion` FOREIGN KEY (`id_ocupacion`) REFERENCES `ocupacion` (`id_ocupacion`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2259 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

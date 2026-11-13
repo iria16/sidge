@@ -2455,17 +2455,17 @@ CREATE TABLE `persona_estudiante` (
   `vive_con_estudiante` tinyint(1) NOT NULL DEFAULT 0,
   `estado_relacion` enum('ACTIVO','INACTIVO','SUSPENDIDO') NOT NULL DEFAULT 'ACTIVO',
   `id_parentesco` int(11) DEFAULT NULL,
-  `id_profesion` int(11) DEFAULT NULL,
+  `id_ocupacion` int(11) DEFAULT NULL,
   PRIMARY KEY (`id_persona_estudiante`),
   UNIQUE KEY `uk_relacion_persona_estudiante` (`id_persona`,`id_estudiante`),
   KEY `idx_relacion_estudiante` (`id_estudiante`),
   KEY `idx_relacion_estado_rel` (`estado_relacion`),
   KEY `idx_relacion_parentesco` (`id_parentesco`),
-  KEY `idx_relacion_profesion` (`id_profesion`),
+  KEY `idx_relacion_profesion` (`id_ocupacion`),
   CONSTRAINT `fk_relacion_estudiante` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_relacion_parentesco` FOREIGN KEY (`id_parentesco`) REFERENCES `parentesco` (`id_parentesco`) ON UPDATE CASCADE,
   CONSTRAINT `fk_relacion_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_relacion_profesion` FOREIGN KEY (`id_profesion`) REFERENCES `ocupacion` (`id_ocupacion`) ON DELETE SET NULL ON UPDATE CASCADE
+  CONSTRAINT `fk_relacion_profesion` FOREIGN KEY (`id_ocupacion`) REFERENCES `ocupacion` (`id_ocupacion`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2259 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

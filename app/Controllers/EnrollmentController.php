@@ -246,6 +246,7 @@ class EnrollmentController extends CrudController
             'id_grado'                => $idGrado,
             'ult_grado_cursado'       => $this->capitalizarTitulo($raw('ultimo_grado_cursado')),
             'es_primer_ingreso'       => $esPrimerIngreso ? 1 : 0,
+            'motivo_salida_institucion_previa' => $this->normalizarEspacios($raw('motivo_retiro')),
             'anio_escolar_pre'        => $this->normalizarEspacios($raw('anio_escolar_procedencia')),
             'id_institucion'          => $idInstitucion,
             'id_estructura_academica' => $estructuraId,

@@ -7,7 +7,6 @@ namespace App\Models;
 use App\Support\AniosEscolares;
 use App\Support\Matriculas;
 use PDO;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -687,8 +686,14 @@ class AcademicResultModel extends BaseModel
             $stmtAnio->execute(['id' => $idAnioDestino]);
             $inicioDestino = $stmtAnio->fetchColumn();
             if ($inicioDestino) {
-                $filtroAnio = 'AND ae.anio_inicio < :inicio_dest';
+                /* Dos años pueden compartir `anio_inicio` si se cargaron a mano.
+                   En ese caso el resultado del período cerrado sigue siendo el
+                   anterior; el año destino se excluye por id. */
+                $filtroAnio = 'AND (ae.anio_inicio < :inicio_dest
+                                    OR (ae.anio_inicio = :inicio_dest_igual AND ae.id_anio_escolar <> :id_dest))';
                 $params['inicio_dest'] = $inicioDestino;
+                $params['inicio_dest_igual'] = $inicioDestino;
+                $params['id_dest'] = $idAnioDestino;
             }
         }
 

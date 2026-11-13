@@ -162,7 +162,7 @@ if (!function_exists('sigde_nav_sections')) {
             ],
             [
                 'label' => 'Personal',
-                'roles' => ['directivo', 'coordinador', 'secretaria'],
+                'roles' => ['directivo', 'coordinador'],
                 'items' => [
                     ['id' => 'empleados', 'label' => 'Empleados', 'icon' => 'bi-person-badge', 'href' => BASE_URL . 'empleado/index'],
                 ],

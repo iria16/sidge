@@ -783,7 +783,7 @@ protected function extractData(array $source): array
  faltara fuera la institución.*/
                 if (!isset($errores['formacion'])) {
                     /* Se avisa solo de la primera fila incompleta: si hay varias, varios
- mensajes en el mismo campo se pisan y la secretaria vería uno solo
+ mensajes en el mismo campo se pisan y el usuario vería uno solo
  sin saber a qué documento corresponde.*/
                     $errores['formacion'] = $this->motivoFilaIncompleta($entrada);
                 }

@@ -27,9 +27,9 @@ ob_start();
       <a href="#" id="btnFallbackAbrir" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">
         <i class="bi bi-box-arrow-up-right me-1"></i> Abrir en nueva pestaña
       </a>
-      <a href="#" id="btnFallbackDescargar" download target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+      <button type="button" id="btnFallbackDescargar" class="btn btn-primary btn-sm">
         <i class="bi bi-download me-1"></i> Descargar PDF
-      </a>
+      </button>
     </div>
   </div>
 
@@ -47,9 +47,9 @@ ob_start();
 <button type="button" class="btn btn-outline-primary" id="btnImprimirConstancia">
   <i class="bi bi-printer me-1" aria-hidden="true"></i>Imprimir
 </button>
-<a href="#" id="btnDescargarConstanciaPdf" class="btn btn-primary" download target="_blank" rel="noopener">
+<button type="button" id="btnDescargarConstanciaPdf" class="btn btn-primary">
   <i class="bi bi-download me-1" aria-hidden="true"></i>Descargar PDF
-</a>
+</button>
 <?php
 $modalFooter   = ob_get_clean();
 $modalId       = 'modalVistaPreviaConstancia';
